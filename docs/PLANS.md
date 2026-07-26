@@ -8,8 +8,8 @@
 ## 메인 프로그래머 작업리스트
 | 단계 | Main Task 문서 | 해야 할 항목 | 상태 |
 | --- | --- | --- | --- |
-| 01-1 | `Tasks/01-1_project_baseline.md` | 프로젝트 기반과 시작 상태 확인 | 예정 |
-| 01-2 | `Tasks/01-2_player_movement_camera_input.md` | 기본 캐릭터 이동, 카메라, 2인 PIE | 예정 |
+| 01-1 | `Tasks/01-1_project_baseline.md` | 프로젝트 기반과 시작 상태 확인 | 완료 |
+| 01-2 | `Tasks/01-2_player_movement_camera_input.md` | 기본 캐릭터 이동, 카메라, 2인 PIE | 진행중 |
 | 02-1 | `Tasks/02-1_basic_network_snowball.md` | 서버 생성 눈덩이의 복제와 충돌 | 예정 |
 | 02-2 | `Tasks/02-2_health_damage_freeze.md` | 최소 눈덩이 피해, HP, 얼기 | 예정 |
 | 03-1 | `Tasks/03-1_lan_host_join.md` | LAN 세션 Host/Join | 예정 |
@@ -51,9 +51,10 @@ SUB Task는 연결된 Main Task가 완료되고 실제 UI 연결 지점이 기�
 
 | Task | 메인 프로그래머 선점 파일·비UI 자산 | SUB 프로그래머 선점 UI 자산 | 상태 |
 | --- | --- | --- | --- |
-| 없음 | 없음 | 없음 | 대기 |
+| 01-2 | `Source/SnowRumble/Player/`, `Source/SnowRumble/Game/`, `Content/Characters/BP_SnowRumbleCharacter`, `Content/Input/`, `Content/Game/BP_SnowRumbleGameMode`, `Content/Maps/L_Prototype`, `Tasks/01-2_player_movement_camera_input.md`, `docs/ARCHITECTURE.md`, `docs/PENDING_ISSUES.md`, `docs/PLANS.md` | 없음 | 진행중 |
 
 ## 최근 작업 로그
+- 2026-07-27: Task 01-1에서 `/Game/Maps/L_Prototype` 기본 테스트 맵 생성, 시작 맵 설정, 1인 PIE 결과 확인을 완료함.
 - 2026-07-27: 숙련된 메인 프로그래머가 UI를 제외한 전체 개발을, 초보 SUB 프로그래머가 UI만 담당하도록 역할을 조정하고 15개 Main Task와 8개 SUB UI Task를 분리함.
 - 2026-07-27: 메인 프로그래머는 기획·Task·규칙·C++·통합, SUB 프로그래머는 배정된 Blueprint·에셋을 단독 소유하도록 2인 충돌 방지 규칙을 추가함.
 - 2026-07-26: 전체 MVP Task를 프로그래머와 Blueprint 개발자의 2인 협업 구조로 개편하고 C++→Blueprint 인계 기준을 추가함.
