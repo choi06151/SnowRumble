@@ -1,0 +1,67 @@
+# SnowRumble - Unreal Engine project
+#
+# Source/, Content/, Config/, Plugins/, docs/, Tasks/ and *.uproject
+# are intentionally tracked.
+
+# Unreal Engine generated folders
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+
+# Generated folders inside project plugins
+Plugins/*/Binaries/
+Plugins/*/Intermediate/
+
+# Visual Studio generated files
+.vs/
+*.sln
+*.slnx
+*.VC.db
+*.VC.opendb
+*.sdf
+*.opensdf
+*.suo
+*.user
+*.userprefs
+*.csproj
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+.vsconfig
+
+# JetBrains Rider and IntelliJ generated files
+.idea/
+*.sln.iml
+
+# Visual Studio Code local settings
+.vscode/
+
+# Xcode generated files
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+
+# Compiler and build artifacts
+*.obj
+*.pch
+*.pdb
+*.ilk
+
+# Unreal logs, crash dumps and temporary files
+*.log
+*.dmp
+*.tmp
+*.temp
+*.bak
+*~
+
+# Local AI tool state; shared rules live in AGENTS.md, docs/ and Tasks/
+.agents/
+.codex/
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
