@@ -29,6 +29,19 @@
 - 공유 확인 대상: Host·검색·Join의 각 상태 표시
 - 반영 순서: Main Task 03-1 완료 후 시작
 
+## Main Task 03-1 인계
+
+- `Get Snow Rumble Session Subsystem` 노드로 서브시스템을 가져와 로컬 UI 요청에 사용한다.
+- `Host Lan Session(MaxPlayers)`는 2~16 범위로 보정된 인원의 NULL LAN Listen Server 세션을 생성한다.
+- `Find Lan Sessions()`는 LAN 검색을 시작하고 완료 시 검색 결과를 갱신한다.
+- `Join Lan Session(ResultIndex)`는 마지막 검색 결과의 `ResultIndex`로 참가를 요청한다.
+- `Get Search Results()`는 `SnowRumbleSessionInfo` 배열을 반환한다.
+- `SnowRumbleSessionInfo`에는 `ResultIndex`, `HostName`, `CurrentPlayers`, `MaxPlayers`, `PingMilliseconds`가 있다.
+- `On Session State Changed(Operation, State, Message)` 이벤트로 요청별 진행·성공·실패를 표시한다.
+- `Operation`은 `None`, `Host`, `Search`, `Join`, `State`는 `Idle`, `InProgress`, `Succeeded`, `Failed`로 구분된다.
+- `On Session Search Completed(Results)` 이벤트로 검색 목록을 다시 만든다.
+- UI는 `State`와 이벤트 결과만 표시하고 세션 성공 여부나 연결 주소를 자체 판정하지 않는다.
+
 ## 수동 작업 (구현 후 구체화)
 
 ## 완료 조건

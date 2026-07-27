@@ -21,10 +21,14 @@
 <!-- 새 프로젝트 시작 시 이 구역의 항목을 초기화한다. -->
 
 - `Source/SnowRumble/`: `SnowRumble` 런타임 C++ 모듈
-  - `Player/`: 플레이어 캐릭터의 이동, 카메라와 입력 연결
+  - `Player/`: 플레이어 캐릭터의 이동·카메라·입력 연결과 분리된 HP·얼기 상태 컴포넌트
+  - `Interaction/`: 특정 대상 종류와 분리된 로컬 상호작용 표현 컴포넌트
   - `Game/`: 게임 모드 등 게임 시작 규칙의 기본 클래스
+  - `Snowball/`: 바닥·장착·투척 상태를 갖는 눈덩이 아이템, 눈 바닥 제작 컴포넌트, 플레이어의 눈덩이 장비 컴포넌트와 기존 최소 투사체 프로토타입
+  - `Online/`: GameInstance 수명 동안 유지되는 LAN 세션 생성·검색·참가 흐름과 UI 연결 지점
 - `Config/`: 엔진, 게임, 입력 등 프로젝트 기본 설정
 - `Content/`: Blueprint, 맵, UI, 애니메이션, 모델, 머티리얼 등 Unreal 자산
+  - `Snowball/`: C++ 눈덩이 액터를 부모로 사용하는 비UI Blueprint와 표현 자산
 - `docs/GDD/`: 전체 게임 기획과 현재 MVP 범위
   - `Game_GDD.md`: 전체 게임 규칙과 기능의 기준
   - `GDD_PROGRESS.md`: 현재 MVP, 단계, 미결정 사항

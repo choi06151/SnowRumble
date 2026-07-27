@@ -31,6 +31,15 @@
 - 공유 확인 대상: 호스트와 클라이언트 각각의 로컬 HUD
 - 반영 순서: 관련 Main·SUB Task 완료 후 통합
 
+## Main Task 02-2 인계
+
+- 로컬 플레이어의 `BP_SnowRumbleCharacter`에서 `HealthComponent`를 읽는다.
+- 현재 값은 `Get Current Health`, `Get Max Health`, `Is Frozen` Blueprint Pure 함수로 읽는다.
+- HP 변경은 `HealthComponent`의 `On Health Changed(CurrentHealth, MaxHealth)` 이벤트로 받는다.
+- 얼기 변경은 `HealthComponent`의 `On Frozen Changed(bIsFrozen)` 이벤트로 받는다.
+- 두 이벤트는 서버에서 상태를 확정한 뒤 복제 결과에 따라 각 화면에서 호출된다.
+- HUD는 로컬 소유 캐릭터의 `HealthComponent`에만 연결하고 HP나 얼기 상태를 직접 변경하지 않는다.
+
 ## 수동 작업 (구현 후 구체화)
 
 ## 완료 조건
