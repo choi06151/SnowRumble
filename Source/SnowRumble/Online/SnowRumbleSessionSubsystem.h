@@ -1,0 +1,154 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Interfaces/OnlineSessionInterface.h"
+#include "Subsystems/GameInstanceSubsystem.h"
+#include "SnowRumbleSessionSubsystem.generated.h"
+
+class UWorld;
+
+UENUM(BlueprintType)
+enum class ESnowRumbleSessionOperation : uint8
+{
+	None,
+	Host,
+	Search,
+	Join
+};
+
+UENUM(BlueprintType)
+enum class ESnowRumbleSessionState : uint8
+{
+	Idle,
+	InProgress,
+	Succeeded,
+	Failed
+};
+
+USTRUCT(BlueprintType)
+struct FSnowRumbleSessionInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Session")
+	int32 ResultIndex = INDEX_NONE;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Session")
+	FString HostName;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Session")
+	int32 CurrentPlayers = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Session")
+	int32 MaxPlayers = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Session")
+	int32 PingMilliseconds = 0;
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
+	FOnSnowRumbleSessionStateChanged,
+	ESnowRumbleSessionOperation,
+	Operation,
+	ESnowRumbleSessionState,
+	State,
+	const FString&,
+	Message);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+	FOnSnowRumbleSessionSearchCompleted,
+	const TArray<FSnowRumbleSessionInfo>&,
+	Results);
+
+UCLASS(BlueprintType)
+class SNOWRUMBLE_API USnowRumbleSessionSubsystem : public UGameInstanceSubsystem
+{
+	GENERATED_BODY()
+
+public:
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
+
+	/** 최대 인원으로 광고되는 NULL LAN Listen Server 세션을 생성한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Session")
+	void HostLanSession(int32 MaxPlayers = 16);
+
+	/** 현재 LAN에서 참가 가능한 NULL 세션을 검색한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Session")
+	void FindLanSessions();
+
+	/** 마지막 검색 결과의 인덱스를 사용해 세션 참가를 요청한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Session")
+	void JoinLanSession(int32 ResultIndex);
+
+	/** 마지막으로 변환된 Blueprint용 검색 결과를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Session")
+	const TArray<FSnowRumbleSessionInfo>& GetSearchResults() const;
+
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Session")
+	ESnowRumbleSessionOperation GetCurrentOperation() const;
+
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Session")
+	ESnowRumbleSessionState GetCurrentState() const;
+
+	UPROPERTY(BlueprintAssignable, Category = "SnowRumble|Session")
+	FOnSnowRumbleSessionStateChanged OnSessionStateChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "SnowRumble|Session")
+	FOnSnowRumbleSessionSearchCompleted OnSessionSearchCompleted;
+
+private:
+	/** 현재 프로젝트에 설정된 OnlineSubsystem의 세션 인터페이스를 가져온다. */
+	IOnlineSessionPtr GetSessionInterface() const;
+
+	/** Listen Server NetDriver가 준비된 뒤 실제 LAN 세션을 생성한다. */
+	void CreateLanSession(int32 MaxPlayers);
+
+	/** Host 맵 로드 완료 시 열린 포트를 사용해 LAN 세션 생성을 계속한다. */
+	void HandlePostLoadMap(UWorld* LoadedWorld);
+
+	/** 요청 상태를 저장하고 Blueprint 구독자에게 전달한다. */
+	void SetOperationState(
+		ESnowRumbleSessionOperation Operation,
+		ESnowRumbleSessionState State,
+		const FString& Message);
+
+	/** 다른 비동기 세션 요청이 진행 중인지 확인한다. */
+	bool IsOperationInProgress() const;
+
+	/** 세션 생성 완료 결과를 처리하고 성공 시 Listen Server 맵으로 이동한다. */
+	void HandleCreateSessionComplete(FName SessionName, bool bWasSuccessful);
+
+	/** 검색 결과를 Blueprint 구조체로 변환한다. */
+	void HandleFindSessionsComplete(bool bWasSuccessful);
+
+	/** 참가 결과를 처리하고 성공 시 해석된 서버 주소로 이동한다. */
+	void HandleJoinSessionComplete(
+		FName SessionName,
+		EOnJoinSessionCompleteResult::Type Result);
+
+	/** 등록된 세션 생성 완료 델리게이트를 해제한다. */
+	void ClearCreateSessionDelegate();
+
+	/** 등록된 세션 검색 완료 델리게이트를 해제한다. */
+	void ClearFindSessionsDelegate();
+
+	/** 등록된 세션 참가 완료 델리게이트를 해제한다. */
+	void ClearJoinSessionDelegate();
+
+	TSharedPtr<FOnlineSessionSearch> ActiveSessionSearch;
+	TArray<FSnowRumbleSessionInfo> SearchResults;
+
+	FDelegateHandle CreateSessionCompleteHandle;
+	FDelegateHandle FindSessionsCompleteHandle;
+	FDelegateHandle JoinSessionCompleteHandle;
+	FDelegateHandle PostLoadMapHandle;
+
+	FName LocalSessionName;
+	int32 PendingHostMaxPlayers = 16;
+	bool bHostTravelPending = false;
+	ESnowRumbleSessionOperation CurrentOperation = ESnowRumbleSessionOperation::None;
+	ESnowRumbleSessionState CurrentState = ESnowRumbleSessionState::Idle;
+};

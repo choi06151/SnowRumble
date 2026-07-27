@@ -23,6 +23,23 @@
 - Main Task 04-2의 조준 여부와 작은 눈 충전 진행도
 - 큰 눈 구분은 Main Task 04-3 완료 후 연결
 
+## Main Task 04-3 성장 단위 인계
+
+- `SnowballItem`의 `Get Growth Progress()`는 서버가 실제 굴린 거리로 확정한 `0~1` 성장률을 반환한다.
+- `SnowballEquipmentComponent`의 `Is Rolling Snowball()`로 로컬 플레이어의 굴리기 상태를 읽는다.
+- 캐릭터의 `Get Snowball Carry State()`는 `Normal`, `Small Snowball`, `Large Snowball` Enum으로 현재 보유 크기를 구분한다.
+- 캐릭터의 `Get Snowball Action State()`는 운반 상태와 별개로 `None`, `Rolling Snowball` 행동을 구분한다.
+- UI는 성장률이나 Actor Scale을 직접 변경하지 않고 복제된 값만 표시한다.
+
+## Main Task 연결 지점
+
+- `ASnowRumbleCharacter::IsAiming()`은 로컬·원격 캐릭터의 복제된 실제 조준 상태를 반환한다.
+- `ASnowRumbleCharacter::IsChargingSnowball()`과 `GetSnowballChargeProgress()`로 충전 표시 여부와 `0~1` 진행도를 읽는다.
+- `USnowballEquipmentComponent::IsAiming()`과 `OnAimingChanged(bool)`로 조준 UI 표시 여부를 조회하거나 변경 알림을 받을 수 있다.
+- `USnowballEquipmentComponent::IsCharging()`, `GetChargeProgress()`, `OnChargingChanged(bool)`도 같은 충전 데이터를 제공한다.
+- UI는 `SetAiming`을 호출하거나 이동속도, FOV, 투척 가능 여부를 변경하지 않는다.
+- 현재 C++ 화면 문자열은 실제 게이지 UI 확인 후 제거할 임시 표시다.
+
 ## 작업 배정
 
 - 담당자: SUB 프로그래머

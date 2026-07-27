@@ -9,14 +9,14 @@
 | 단계 | Main Task 문서 | 해야 할 항목 | 상태 |
 | --- | --- | --- | --- |
 | 01-1 | `Tasks/01-1_project_baseline.md` | 프로젝트 기반과 시작 상태 확인 | 완료 |
-| 01-2 | `Tasks/01-2_player_movement_camera_input.md` | 기본 캐릭터 이동, 카메라, 2인 PIE | 진행중 |
-| 02-1 | `Tasks/02-1_basic_network_snowball.md` | 서버 생성 눈덩이의 복제와 충돌 | 예정 |
-| 02-2 | `Tasks/02-2_health_damage_freeze.md` | 최소 눈덩이 피해, HP, 얼기 | 예정 |
-| 03-1 | `Tasks/03-1_lan_host_join.md` | LAN 세션 Host/Join | 예정 |
+| 01-2 | `Tasks/01-2_player_movement_camera_input.md` | 기본 캐릭터 이동, 카메라, 스프린트, 2인 PIE | 완료 |
+| 02-1 | `Tasks/02-1_basic_network_snowball.md` | 서버 생성 눈덩이의 복제와 충돌 | 완료 |
+| 02-2 | `Tasks/02-2_health_damage_freeze.md` | 최소 눈덩이 피해, HP, 얼기 | 완료 |
+| 03-1 | `Tasks/03-1_lan_host_join.md` | LAN 세션 Host/Join | 완료 |
 | 03-2 | `Tasks/03-2_lobby_team_ready.md` | 대기방, 팀 선택, 준비 상태 | 예정 |
-| 04-1 | `Tasks/04-1_snow_creation_interaction.md` | 눈 만들기, 잡기, 내려놓기 | 예정 |
-| 04-2 | `Tasks/04-2_snow_aim_charge_throw.md` | 조준, 충전, 작은 눈 투척 | 예정 |
-| 04-3 | `Tasks/04-3_snow_roll_and_large_snow.md` | 눈 굴리기, 성장, 큰 눈 투척 | 예정 |
+| 04-1 | `Tasks/04-1_snow_creation_interaction.md` | 눈 만들기, 잡기, 내려놓기 | 완료 |
+| 04-2 | `Tasks/04-2_snow_aim_charge_throw.md` | 조준, 충전, 작은 눈 투척 | 완료 |
+| 04-3 | `Tasks/04-3_snow_roll_and_large_snow.md` | 눈 굴리기, 성장, 큰 눈 투척 | 진행중 |
 | 05-1 | `Tasks/05-1_spectate_and_hotpack_revive.md` | 아군 관전과 핫팩 부활 | 예정 |
 | 05-2 | `Tasks/05-2_gift_box.md` | 선물상자 생성과 공격 개봉 | 예정 |
 | 05-3 | `Tasks/05-3_basic_items.md` | MVP 기본 아이템 | 예정 |
@@ -51,9 +51,47 @@ SUB Task는 연결된 Main Task가 완료되고 실제 UI 연결 지점이 기�
 
 | Task | 메인 프로그래머 선점 파일·비UI 자산 | SUB 프로그래머 선점 UI 자산 | 상태 |
 | --- | --- | --- | --- |
-| 01-2 | `Source/SnowRumble/Player/`, `Source/SnowRumble/Game/`, `Content/Characters/BP_SnowRumbleCharacter`, `Content/Input/`, `Content/Game/BP_SnowRumbleGameMode`, `Content/Maps/L_Prototype`, `Tasks/01-2_player_movement_camera_input.md`, `docs/ARCHITECTURE.md`, `docs/PENDING_ISSUES.md`, `docs/PLANS.md` | 없음 | 진행중 |
+| 04-3 E 탭 획득·E 유지 굴리기 | `Source/SnowRumble/Player/SnowRumbleCharacter.h`, `Source/SnowRumble/Player/SnowRumbleCharacter.cpp`, `Source/SnowRumble/Snowball/SnowballEquipmentComponent.h`, `Source/SnowRumble/Snowball/SnowballEquipmentComponent.cpp`, `Source/SnowRumble/Snowball/SnowballItem.h`, `Source/SnowRumble/Snowball/SnowballItem.cpp`, `Tasks/04-3_snow_roll_and_large_snow.md`, `docs/GDD/Game_GDD.md`, `docs/PENDING_ISSUES.md`, `docs/PLANS.md` | 없음 | 진행중 |
 
 ## 최근 작업 로그
+- 2026-07-28: Task 04-3의 AnimBP 상태를 운반 `ESnowballCarryState`와 행동 `ESnowballActionState`로 분리하고 굴리기를 `Normal + RollingSnowball` 조합으로 노출함.
+- 2026-07-28: Task 04-3에 Animation Blueprint용 `ESnowballCarryState`와 `GetSnowballCarryState()`를 추가해 평소·작은 눈·최대 성장 큰 눈 보유 상태를 구분함.
+- 2026-07-28: Task 04-3에서 첫 성장 시 충돌 구체가 바닥에 파고들어 다음 Sweep을 막는 문제를 수정하고 증가한 반지름만큼 서버 위치를 위로 보정함.
+- 2026-07-28: Task 04-3의 지속 굴리기를 막던 반대 방향 캐릭터 캡슐 충돌도 굴리기 동안 제외하고 종료 시 복구하도록 수정함.
+- 2026-07-28: Task 04-3 Sweep 굴리기가 첫 이동 후 플레이어 캡슐에 막히던 문제를 수정하고 굴리기 동안 Roller만 이동 충돌 대상에서 제외함.
+- 2026-07-28: Task 04-3의 성장 복제는 유지하면서 굴리기 이동을 네트워크와 충돌이 더 안정적인 서버 Sweep 방식으로 되돌림.
+- 2026-07-28: Task 04-3 굴리기를 서버 물리 가속 방식으로 교체하고 실제 이동거리 기반 `1~3배` 성장 복제, 충돌 크기와 성장별 이동속도·가속 감소를 구현해 2인 PIE 확인 단계로 전환함.
+- 2026-07-28: Task 04-3의 첫 단위로 E 해제 시 획득과 E 유지+WASD 서버 권한 굴리기 상태·Sweep 이동·종료 복구를 구현하고 2인 PIE 확인 단계로 전환함.
+- 2026-07-28: Task 04-3을 `E 탭 획득 / E 유지 + WASD 굴리기`와 후속 거리 기반 성장 단위로 나누고 첫 단위를 진행중으로 전환함.
+- 2026-07-28: Task 04-1의 손 위치 내려놓기와 바닥 충돌 복구를 확인하고 눈 만들기·잡기·내려놓기 Task를 완료함.
+- 2026-07-28: Task 04-1 내려놓기에서 별도 위치 이동을 제거해 손의 월드 위치에서 놓도록 바꾸고 바닥 충돌 프로필·중력·물리 Wake 복구를 명시함.
+- 2026-07-28: Task 04-1에 서버 권한 `G` 눈덩이 내려놓기, 조준·충전 취소와 바닥 물리 복구를 구현하고 2인 PIE 확인 단계로 전환함.
+- 2026-07-28: Task 04-1의 제작·획득 AnimBP 상태, 획득 중 행동 제한, 종료 후 이동 복구와 호스트·클라이언트 동기화를 확인함.
+- 2026-07-28: 프로젝트의 Custom Depth/Stencil 설정을 바로잡은 뒤 Task 04-1의 로컬 획득 후보 아웃라인이 정상 표시·해제되는 것을 확인함.
+- 2026-07-27: Task 04-1에 특정 대상 클래스와 분리된 로컬 `OutlineComponent`를 추가하고 가장 가까운 획득 가능 눈덩이의 Custom Depth/Stencil 표현을 구현해 수동 확인 단계로 전환함.
+- 2026-07-27: Task 04-2의 조준 중 카메라 방향 회전·스트레이프, 조준 해제 후 이동 방향 회전과 호스트·클라이언트 동기화를 확인하고 다시 완료함.
+- 2026-07-27: 다음 작업을 Task 04-1의 `획득 가능 아이템 범위 아웃라인` 단위로 예약하고, 로컬 전용 Custom Depth/Stencil 컴포넌트 범위와 파일 소유권을 기록함.
+- 2026-07-27: 완료된 Task 04-2를 다시 열어 조준 중 캐릭터가 카메라 수평 방향을 바라보고 스트레이프하도록 회전 모드를 전환함.
+- 2026-07-27: 애니메이션용 지연 보유 상태가 좌클릭 제작 분기를 막던 회귀를 수정하고 제작·충전 선택을 서버의 실제 장비 상태 판정으로 변경함.
+- 2026-07-27: Task 04-1에서 아이템 획득 애니메이션 상태 동안 수평 이동을 즉시 정지하고 이동·점프·스프린트와 다른 행동을 차단한 뒤 종료 시 복구하도록 구현함.
+- 2026-07-27: Task 04-1에서 실제 눈덩이 소유권은 즉시 유지하면서 `IsHoldingSnowball()` 노출과 조준 가능 시점을 획득 애니메이션 종료 뒤로 지연함.
+- 2026-07-27: Task 04-1에 Animation Blueprint용 복제 제작 상태 `IsCreatingSnowball()`과 범용 아이템 획득 상태 `IsPickingUpItem()`을 연결함.
+- 2026-07-27: Task 04-1의 눈 바닥 제작 취소·제한과 서버 `SnowballItem` 생성 복제가 정상임을 확인함.
+- 2026-07-27: Task 04-1의 두 번째 단위로 `SnowSurface` 서버 판정, 1.5초 제작 상태·진행도 복제와 `SnowballItem` 서버 생성을 구현하고 Blueprint 연결 및 2인 PIE 확인 단계로 전환함.
+- 2026-07-27: Task 04-2의 조준 제한, 임시 충전 문자열, 충전량별 투척 속도와 실제 `SnowballItem`의 투척·충돌·제거가 호스트와 클라이언트에서 정상임을 확인하고 완료함.
+- 2026-07-27: Task 04-2에 서버 시간 기반 좌클릭 충전, 임시 문자열 충전율, 충전량 비례 속도와 실제 보유 `SnowballItem`의 투척·이동·충돌 복제를 구현하고 2인 PIE 확인 단계로 전환함.
+- 2026-07-27: Task 04-2의 첫 단위로 서버 권한 조준 상태 복제, 로컬 FOV 확대, 조준 이동 감속, 스프린트 차단과 `눈덩이 보유 + 조준 중` 투척 조건을 구현하고 2인 PIE 확인 단계로 전환함.
+- 2026-07-27: Task 04-1의 첫 단위인 바닥 눈덩이 물리, 서버 획득 판정, SnowballSocket 장착과 스케일 유지 결과를 2인 PIE에서 확인함.
+- 2026-07-27: Task 04-1의 첫 단위로 서버 권한 바닥 눈덩이 획득, 보유 상태 복제와 손 위치 장착 기본틀을 구현하고 2인 PIE 연결 확인 단계로 전환함.
+- 2026-07-27: Task 01-2의 Shift 스프린트와 Animation Blueprint용 이동·공중·스프린트·얼기 상태를 호스트·클라이언트에서 확인하고 다시 완료함.
+- 2026-07-27: 완료된 Task 01-2를 다시 열어 서버 복제 Shift 스프린트와 Animation Blueprint용 이동·공중·스프린트·얼기 상태 조회 함수를 구현하고 에디터 연결 확인 단계로 전환함.
+- 2026-07-27: Task 03-1에서 PIE World별 NULL 서브시스템과 Listen 포트 광고를 수정하고 LAN Host·검색·Join, 플레이어 참가와 실패 경로를 확인한 뒤 임시 테스트 노드를 제거하고 완료함.
+- 2026-07-27: Task 03-1의 OnlineSubsystem NULL 기반 Host·검색·Join 서브시스템과 UI용 상태·검색 결과 이벤트를 구현하고 별도 프로세스 LAN 확인 단계로 전환함.
+- 2026-07-27: Task 02-2의 양방향 눈덩이 피해, HP·얼기 복제, 행동 제한, 얼음 엄폐와 카메라 유지 동작을 2인 PIE에서 확인하고 완료함.
+- 2026-07-27: Task 02-2의 서버 권한 피해, 복제 HP·얼기 상태, 행동 제한과 HUD용 변경 이벤트를 구현하고 Blueprint 연결 및 2인 PIE 확인 단계로 전환함.
+- 2026-07-27: Task 02-1의 호스트·클라이언트 눈덩이 생성, 이동, 충돌과 제거 복제를 확인하고 Blueprint 디버그 출력을 제거한 뒤 완료함.
+- 2026-07-27: Task 02-1의 서버 권한 투척 RPC와 복제 눈덩이 이동·충돌·제거 C++ 기본틀을 구현하고, Blueprint 연결 및 2인 PIE 확인 단계로 전환함.
+- 2026-07-27: Task 01-2에서 호스트·클라이언트 이동, 카메라, 점프와 상호 복제를 2인 Listen Server PIE로 확인하고 완료함.
 - 2026-07-27: Task 01-1에서 `/Game/Maps/L_Prototype` 기본 테스트 맵 생성, 시작 맵 설정, 1인 PIE 결과 확인을 완료함.
 - 2026-07-27: 숙련된 메인 프로그래머가 UI를 제외한 전체 개발을, 초보 SUB 프로그래머가 UI만 담당하도록 역할을 조정하고 15개 Main Task와 8개 SUB UI Task를 분리함.
 - 2026-07-27: 메인 프로그래머는 기획·Task·규칙·C++·통합, SUB 프로그래머는 배정된 Blueprint·에셋을 단독 소유하도록 2인 충돌 방지 규칙을 추가함.
