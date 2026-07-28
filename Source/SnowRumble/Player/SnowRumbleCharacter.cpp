@@ -74,16 +74,18 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 
 	if (OutlineComponent)
 	{
-		AActor* PickupCandidate = nullptr;
+		AActor* OutlinedActor = nullptr;
 		if (IsLocallyControlled()
 			&& CanPerformGameplayAction()
 			&& SnowballEquipmentComponent
 			&& !SnowballEquipmentComponent->HasHeldSnowball())
 		{
-			PickupCandidate = SnowballEquipmentComponent->FindClosestPickupCandidate();
+			OutlinedActor = SnowballEquipmentComponent->IsRollingSnowball()
+				? SnowballEquipmentComponent->GetRollingSnowball()
+				: SnowballEquipmentComponent->FindClosestPickupCandidate();
 		}
 
-		OutlineComponent->SetOutlinedActor(PickupCandidate);
+		OutlineComponent->SetOutlinedActor(OutlinedActor);
 	}
 
 	ApplyMovementSpeed();
@@ -448,7 +450,13 @@ void ASnowRumbleCharacter::HandleAimCompleted()
 
 void ASnowRumbleCharacter::HandleActionStarted()
 {
-	if (!CanPerformGameplayAction())
+	const bool bCanAct = CanPerformGameplayAction();
+	USnowballCreationComponent* ActiveCreationComponent =
+		SnowballCreationComponent
+			? SnowballCreationComponent.Get()
+			: FindComponentByClass<USnowballCreationComponent>();
+
+	if (!bCanAct)
 	{
 		return;
 	}
@@ -461,9 +469,13 @@ void ASnowRumbleCharacter::HandleActionStarted()
 		SnowballEquipmentComponent->StartCharging();
 	}
 
-	if (SnowballCreationComponent)
+	if (ActiveCreationComponent)
 	{
-		SnowballCreationComponent->StartCreatingSnowball();
+		if (!SnowballCreationComponent)
+		{
+			SnowballCreationComponent = ActiveCreationComponent;
+		}
+		ActiveCreationComponent->StartCreatingSnowball();
 	}
 
 	OnActionInput(true);

@@ -293,6 +293,11 @@ bool USnowballEquipmentComponent::IsRollingSnowball() const
 	return IsValid(RollingSnowball);
 }
 
+ASnowballItem* USnowballEquipmentComponent::GetRollingSnowball() const
+{
+	return RollingSnowball;
+}
+
 float USnowballEquipmentComponent::GetRollingWalkSpeed() const
 {
 	return RollingSnowball

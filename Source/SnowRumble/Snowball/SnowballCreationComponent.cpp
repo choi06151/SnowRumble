@@ -3,6 +3,7 @@
 #include "SnowballCreationComponent.h"
 
 #include "../Player/SnowRumbleCharacter.h"
+#include "Camera/CameraComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/GameStateBase.h"
 #include "Net/UnrealNetwork.h"
@@ -18,21 +19,37 @@ USnowballCreationComponent::USnowballCreationComponent()
 
 void USnowballCreationComponent::StartCreatingSnowball()
 {
-	const APawn* OwningPawn = Cast<APawn>(GetOwner());
+	APawn* OwningPawn = Cast<APawn>(GetOwner());
 	if (!OwningPawn
-		|| (!OwningPawn->HasAuthority() && !OwningPawn->IsLocallyControlled())
-		|| bIsCreating)
+		|| (!OwningPawn->HasAuthority() && !OwningPawn->IsLocallyControlled()))
+	{
+		return;
+	}
+
+	const UCameraComponent* FollowCamera =
+		OwningPawn->FindComponentByClass<UCameraComponent>();
+	if (!FollowCamera)
+	{
+		return;
+	}
+
+	const FVector ViewLocation = FollowCamera->GetComponentLocation();
+	const FVector ViewDirection = FollowCamera->GetForwardVector();
+
+	if (bIsCreating)
 	{
 		return;
 	}
 
 	if (OwningPawn->HasAuthority())
 	{
-		ServerStartCreatingSnowball_Implementation();
+		ServerStartCreatingSnowball_Implementation(
+			ViewLocation,
+			ViewDirection);
 		return;
 	}
 
-	ServerStartCreatingSnowball();
+	ServerStartCreatingSnowball(ViewLocation, ViewDirection);
 }
 
 void USnowballCreationComponent::CancelCreatingSnowball()
@@ -89,7 +106,9 @@ void USnowballCreationComponent::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(USnowballCreationComponent, CreationStartServerTime);
 }
 
-void USnowballCreationComponent::ServerStartCreatingSnowball_Implementation()
+void USnowballCreationComponent::ServerStartCreatingSnowball_Implementation(
+	FVector_NetQuantize ViewLocation,
+	FVector_NetQuantizeNormal ViewDirection)
 {
 	ASnowRumbleCharacter* Character = Cast<ASnowRumbleCharacter>(GetOwner());
 	const USnowballEquipmentComponent* Equipment =
@@ -97,15 +116,31 @@ void USnowballCreationComponent::ServerStartCreatingSnowball_Implementation()
 			? Character->FindComponentByClass<USnowballEquipmentComponent>()
 			: nullptr;
 	FHitResult SurfaceHit;
-	if (!Character
-		|| Character->IsFrozen()
-		|| Character->IsAiming()
-		|| (Equipment && Equipment->HasHeldSnowball())
-		|| !SnowballItemClass
-		|| !FindSnowSurface(SurfaceHit))
+	const bool bCameraOriginValid =
+		Character
+		&& FVector::DistSquared(ViewLocation, Character->GetActorLocation())
+			<= FMath::Square(MaxCameraOriginDistance);
+	const bool bSurfaceHit =
+		Character
+		&& FindSnowSurface(ViewLocation, ViewDirection, SurfaceHit);
+	const bool bCanStartCreation =
+		Character
+		&& !bIsCreating
+		&& !Character->IsFrozen()
+		&& !Character->IsAiming()
+		&& (!Equipment || !Equipment->HasHeldSnowball())
+		&& SnowballItemClass
+		&& bCameraOriginValid
+		&& bSurfaceHit;
+
+	if (!bCanStartCreation)
 	{
 		return;
 	}
+
+	CreationSurfaceActor = SurfaceHit.GetActor();
+	CreationSurfacePoint = SurfaceHit.ImpactPoint;
+	CreationSurfaceNormal = SurfaceHit.ImpactNormal.GetSafeNormal();
 
 	UWorld* World = GetWorld();
 	if (!World)
@@ -137,6 +172,7 @@ void USnowballCreationComponent::ServerCancelCreatingSnowball_Implementation()
 	{
 		OwningActor->ForceNetUpdate();
 	}
+
 }
 
 void USnowballCreationComponent::OnRep_IsCreating()
@@ -151,13 +187,13 @@ void USnowballCreationComponent::CompleteCreation()
 		Character
 			? Character->FindComponentByClass<USnowballEquipmentComponent>()
 			: nullptr;
-	FHitResult SurfaceHit;
 	if (!Character
 		|| Character->IsFrozen()
 		|| Character->IsAiming()
 		|| (Equipment && Equipment->HasHeldSnowball())
 		|| !SnowballItemClass
-		|| !FindSnowSurface(SurfaceHit))
+		|| !CreationSurfaceActor.IsValid()
+		|| !CreationSurfaceActor->ActorHasTag(SnowSurfaceTag))
 	{
 		SetCreatingState(false);
 		return;
@@ -170,7 +206,15 @@ void USnowballCreationComponent::CompleteCreation()
 		return;
 	}
 
-	const FVector SpawnLocation = SurfaceHit.ImpactPoint + SurfaceHit.ImpactNormal * 20.0f;
+	const FVector ForwardLocation =
+		Character->GetActorLocation()
+		+ Character->GetActorForwardVector() * CreationForwardDistance;
+	const FVector SpawnLocation =
+		FVector::PointPlaneProject(
+			ForwardLocation,
+			CreationSurfacePoint,
+			CreationSurfaceNormal)
+		+ CreationSurfaceNormal * 20.0f;
 	FActorSpawnParameters SpawnParameters;
 	SpawnParameters.Owner = Character;
 	SpawnParameters.Instigator = Character;
@@ -187,31 +231,43 @@ void USnowballCreationComponent::CompleteCreation()
 	Character->ForceNetUpdate();
 }
 
-bool USnowballCreationComponent::FindSnowSurface(FHitResult& OutHit) const
+bool USnowballCreationComponent::FindSnowSurface(
+	const FVector& ViewLocation,
+	const FVector& ViewDirection,
+	FHitResult& OutHit) const
 {
 	const ASnowRumbleCharacter* Character = Cast<ASnowRumbleCharacter>(GetOwner());
-	const AController* Controller = Character ? Character->GetController() : nullptr;
 	UWorld* World = GetWorld();
-	if (!Character || !Controller || !World)
+	if (!Character || !World || ViewDirection.IsNearlyZero())
 	{
 		return false;
 	}
 
-	FVector ViewLocation;
-	FRotator ViewRotation;
-	Controller->GetPlayerViewPoint(ViewLocation, ViewRotation);
-
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(SnowballCreationTrace), false, Character);
+	QueryParams.AddIgnoredActor(Character);
+
+	TArray<AActor*> AttachedActors;
+	Character->GetAttachedActors(AttachedActors, true, true);
+	QueryParams.AddIgnoredActors(AttachedActors);
+
+	const float EffectiveTraceDistance =
+		CreationTraceDistance
+		+ FVector::Distance(ViewLocation, Character->GetActorLocation());
+	const FVector TraceEnd =
+		ViewLocation + ViewDirection.GetSafeNormal() * EffectiveTraceDistance;
 	const bool bHit = World->LineTraceSingleByChannel(
 		OutHit,
 		ViewLocation,
-		ViewLocation + ViewRotation.Vector() * CreationTraceDistance,
+		TraceEnd,
 		ECC_Visibility,
 		QueryParams);
 
-	return bHit
+	const bool bHitSnowSurface =
+		bHit
 		&& OutHit.GetActor()
 		&& OutHit.GetActor()->ActorHasTag(SnowSurfaceTag);
+
+	return bHitSnowSurface;
 }
 
 void USnowballCreationComponent::SetCreatingState(bool bNewCreating)
@@ -225,6 +281,9 @@ void USnowballCreationComponent::SetCreatingState(bool bNewCreating)
 	if (!bIsCreating)
 	{
 		CreationStartServerTime = 0.0f;
+		CreationSurfaceActor.Reset();
+		CreationSurfacePoint = FVector::ZeroVector;
+		CreationSurfaceNormal = FVector::UpVector;
 	}
 	OnRep_IsCreating();
 }

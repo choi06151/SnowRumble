@@ -14,7 +14,7 @@
 | 02-2 | `Tasks/02-2_health_damage_freeze.md` | 최소 눈덩이 피해, HP, 얼기 | 완료 |
 | 03-1 | `Tasks/03-1_lan_host_join.md` | LAN 세션 Host/Join | 완료 |
 | 03-2 | `Tasks/03-2_lobby_team_ready.md` | 대기방, 팀 선택, 준비 상태 | 예정 |
-| 04-1 | `Tasks/04-1_snow_creation_interaction.md` | 눈 만들기, 잡기, 내려놓기 | 완료 |
+| 04-1 | `Tasks/04-1_snow_creation_interaction.md` | 눈 만들기, 잡기, 내려놓기 | 진행중 |
 | 04-2 | `Tasks/04-2_snow_aim_charge_throw.md` | 조준, 충전, 작은 눈 투척 | 완료 |
 | 04-3 | `Tasks/04-3_snow_roll_and_large_snow.md` | 눈 굴리기, 성장, 큰 눈 투척 | 진행중 |
 | 05-1 | `Tasks/05-1_spectate_and_hotpack_revive.md` | 아군 관전과 핫팩 부활 | 예정 |
@@ -52,8 +52,34 @@ SUB Task는 연결된 Main Task가 완료되고 실제 UI 연결 지점이 기�
 | Task | 메인 프로그래머 선점 파일·비UI 자산 | SUB 프로그래머 선점 UI 자산 | 상태 |
 | --- | --- | --- | --- |
 | 04-3 E 탭 획득·E 유지 굴리기 | `Source/SnowRumble/Player/SnowRumbleCharacter.h`, `Source/SnowRumble/Player/SnowRumbleCharacter.cpp`, `Source/SnowRumble/Snowball/SnowballEquipmentComponent.h`, `Source/SnowRumble/Snowball/SnowballEquipmentComponent.cpp`, `Source/SnowRumble/Snowball/SnowballItem.h`, `Source/SnowRumble/Snowball/SnowballItem.cpp`, `Tasks/04-3_snow_roll_and_large_snow.md`, `docs/GDD/Game_GDD.md`, `docs/PENDING_ISSUES.md`, `docs/PLANS.md` | 없음 | 진행중 |
+| 04-1 바닥 눈덩이 지면 고정 | `Source/SnowRumble/Snowball/SnowballItem.h`, `Source/SnowRumble/Snowball/SnowballItem.cpp`, `Tasks/04-1_snow_creation_interaction.md`, `docs/PLANS.md` | 없음 | 진행중 |
 
 ## 최근 작업 로그
+- 2026-07-28: Task 04-3의 `2cm` 지면 여유가 성장마다 누적되어 눈덩이가 뜨는 문제를 수정하고 굴리기 최초 성장에만 적용함.
+- 2026-07-28: Task 04-3에서 첫 성장 후 눈덩이가 지면 접촉으로 멈추는 회귀에 대응해 반지름 보정에 `2cm` 굴리기 지면 여유를 추가함.
+- 2026-07-28: Task 04-3에서 로컬 굴리기 대상의 아웃라인을 유지하고 성장별 굴리기 이동속도를 `300 → 150`으로 낮춤.
+- 2026-07-28: Task 04-1 눈 만들기 오류 수정 결과를 확인하고 로컬·서버 제작 Trace 선과 좌클릭 화면 진단 출력을 제거함.
+- 2026-07-28: Task 04-1에서 좌클릭 유지 중 시작 이벤트가 반복되어 제작 타이머가 계속 초기화되는 원인을 확인하고 서버가 `bIsCreating` 중복 시작 요청을 무시하도록 수정함.
+- 2026-07-28: Task 04-1에서 파란 제작 Trace도 나오지 않는 회귀 경로를 확인하도록 좌클릭 핸들러에 `CanAct`, 제작 컴포넌트 존재, 제작 호출 여부 진단을 추가함.
+- 2026-07-28: Task 04-1의 컴포넌트 참조가 정상임을 확인한 뒤 생성 회귀를 다시 진단하도록 파란 로컬 카메라선과 초록·빨간 서버 판정선을 최소 범위로 재추가함.
+- 2026-07-28: Task 04-1 디버그 정리 때 함께 제거되어 제작 호출이 다시 누락된 `SnowballCreationComponent` 재검색 경로를 화면 출력 없이 복구함.
+- 2026-07-28: Task 04-1을 다시 열어 바닥 눈덩이가 지면에 닿으면 서버가 복제 고정 상태를 확정하고 물리·중력을 꺼 현재 위치에 고정하도록 구현함.
+- 2026-07-28: Task 04-1의 카메라 눈 바닥 판정과 플레이어 코앞 생성 동작을 확인하고 모든 임시 Trace·화면 진단 출력을 제거한 뒤 다시 완료함.
+- 2026-07-28: Task 04-1의 시작 판정 성공 후 생성되지 않는 원인을 확인하도록 제작 타이머 시작·취소·완료 호출·완료 거부 조건·Spawn 결과 진단 메시지를 추가함.
+- 2026-07-28: Task 04-1에서 Action 입력 뒤 제작 컴포넌트 호출이 누락되는 증상에 대응해 멤버 참조가 null이면 실제 소유 컴포넌트를 다시 찾아 복구하고, 컴포넌트 자체가 없으면 화면에 표시하도록 수정함.
+- 2026-07-28: Task 04-1 제작 디버그 화살표를 `bIsCreating` 검사보다 먼저 그리도록 옮기고 `Creating` 상태를 화면에 출력해 상태 고착 여부를 확인하도록 함.
+- 2026-07-28: Task 04-1에서 실제 제작 Trace를 덮던 굵은 노란 입력 화살표를 제거해 파란 카메라 전달선과 서버의 초록·빨간 판정선만 보이도록 정리함.
+- 2026-07-28: Task 04-1 서버 진단에서 `SurfaceHit: No`, `HitActor: None`을 확인하고 3인칭 카메라 오프셋만큼 Trace 길이를 보정해 플레이어 기준 600cm 판정을 유지함.
+- 2026-07-28: Task 04-1 입력 행동 가능 상태가 정상임을 확인한 뒤 서버 제작 거부 원인을 `ItemClass`, `CameraDistance`, `SurfaceHit`, `HitActor`로 화면 출력하도록 추가함.
+- 2026-07-28: Task 04-1에서 노란 입력선만 보이는 원인을 확인하도록 좌클릭 시 `CanAct`, `Health`, `Frozen`, `PickingUp` 상태를 화면에 출력하고 제작 Trace 표시를 강제함.
+- 2026-07-28: Task 04-1 제작 디버그 선을 방향 화살표로 바꾸고 서버 Trace에서 캐릭터와 부착 액터를 명시적으로 제외하며 충돌 액터 이름을 표시하도록 보강함.
+- 2026-07-28: Task 04-1의 제작 판정과 디버그 선 방향을 Controller 시점 회전 대신 실제 `FollowCamera` 컴포넌트의 월드 위치·Forward Vector 기준으로 수정함.
+- 2026-07-28: Task 04-1에서 제작 Trace가 전혀 표시되지 않는 원인을 구분하도록 `IA_Action` 입력 핸들러 진입 즉시 노란 카메라 디버그 선을 추가함.
+- 2026-07-28: Task 04-1 제작 판정 진단을 위해 로컬 카메라 전달선을 파란색, 서버 `SnowSurface` 성공·실패 Trace를 초록색·빨간색으로 표시하는 디버그 Draw를 추가함.
+- 2026-07-28: Task 04-1의 원격 클라이언트 제작 판정을 실제 로컬 카메라 시점 전달과 서버 거리·`SnowSurface` 검증 방식으로 변경하고, 서버가 확정한 바닥 정보로 코앞에 생성하도록 수정함.
+- 2026-07-28: Task 04-1에서 코앞 생성 위치용 추가 Trace가 제작 완료를 취소할 수 있는 경로를 제거하고, 카메라가 확인한 눈 바닥 평면에 캐릭터 전방 위치를 투영하도록 수정함.
+- 2026-07-28: Task 04-1의 제작 가능 판정은 기존 카메라 중앙 `SnowSurface` 검사로 복구하고 실제 눈덩이 생성 위치만 캐릭터 코앞 지면을 사용하도록 분리함.
+- 2026-07-28: 완료된 Task 04-1을 다시 열어 눈덩이 제작 위치를 카메라 시선 충돌점에서 서버가 검사한 캐릭터 코앞 지면으로 변경하고 수동 확인 단계로 전환함.
 - 2026-07-28: Task 04-3의 AnimBP 상태를 운반 `ESnowballCarryState`와 행동 `ESnowballActionState`로 분리하고 굴리기를 `Normal + RollingSnowball` 조합으로 노출함.
 - 2026-07-28: Task 04-3에 Animation Blueprint용 `ESnowballCarryState`와 `GetSnowballCarryState()`를 추가해 평소·작은 눈·최대 성장 큰 눈 보유 상태를 구분함.
 - 2026-07-28: Task 04-3에서 첫 성장 시 충돌 구체가 바닥에 파고들어 다음 Sweep을 막는 문제를 수정하고 증가한 반지름만큼 서버 위치를 위로 보정함.

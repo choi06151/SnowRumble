@@ -80,6 +80,10 @@ protected:
 	UFUNCTION()
 	void OnRep_GrowthProgress();
 
+	/** 복제된 지면 고정 상태에 맞춰 바닥 물리를 갱신한다. */
+	UFUNCTION()
+	void OnRep_IsSettledOnGround();
+
 	/** 현재 상태와 보유자를 사용해 로컬 액터 부착과 충돌을 적용한다. */
 	void RefreshStatePresentation();
 
@@ -113,6 +117,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Growth", meta = (ClampMin = "1.0"))
 	float DistanceForMaximumGrowth = 1000.0f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Growth", meta = (ClampMin = "0.0"))
+	float RollingGroundClearance = 2.0f;
+
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemState, Category = "SnowRumble|Snowball")
 	ESnowballItemState ItemState = ESnowballItemState::Ground;
 
@@ -125,7 +132,11 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_GrowthProgress, Category = "SnowRumble|Snowball|Growth")
 	float GrowthProgress = 0.0f;
 
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_IsSettledOnGround, Category = "SnowRumble|Snowball")
+	bool bIsSettledOnGround = false;
+
 	FVector InitialActorScale = FVector::OneVector;
 	FVector LastRollingLocation = FVector::ZeroVector;
 	float AccumulatedRollingDistance = 0.0f;
+	bool bAppliedRollingGroundClearance = false;
 };

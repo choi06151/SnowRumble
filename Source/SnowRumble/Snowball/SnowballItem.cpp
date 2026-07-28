@@ -56,6 +56,7 @@ bool ASnowballItem::TrySetHeldBy(
 
 	Holder = NewHolder;
 	ItemState = ESnowballItemState::Held;
+	bIsSettledOnGround = false;
 	SetOwner(NewHolder);
 	RefreshStatePresentation();
 	ForceNetUpdate();
@@ -77,6 +78,7 @@ bool ASnowballItem::Throw(const FVector& ThrowDirection, float ThrowSpeed)
 	ASnowRumbleCharacter* PreviousHolder = Holder;
 	ItemState = ESnowballItemState::Thrown;
 	Holder = nullptr;
+	bIsSettledOnGround = false;
 
 	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 	CollisionComponent->SetSimulatePhysics(false);
@@ -103,6 +105,7 @@ bool ASnowballItem::DropToGround()
 
 	ItemState = ESnowballItemState::Ground;
 	Holder = nullptr;
+	bIsSettledOnGround = false;
 	SetOwner(nullptr);
 
 	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
@@ -122,8 +125,10 @@ bool ASnowballItem::TryStartRolling(ASnowRumbleCharacter* NewRoller)
 
 	ItemState = ESnowballItemState::Rolling;
 	Roller = NewRoller;
+	bIsSettledOnGround = false;
 	SetOwner(NewRoller);
 	LastRollingLocation = GetActorLocation();
+	bAppliedRollingGroundClearance = false;
 	CollisionComponent->IgnoreActorWhenMoving(NewRoller, true);
 	RefreshStatePresentation();
 	ForceNetUpdate();
@@ -141,6 +146,8 @@ bool ASnowballItem::StopRolling()
 	ASnowRumbleCharacter* PreviousRoller = Roller;
 	ItemState = ESnowballItemState::Ground;
 	Roller = nullptr;
+	bIsSettledOnGround = false;
+	bAppliedRollingGroundClearance = false;
 	SetOwner(nullptr);
 	CollisionComponent->IgnoreActorWhenMoving(PreviousRoller, false);
 	RefreshStatePresentation();
@@ -234,6 +241,7 @@ void ASnowballItem::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ASnowballItem, Holder);
 	DOREPLIFETIME(ASnowballItem, Roller);
 	DOREPLIFETIME(ASnowballItem, GrowthProgress);
+	DOREPLIFETIME(ASnowballItem, bIsSettledOnGround);
 }
 
 void ASnowballItem::OnRep_ItemState()
@@ -249,6 +257,11 @@ void ASnowballItem::OnRep_Holder()
 void ASnowballItem::OnRep_GrowthProgress()
 {
 	ApplyGrowthScale();
+}
+
+void ASnowballItem::OnRep_IsSettledOnGround()
+{
+	RefreshStatePresentation();
 }
 
 void ASnowballItem::ApplyGrowthScale()
@@ -270,11 +283,17 @@ void ASnowballItem::ApplyGrowthScale()
 		const float RadiusIncrease = NewRadius - PreviousRadius;
 		if (RadiusIncrease > KINDA_SMALL_NUMBER)
 		{
+			const float GroundClearance =
+				bAppliedRollingGroundClearance
+					? 0.0f
+					: RollingGroundClearance;
 			AddActorWorldOffset(
-				FVector::UpVector * RadiusIncrease,
+				FVector::UpVector
+					* (RadiusIncrease + GroundClearance),
 				false,
 				nullptr,
 				ETeleportType::TeleportPhysics);
+			bAppliedRollingGroundClearance = true;
 		}
 	}
 }
@@ -343,11 +362,21 @@ void ASnowballItem::RefreshStatePresentation()
 
 	CollisionComponent->SetCollisionProfileName(TEXT("BlockAllDynamic"));
 	CollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	CollisionComponent->SetSimulatePhysics(true);
-	CollisionComponent->SetEnableGravity(true);
-	CollisionComponent->SetPhysicsLinearVelocity(FVector::ZeroVector);
-	CollisionComponent->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
-	CollisionComponent->WakeAllRigidBodies();
+	if (bIsSettledOnGround)
+	{
+		CollisionComponent->SetPhysicsLinearVelocity(FVector::ZeroVector);
+		CollisionComponent->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+		CollisionComponent->SetEnableGravity(false);
+		CollisionComponent->SetSimulatePhysics(false);
+	}
+	else
+	{
+		CollisionComponent->SetSimulatePhysics(true);
+		CollisionComponent->SetEnableGravity(true);
+		CollisionComponent->SetPhysicsLinearVelocity(FVector::ZeroVector);
+		CollisionComponent->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+		CollisionComponent->WakeAllRigidBodies();
+	}
 	SetReplicateMovement(true);
 }
 
@@ -358,8 +387,22 @@ void ASnowballItem::HandleCollision(
 	FVector NormalImpulse,
 	const FHitResult& Hit)
 {
-	if (!HasAuthority()
-		|| ItemState != ESnowballItemState::Thrown
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (ItemState == ESnowballItemState::Ground
+		&& !bIsSettledOnGround
+		&& Hit.ImpactNormal.Z > 0.5f)
+	{
+		bIsSettledOnGround = true;
+		RefreshStatePresentation();
+		ForceNetUpdate();
+		return;
+	}
+
+	if (ItemState != ESnowballItemState::Thrown
 		|| !OtherActor
 		|| OtherActor == this
 		|| OtherActor == GetOwner())

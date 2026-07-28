@@ -53,9 +53,11 @@
 - `ASnowballItem`의 `GrowthProgress`는 서버가 실제 수평 이동 거리를 누적해 계산하고 `0~1`로 복제한다.
 - `Distance For Maximum Growth` 기본값은 `1000cm`, `Maximum Scale Multiplier` 기본값은 `3`이다.
 - `OnRep_GrowthProgress()`는 초기 Actor Scale을 기준으로 눈덩이 Actor 전체 크기를 적용해 메시와 충돌 구체를 함께 키운다.
-- 서버는 성장으로 증가한 충돌 반지름만큼 눈덩이 중심을 위로 보정해 구체 하단이 바닥에 파고들지 않게 한다.
+- 서버는 성장으로 증가한 충돌 반지름만큼 눈덩이 중심을 위로 보정하고, 굴리기 한 번의 최초 성장에만 기본 `2cm`의 지면 여유를 추가해 다음 Sweep을 막지 않으면서 여유 높이가 누적되지 않게 한다.
 - 굴리기 상태에서는 물리 시뮬레이션과 중력을 잠시 끄고 서버가 `Rolling Distance` 기본 `90cm`의 목표 지점까지 충돌 Sweep으로 이동한다.
-- 굴리는 캐릭터의 최대 이동속도는 성장률에 따라 `400 → 220`으로 감소하고 굴리기 종료 시 기존 이동 규칙으로 복구된다.
+- 굴리는 캐릭터의 최대 이동속도는 성장률에 따라 `300 → 150`으로 감소하고 굴리기 종료 시 기존 이동 규칙으로 복구된다.
+- 로컬 소유 플레이어가 굴리는 동안에는 복제된 `RollingSnowball`을 기존 `OutlineComponent`의 대상으로 사용해 해당 눈덩이의 아웃라인을 유지한다.
+- `GetRollingSnowball()`로 현재 굴리기 대상을 Blueprint에서 읽을 수 있다.
 - `GetGrowthProgress()`와 `IsRollingSnowball()`을 Blueprint에서 읽을 수 있다.
 - Animation Blueprint용 `ESnowballCarryState`는 `Normal`, `SmallSnowball`, `LargeSnowball`을 제공한다.
 - 캐릭터의 `GetSnowballCarryState()`는 획득 연출 중이거나 빈손이면 `Normal`, 최대 성장 전 보유 눈덩이는 `SmallSnowball`, 성장률 `1`에 도달한 보유 눈덩이는 `LargeSnowball`을 반환한다.
@@ -79,8 +81,8 @@
 
 1. 실행 중인 Unreal Editor를 종료한다.
 2. `SnowRumbleEditor`를 `Development Editor`, `Win64` 구성으로 빌드하고 프로젝트를 연다.
-3. `BP_SnowRumbleCharacter`의 `SnowballEquipmentComponent`에서 필요하면 `Rolling Distance` 기본 `90`, `Maximum Rolling Separation` 기본 `250`, 굴리기 이동속도 `400~220`을 조정한다.
-4. `BP_SnowballItem`에서 필요하면 `Distance For Maximum Growth` 기본 `1000`과 `Maximum Scale Multiplier` 기본 `3`을 조정한다.
+3. `BP_SnowRumbleCharacter`의 `SnowballEquipmentComponent`에서 필요하면 `Rolling Distance` 기본 `90`, `Maximum Rolling Separation` 기본 `250`, 굴리기 이동속도 `300~150`을 조정한다.
+4. `BP_SnowballItem`에서 필요하면 `Distance For Maximum Growth` 기본 `1000`, `Maximum Scale Multiplier` 기본 `3`, `Rolling Ground Clearance` 기본 `2`를 조정한다.
 5. Animation Blueprint에서 기존 `Is Holding Snowball`만으로 상태를 나누는 대신 캐릭터의 `Get Snowball Carry State` 결과를 사용해 `Normal`, `Small Snowball`, `Large Snowball` 상태를 분기한다.
 6. 굴리기 애니메이션은 `Get Snowball Action State`가 `Rolling Snowball`인지 확인해 분기하고, 운반 Enum의 `Normal`과 조합한다.
 
@@ -103,7 +105,8 @@
 - [ ] 굴리는 플레이어가 얼거나 눈덩이와 너무 멀어지면 굴리기가 자동 종료되는지 확인한다.
 - [ ] 다른 플레이어가 굴리는 중인 눈덩이를 E 탭으로 획득할 수 없는지 확인한다.
 - [ ] 굴리기 상태와 눈덩이 위치·회전이 호스트와 클라이언트 화면에 동일하게 보이는지 확인한다.
-- [ ] 기존 아웃라인이 `Ground` 후보에만 표시되고 굴리기 중에는 해제되는지 확인한다.
+- [ ] 굴리기 전에는 기존 `Ground` 후보에 아웃라인이 표시되고, 굴리기 중에는 해당 눈덩이에 아웃라인이 계속 유지되며 종료 후 다시 바닥 후보 판정으로 전환되는지 확인한다.
+- [ ] 굴리는 눈덩이 아웃라인이 굴리는 플레이어의 로컬 화면에만 표시되고 다른 참가자의 화면에는 강제로 표시되지 않는지 확인한다.
 - [ ] E+WASD 굴리기 중 눈덩이가 이동 방향 앞에서 장애물을 통과하지 않고 안정적으로 Sweep 이동하는지 확인한다.
 - [ ] 첫 이동 이후에도 굴리는 플레이어 자신의 캡슐에 막히지 않고 WASD 이동을 계속 따라오는지 확인한다.
 - [ ] 캐릭터 캡슐도 굴리는 눈덩이에 막히지 않아 서버 이동속도와 굴리기 방향이 계속 유지되는지 확인한다.
@@ -111,7 +114,7 @@
 - [ ] 눈덩이를 약 `10m` 굴리면 초기 크기의 최대 `3배`까지 점진적으로 커지는지 확인한다.
 - [ ] 성장한 눈덩이의 메시와 충돌 범위가 함께 커지는지 확인한다.
 - [ ] 성장 크기가 호스트와 클라이언트 화면에 동일하게 보이는지 확인한다.
-- [ ] 눈덩이가 커질수록 굴리는 캐릭터가 `400 → 220` 범위에서 느려지는지 확인한다.
+- [ ] 눈덩이가 커질수록 굴리는 캐릭터가 `300 → 150` 범위에서 느려지는지 확인한다.
 - [ ] E를 놓아 굴리기를 종료하면 캐릭터 이동속도가 기존 걷기 속도로 복구되는지 확인한다.
 - [ ] 성장한 눈덩이를 놓거나 다시 굴려도 기존 성장 크기가 유지되는지 확인한다.
 - [ ] Animation Blueprint에서 `Get Snowball Carry State`와 `ESnowballCarryState`의 세 값을 사용할 수 있는지 확인한다.
