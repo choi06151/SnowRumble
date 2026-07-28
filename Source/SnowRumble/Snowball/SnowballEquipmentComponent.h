@@ -98,6 +98,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
 	bool IsRollingSnowball() const;
 
+	/** 현재 굴리고 있는 눈덩이를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
+	ASnowballItem* GetRollingSnowball() const;
+
 	/** 현재 성장 크기를 반영한 굴리기 이동속도를 반환한다. */
 	float GetRollingWalkSpeed() const;
 
@@ -186,10 +190,10 @@ protected:
 	float RollingDistance = 90.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling", meta = (ClampMin = "0.0"))
-	float SmallSnowballRollingWalkSpeed = 400.0f;
+	float SmallSnowballRollingWalkSpeed = 300.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling", meta = (ClampMin = "0.0"))
-	float LargeSnowballRollingWalkSpeed = 220.0f;
+	float LargeSnowballRollingWalkSpeed = 150.0f;
 
 	double ChargeStartTime = -1.0;
 };

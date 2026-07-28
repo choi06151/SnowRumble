@@ -43,7 +43,9 @@ protected:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UFUNCTION(Server, Reliable)
-	void ServerStartCreatingSnowball();
+	void ServerStartCreatingSnowball(
+		FVector_NetQuantize ViewLocation,
+		FVector_NetQuantizeNormal ViewDirection);
 
 	UFUNCTION(Server, Reliable)
 	void ServerCancelCreatingSnowball();
@@ -54,8 +56,11 @@ protected:
 	/** 서버가 제작 완료 시 상태와 바닥을 다시 검사하고 눈덩이를 생성한다. */
 	void CompleteCreation();
 
-	/** 소유 캐릭터의 화면 중앙에서 제작 가능한 눈 바닥을 찾는다. */
-	bool FindSnowSurface(FHitResult& OutHit) const;
+	/** 전달받은 카메라 시점으로 제작 가능한 눈 바닥을 찾는다. */
+	bool FindSnowSurface(
+		const FVector& ViewLocation,
+		const FVector& ViewDirection,
+		FHitResult& OutHit) const;
 
 	void SetCreatingState(bool bNewCreating);
 
@@ -68,6 +73,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Creation", meta = (ClampMin = "0.0"))
 	float CreationTraceDistance = 600.0f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Creation", meta = (ClampMin = "0.0"))
+	float MaxCameraOriginDistance = 600.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Creation", meta = (ClampMin = "0.0"))
+	float CreationForwardDistance = 100.0f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Creation")
 	FName SnowSurfaceTag = TEXT("SnowSurface");
 
@@ -76,6 +87,10 @@ protected:
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Snowball|Creation")
 	float CreationStartServerTime = 0.0f;
+
+	TWeakObjectPtr<AActor> CreationSurfaceActor;
+	FVector CreationSurfacePoint = FVector::ZeroVector;
+	FVector CreationSurfaceNormal = FVector::UpVector;
 
 	FTimerHandle CreationTimerHandle;
 };
