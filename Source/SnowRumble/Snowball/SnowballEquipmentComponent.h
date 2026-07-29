@@ -48,6 +48,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
 	ASnowballItem* GetHeldSnowball() const;
 
+	/** 현재 최대 성장 큰 눈덩이를 들고 있는지 확인한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
+	bool IsHoldingLargeSnowball() const;
+
+	/** 최대 성장 큰 눈덩이 운반 중 적용할 이동속도를 반환한다. */
+	float GetLargeSnowballCarryWalkSpeed() const;
+
 	/** 획득 범위 안에서 가장 가까운 바닥 눈덩이를 찾는다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
 	ASnowballItem* FindClosestPickupCandidate() const;
@@ -194,6 +201,12 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling", meta = (ClampMin = "0.0"))
 	float LargeSnowballRollingWalkSpeed = 150.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling", meta = (ClampMin = "0.0"))
+	float RollingObstaclePushSpeed = 120.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Carry", meta = (ClampMin = "0.0"))
+	float LargeSnowballCarryWalkSpeed = 200.0f;
 
 	double ChargeStartTime = -1.0;
 };

@@ -48,8 +48,10 @@ public:
 	/** 서버가 굴리기 상태를 끝내고 바닥 물리를 복구한다. */
 	bool StopRolling();
 
-	/** 서버가 굴리기 중인 눈덩이를 충돌 Sweep으로 새 위치까지 이동한다. */
-	void MoveRollingSnowball(const FVector& TargetLocation);
+	/** 서버가 굴리기 중인 눈덩이를 충돌 Sweep으로 이동하고 장애물 충돌 결과를 반환한다. */
+	bool MoveRollingSnowball(
+		const FVector& TargetLocation,
+		FHitResult& OutSweepHit);
 
 	/** 서버가 마지막 확인 위치부터 실제 이동한 거리를 성장값에 누적한다. */
 	void UpdateRollingGrowth();
@@ -57,6 +59,10 @@ public:
 	/** 현재 0~1 정규화된 성장 진행도를 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
 	float GetGrowthProgress() const;
+
+	/** 성장 오차 범위를 포함해 최대 성장 큰 눈덩이인지 확인한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
+	bool IsFullyGrown() const;
 
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
 	ESnowballItemState GetItemState() const;
