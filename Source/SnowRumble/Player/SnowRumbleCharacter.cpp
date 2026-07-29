@@ -104,7 +104,11 @@ bool ASnowRumbleCharacter::IsInAir() const
 
 bool ASnowRumbleCharacter::IsSprinting() const
 {
-	return bIsSprinting && IsMoving() && !IsFrozen();
+	return bIsSprinting
+		&& IsMoving()
+		&& !IsFrozen()
+		&& (!SnowballEquipmentComponent
+			|| !SnowballEquipmentComponent->IsHoldingLargeSnowball());
 }
 
 bool ASnowRumbleCharacter::IsFrozen() const
@@ -134,7 +138,7 @@ ESnowballCarryState ASnowRumbleCharacter::GetSnowballCarryState() const
 		return ESnowballCarryState::Normal;
 	}
 
-	return HeldSnowball->GetGrowthProgress() >= 1.0f - KINDA_SMALL_NUMBER
+	return HeldSnowball->IsFullyGrown()
 		? ESnowballCarryState::LargeSnowball
 		: ESnowballCarryState::SmallSnowball;
 }
@@ -249,6 +253,17 @@ void ASnowRumbleCharacter::BeginPlay()
 			&ASnowRumbleCharacter::HandleSnowballAimingChanged);
 		HandleSnowballAimingChanged(SnowballEquipmentComponent->IsAiming());
 	}
+}
+
+void ASnowRumbleCharacter::RefreshHeldEquipmentMovementState()
+{
+	if (SnowballEquipmentComponent
+		&& SnowballEquipmentComponent->IsHoldingLargeSnowball())
+	{
+		bIsSprinting = false;
+	}
+
+	ApplyMovementSpeed();
 }
 
 void ASnowRumbleCharacter::GetLifetimeReplicatedProps(
@@ -376,7 +391,10 @@ void ASnowRumbleCharacter::StopJump()
 
 void ASnowRumbleCharacter::HandleSprintStarted()
 {
-	if (!CanPerformGameplayAction() || IsAiming())
+	if (!CanPerformGameplayAction()
+		|| IsAiming()
+		|| (SnowballEquipmentComponent
+			&& SnowballEquipmentComponent->IsHoldingLargeSnowball()))
 	{
 		return;
 	}
@@ -635,6 +653,9 @@ void ASnowRumbleCharacter::ApplyMovementSpeed()
 				: SnowballEquipmentComponent
 					&& SnowballEquipmentComponent->IsRollingSnowball()
 					? SnowballEquipmentComponent->GetRollingWalkSpeed()
+				: SnowballEquipmentComponent
+					&& SnowballEquipmentComponent->IsHoldingLargeSnowball()
+					? SnowballEquipmentComponent->GetLargeSnowballCarryWalkSpeed()
 				: IsAiming()
 				? AimWalkSpeed
 				: bIsSprinting && CanPerformGameplayAction()
@@ -645,7 +666,11 @@ void ASnowRumbleCharacter::ApplyMovementSpeed()
 
 void ASnowRumbleCharacter::ServerSetSprinting_Implementation(bool bNewSprinting)
 {
-	bIsSprinting = bNewSprinting && CanPerformGameplayAction() && !IsAiming();
+	bIsSprinting = bNewSprinting
+		&& CanPerformGameplayAction()
+		&& !IsAiming()
+		&& (!SnowballEquipmentComponent
+			|| !SnowballEquipmentComponent->IsHoldingLargeSnowball());
 	ApplyMovementSpeed();
 	ForceNetUpdate();
 }

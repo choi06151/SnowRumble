@@ -50,7 +50,29 @@ void USnowballEquipmentComponent::TickComponent(
 		Character->GetActorLocation()
 		+ MovementDirection * RollingDistance;
 	TargetLocation.Z = RollingSnowball->GetActorLocation().Z;
-	RollingSnowball->MoveRollingSnowball(TargetLocation);
+
+	FHitResult RollingHit;
+	const bool bBlockedByObstacle =
+		RollingSnowball->MoveRollingSnowball(TargetLocation, RollingHit);
+	if (bBlockedByObstacle)
+	{
+		FVector PushDirection = (
+			Character->GetActorLocation()
+			- RollingSnowball->GetActorLocation()).GetSafeNormal2D();
+		if (PushDirection.IsNearlyZero())
+		{
+			PushDirection = RollingHit.ImpactNormal.GetSafeNormal2D();
+		}
+		if (PushDirection.IsNearlyZero())
+		{
+			PushDirection = -MovementDirection;
+		}
+
+		Character->AddActorWorldOffset(
+			PushDirection * RollingObstaclePushSpeed * DeltaTime,
+			true);
+	}
+
 	RollingSnowball->UpdateRollingGrowth();
 }
 
@@ -73,6 +95,17 @@ bool USnowballEquipmentComponent::HasHeldSnowball() const
 ASnowballItem* USnowballEquipmentComponent::GetHeldSnowball() const
 {
 	return HeldSnowball;
+}
+
+bool USnowballEquipmentComponent::IsHoldingLargeSnowball() const
+{
+	return HeldSnowball
+		&& HeldSnowball->IsFullyGrown();
+}
+
+float USnowballEquipmentComponent::GetLargeSnowballCarryWalkSpeed() const
+{
+	return LargeSnowballCarryWalkSpeed;
 }
 
 ASnowballItem* USnowballEquipmentComponent::FindClosestPickupCandidate() const
@@ -512,6 +545,12 @@ void USnowballEquipmentComponent::OnRep_HeldSnowball()
 	{
 		bIsAiming = false;
 		OnRep_IsAiming();
+	}
+
+	if (ASnowRumbleCharacter* Character =
+		Cast<ASnowRumbleCharacter>(GetOwner()))
+	{
+		Character->RefreshHeldEquipmentMovementState();
 	}
 
 	OnHeldSnowballChanged.Broadcast(HeldSnowball);

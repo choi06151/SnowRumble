@@ -103,6 +103,9 @@ public:
 	/** 서버에서 아이템 획득 성공 애니메이션 상태를 시작한다. */
 	void NotifyItemPickupSucceeded();
 
+	/** 보유 장비가 바뀌면 스프린트와 현재 최대 이동속도를 다시 적용한다. */
+	void RefreshHeldEquipmentMovementState();
+
 	/** 서버에서 받은 피해를 HP 컴포넌트에 전달한다. */
 	virtual float TakeDamage(
 		float DamageAmount,

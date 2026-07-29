@@ -155,23 +155,26 @@ bool ASnowballItem::StopRolling()
 	return true;
 }
 
-void ASnowballItem::MoveRollingSnowball(const FVector& TargetLocation)
+bool ASnowballItem::MoveRollingSnowball(
+	const FVector& TargetLocation,
+	FHitResult& OutSweepHit)
 {
+	OutSweepHit = FHitResult();
+
 	if (!HasAuthority()
 		|| ItemState != ESnowballItemState::Rolling
 		|| !Roller
 		|| !CollisionComponent
 		|| TargetLocation.ContainsNaN())
 	{
-		return;
+		return false;
 	}
 
 	const FVector PreviousLocation = GetActorLocation();
-	FHitResult SweepHit;
 	SetActorLocation(
 		TargetLocation,
 		true,
-		&SweepHit,
+		&OutSweepHit,
 		ETeleportType::None);
 
 	const FVector MovedDelta = GetActorLocation() - PreviousLocation;
@@ -183,6 +186,8 @@ void ASnowballItem::MoveRollingSnowball(const FVector& TargetLocation)
 		const float Radius = FMath::Max(CollisionComponent->GetScaledSphereRadius(), 1.0f);
 		AddActorWorldRotation(FQuat(RollAxis, MovedDistance / Radius));
 	}
+
+	return OutSweepHit.bBlockingHit;
 }
 
 void ASnowballItem::UpdateRollingGrowth()
@@ -200,11 +205,18 @@ void ASnowballItem::UpdateRollingGrowth()
 		LastRollingLocation);
 	LastRollingLocation = CurrentLocation;
 
-	const float NewGrowthProgress = FMath::Clamp(
-		AccumulatedRollingDistance / DistanceForMaximumGrowth,
-		0.0f,
-		1.0f);
-	if (!FMath::IsNearlyEqual(GrowthProgress, NewGrowthProgress, 0.001f))
+	const float NewGrowthProgress =
+		AccumulatedRollingDistance >= DistanceForMaximumGrowth
+			? 1.0f
+			: FMath::Clamp(
+				AccumulatedRollingDistance / DistanceForMaximumGrowth,
+				0.0f,
+				1.0f);
+	const bool bReachedMaximumGrowth =
+		NewGrowthProgress >= 1.0f
+		&& GrowthProgress < 1.0f;
+	if (bReachedMaximumGrowth
+		|| !FMath::IsNearlyEqual(GrowthProgress, NewGrowthProgress, 0.001f))
 	{
 		GrowthProgress = NewGrowthProgress;
 		OnRep_GrowthProgress();
@@ -215,6 +227,11 @@ void ASnowballItem::UpdateRollingGrowth()
 float ASnowballItem::GetGrowthProgress() const
 {
 	return GrowthProgress;
+}
+
+bool ASnowballItem::IsFullyGrown() const
+{
+	return GrowthProgress >= 0.999f;
 }
 
 bool ASnowballItem::CanBePickedUp() const
