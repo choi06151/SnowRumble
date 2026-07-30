@@ -30,7 +30,11 @@ ASnowballItem::ASnowballItem()
 	ProjectileMovement->ProjectileGravityScale = 0.25f;
 	ProjectileMovement->bRotationFollowsVelocity = true;
 	ProjectileMovement->bShouldBounce = false;
+	ProjectileMovement->bSweepCollision = true;
 	ProjectileMovement->bAutoActivate = false;
+	ProjectileMovement->OnProjectileStop.AddDynamic(
+		this,
+		&ASnowballItem::HandleProjectileStopped);
 	ProjectileMovement->Deactivate();
 }
 
@@ -79,10 +83,12 @@ bool ASnowballItem::Throw(const FVector& ThrowDirection, float ThrowSpeed)
 	ItemState = ESnowballItemState::Thrown;
 	Holder = nullptr;
 	bIsSettledOnGround = false;
+	bHasProcessedThrownImpact = false;
 
 	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 	CollisionComponent->SetSimulatePhysics(false);
 	CollisionComponent->SetEnableGravity(false);
+	CollisionComponent->SetCollisionProfileName(TEXT("BlockAllDynamic"));
 	CollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	CollisionComponent->IgnoreActorWhenMoving(PreviousHolder, true);
 	SetReplicateMovement(true);
@@ -420,19 +426,79 @@ void ASnowballItem::HandleCollision(
 	}
 
 	if (ItemState != ESnowballItemState::Thrown
-		|| !OtherActor
 		|| OtherActor == this
 		|| OtherActor == GetOwner())
 	{
 		return;
 	}
 
-	UGameplayStatics::ApplyDamage(
-		OtherActor,
-		Damage,
-		GetInstigatorController(),
-		this,
-		UDamageType::StaticClass());
+	HandleThrownImpact(OtherActor, Hit);
+}
+
+void ASnowballItem::HandleProjectileStopped(const FHitResult& Hit)
+{
+	if (!HasAuthority() || ItemState != ESnowballItemState::Thrown)
+	{
+		return;
+	}
+
+	AActor* HitActor = Hit.GetActor();
+	if (HitActor == this || HitActor == GetOwner())
+	{
+		return;
+	}
+
+	HandleThrownImpact(HitActor, Hit);
+}
+
+void ASnowballItem::HandleThrownImpact(
+	AActor* OtherActor,
+	const FHitResult& Hit)
+{
+	if (!HasAuthority()
+		|| ItemState != ESnowballItemState::Thrown
+		|| bHasProcessedThrownImpact)
+	{
+		return;
+	}
+
+	bHasProcessedThrownImpact = true;
+
+	if (OtherActor)
+	{
+		UGameplayStatics::ApplyDamage(
+			OtherActor,
+			Damage,
+			GetInstigatorController(),
+			this,
+			UDamageType::StaticClass());
+	}
+
+	const FVector HitImpactPoint(
+		Hit.ImpactPoint.X,
+		Hit.ImpactPoint.Y,
+		Hit.ImpactPoint.Z);
+	const FVector ImpactPoint =
+		Hit.ImpactPoint.IsNearlyZero()
+			? GetActorLocation()
+			: HitImpactPoint;
+	const FVector HitImpactNormal(
+		Hit.ImpactNormal.X,
+		Hit.ImpactNormal.Y,
+		Hit.ImpactNormal.Z);
+	const FVector ImpactNormal =
+		Hit.ImpactNormal.IsNearlyZero()
+			? FVector::UpVector
+			: HitImpactNormal.GetSafeNormal();
+
+	MulticastPlayImpactEffect(ImpactPoint, ImpactNormal);
 
 	Destroy();
+}
+
+void ASnowballItem::MulticastPlayImpactEffect_Implementation(
+	FVector_NetQuantize ImpactPoint,
+	FVector_NetQuantizeNormal ImpactNormal)
+{
+	PlayImpactEffect(ImpactPoint, ImpactNormal);
 }

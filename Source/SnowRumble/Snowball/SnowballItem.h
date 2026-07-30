@@ -105,6 +105,25 @@ protected:
 		FVector NormalImpulse,
 		const FHitResult& Hit);
 
+	/** 투사체 이동이 Blocking Hit로 정지하면 서버 충돌 처리를 보완한다. */
+	UFUNCTION()
+	void HandleProjectileStopped(const FHitResult& Hit);
+
+	/** 서버에서 처음 확인한 투척 충돌의 피해, 이펙트와 제거를 처리한다. */
+	void HandleThrownImpact(AActor* OtherActor, const FHitResult& Hit);
+
+	/** 서버가 확정한 충돌 이펙트를 모든 참가자 화면에서 재생한다. */
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayImpactEffect(
+		FVector_NetQuantize ImpactPoint,
+		FVector_NetQuantizeNormal ImpactNormal);
+
+	/** Blueprint에서 실제 충돌 Niagara, 파티클과 사운드를 재생한다. */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Snowball|Impact")
+	void PlayImpactEffect(
+		FVector ImpactPoint,
+		FVector ImpactNormal);
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball")
 	TObjectPtr<USphereComponent> CollisionComponent;
 
@@ -145,4 +164,5 @@ protected:
 	FVector LastRollingLocation = FVector::ZeroVector;
 	float AccumulatedRollingDistance = 0.0f;
 	bool bAppliedRollingGroundClearance = false;
+	bool bHasProcessedThrownImpact = false;
 };

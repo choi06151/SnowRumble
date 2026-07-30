@@ -15,13 +15,13 @@
 | 03-1 | `Tasks/03-1_lan_host_join.md` | LAN 세션 Host/Join | 완료 |
 | 03-2 | `Tasks/03-2_lobby_team_ready.md` | 대기방, 팀 선택, 준비 상태 | 예정 |
 | 04-1 | `Tasks/04-1_snow_creation_interaction.md` | 눈 만들기, 잡기, 내려놓기 | 완료 |
-| 04-2 | `Tasks/04-2_snow_aim_charge_throw.md` | 조준, 충전, 작은 눈 투척 | 완료 |
+| 04-2 | `Tasks/04-2_snow_aim_charge_throw.md` | 조준, 충전, 작은 눈 투척 | 진행중 |
 | 04-3 | `Tasks/04-3_snow_roll_and_large_snow.md` | 눈 굴리기, 성장, 큰 눈 투척 | 진행중 |
 | 05-1 | `Tasks/05-1_spectate_and_hotpack_revive.md` | 아군 관전과 핫팩 부활 | 예정 |
 | 05-2 | `Tasks/05-2_gift_box.md` | 선물상자 생성과 공격 개봉 | 예정 |
 | 05-3 | `Tasks/05-3_basic_items.md` | MVP 기본 아이템 | 예정 |
 | 05-4 | `Tasks/05-4_gameplay_ui.md` | HUD와 상호작용 UI용 데이터 연결 | 예정 |
-| 06-1 | `Tasks/06-1_snow_island_match_flow.md` | 눈 쌓인 섬과 팀 승패 | 예정 |
+| 06-1 | `Tasks/06-1_snow_island_match_flow.md` | 눈 쌓인 섬과 팀 승패 | 진행중 |
 | 06-2 | `Tasks/06-2_result_and_mvp_validation.md` | 결과 데이터, 사운드, MVP 통합 검증 | 예정 |
 
 ## SUB 프로그래머 UI 작업리스트
@@ -51,6 +51,8 @@ SUB Task는 연결된 Main Task가 완료되고 실제 UI 연결 지점이 기�
 
 | Task | 메인 프로그래머 선점 파일·비UI 자산 | SUB 프로그래머 선점 UI 자산 | 상태 |
 | --- | --- | --- | --- |
+| 06-1 로컬 카메라 눈 VFX | `Source/SnowRumble/SnowRumble.Build.cs`, `Source/SnowRumble/Player/SnowRumbleCharacter.h`, `Source/SnowRumble/Player/SnowRumbleCharacter.cpp`, `Tasks/06-1_snow_island_match_flow.md`, `docs/PLANS.md` | 없음 | 진행중 |
+| 04-2 투척 벽 충돌 수정 | `Source/SnowRumble/Snowball/SnowballItem.h`, `Source/SnowRumble/Snowball/SnowballItem.cpp`, `Tasks/04-2_snow_aim_charge_throw.md`, `docs/PLANS.md` | 없음 | 진행중 |
 | 04-3 큰 눈 양손 운반 | `Source/SnowRumble/Player/SnowRumbleCharacter.h`, `Source/SnowRumble/Player/SnowRumbleCharacter.cpp`, `Source/SnowRumble/Snowball/SnowballEquipmentComponent.h`, `Source/SnowRumble/Snowball/SnowballEquipmentComponent.cpp`, `Source/SnowRumble/Snowball/SnowballItem.h`, `Source/SnowRumble/Snowball/SnowballItem.cpp`, `Tasks/04-3_snow_roll_and_large_snow.md`, `docs/GDD/Game_GDD.md`, `docs/PENDING_ISSUES.md`, `docs/PLANS.md` | 없음 | 진행중 |
 
 ## 최근 작업 로그

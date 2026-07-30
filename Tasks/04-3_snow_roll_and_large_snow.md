@@ -65,6 +65,7 @@
 - 캐릭터의 `GetSnowballCarryState()`는 획득 연출 중이거나 빈손이면 `Normal`, 최대 성장 전 보유 눈덩이는 `SmallSnowball`, 성장률 `1`에 도달한 보유 눈덩이는 `LargeSnowball`을 반환한다.
 - 별도 `ESnowballActionState`는 우선 `None`, `RollingSnowball`을 제공하며 `GetSnowballActionState()`로 읽는다.
 - 굴리기 중 AnimBP 상태 조합은 `CarryState = Normal`, `ActionState = RollingSnowball`이다.
+- 굴리기 중에는 캐릭터의 `Space` 점프 입력을 차단한다.
 - 기존 `IsHoldingSnowball()`은 기존 Blueprint 호환성을 위해 유지한다.
 
 ## 현재 구현 결과
@@ -136,6 +137,8 @@
 - [x] Animation Blueprint에서 `Get Snowball Carry State`와 `ESnowballCarryState`의 세 값을 사용할 수 있는지 확인한다.
 - [x] 빈손·획득 연출 중에는 `Normal`, 작은 눈 보유 중에는 `Small Snowball`, 최대 성장 눈 보유 중에는 `Large Snowball`이 반환되는지 확인한다.
 - [x] 굴리기 중 `Get Snowball Action State`가 `Rolling Snowball`, 종료 후 `None`을 반환하는지 확인한다.
+- [ ] 호스트와 클라이언트가 각각 눈덩이를 굴리는 동안 `Space`를 눌러도 점프하지 않는지 확인한다.
+- [ ] 굴리기를 종료하면 호스트와 클라이언트 모두 다시 `Space`로 점프할 수 있는지 확인한다.
 - [ ] 최대 성장 눈덩이를 호스트와 클라이언트가 각각 E 탭으로 획득할 수 있는지 확인한다.
 - [ ] 큰 눈 획득 후 `Get Snowball Carry State`가 `Large Snowball`을 유지해 양손 운반 애니메이션으로 전환되는지 확인한다.
 - [ ] 큰 눈 운반 중 이동속도가 기본 `200cm/s`로 제한되고 호스트·클라이언트에서 동일하게 보이는지 확인한다.
