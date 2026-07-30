@@ -10,6 +10,7 @@ class UCameraComponent;
 class UDamageType;
 class UInputAction;
 class UInputMappingContext;
+class UNiagaraComponent;
 class UOutlineComponent;
 class USceneComponent;
 class USnowRumbleHealthComponent;
@@ -167,6 +168,12 @@ protected:
 	/** 로컬 플레이어에게 현재 캐릭터의 입력 매핑 컨텍스트를 적용한다. */
 	void ApplyInputMappingContext();
 
+	/** 로컬 PlayerCameraManager에 안전한 상하 시야각을 적용한다. */
+	void ApplyCameraPitchLimits();
+
+	/** 자신이 조종하는 캐릭터의 카메라에서만 눈 VFX를 활성화한다. */
+	void RefreshLocalSnowEffect();
+
 	/** 얼기 상태에 따라 캐릭터 이동을 중지하거나 복구한다. */
 	UFUNCTION()
 	void HandleFrozenChanged(bool bIsFrozen);
@@ -216,6 +223,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Camera")
 	TObjectPtr<UCameraComponent> FollowCamera;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Camera")
+	TObjectPtr<UNiagaraComponent> LocalSnowEffect;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Health")
 	TObjectPtr<USnowRumbleHealthComponent> HealthComponent;
@@ -274,6 +284,33 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera", meta = (ClampMin = "5.0", ClampMax = "170.0"))
 	float AimFieldOfView = 75.0f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera", meta = (ClampMin = "0.0"))
+	float AimFieldOfViewInterpSpeed = 3.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera", meta = (ClampMin = "0.0"))
+	float DefaultShoulderOffset = 75.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera", meta = (ClampMin = "0.0"))
+	float AimShoulderOffset = 90.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera", meta = (ClampMin = "0.0"))
+	float AimCameraArmLength = 340.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera", meta = (ClampMin = "0.0"))
+	float CameraPositionInterpSpeed = 1.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera", meta = (ClampMin = "0.0"))
+	float PostThrowCameraHoldSeconds = 1.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera")
+	float CameraPivotHeight = 65.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera", meta = (ClampMin = "-89.0", ClampMax = "0.0"))
+	float CameraViewPitchMin = -65.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera", meta = (ClampMin = "0.0", ClampMax = "89.0"))
+	float CameraViewPitchMax = 55.0f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation", meta = (ClampMin = "0.01"))
 	float PickupAnimationStateDuration = 0.6f;
 
@@ -284,6 +321,10 @@ protected:
 	bool bIsPickingUpItem = false;
 
 	float DefaultFieldOfView = 90.0f;
+	FVector DefaultCameraSocketOffset = FVector::ZeroVector;
+	float DefaultCameraArmLength = 400.0f;
+	float CameraShoulderSide = 1.0f;
+	double PostThrowAimCameraEndTime = -1.0;
 
 	FTimerHandle PickupAnimationTimerHandle;
 

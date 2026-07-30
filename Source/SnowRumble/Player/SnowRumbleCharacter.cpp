@@ -8,6 +8,7 @@
 #include "../Snowball/SnowballEquipmentComponent.h"
 #include "../Snowball/SnowballItem.h"
 #include "Camera/CameraComponent.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SceneComponent.h"
 #include "EnhancedInputComponent.h"
@@ -19,6 +20,7 @@
 #include "InputActionValue.h"
 #include "InputMappingContext.h"
 #include "Net/UnrealNetwork.h"
+#include "NiagaraComponent.h"
 #include "TimerManager.h"
 
 ASnowRumbleCharacter::ASnowRumbleCharacter()
@@ -39,10 +41,19 @@ ASnowRumbleCharacter::ASnowRumbleCharacter()
 	CameraBoom->SetupAttachment(RootComponent);
 	CameraBoom->TargetArmLength = 400.0f;
 	CameraBoom->bUsePawnControlRotation = true;
+	CameraBoom->bDoCollisionTest = true;
+	CameraBoom->ProbeSize = 12.0f;
+	CameraBoom->TargetOffset = FVector(0.0f, 0.0f, CameraPivotHeight);
 
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
+
+	LocalSnowEffect = CreateDefaultSubobject<UNiagaraComponent>(TEXT("LocalSnowEffect"));
+	LocalSnowEffect->SetupAttachment(FollowCamera);
+	LocalSnowEffect->SetAutoActivate(false);
+	LocalSnowEffect->SetOnlyOwnerSee(true);
+	LocalSnowEffect->SetVisibility(false);
 
 	HealthComponent = CreateDefaultSubobject<USnowRumbleHealthComponent>(TEXT("HealthComponent"));
 
@@ -61,6 +72,48 @@ ASnowRumbleCharacter::ASnowRumbleCharacter()
 void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+
+	const UWorld* World = GetWorld();
+	const bool bUseAimCameraPresentation =
+		IsAiming()
+		|| (World
+			&& World->GetTimeSeconds() < PostThrowAimCameraEndTime);
+
+	if (IsLocallyControlled() && CameraBoom)
+	{
+		FVector TargetCameraOffset = DefaultCameraSocketOffset;
+		const float ShoulderOffset =
+			bUseAimCameraPresentation
+				? AimShoulderOffset
+				: DefaultShoulderOffset;
+		TargetCameraOffset.Y += CameraShoulderSide * ShoulderOffset;
+
+		CameraBoom->SocketOffset = FMath::VInterpTo(
+			CameraBoom->SocketOffset,
+			TargetCameraOffset,
+			DeltaSeconds,
+			CameraPositionInterpSpeed);
+		CameraBoom->TargetArmLength = FMath::FInterpTo(
+			CameraBoom->TargetArmLength,
+			bUseAimCameraPresentation
+				? AimCameraArmLength
+				: DefaultCameraArmLength,
+			DeltaSeconds,
+			CameraPositionInterpSpeed);
+	}
+
+	if (IsLocallyControlled() && FollowCamera)
+	{
+		const float TargetFieldOfView =
+			bUseAimCameraPresentation
+				? AimFieldOfView
+				: DefaultFieldOfView;
+		FollowCamera->SetFieldOfView(FMath::FInterpTo(
+			FollowCamera->FieldOfView,
+			TargetFieldOfView,
+			DeltaSeconds,
+			AimFieldOfViewInterpSpeed));
+	}
 
 	if (IsLocallyControlled() && IsChargingSnowball() && GEngine)
 	{
@@ -239,6 +292,15 @@ void ASnowRumbleCharacter::BeginPlay()
 	{
 		DefaultFieldOfView = FollowCamera->FieldOfView;
 	}
+	if (CameraBoom)
+	{
+		CameraBoom->TargetOffset.Z = CameraPivotHeight;
+		DefaultCameraSocketOffset = CameraBoom->SocketOffset;
+		DefaultCameraArmLength = CameraBoom->TargetArmLength;
+	}
+
+	RefreshLocalSnowEffect();
+	ApplyCameraPitchLimits();
 
 	if (HealthComponent)
 	{
@@ -279,6 +341,46 @@ void ASnowRumbleCharacter::PawnClientRestart()
 {
 	Super::PawnClientRestart();
 	ApplyInputMappingContext();
+	ApplyCameraPitchLimits();
+	RefreshLocalSnowEffect();
+}
+
+void ASnowRumbleCharacter::ApplyCameraPitchLimits()
+{
+	if (!IsLocallyControlled())
+	{
+		return;
+	}
+
+	APlayerController* PlayerController =
+		Cast<APlayerController>(GetController());
+	if (PlayerController && PlayerController->PlayerCameraManager)
+	{
+		PlayerController->PlayerCameraManager->ViewPitchMin =
+			CameraViewPitchMin;
+		PlayerController->PlayerCameraManager->ViewPitchMax =
+			CameraViewPitchMax;
+	}
+}
+
+void ASnowRumbleCharacter::RefreshLocalSnowEffect()
+{
+	if (!LocalSnowEffect)
+	{
+		return;
+	}
+
+	const bool bShouldShowLocalSnow = IsLocallyControlled();
+	LocalSnowEffect->SetVisibility(bShouldShowLocalSnow, true);
+
+	if (bShouldShowLocalSnow)
+	{
+		LocalSnowEffect->Activate(true);
+	}
+	else
+	{
+		LocalSnowEffect->Deactivate();
+	}
 }
 
 void ASnowRumbleCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -372,13 +474,21 @@ void ASnowRumbleCharacter::Move(const FInputActionValue& Value)
 void ASnowRumbleCharacter::Look(const FInputActionValue& Value)
 {
 	const FVector2D LookAxisVector = Value.Get<FVector2D>();
+
+	if (FMath::Abs(LookAxisVector.X) > KINDA_SMALL_NUMBER)
+	{
+		CameraShoulderSide = LookAxisVector.X < 0.0f ? 1.0f : -1.0f;
+	}
+
 	AddControllerYawInput(LookAxisVector.X);
 	AddControllerPitchInput(-LookAxisVector.Y);
 }
 
 void ASnowRumbleCharacter::StartJump()
 {
-	if (CanPerformGameplayAction())
+	if (CanPerformGameplayAction()
+		&& (!SnowballEquipmentComponent
+			|| !SnowballEquipmentComponent->IsRollingSnowball()))
 	{
 		Jump();
 	}
@@ -503,6 +613,12 @@ void ASnowRumbleCharacter::HandleActionCompleted()
 {
 	if (SnowballEquipmentComponent && SnowballEquipmentComponent->IsCharging())
 	{
+		if (IsLocallyControlled() && GetWorld())
+		{
+			PostThrowAimCameraEndTime =
+				GetWorld()->GetTimeSeconds() + PostThrowCameraHoldSeconds;
+		}
+
 		SnowballEquipmentComponent->ReleaseChargedSnowball();
 	}
 
@@ -624,11 +740,6 @@ void ASnowRumbleCharacter::HandleSnowballAimingChanged(bool bNewAiming)
 	}
 
 	ApplyMovementSpeed();
-
-	if (IsLocallyControlled() && FollowCamera)
-	{
-		FollowCamera->SetFieldOfView(bNewAiming ? AimFieldOfView : DefaultFieldOfView);
-	}
 
 	if (HasAuthority())
 	{
