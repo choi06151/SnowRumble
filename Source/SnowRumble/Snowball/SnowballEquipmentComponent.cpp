@@ -46,14 +46,27 @@ void USnowballEquipmentComponent::TickComponent(
 		return;
 	}
 
+	const float RollingCollisionRadius =
+		RollingSnowball->GetRollingCollisionRadius();
+	const float MinimumRollingDistance =
+		Character->GetCapsuleComponent()->GetScaledCapsuleRadius()
+		+ RollingCollisionRadius
+		+ 2.0f;
+	const float EffectiveRollingDistance =
+		FMath::Max(RollingDistance, MinimumRollingDistance);
 	FVector TargetLocation =
 		Character->GetActorLocation()
-		+ MovementDirection * RollingDistance;
+		+ MovementDirection * EffectiveRollingDistance;
 	TargetLocation.Z = RollingSnowball->GetActorLocation().Z;
 
 	FHitResult RollingHit;
 	const bool bBlockedByObstacle =
-		RollingSnowball->MoveRollingSnowball(TargetLocation, RollingHit);
+		Character->MoveRollingSnowballCollision(
+			TargetLocation,
+			RollingCollisionRadius,
+			RollingHit);
+	RollingSnowball->MoveRollingSnowball(
+		Character->GetRollingSnowballCollisionLocation());
 	if (bBlockedByObstacle)
 	{
 		FVector PushDirection = (
@@ -256,13 +269,19 @@ bool USnowballEquipmentComponent::IsCharging() const
 float USnowballEquipmentComponent::GetChargeProgress() const
 {
 	const UWorld* World = GetWorld();
-	if (!World || !IsCharging() || ChargeStartTime < 0.0 || MaximumChargeSeconds <= 0.0f)
+	const float CurrentMaximumChargeSeconds = GetCurrentMaximumChargeSeconds();
+	if (!World
+		|| !IsCharging()
+		|| ChargeStartTime < 0.0
+		|| CurrentMaximumChargeSeconds <= 0.0f)
 	{
 		return 0.0f;
 	}
 
 	return FMath::Clamp(
-		static_cast<float>((World->GetTimeSeconds() - ChargeStartTime) / MaximumChargeSeconds),
+		static_cast<float>(
+			(World->GetTimeSeconds() - ChargeStartTime)
+			/ CurrentMaximumChargeSeconds),
 		0.0f,
 		1.0f);
 }
@@ -427,19 +446,33 @@ void USnowballEquipmentComponent::ServerReleaseChargedSnowball_Implementation(
 		return;
 	}
 
+	const bool bThrowingLargeSnowball = IsHoldingLargeSnowball();
+	const float CurrentMaximumChargeSeconds = GetCurrentMaximumChargeSeconds();
 	const float ChargeProgress = FMath::Clamp(
-		static_cast<float>((World->GetTimeSeconds() - ChargeStartTime) / MaximumChargeSeconds),
+		static_cast<float>(
+			(World->GetTimeSeconds() - ChargeStartTime)
+			/ CurrentMaximumChargeSeconds),
 		0.0f,
 		1.0f);
 	const float ThrowSpeed = FMath::Lerp(
-		MinimumThrowSpeed,
-		MaximumThrowSpeed,
+		bThrowingLargeSnowball
+			? LargeSnowballMinimumThrowSpeed
+			: MinimumThrowSpeed,
+		bThrowingLargeSnowball
+			? LargeSnowballMaximumThrowSpeed
+			: MaximumThrowSpeed,
 		ChargeProgress);
+	const FVector FinalThrowDirection =
+		bThrowingLargeSnowball
+			? (ThrowDirection.GetSafeNormal()
+				+ FVector::UpVector * LargeSnowballArcLift).GetSafeNormal()
+			: ThrowDirection.GetSafeNormal();
 
 	ASnowballItem* SnowballToThrow = HeldSnowball;
 	SetChargingState(false);
 
-	if (!SnowballToThrow || !SnowballToThrow->Throw(ThrowDirection, ThrowSpeed))
+	if (!SnowballToThrow
+		|| !SnowballToThrow->Throw(FinalThrowDirection, ThrowSpeed))
 	{
 		return;
 	}
@@ -506,9 +539,9 @@ void USnowballEquipmentComponent::ServerStartRollingSnowball_Implementation()
 	}
 
 	RollingSnowball = RollingCandidate;
-	Character->GetCapsuleComponent()->IgnoreActorWhenMoving(
-		RollingSnowball,
-		true);
+	Character->EnableRollingSnowballCollision(
+		RollingSnowball->GetActorLocation(),
+		RollingSnowball->GetRollingCollisionRadius());
 	Character->ForceNetUpdate();
 }
 
@@ -518,9 +551,7 @@ void USnowballEquipmentComponent::ServerStopRollingSnowball_Implementation()
 	{
 		if (ASnowRumbleCharacter* Character = Cast<ASnowRumbleCharacter>(GetOwner()))
 		{
-			Character->GetCapsuleComponent()->IgnoreActorWhenMoving(
-				RollingSnowball,
-				false);
+			Character->DisableRollingSnowballCollision();
 		}
 
 		RollingSnowball->StopRolling();
@@ -564,6 +595,13 @@ void USnowballEquipmentComponent::OnRep_IsAiming()
 void USnowballEquipmentComponent::OnRep_IsCharging()
 {
 	OnChargingChanged.Broadcast(IsCharging());
+}
+
+float USnowballEquipmentComponent::GetCurrentMaximumChargeSeconds() const
+{
+	return IsHoldingLargeSnowball()
+		? LargeSnowballMaximumChargeSeconds
+		: MaximumChargeSeconds;
 }
 
 void USnowballEquipmentComponent::SetChargingState(bool bNewCharging)

@@ -93,6 +93,10 @@ bool ASnowballItem::Throw(const FVector& ThrowDirection, float ThrowSpeed)
 	CollisionComponent->IgnoreActorWhenMoving(PreviousHolder, true);
 	SetReplicateMovement(true);
 
+	ProjectileMovement->ProjectileGravityScale =
+		IsFullyGrown()
+			? LargeSnowballProjectileGravityScale
+			: SmallSnowballProjectileGravityScale;
 	ProjectileMovement->Velocity = ThrowDirection.GetSafeNormal() * ThrowSpeed;
 	ProjectileMovement->Activate(true);
 	SetLifeSpan(MaximumThrownLifeSeconds);
@@ -135,7 +139,6 @@ bool ASnowballItem::TryStartRolling(ASnowRumbleCharacter* NewRoller)
 	SetOwner(NewRoller);
 	LastRollingLocation = GetActorLocation();
 	bAppliedRollingGroundClearance = false;
-	CollisionComponent->IgnoreActorWhenMoving(NewRoller, true);
 	RefreshStatePresentation();
 	ForceNetUpdate();
 	return true;
@@ -149,38 +152,32 @@ bool ASnowballItem::StopRolling()
 		return false;
 	}
 
-	ASnowRumbleCharacter* PreviousRoller = Roller;
 	ItemState = ESnowballItemState::Ground;
 	Roller = nullptr;
 	bIsSettledOnGround = false;
 	bAppliedRollingGroundClearance = false;
 	SetOwner(nullptr);
-	CollisionComponent->IgnoreActorWhenMoving(PreviousRoller, false);
 	RefreshStatePresentation();
 	ForceNetUpdate();
 	return true;
 }
 
-bool ASnowballItem::MoveRollingSnowball(
-	const FVector& TargetLocation,
-	FHitResult& OutSweepHit)
+void ASnowballItem::MoveRollingSnowball(const FVector& TargetLocation)
 {
-	OutSweepHit = FHitResult();
-
 	if (!HasAuthority()
 		|| ItemState != ESnowballItemState::Rolling
 		|| !Roller
 		|| !CollisionComponent
 		|| TargetLocation.ContainsNaN())
 	{
-		return false;
+		return;
 	}
 
 	const FVector PreviousLocation = GetActorLocation();
 	SetActorLocation(
 		TargetLocation,
-		true,
-		&OutSweepHit,
+		false,
+		nullptr,
 		ETeleportType::None);
 
 	const FVector MovedDelta = GetActorLocation() - PreviousLocation;
@@ -192,8 +189,6 @@ bool ASnowballItem::MoveRollingSnowball(
 		const float Radius = FMath::Max(CollisionComponent->GetScaledSphereRadius(), 1.0f);
 		AddActorWorldRotation(FQuat(RollAxis, MovedDistance / Radius));
 	}
-
-	return OutSweepHit.bBlockingHit;
 }
 
 void ASnowballItem::UpdateRollingGrowth()
@@ -238,6 +233,13 @@ float ASnowballItem::GetGrowthProgress() const
 bool ASnowballItem::IsFullyGrown() const
 {
 	return GrowthProgress >= 0.999f;
+}
+
+float ASnowballItem::GetRollingCollisionRadius() const
+{
+	return CollisionComponent
+		? CollisionComponent->GetScaledSphereRadius()
+		: 1.0f;
 }
 
 bool ASnowballItem::CanBePickedUp() const
@@ -360,8 +362,7 @@ void ASnowballItem::RefreshStatePresentation()
 			ProjectileMovement->Velocity = FVector::ZeroVector;
 		}
 
-		CollisionComponent->SetCollisionProfileName(TEXT("BlockAllDynamic"));
-		CollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		CollisionComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		CollisionComponent->SetSimulatePhysics(false);
 		CollisionComponent->SetEnableGravity(false);
 		SetReplicateMovement(true);

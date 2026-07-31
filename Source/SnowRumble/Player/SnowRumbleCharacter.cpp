@@ -11,6 +11,8 @@
 #include "Camera/PlayerCameraManager.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SceneComponent.h"
+#include "Components/SphereComponent.h"
+#include "DrawDebugHelpers.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -62,6 +64,16 @@ ASnowRumbleCharacter::ASnowRumbleCharacter()
 
 	SnowballCreationComponent =
 		CreateDefaultSubobject<USnowballCreationComponent>(TEXT("SnowballCreationComponent"));
+
+	RollingSnowballCollision =
+		CreateDefaultSubobject<USphereComponent>(TEXT("RollingSnowballCollision"));
+	RollingSnowballCollision->SetupAttachment(RootComponent);
+	RollingSnowballCollision->SetUsingAbsoluteLocation(true);
+	RollingSnowballCollision->InitSphereRadius(18.0f);
+	RollingSnowballCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	RollingSnowballCollision->SetCollisionObjectType(ECC_WorldDynamic);
+	RollingSnowballCollision->SetCollisionResponseToAllChannels(ECR_Block);
+	RollingSnowballCollision->SetGenerateOverlapEvents(false);
 
 	SnowballHoldPoint = CreateDefaultSubobject<USceneComponent>(TEXT("SnowballHoldPoint"));
 	SnowballHoldPoint->SetupAttachment(GetMesh(), TEXT("SnowballSocket"));
@@ -141,6 +153,7 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 		OutlineComponent->SetOutlinedActor(OutlinedActor);
 	}
 
+	DrawRollingSnowballCollisionDebug();
 	ApplyMovementSpeed();
 }
 
@@ -244,6 +257,70 @@ float ASnowRumbleCharacter::GetSnowballCreationProgress() const
 USceneComponent* ASnowRumbleCharacter::GetSnowballHoldPoint() const
 {
 	return SnowballHoldPoint;
+}
+
+void ASnowRumbleCharacter::EnableRollingSnowballCollision(
+	const FVector& InitialLocation,
+	float CollisionRadius)
+{
+	if (!HasAuthority()
+		|| !RollingSnowballCollision
+		|| InitialLocation.ContainsNaN())
+	{
+		return;
+	}
+
+	RollingSnowballCollision->SetSphereRadius(
+		FMath::Max(CollisionRadius, 1.0f),
+		false);
+	RollingSnowballCollision->SetWorldLocation(
+		InitialLocation,
+		false,
+		nullptr,
+		ETeleportType::TeleportPhysics);
+	RollingSnowballCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+}
+
+bool ASnowRumbleCharacter::MoveRollingSnowballCollision(
+	const FVector& TargetLocation,
+	float CollisionRadius,
+	FHitResult& OutSweepHit)
+{
+	OutSweepHit = FHitResult();
+	if (!HasAuthority()
+		|| !RollingSnowballCollision
+		|| RollingSnowballCollision->GetCollisionEnabled()
+			== ECollisionEnabled::NoCollision
+		|| TargetLocation.ContainsNaN())
+	{
+		return false;
+	}
+
+	RollingSnowballCollision->SetSphereRadius(
+		FMath::Max(CollisionRadius, 1.0f),
+		false);
+	RollingSnowballCollision->SetWorldLocation(
+		TargetLocation,
+		true,
+		&OutSweepHit,
+		ETeleportType::None);
+	return OutSweepHit.bBlockingHit;
+}
+
+FVector ASnowRumbleCharacter::GetRollingSnowballCollisionLocation() const
+{
+	return RollingSnowballCollision
+		? RollingSnowballCollision->GetComponentLocation()
+		: GetActorLocation();
+}
+
+void ASnowRumbleCharacter::DisableRollingSnowballCollision()
+{
+	if (HasAuthority() && RollingSnowballCollision)
+	{
+		RollingSnowballCollision->SetCollisionEnabled(
+			ECollisionEnabled::NoCollision);
+	}
 }
 
 void ASnowRumbleCharacter::NotifyItemPickupSucceeded()
@@ -381,6 +458,48 @@ void ASnowRumbleCharacter::RefreshLocalSnowEffect()
 	{
 		LocalSnowEffect->Deactivate();
 	}
+}
+
+void ASnowRumbleCharacter::DrawRollingSnowballCollisionDebug() const
+{
+	if (!bDrawRollingSnowballCollisionDebug
+		|| !IsLocallyControlled()
+		|| !RollingSnowballCollision
+		|| !SnowballEquipmentComponent)
+	{
+		return;
+	}
+
+	const ASnowballItem* RollingSnowball =
+		SnowballEquipmentComponent->GetRollingSnowball();
+	if (!RollingSnowball)
+	{
+		return;
+	}
+
+	const bool bDrawServerProxy =
+		HasAuthority()
+		&& RollingSnowballCollision->GetCollisionEnabled()
+			!= ECollisionEnabled::NoCollision;
+	const FVector DebugLocation =
+		bDrawServerProxy
+			? RollingSnowballCollision->GetComponentLocation()
+			: RollingSnowball->GetActorLocation();
+	const float DebugRadius =
+		bDrawServerProxy
+			? RollingSnowballCollision->GetScaledSphereRadius()
+			: RollingSnowball->GetRollingCollisionRadius();
+
+	DrawDebugSphere(
+		GetWorld(),
+		DebugLocation,
+		DebugRadius,
+		16,
+		bDrawServerProxy ? FColor::Green : FColor::Cyan,
+		false,
+		0.0f,
+		0,
+		2.0f);
 }
 
 void ASnowRumbleCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

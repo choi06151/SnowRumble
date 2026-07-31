@@ -13,11 +13,13 @@ class UInputMappingContext;
 class UNiagaraComponent;
 class UOutlineComponent;
 class USceneComponent;
+class USphereComponent;
 class USnowRumbleHealthComponent;
 class USnowballCreationComponent;
 class USnowballEquipmentComponent;
 class USpringArmComponent;
 class AController;
+class ASnowballItem;
 struct FDamageEvent;
 struct FInputActionValue;
 
@@ -101,6 +103,23 @@ public:
 	/** 눈덩이를 부착할 캐릭터의 조정 가능한 장착 위치를 반환한다. */
 	USceneComponent* GetSnowballHoldPoint() const;
 
+	/** 서버에서 굴리기 전용 충돌 프록시를 눈덩이 위치와 크기로 활성화한다. */
+	void EnableRollingSnowballCollision(
+		const FVector& InitialLocation,
+		float CollisionRadius);
+
+	/** 서버에서 굴리기 충돌 프록시를 목표 위치까지 Sweep하고 충돌 여부를 반환한다. */
+	bool MoveRollingSnowballCollision(
+		const FVector& TargetLocation,
+		float CollisionRadius,
+		FHitResult& OutSweepHit);
+
+	/** 현재 굴리기 충돌 프록시의 서버 확정 위치를 반환한다. */
+	FVector GetRollingSnowballCollisionLocation() const;
+
+	/** 굴리기 종료 시 서버 충돌 프록시를 비활성화한다. */
+	void DisableRollingSnowballCollision();
+
 	/** 서버에서 아이템 획득 성공 애니메이션 상태를 시작한다. */
 	void NotifyItemPickupSucceeded();
 
@@ -174,6 +193,9 @@ protected:
 	/** 자신이 조종하는 캐릭터의 카메라에서만 눈 VFX를 활성화한다. */
 	void RefreshLocalSnowEffect();
 
+	/** 로컬 화면에 굴리기 충돌 프록시 범위를 디버그 Sphere로 표시한다. */
+	void DrawRollingSnowballCollisionDebug() const;
+
 	/** 얼기 상태에 따라 캐릭터 이동을 중지하거나 복구한다. */
 	UFUNCTION()
 	void HandleFrozenChanged(bool bIsFrozen);
@@ -236,6 +258,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball")
 	TObjectPtr<USnowballCreationComponent> SnowballCreationComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling")
+	TObjectPtr<USphereComponent> RollingSnowballCollision;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball")
 	TObjectPtr<USceneComponent> SnowballHoldPoint;
 
@@ -280,6 +305,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Movement", meta = (ClampMin = "0.0"))
 	float AimWalkSpeed = 300.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling|Debug")
+	bool bDrawRollingSnowballCollisionDebug = true;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera", meta = (ClampMin = "5.0", ClampMax = "170.0"))
 	float AimFieldOfView = 75.0f;
