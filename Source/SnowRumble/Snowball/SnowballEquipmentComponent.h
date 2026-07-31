@@ -164,6 +164,9 @@ protected:
 	UFUNCTION()
 	void OnRep_IsCharging();
 
+	/** 현재 보유한 눈덩이 크기에 맞는 최대 충전시간을 반환한다. */
+	float GetCurrentMaximumChargeSeconds() const;
+
 	void SetChargingState(bool bNewCharging);
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball", meta = (ClampMin = "0.0"))
@@ -189,6 +192,18 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw", meta = (ClampMin = "0.0"))
 	float MaximumThrowSpeed = 2400.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Large", meta = (ClampMin = "0.1"))
+	float LargeSnowballMaximumChargeSeconds = 3.5f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Large", meta = (ClampMin = "0.0"))
+	float LargeSnowballMinimumThrowSpeed = 700.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Large", meta = (ClampMin = "0.0"))
+	float LargeSnowballMaximumThrowSpeed = 1400.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Large", meta = (ClampMin = "0.0"))
+	float LargeSnowballArcLift = 0.35f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling", meta = (ClampMin = "0.0"))
 	float MaximumRollingSeparation = 250.0f;

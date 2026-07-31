@@ -48,10 +48,8 @@ public:
 	/** 서버가 굴리기 상태를 끝내고 바닥 물리를 복구한다. */
 	bool StopRolling();
 
-	/** 서버가 굴리기 중인 눈덩이를 충돌 Sweep으로 이동하고 장애물 충돌 결과를 반환한다. */
-	bool MoveRollingSnowball(
-		const FVector& TargetLocation,
-		FHitResult& OutSweepHit);
+	/** 서버가 굴리기 충돌 프록시의 확정 위치로 눈덩이를 무충돌 이동한다. */
+	void MoveRollingSnowball(const FVector& TargetLocation);
 
 	/** 서버가 마지막 확인 위치부터 실제 이동한 거리를 성장값에 누적한다. */
 	void UpdateRollingGrowth();
@@ -63,6 +61,9 @@ public:
 	/** 성장 오차 범위를 포함해 최대 성장 큰 눈덩이인지 확인한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
 	bool IsFullyGrown() const;
+
+	/** 현재 성장 크기가 적용된 굴리기 충돌 반지름을 반환한다. */
+	float GetRollingCollisionRadius() const;
 
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
 	ESnowballItemState GetItemState() const;
@@ -135,6 +136,12 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball", meta = (ClampMin = "0.0"))
 	float Damage = 25.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw", meta = (ClampMin = "0.0"))
+	float SmallSnowballProjectileGravityScale = 0.25f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Large", meta = (ClampMin = "0.0"))
+	float LargeSnowballProjectileGravityScale = 1.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Growth", meta = (ClampMin = "1.0"))
 	float MaximumScaleMultiplier = 3.0f;
