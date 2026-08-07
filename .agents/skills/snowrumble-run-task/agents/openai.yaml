@@ -1,0 +1,4 @@
+interface:
+  display_name: "SnowRumble Task Runner"
+  short_description: "Run role plans, tasks, handoffs, and conflict checks"
+  default_prompt: "Use $snowrumble-run-task to review my role plan and safely continue the next SnowRumble task."
