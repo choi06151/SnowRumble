@@ -1,6 +1,6 @@
 ---
 name: snowrumble-run-task
-description: Run and adapt SnowRumble role-based work safely. Use in the SnowRumble repository when a role Codex needs to start or continue a Task, change priorities, split or add a Task, handle a bug or unwanted result, pause or replace work, request a cross-role contract, resolve an ownership conflict, record a handoff, or update the role PLAN and central integration board.
+description: Run and adapt SnowRumble role-based work safely. Use in the SnowRumble repository when a role Codex starts a session or Task, checks or switches the role branch, synchronizes remote changes, starts or continues a Task, changes priorities, splits or adds a Task, handles a bug or unwanted result, pauses or replaces work, requests a cross-role contract, resolves an ownership conflict, records a handoff, or updates the role PLAN and central integration board.
 ---
 
 # SnowRumble Task Runner
@@ -10,6 +10,22 @@ description: Run and adapt SnowRumble role-based work safely. Use in the SnowRum
 1. Identify the current person as `S`, `J`, `K`, or `C` from the conversation.
 2. If the person is not explicit, ask who this Codex represents and do not mutate project files.
 3. Keep the confirmed role for the session until the user explicitly changes it.
+
+## Synchronize the role branch
+
+Before starting or resuming project work, and whenever the confirmed role changes:
+
+1. Inspect the current branch, upstream, and working tree without changing them.
+2. Run `git fetch origin --prune` to refresh remote branch state.
+3. Map the normal work branch directly from the role: `C`, `K`, `S`, or `J`. Use `master` only when C explicitly performs integration.
+4. If the current branch differs, switch to the role branch only when the working tree has no staged, tracked, or untracked changes that could be carried across branches. Never auto-stash, auto-commit, reset, or discard work to enable switching.
+5. If the role branch has no upstream and the matching `origin/<role>` exists, connect that upstream.
+6. Compare the local branch with its upstream after fetch.
+7. If the branch is only behind and the working tree is clean, run `git pull --ff-only` automatically.
+8. If it is current or only ahead, continue without pulling.
+9. If it has diverged, has local changes while behind, lacks the expected remote branch, or fetch/pull fails, stop before project edits and report the exact condition. Do not auto-merge, rebase, force-push, or overwrite files.
+
+Do not ask the developer to run routine fetch, branch switch, upstream setup, or safe fast-forward pull commands that Codex can perform directly.
 
 ## Load only the required context
 
