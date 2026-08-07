@@ -7,6 +7,9 @@
 #include "../Snowball/SnowballCreationComponent.h"
 #include "../Snowball/SnowballEquipmentComponent.h"
 #include "../Snowball/SnowballItem.h"
+#include "../UI/EmoteRadialMenuWidget.h"
+#include "../UI/MainHUDWidget.h"
+#include "Animation/AnimMontage.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Components/CapsuleComponent.h"
@@ -24,6 +27,7 @@
 #include "Net/UnrealNetwork.h"
 #include "NiagaraComponent.h"
 #include "TimerManager.h"
+#include "Blueprint/UserWidget.h"
 
 ASnowRumbleCharacter::ASnowRumbleCharacter()
 {
@@ -125,16 +129,6 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 			TargetFieldOfView,
 			DeltaSeconds,
 			AimFieldOfViewInterpSpeed));
-	}
-
-	if (IsLocallyControlled() && IsChargingSnowball() && GEngine)
-	{
-		const int32 ChargePercent = FMath::RoundToInt(GetSnowballChargeProgress() * 100.0f);
-		GEngine->AddOnScreenDebugMessage(
-			static_cast<uint64>(GetUniqueID()),
-			0.05f,
-			FColor::Cyan,
-			FString::Printf(TEXT("Snowball Charge: %d%%"), ChargePercent));
 	}
 
 	if (OutlineComponent)
@@ -254,6 +248,66 @@ float ASnowRumbleCharacter::GetSnowballCreationProgress() const
 		: 0.0f;
 }
 
+ESnowRumbleTimedActionState ASnowRumbleCharacter::GetTimedActionState() const
+{
+	if (SnowballEquipmentComponent
+		&& SnowballEquipmentComponent->IsRollingSnowball())
+	{
+		return ESnowRumbleTimedActionState::RollingSnowball;
+	}
+
+	return IsCreatingSnowball()
+		? ESnowRumbleTimedActionState::CreatingSnowball
+		: ESnowRumbleTimedActionState::None;
+}
+
+float ASnowRumbleCharacter::GetTimedActionProgress() const
+{
+	switch (GetTimedActionState())
+	{
+	case ESnowRumbleTimedActionState::CreatingSnowball:
+		return FMath::Clamp(GetSnowballCreationProgress(), 0.0f, 1.0f);
+
+	case ESnowRumbleTimedActionState::RollingSnowball:
+		if (const ASnowballItem* RollingSnowball =
+			SnowballEquipmentComponent
+				? SnowballEquipmentComponent->GetRollingSnowball()
+				: nullptr)
+		{
+			return FMath::Clamp(
+				RollingSnowball->GetGrowthProgress(),
+				0.0f,
+				1.0f);
+		}
+		return 0.0f;
+
+	default:
+		return 0.0f;
+	}
+}
+
+void ASnowRumbleCharacter::RequestPlayEmote(int32 EmoteIndex)
+{
+	if (!CanPlayEmote())
+	{
+		return;
+	}
+
+	if (!IsValidEmoteIndex(EmoteIndex))
+	{
+		return;
+	}
+
+	if (HasAuthority())
+	{
+		ServerRequestPlayEmote_Implementation(EmoteIndex);
+	}
+	else
+	{
+		ServerRequestPlayEmote(EmoteIndex);
+	}
+}
+
 USceneComponent* ASnowRumbleCharacter::GetSnowballHoldPoint() const
 {
 	return SnowballHoldPoint;
@@ -296,9 +350,22 @@ bool ASnowRumbleCharacter::MoveRollingSnowballCollision(
 		return false;
 	}
 
-	RollingSnowballCollision->SetSphereRadius(
-		FMath::Max(CollisionRadius, 1.0f),
-		false);
+	const float NewCollisionRadius = FMath::Max(CollisionRadius, 1.0f);
+	const float PreviousCollisionRadius =
+		RollingSnowballCollision->GetScaledSphereRadius();
+	const float RadiusIncrease =
+		NewCollisionRadius - PreviousCollisionRadius;
+	if (RadiusIncrease > KINDA_SMALL_NUMBER)
+	{
+		// 낮은 이전 중심에서 반지름부터 키우면 지면과 겹친 상태로
+		// Sweep이 시작되므로, 실제 눈덩이처럼 중심 높이를 먼저 맞춘다.
+		RollingSnowballCollision->AddWorldOffset(
+			FVector::UpVector * RadiusIncrease,
+			false,
+			nullptr,
+			ETeleportType::TeleportPhysics);
+	}
+	RollingSnowballCollision->SetSphereRadius(NewCollisionRadius, false);
 	RollingSnowballCollision->SetWorldLocation(
 		TargetLocation,
 		true,
@@ -420,6 +487,8 @@ void ASnowRumbleCharacter::PawnClientRestart()
 	ApplyInputMappingContext();
 	ApplyCameraPitchLimits();
 	RefreshLocalSnowEffect();
+	EnsureEmoteRadialMenuWidget();
+	EnsureMainHUDWidget();
 }
 
 void ASnowRumbleCharacter::ApplyCameraPitchLimits()
@@ -458,6 +527,111 @@ void ASnowRumbleCharacter::RefreshLocalSnowEffect()
 	{
 		LocalSnowEffect->Deactivate();
 	}
+}
+
+void ASnowRumbleCharacter::EnsureEmoteRadialMenuWidget()
+{
+	if (!IsLocallyControlled()
+		|| EmoteRadialMenuWidget
+		|| !EmoteRadialMenuWidgetClass)
+	{
+		return;
+	}
+
+	APlayerController* PlayerController = Cast<APlayerController>(Controller);
+	if (!PlayerController)
+	{
+		return;
+	}
+
+	EmoteRadialMenuWidget =
+		CreateWidget<UEmoteRadialMenuWidget>(
+			PlayerController,
+			EmoteRadialMenuWidgetClass);
+	if (EmoteRadialMenuWidget)
+	{
+		EmoteRadialMenuWidget->AddToViewport();
+		EmoteRadialMenuWidget->CloseEmoteMenu();
+	}
+}
+
+void ASnowRumbleCharacter::EnsureMainHUDWidget()
+{
+	if (!IsLocallyControlled()
+		|| MainHUDWidget
+		|| !MainHUDWidgetClass)
+	{
+		return;
+	}
+
+	APlayerController* PlayerController = Cast<APlayerController>(Controller);
+	if (!PlayerController)
+	{
+		return;
+	}
+
+	MainHUDWidget =
+		CreateWidget<UMainHUDWidget>(
+			PlayerController,
+			MainHUDWidgetClass);
+	if (MainHUDWidget)
+	{
+		MainHUDWidget->AddToViewport();
+	}
+}
+
+void ASnowRumbleCharacter::OpenEmoteRadialMenu()
+{
+	if (!IsLocallyControlled())
+	{
+		return;
+	}
+	if (bIsEmoteRadialMenuOpen)
+	{
+		return;
+	}
+
+	EnsureEmoteRadialMenuWidget();
+	if (EmoteRadialMenuWidget)
+	{
+		EmoteRadialMenuWidget->OpenEmoteMenu();
+	}
+
+	APlayerController* PlayerController = Cast<APlayerController>(Controller);
+	if (PlayerController && EmoteRadialMenuWidget)
+	{
+		FInputModeGameAndUI InputMode;
+		InputMode.SetWidgetToFocus(EmoteRadialMenuWidget->TakeWidget());
+		InputMode.SetHideCursorDuringCapture(false);
+		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		PlayerController->SetInputMode(InputMode);
+		PlayerController->SetShowMouseCursor(true);
+		PlayerController->SetIgnoreLookInput(true);
+	}
+
+	bIsEmoteRadialMenuOpen = true;
+}
+
+void ASnowRumbleCharacter::CloseEmoteRadialMenu()
+{
+	if (EmoteRadialMenuWidget)
+	{
+		EmoteRadialMenuWidget->CloseEmoteMenu();
+	}
+
+	if (IsLocallyControlled())
+	{
+		if (APlayerController* PlayerController =
+			Cast<APlayerController>(Controller))
+		{
+			FInputModeGameOnly InputMode;
+			PlayerController->SetInputMode(InputMode);
+			PlayerController->SetShowMouseCursor(false);
+			PlayerController->SetIgnoreLookInput(false);
+		}
+	}
+
+	bIsEmoteRadialMenuOpen = false;
 }
 
 void ASnowRumbleCharacter::DrawRollingSnowballCollisionDebug() const
@@ -592,6 +766,11 @@ void ASnowRumbleCharacter::Move(const FInputActionValue& Value)
 
 void ASnowRumbleCharacter::Look(const FInputActionValue& Value)
 {
+	if (bIsEmoteRadialMenuOpen)
+	{
+		return;
+	}
+
 	const FVector2D LookAxisVector = Value.Get<FVector2D>();
 
 	if (FMath::Abs(LookAxisVector.X) > KINDA_SMALL_NUMBER)
@@ -766,12 +945,19 @@ void ASnowRumbleCharacter::HandleEmoteStarted()
 {
 	if (CanPerformGameplayAction())
 	{
+		OpenEmoteRadialMenu();
 		OnEmoteInput(true);
 	}
 }
 
 void ASnowRumbleCharacter::HandleEmoteCompleted()
 {
+	if (EmoteRadialMenuWidget && bIsEmoteRadialMenuOpen)
+	{
+		EmoteRadialMenuWidget->SubmitHoveredEmote();
+	}
+
+	CloseEmoteRadialMenu();
 	OnEmoteInput(false);
 }
 
@@ -871,6 +1057,49 @@ bool ASnowRumbleCharacter::CanPerformGameplayAction() const
 	return HealthComponent
 		&& !HealthComponent->IsFrozen()
 		&& !bIsPickingUpItem;
+}
+
+bool ASnowRumbleCharacter::IsValidEmoteIndex(int32 EmoteIndex) const
+{
+	return EmoteIndex >= 0
+		&& EmoteIndex < 8
+		&& EmoteMontages.IsValidIndex(EmoteIndex)
+		&& EmoteMontages[EmoteIndex];
+}
+
+bool ASnowRumbleCharacter::CanPlayEmote() const
+{
+	return CanPerformGameplayAction()
+		&& (!SnowballEquipmentComponent
+			|| !SnowballEquipmentComponent->IsRollingSnowball())
+		&& (!SnowballCreationComponent
+			|| !SnowballCreationComponent->IsCreatingSnowball());
+}
+
+void ASnowRumbleCharacter::PlayEmoteMontage(int32 EmoteIndex)
+{
+	if (!IsValidEmoteIndex(EmoteIndex))
+	{
+		return;
+	}
+
+	PlayAnimMontage(EmoteMontages[EmoteIndex].Get());
+}
+
+void ASnowRumbleCharacter::ServerRequestPlayEmote_Implementation(int32 EmoteIndex)
+{
+	if (!CanPlayEmote()
+		|| !IsValidEmoteIndex(EmoteIndex))
+	{
+		return;
+	}
+
+	MulticastPlayEmote(EmoteIndex);
+}
+
+void ASnowRumbleCharacter::MulticastPlayEmote_Implementation(int32 EmoteIndex)
+{
+	PlayEmoteMontage(EmoteIndex);
 }
 
 void ASnowRumbleCharacter::ApplyMovementSpeed()

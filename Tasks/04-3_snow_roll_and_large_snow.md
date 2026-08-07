@@ -11,6 +11,8 @@
 - [x] 크기에 따라 굴리기와 운반 중 이동속도가 감소한다. — 현재 단위에서는 굴리기 이동속도 감소를 구현함
 - [x] 큰 눈덩이를 양손 운반 상태로 구분할 수 있다.
 - [x] 큰 눈덩이는 작은 눈덩이보다 오래 충전해 포물선으로 던진다.
+- [x] 큰 눈덩이는 손의 위치에서 카메라 Line Trace 조준점을 기준으로 투척 방향을 계산한다.
+- [x] 큰 눈덩이의 직접 피해와 넉백이 서버 충전량에 따라 증가한다.
 - [ ] 큰 눈덩이가 충돌하면 정해진 범위에 영향을 준다.
 - [ ] 성장, 운반, 투척, 충돌 결과가 모든 참가자에게 동일하게 보인다.
 
@@ -53,7 +55,8 @@
 - `ASnowballItem`의 `GrowthProgress`는 서버가 실제 수평 이동 거리를 누적해 계산하고 `0~1`로 복제한다.
 - `Distance For Maximum Growth` 기본값은 `1000cm`, `Maximum Scale Multiplier` 기본값은 `3`이다.
 - `OnRep_GrowthProgress()`는 초기 Actor Scale을 기준으로 눈덩이 Actor 전체 크기를 적용하고, 서버는 같은 반지름을 캐릭터의 굴리기 충돌 프록시에 적용한다.
-- 서버는 성장으로 증가한 반지름만큼 눈덩이 중심을 위로 보정하고, 굴리기 한 번의 최초 성장에만 기본 `2cm`의 지면 여유를 추가해 메시가 바닥에 파고들지 않게 한다.
+- 서버는 성장으로 증가한 반지름만큼만 눈덩이 중심을 위로 보정해 메시의 바닥 접촉 높이를 유지한다.
+- 굴리기 프록시는 반지름을 키우기 전에 중심을 반지름 증가분만큼 먼저 올려, 낮은 이전 중심에서 지면과 겹치며 추가 상승하는 것을 막는다.
 - 굴리기 상태에서는 실제 눈덩이의 충돌·물리·중력을 잠시 끄고 서버가 캐릭터 소유의 전용 Sphere Collision을 목표 지점까지 Sweep한다.
 - 굴리는 캐릭터의 최대 이동속도는 성장률에 따라 `300 → 150`으로 감소하고 굴리기 종료 시 기존 이동 규칙으로 복구된다.
 - 로컬 소유 플레이어가 굴리는 동안에는 복제된 `RollingSnowball`을 기존 `OutlineComponent`의 대상으로 사용해 해당 눈덩이의 아웃라인을 유지한다.
@@ -99,6 +102,16 @@
 - 큰 눈의 `Projectile Gravity Scale`은 기본 `1`, 작은 눈은 기존 `0.25`를 유지한다.
 - 큰 눈과 작은 눈의 충전시간·속도·상향 보정·중력은 Blueprint 클래스 기본값에서 조정할 수 있다.
 - 큰 눈의 투척 상태와 이동은 기존 `ASnowballItem`의 서버 권한·이동 복제 흐름을 그대로 사용한다.
+- 서버가 카메라 중앙 Line Trace로 확정한 월드 조준점과 손의 큰 눈 위치를 연결해 기본 투척 방향을 계산한다.
+- 계산된 조준점 방향에 기존 `Large Snowball Arc Lift` 기본 `0.35`를 더하므로 카메라 시차를 보정하면서 기존 포물선 느낌을 유지한다.
+
+## 현재 충전량 기반 직접 피격 구현 단위
+
+- 서버가 투척 시 확정한 충전량을 눈덩이에 보존해 충돌 시 피해와 넉백 계산에 함께 사용한다.
+- 피해는 기존 `Damage`를 최대 피해로 사용하고 `Minimum Damage Multiplier` 기본 `0.4`부터 최대 피해까지 보간한다.
+- 큰 눈 직접 피격 넉백은 기본 `500 → 1400`으로 보간하며 투사체 진행 방향에 기본 `0.25`의 위쪽 성분을 더한다.
+- 서버가 피격 캐릭터에 `LaunchCharacter()`를 호출하고 기존 Character Movement 복제로 호스트와 클라이언트에 결과를 동기화한다.
+- 이번 단위는 직접 맞은 플레이어만 처리하며 큰 눈의 주변 광역 피해·넉백은 다음 구현 단위로 남긴다.
 
 ## 현재 굴리기 충돌 프록시 수정 단위
 
@@ -114,14 +127,15 @@
 1. 실행 중인 Unreal Editor를 종료한다.
 2. `SnowRumbleEditor`를 `Development Editor`, `Win64` 구성으로 빌드하고 프로젝트를 연다.
 3. `BP_SnowRumbleCharacter`의 `SnowballEquipmentComponent`에서 필요하면 `Rolling Distance` 기본 `90`, `Maximum Rolling Separation` 기본 `250`, 굴리기 이동속도 `300~150`, `Rolling Obstacle Push Speed` 기본 `120`을 조정한다.
-4. `BP_SnowballItem`에서 필요하면 `Distance For Maximum Growth` 기본 `1000`, `Maximum Scale Multiplier` 기본 `3`, `Rolling Ground Clearance` 기본 `2`를 조정한다.
+4. `BP_SnowballItem`에서 필요하면 `Distance For Maximum Growth` 기본 `1000`, `Maximum Scale Multiplier` 기본 `3`을 조정한다.
 5. Animation Blueprint에서 기존 `Is Holding Snowball`만으로 상태를 나누는 대신 캐릭터의 `Get Snowball Carry State` 결과를 사용해 `Normal`, `Small Snowball`, `Large Snowball` 상태를 분기한다.
 6. 굴리기 애니메이션은 `Get Snowball Action State`가 `Rolling Snowball`인지 확인해 분기하고, 운반 Enum의 `Normal`과 조합한다.
 7. `BP_SnowRumbleCharacter`의 `SnowballEquipmentComponent`에서 큰 눈 운반속도가 필요하면 `Large Snowball Carry Walk Speed` 기본 `200`을 조정한다.
 8. Animation Blueprint에서 `Get Snowball Carry State`가 `Large Snowball`일 때 양손 운반 애니메이션으로 전환한다.
 9. `BP_SnowRumbleCharacter`의 `SnowballEquipmentComponent`에서 필요하면 `Large Snowball Maximum Charge Seconds` 기본 `3.5`, `Large Snowball Minimum Throw Speed` 기본 `700`, `Large Snowball Maximum Throw Speed` 기본 `1400`, `Large Snowball Arc Lift` 기본 `0.35`를 조정한다.
 10. `BP_SnowballItem`에서 필요하면 `Small Snowball Projectile Gravity Scale` 기본 `0.25`, `Large Snowball Projectile Gravity Scale` 기본 `1`을 조정한다.
-11. 굴리기 충돌 디버그 표시가 더 이상 필요하지 않으면 `BP_SnowRumbleCharacter`에서 `Draw Rolling Snowball Collision Debug`를 끈다.
+11. `BP_SnowballItem`에서 필요하면 `Minimum Damage Multiplier` 기본 `0.4`, `Large Snowball Minimum Knockback` 기본 `500`, `Large Snowball Maximum Knockback` 기본 `1400`, `Knockback Upward Ratio` 기본 `0.25`를 조정한다.
+12. 굴리기 충돌 디버그 표시가 더 이상 필요하지 않으면 `BP_SnowRumbleCharacter`에서 `Draw Rolling Snowball Collision Debug`를 끈다.
 
 ## 완료 조건
 
@@ -153,6 +167,8 @@
 - [ ] 첫 이동 이후에도 실제 눈덩이가 굴리는 플레이어 자신의 캡슐에 막히거나 순간이동하지 않고 WASD 이동을 계속 따라오는지 확인한다.
 - [ ] 눈덩이가 성장해도 프록시 반지름과 캐릭터 앞쪽 거리가 함께 커져 서로 겹치지 않는지 확인한다.
 - [ ] 첫 성장 직후 눈덩이 메시가 바닥에 파고들거나 굴리기 이동이 멈추지 않는지 확인한다.
+- [ ] 눈덩이가 성장하는 동안 메시가 지면 위에 떠 보이지 않고 바닥 접촉 높이를 유지하는지 확인한다.
+- [ ] 최대 성장 후 E를 놓았을 때 눈덩이가 아래로 떨어지지 않고 굴리던 마지막 높이에서 바로 바닥 물리 상태가 되는지 확인한다.
 - [x] 눈덩이를 약 `10m` 굴리면 초기 크기의 최대 `3배`까지 점진적으로 커지는지 확인한다.
 - [x] 성장한 눈덩이의 메시와 충돌 범위가 함께 커지는지 확인한다.
 - [x] 성장 크기가 호스트와 클라이언트 화면에 동일하게 보이는지 확인한다.
@@ -179,3 +195,9 @@
 - [x] 큰 눈 투척 직후 손의 눈덩이가 사라지고 운반속도·조준 상태가 정상적으로 복구되는지 확인한다.
 - [x] 큰 눈의 위치와 포물선 이동이 호스트와 클라이언트 화면에서 동일하게 보이는지 확인한다.
 - [x] 작은 눈의 기존 기본 `2초`, `900~2400cm/s`, 중력 `0.25` 투척 동작이 유지되는지 확인한다.
+- [ ] 큰 눈을 짧게 충전해 직접 맞혔을 때보다 최대 충전해 맞혔을 때 HP가 더 많이 감소하는지 확인한다.
+- [ ] 큰 눈을 짧게 충전해 직접 맞혔을 때보다 최대 충전해 맞혔을 때 피격 플레이어가 더 멀리 밀리는지 확인한다.
+- [ ] 호스트가 클라이언트를 맞힌 경우와 클라이언트가 호스트를 맞힌 경우 모두 큰 눈 넉백이 같은 방향과 세기로 보이는지 확인한다.
+- [ ] 좌우 어깨 위치에서 같은 고정 표적을 조준해 큰 눈을 던졌을 때 모두 조준점 기준 방향으로 출발하는지 확인한다.
+- [ ] 큰 눈이 카메라와 평행하게 엇나가지 않으면서 기존의 느린 속도·상향 보정·강한 중력 포물선을 유지하는지 확인한다.
+- [ ] 호스트와 클라이언트가 각각 큰 눈을 던졌을 때 같은 화면 중앙 Line Trace 조준 규칙이 적용되는지 확인한다.

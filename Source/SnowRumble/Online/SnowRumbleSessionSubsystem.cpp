@@ -9,6 +9,7 @@
 #include "OnlineSessionSettings.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemUtils.h"
+#include "Kismet/GameplayStatics.h"
 #include "UObject/UObjectGlobals.h"
 
 namespace SnowRumbleSession
@@ -16,7 +17,7 @@ namespace SnowRumbleSession
 	constexpr int32 MinimumPlayers = 2;
 	constexpr int32 MaximumPlayers = 16;
 	constexpr int32 MaximumSearchResults = 100;
-	const TCHAR* HostTravelUrl = TEXT("/Game/Maps/L_Prototype?listen");
+	const TCHAR* HostTravelUrl = TEXT("/Game/Maps/L_Lobby?listen");
 }
 
 void USnowRumbleSessionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -101,26 +102,32 @@ void USnowRumbleSessionSubsystem::HostLanSession(int32 MaxPlayers)
 		return;
 	}
 
-	if (World->GetNetMode() == NM_ListenServer)
-	{
-		CreateLanSession(PendingHostMaxPlayers);
-		return;
-	}
-
 	bHostTravelPending = true;
 	SetOperationState(
 		ESnowRumbleSessionOperation::Host,
 		ESnowRumbleSessionState::InProgress,
 		TEXT("Listen Server를 준비하고 있습니다."));
 
-	if (!World->ServerTravel(SnowRumbleSession::HostTravelUrl))
+	if (World->GetNetMode() == NM_Standalone)
 	{
-		bHostTravelPending = false;
-		SetOperationState(
-			ESnowRumbleSessionOperation::Host,
-			ESnowRumbleSessionState::Failed,
-			TEXT("Listen Server 맵 이동을 시작하지 못했습니다."));
+		UGameplayStatics::OpenLevel(
+			World,
+			FName(TEXT("/Game/Maps/L_Lobby")),
+			true,
+			TEXT("listen"));
+		return;
 	}
+
+	if (World->ServerTravel(SnowRumbleSession::HostTravelUrl))
+	{
+		return;
+	}
+
+	bHostTravelPending = false;
+	SetOperationState(
+		ESnowRumbleSessionOperation::Host,
+		ESnowRumbleSessionState::Failed,
+		TEXT("Listen Server 맵 이동을 시작하지 못했습니다."));
 }
 
 void USnowRumbleSessionSubsystem::CreateLanSession(int32 MaxPlayers)
@@ -146,7 +153,7 @@ void USnowRumbleSessionSubsystem::CreateLanSession(int32 MaxPlayers)
 	SessionSettings.NumPublicConnections = MaxPlayers;
 	SessionSettings.Set(
 		SETTING_MAPNAME,
-		FString(TEXT("L_Prototype")),
+		FString(TEXT("L_Lobby")),
 		EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 
 	CreateSessionCompleteHandle =

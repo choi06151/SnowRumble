@@ -36,8 +36,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
 	bool CanBePickedUp() const;
 
-	/** 서버가 장착된 눈덩이를 지정한 방향과 속도로 투척한다. */
-	bool Throw(const FVector& ThrowDirection, float ThrowSpeed);
+	/** 서버가 장착된 눈덩이를 지정한 방향·속도·충전량으로 투척한다. */
+	bool Throw(
+		const FVector& ThrowDirection,
+		float ThrowSpeed,
+		float ThrowChargeProgress);
 
 	/** 서버가 장착된 눈덩이를 현재 손 위치에서 바닥 상태로 놓는다. */
 	bool DropToGround();
@@ -137,6 +140,24 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball", meta = (ClampMin = "0.0"))
 	float Damage = 25.0f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float MinimumDamageMultiplier = 0.4f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact", meta = (ClampMin = "0.0"))
+	float SmallSnowballMinimumKnockback = 300.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact", meta = (ClampMin = "0.0"))
+	float SmallSnowballMaximumKnockback = 900.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact|Large", meta = (ClampMin = "0.0"))
+	float LargeSnowballMinimumKnockback = 500.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact|Large", meta = (ClampMin = "0.0"))
+	float LargeSnowballMaximumKnockback = 1400.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact", meta = (ClampMin = "0.0"))
+	float KnockbackUpwardRatio = 0.25f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw", meta = (ClampMin = "0.0"))
 	float SmallSnowballProjectileGravityScale = 0.25f;
 
@@ -148,9 +169,6 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Growth", meta = (ClampMin = "1.0"))
 	float DistanceForMaximumGrowth = 1000.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Growth", meta = (ClampMin = "0.0"))
-	float RollingGroundClearance = 2.0f;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemState, Category = "SnowRumble|Snowball")
 	ESnowballItemState ItemState = ESnowballItemState::Ground;
@@ -170,6 +188,6 @@ protected:
 	FVector InitialActorScale = FVector::OneVector;
 	FVector LastRollingLocation = FVector::ZeroVector;
 	float AccumulatedRollingDistance = 0.0f;
-	bool bAppliedRollingGroundClearance = false;
 	bool bHasProcessedThrownImpact = false;
+	float CurrentThrowChargeProgress = 0.0f;
 };

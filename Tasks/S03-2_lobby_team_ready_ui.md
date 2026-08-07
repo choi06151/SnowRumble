@@ -21,6 +21,37 @@
 ## 사전 전제
 
 - Main Task 03-2의 대기방 상태, 변경 요청 함수와 갱신 이벤트
+- `WBP_MainMenu` 부모 클래스: `MainMenuWidget`
+- `BP_MainMenuGameMode` 부모 클래스: `SnowRumbleMainMenuGameMode`
+- `BP_MainMenuPlayerController` 부모 클래스: `MainMenuPlayerController`
+- `BP_MainMenuPlayerController.Main Menu Widget Class`: `WBP_MainMenu`
+- `WBP_MainMenu.HostButton`: 있으면 `Host Lan Game(16)`에 자동 연결
+- `WBP_MainMenu.FindButton`: 있으면 `Find Lan Games`에 자동 연결
+- `WBP_MainMenu.JoinFirstButton`: 있으면 `Join Lan Game(0)`에 자동 연결
+- `WBP_MainMenu.StatusTextBlock`: 선택 사항이며 세션 상태와 검색 결과 개수 자동 표시
+- `WBP_Lobby` 부모 클래스: `LobbyWidget`
+- `BP_LobbyPlayerController` 부모 클래스: `LobbyPlayerController`
+- `BP_LobbyPlayerController.Lobby Widget Class`: `WBP_Lobby`
+- 시작화면 함수:
+  - `Host Lan Game`
+  - `Find Lan Games`
+  - `Join Lan Game`
+  - `Get Lan Search Results`
+  - `On Main Menu Session State Changed`
+  - `On Main Menu Search Completed`
+- 대기방 함수:
+  - `Get Lobby Players`
+  - `Request Set Local Player Name`
+  - `Request Set Local Player Team`
+  - `Request Set Local Player Ready`
+  - `Request Start Match`
+  - `Is Local Player Host`
+  - `Can Start Match`
+  - `On Lobby State Changed`
+- 플레이어 목록 행 표시용 값:
+  - `Get Lobby Player Name`
+  - `Get Lobby Team`
+  - `Is Lobby Ready`
 
 ## 작업 배정
 

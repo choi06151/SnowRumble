@@ -135,8 +135,11 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerStartCharging();
 
+	/** 서버가 카메라 조준 정보를 검사하고 조준점 방향으로 충전 투척을 확정한다. */
 	UFUNCTION(Server, Reliable)
-	void ServerReleaseChargedSnowball(FVector_NetQuantizeNormal ThrowDirection);
+	void ServerReleaseChargedSnowball(
+		FVector_NetQuantize ViewLocation,
+		FVector_NetQuantizeNormal ViewDirection);
 
 	UFUNCTION(Server, Reliable)
 	void ServerCancelCharging();
@@ -167,6 +170,12 @@ protected:
 	/** 현재 보유한 눈덩이 크기에 맞는 최대 충전시간을 반환한다. */
 	float GetCurrentMaximumChargeSeconds() const;
 
+	/** 서버가 검증한 카메라 Line Trace로 화면 중앙의 월드 조준점을 찾는다. */
+	bool FindServerAimTarget(
+		const FVector& ViewLocation,
+		const FVector& ViewDirection,
+		FVector& OutAimTarget) const;
+
 	void SetChargingState(bool bNewCharging);
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball", meta = (ClampMin = "0.0"))
@@ -192,6 +201,12 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw", meta = (ClampMin = "0.0"))
 	float MaximumThrowSpeed = 2400.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Aim", meta = (ClampMin = "0.0"))
+	float AimTraceDistance = 10000.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Aim", meta = (ClampMin = "0.0"))
+	float MaximumAimViewOriginDistance = 1000.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Large", meta = (ClampMin = "0.1"))
 	float LargeSnowballMaximumChargeSeconds = 3.5f;

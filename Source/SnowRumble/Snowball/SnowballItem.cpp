@@ -67,7 +67,10 @@ bool ASnowballItem::TrySetHeldBy(
 	return true;
 }
 
-bool ASnowballItem::Throw(const FVector& ThrowDirection, float ThrowSpeed)
+bool ASnowballItem::Throw(
+	const FVector& ThrowDirection,
+	float ThrowSpeed,
+	float ThrowChargeProgress)
 {
 	if (!HasAuthority()
 		|| ItemState != ESnowballItemState::Held
@@ -84,6 +87,7 @@ bool ASnowballItem::Throw(const FVector& ThrowDirection, float ThrowSpeed)
 	Holder = nullptr;
 	bIsSettledOnGround = false;
 	bHasProcessedThrownImpact = false;
+	CurrentThrowChargeProgress = FMath::Clamp(ThrowChargeProgress, 0.0f, 1.0f);
 
 	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 	CollisionComponent->SetSimulatePhysics(false);
@@ -138,7 +142,6 @@ bool ASnowballItem::TryStartRolling(ASnowRumbleCharacter* NewRoller)
 	bIsSettledOnGround = false;
 	SetOwner(NewRoller);
 	LastRollingLocation = GetActorLocation();
-	bAppliedRollingGroundClearance = false;
 	RefreshStatePresentation();
 	ForceNetUpdate();
 	return true;
@@ -155,7 +158,6 @@ bool ASnowballItem::StopRolling()
 	ItemState = ESnowballItemState::Ground;
 	Roller = nullptr;
 	bIsSettledOnGround = false;
-	bAppliedRollingGroundClearance = false;
 	SetOwner(nullptr);
 	RefreshStatePresentation();
 	ForceNetUpdate();
@@ -308,17 +310,11 @@ void ASnowballItem::ApplyGrowthScale()
 		const float RadiusIncrease = NewRadius - PreviousRadius;
 		if (RadiusIncrease > KINDA_SMALL_NUMBER)
 		{
-			const float GroundClearance =
-				bAppliedRollingGroundClearance
-					? 0.0f
-					: RollingGroundClearance;
 			AddActorWorldOffset(
-				FVector::UpVector
-					* (RadiusIncrease + GroundClearance),
+				FVector::UpVector * RadiusIncrease,
 				false,
 				nullptr,
 				ETeleportType::TeleportPhysics);
-			bAppliedRollingGroundClearance = true;
 		}
 	}
 }
@@ -467,12 +463,58 @@ void ASnowballItem::HandleThrownImpact(
 
 	if (OtherActor)
 	{
+		const float ChargedDamage = Damage * FMath::Lerp(
+			FMath::Clamp(MinimumDamageMultiplier, 0.0f, 1.0f),
+			1.0f,
+			CurrentThrowChargeProgress);
 		UGameplayStatics::ApplyDamage(
 			OtherActor,
-			Damage,
+			ChargedDamage,
 			GetInstigatorController(),
 			this,
 			UDamageType::StaticClass());
+
+		if (ASnowRumbleCharacter* HitCharacter =
+			Cast<ASnowRumbleCharacter>(OtherActor))
+		{
+			FVector KnockbackDirection =
+				ProjectileMovement
+					? ProjectileMovement->Velocity.GetSafeNormal2D()
+					: FVector::ZeroVector;
+			if (KnockbackDirection.IsNearlyZero())
+			{
+				KnockbackDirection =
+					(HitCharacter->GetActorLocation() - GetActorLocation())
+					.GetSafeNormal2D();
+			}
+
+			if (!KnockbackDirection.IsNearlyZero())
+			{
+				const bool bLargeSnowball = IsFullyGrown();
+				const float MinimumKnockback = FMath::Max(
+					0.0f,
+					bLargeSnowball
+						? LargeSnowballMinimumKnockback
+						: SmallSnowballMinimumKnockback);
+				const float MaximumKnockback = FMath::Max(
+					MinimumKnockback,
+					bLargeSnowball
+						? LargeSnowballMaximumKnockback
+						: SmallSnowballMaximumKnockback);
+				const float KnockbackStrength = FMath::Lerp(
+					MinimumKnockback,
+					MaximumKnockback,
+					CurrentThrowChargeProgress);
+				KnockbackDirection = FVector(
+					KnockbackDirection.X,
+					KnockbackDirection.Y,
+					KnockbackUpwardRatio).GetSafeNormal();
+				HitCharacter->LaunchCharacter(
+					KnockbackDirection * KnockbackStrength,
+					true,
+					true);
+			}
+		}
 	}
 
 	const FVector HitImpactPoint(

@@ -3,6 +3,7 @@
 #include "SnowballEquipmentComponent.h"
 
 #include "../Player/SnowRumbleCharacter.h"
+#include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "EngineUtils.h"
 #include "Net/UnrealNetwork.h"
@@ -232,15 +233,26 @@ void USnowballEquipmentComponent::ReleaseChargedSnowball()
 		return;
 	}
 
-	const FVector ThrowDirection = OwningPawn->GetBaseAimRotation().Vector();
+	const UCameraComponent* FollowCamera =
+		OwningPawn->FindComponentByClass<UCameraComponent>();
+	const FVector ViewLocation =
+		FollowCamera
+			? FollowCamera->GetComponentLocation()
+			: OwningPawn->GetPawnViewLocation();
+	const FVector ViewDirection =
+		FollowCamera
+			? FollowCamera->GetForwardVector()
+			: OwningPawn->GetBaseAimRotation().Vector();
 	if (OwningPawn->HasAuthority())
 	{
-		ServerReleaseChargedSnowball_Implementation(ThrowDirection);
+		ServerReleaseChargedSnowball_Implementation(
+			ViewLocation,
+			ViewDirection);
 		return;
 	}
 
 	SetChargingState(false);
-	ServerReleaseChargedSnowball(ThrowDirection);
+	ServerReleaseChargedSnowball(ViewLocation, ViewDirection);
 }
 
 void USnowballEquipmentComponent::CancelCharging()
@@ -429,7 +441,8 @@ void USnowballEquipmentComponent::ServerStartCharging_Implementation()
 }
 
 void USnowballEquipmentComponent::ServerReleaseChargedSnowball_Implementation(
-	FVector_NetQuantizeNormal ThrowDirection)
+	FVector_NetQuantize ViewLocation,
+	FVector_NetQuantizeNormal ViewDirection)
 {
 	ASnowRumbleCharacter* Character = Cast<ASnowRumbleCharacter>(GetOwner());
 	UWorld* World = GetWorld();
@@ -437,10 +450,22 @@ void USnowballEquipmentComponent::ServerReleaseChargedSnowball_Implementation(
 		|| !World
 		|| Character->IsFrozen()
 		|| !IsCharging()
-		|| ThrowDirection.ContainsNaN()
+		|| ViewLocation.ContainsNaN()
+		|| ViewDirection.ContainsNaN()
+		|| FVector::DistSquared(
+			ViewLocation,
+			Character->GetActorLocation())
+			> FMath::Square(MaximumAimViewOriginDistance)
 		|| FVector::DotProduct(
-			ThrowDirection.GetSafeNormal(),
+			ViewDirection.GetSafeNormal(),
 			Character->GetBaseAimRotation().Vector()) < 0.7f)
+	{
+		CancelCharging();
+		return;
+	}
+
+	FVector AimTarget = FVector::ZeroVector;
+	if (!FindServerAimTarget(ViewLocation, ViewDirection, AimTarget))
 	{
 		CancelCharging();
 		return;
@@ -462,17 +487,27 @@ void USnowballEquipmentComponent::ServerReleaseChargedSnowball_Implementation(
 			? LargeSnowballMaximumThrowSpeed
 			: MaximumThrowSpeed,
 		ChargeProgress);
+	const FVector AimDirection =
+		(AimTarget - HeldSnowball->GetActorLocation()).GetSafeNormal();
+	if (AimDirection.IsNearlyZero())
+	{
+		CancelCharging();
+		return;
+	}
 	const FVector FinalThrowDirection =
 		bThrowingLargeSnowball
-			? (ThrowDirection.GetSafeNormal()
+			? (AimDirection
 				+ FVector::UpVector * LargeSnowballArcLift).GetSafeNormal()
-			: ThrowDirection.GetSafeNormal();
+			: AimDirection;
 
 	ASnowballItem* SnowballToThrow = HeldSnowball;
 	SetChargingState(false);
 
 	if (!SnowballToThrow
-		|| !SnowballToThrow->Throw(FinalThrowDirection, ThrowSpeed))
+		|| !SnowballToThrow->Throw(
+			FinalThrowDirection,
+			ThrowSpeed,
+			ChargeProgress))
 	{
 		return;
 	}
@@ -602,6 +637,42 @@ float USnowballEquipmentComponent::GetCurrentMaximumChargeSeconds() const
 	return IsHoldingLargeSnowball()
 		? LargeSnowballMaximumChargeSeconds
 		: MaximumChargeSeconds;
+}
+
+bool USnowballEquipmentComponent::FindServerAimTarget(
+	const FVector& ViewLocation,
+	const FVector& ViewDirection,
+	FVector& OutAimTarget) const
+{
+	const UWorld* World = GetWorld();
+	const ASnowRumbleCharacter* Character =
+		Cast<ASnowRumbleCharacter>(GetOwner());
+	if (!World
+		|| !Character
+		|| !HeldSnowball
+		|| ViewDirection.IsNearlyZero()
+		|| AimTraceDistance <= 0.0f)
+	{
+		return false;
+	}
+
+	const FVector TraceEnd =
+		ViewLocation + ViewDirection.GetSafeNormal() * AimTraceDistance;
+	FCollisionQueryParams QueryParams(
+		SCENE_QUERY_STAT(SnowballAimTrace),
+		false,
+		Character);
+	QueryParams.AddIgnoredActor(HeldSnowball);
+
+	FHitResult AimHit;
+	const bool bHit = World->LineTraceSingleByChannel(
+		AimHit,
+		ViewLocation,
+		TraceEnd,
+		ECC_Visibility,
+		QueryParams);
+	OutAimTarget = bHit ? AimHit.ImpactPoint : TraceEnd;
+	return true;
 }
 
 void USnowballEquipmentComponent::SetChargingState(bool bNewCharging)
