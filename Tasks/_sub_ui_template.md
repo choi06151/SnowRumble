@@ -1,4 +1,6 @@
-# SUB UI Task SXX-X - [UI 기능명]
+# 구조 개편 전 SUB UI Task 템플릿
+
+> 이 템플릿은 기존 Task 이력 확인용입니다. 새 Task에는 `Tasks/_template.md`와 `docs/TASK_WRITING.md`의 역할별 구조를 사용합니다.
 
 <!--
 작성 규칙:

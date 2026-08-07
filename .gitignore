@@ -56,8 +56,12 @@ xcuserdata/
 *.bak
 *~
 
-# Local AI tool state; shared rules live in AGENTS.md, docs/ and Tasks/
-.agents/
+# Local AI tool state; only the SnowRumble shared execution skill is versioned
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/snowrumble-run-task/
+!.agents/skills/snowrumble-run-task/**
 .codex/
 
 # Operating-system metadata
