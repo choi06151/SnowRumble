@@ -23,9 +23,10 @@
 - `Source/SnowRumble/`: `SnowRumble` 런타임 C++ 모듈
   - `Player/`: 플레이어 캐릭터의 이동·카메라·입력 연결과 분리된 HP·얼기 상태 컴포넌트
   - `Interaction/`: 특정 대상 종류와 분리된 로컬 상호작용 표현 컴포넌트
-  - `Game/`: 게임 모드 등 게임 시작 규칙의 기본 클래스
+  - `Game/`: 인게임 게임 모드, 시작화면 GameMode, 대기방 GameMode/GameState/PlayerState와 서버 권한 시작 규칙의 기본 클래스
   - `Snowball/`: 바닥·장착·투척 상태를 갖는 눈덩이 아이템, 눈 바닥 제작 컴포넌트, 플레이어의 눈덩이 장비 컴포넌트와 기존 최소 투사체 프로토타입
   - `Online/`: GameInstance 수명 동안 유지되는 LAN 세션 생성·검색·참가 흐름과 UI 연결 지점
+  - `UI/`: Widget Blueprint가 상속해 사용할 시작화면, 대기방, 메인 HUD 배치, 체력 바, 임시 이모션 원형 메뉴 버튼 연결 기본 클래스와 메뉴/대기방 UI 자동 생성 PlayerController
 - `Config/`: 엔진, 게임, 입력 등 프로젝트 기본 설정
 - `Content/`: Blueprint, 맵, UI, 애니메이션, 모델, 머티리얼 등 Unreal 자산
   - `Snowball/`: C++ 눈덩이 액터를 부모로 사용하는 비UI Blueprint와 표현 자산

@@ -4,6 +4,8 @@
 
 OnlineSubsystem NULL을 사용하는 LAN 환경에서 한 플레이어가 Listen Server 세션을 만들고 다른 플레이어가 찾아 참가할 수 있게 한다.
 
+> 03-2 이후 현재 Host 목적지는 게임방 `L_Prototype`이 아니라 대기방 `L_Lobby`다. 이 문서의 결과 확인 중 `L_Prototype` 이동 표현은 03-1 당시의 검증 기록이다.
+
 ## 구현 항목
 
 - [x] 플레이어가 LAN 세션을 생성할 수 있다.

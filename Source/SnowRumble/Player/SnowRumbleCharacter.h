@@ -10,6 +10,9 @@ class UCameraComponent;
 class UDamageType;
 class UInputAction;
 class UInputMappingContext;
+class UAnimMontage;
+class UEmoteRadialMenuWidget;
+class UMainHUDWidget;
 class UNiagaraComponent;
 class UOutlineComponent;
 class USceneComponent;
@@ -35,6 +38,14 @@ UENUM(BlueprintType)
 enum class ESnowballActionState : uint8
 {
 	None,
+	RollingSnowball
+};
+
+UENUM(BlueprintType)
+enum class ESnowRumbleTimedActionState : uint8
+{
+	None,
+	CreatingSnowball,
 	RollingSnowball
 };
 
@@ -99,6 +110,22 @@ public:
 	/** UI에서 사용할 0~1 정규화된 눈덩이 제작 진행도를 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
 	float GetSnowballCreationProgress() const;
+
+	/** UI에서 현재 머리 위에 표시할 진행형 행동 종류를 구분한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI")
+	ESnowRumbleTimedActionState GetTimedActionState() const;
+
+	/** UI에서 현재 머리 위 행동의 0~1 정규화된 진행도를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI")
+	float GetTimedActionProgress() const;
+
+	/** UI에서 선택한 이모션 인덱스를 서버에 요청한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Emote")
+	void RequestPlayEmote(int32 EmoteIndex);
+
+	/** 로컬 플레이어 화면에서 이모션 원형 메뉴를 닫고 게임 입력으로 복구한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Emote|UI")
+	void CloseEmoteRadialMenu();
 
 	/** 눈덩이를 부착할 캐릭터의 조정 가능한 장착 위치를 반환한다. */
 	USceneComponent* GetSnowballHoldPoint() const;
@@ -193,6 +220,15 @@ protected:
 	/** 자신이 조종하는 캐릭터의 카메라에서만 눈 VFX를 활성화한다. */
 	void RefreshLocalSnowEffect();
 
+	/** 로컬 플레이어용 이모션 원형 메뉴 위젯을 필요할 때 생성한다. */
+	void EnsureEmoteRadialMenuWidget();
+
+	/** 로컬 플레이어용 메인 HUD 위젯을 필요할 때 생성한다. */
+	void EnsureMainHUDWidget();
+
+	/** 로컬 플레이어 화면에서 이모션 원형 메뉴를 연다. */
+	void OpenEmoteRadialMenu();
+
 	/** 로컬 화면에 굴리기 충돌 프록시 범위를 디버그 Sphere로 표시한다. */
 	void DrawRollingSnowballCollisionDebug() const;
 
@@ -209,6 +245,23 @@ protected:
 
 	/** 스프린트 상태에 맞는 최대 이동속도를 CharacterMovement에 적용한다. */
 	void ApplyMovementSpeed();
+
+	/** 유효한 이모션 인덱스인지 확인한다. */
+	bool IsValidEmoteIndex(int32 EmoteIndex) const;
+
+	/** 현재 캐릭터에서 이모션 몽타주를 실행할 수 있는지 확인한다. */
+	bool CanPlayEmote() const;
+
+	/** 로컬 AnimInstance에 선택된 이모션 몽타주를 재생한다. */
+	void PlayEmoteMontage(int32 EmoteIndex);
+
+	/** 서버가 소유 클라이언트의 이모션 선택을 검사하고 확정한다. */
+	UFUNCTION(Server, Reliable)
+	void ServerRequestPlayEmote(int32 EmoteIndex);
+
+	/** 서버가 확정한 이모션 몽타주를 모든 화면에서 재생한다. */
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayEmote(int32 EmoteIndex);
 
 	/** 서버가 소유 클라이언트의 스프린트 상태 요청을 검사하고 확정한다. */
 	UFUNCTION(Server, Reliable)
@@ -341,6 +394,28 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation", meta = (ClampMin = "0.01"))
 	float PickupAnimationStateDuration = 0.6f;
+
+	/** 원형 선택 UI의 8개 칸에 대응하는 이모션 몽타주 슬롯이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Emote")
+	TArray<TObjectPtr<UAnimMontage>> EmoteMontages;
+
+	/** 로컬 플레이어 화면에 생성할 이모션 원형 메뉴 위젯 클래스다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Emote|UI")
+	TSubclassOf<UEmoteRadialMenuWidget> EmoteRadialMenuWidgetClass;
+
+	/** 로컬 플레이어가 소유한 이모션 원형 메뉴 위젯 인스턴스다. */
+	UPROPERTY(Transient)
+	TObjectPtr<UEmoteRadialMenuWidget> EmoteRadialMenuWidget;
+
+	/** 로컬 플레이어 화면에 생성할 메인 HUD 위젯 클래스다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI")
+	TSubclassOf<UMainHUDWidget> MainHUDWidgetClass;
+
+	/** 로컬 플레이어가 소유한 메인 HUD 위젯 인스턴스다. */
+	UPROPERTY(Transient)
+	TObjectPtr<UMainHUDWidget> MainHUDWidget;
+
+	bool bIsEmoteRadialMenuOpen = false;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_IsSprinting, Category = "SnowRumble|Movement")
 	bool bIsSprinting = false;
