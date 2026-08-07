@@ -33,6 +33,11 @@ HP 0인 플레이어가 60초 동안 부활 가능한 얼음 상태가 되고 �
 ## 사전 전제
 - C-01
 
+## 기존 구현 인수
+- `USnowRumbleHealthComponent`가 `MaxHealth`, `CurrentHealth`, `bIsFrozen`을 서버 권한으로 관리하고 복제한다.
+- `OnHealthChanged`, `OnFrozenChanged`, `ASnowRumbleCharacter::IsFrozen`, `TakeDamage`가 현재 HP·얼기 연결 지점이다.
+- 기존 얼기 상태는 HP 0에서 즉시 확정되는 프로토타입이며, 60초 부활 가능 얼음·사망·관전·팀 전멸 상태는 아직 없다.
+
 ## 결정 필요
 - 관전 대상 순환 입력과 생존 아군이 없을 때 카메라 처리
 

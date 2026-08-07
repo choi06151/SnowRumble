@@ -31,6 +31,12 @@
 ## 사전 전제
 - C-02
 
+## 기존 구현 인수
+- `ASnowRumblePlayerState`에 대기방 이름, `ESnowRumbleTeam`, 준비 상태 복제와 서버 요청 함수가 이미 있다.
+- `ASnowRumbleLobbyGameState::GetLobbyPlayers`, `CanStartLobbyMatch`와 `OnLobbyStateChanged`가 기존 로비 UI 데이터 원본이다.
+- `ASnowRumbleLobbyGameMode::RequestStartMatch`가 호스트 시작 요청과 ServerTravel을 담당한다.
+- 기존 수동 팀 선택은 MVP 기준에서 대체 대상이며, 팀 배정은 서버 랜덤 배정으로 바꾼다.
+
 ## 결정 필요
 - 없음
 

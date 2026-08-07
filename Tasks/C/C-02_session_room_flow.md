@@ -32,6 +32,12 @@
 ## 사전 전제
 - C-01
 
+## 기존 구현 인수
+- `USnowRumbleSessionSubsystem`에 NULL LAN Host, 검색, Join 요청과 `FSnowRumbleSessionInfo` 검색 결과 구조체가 이미 있다.
+- `OnSessionStateChanged`, `OnSessionSearchCompleted`는 S-02 UI가 구독할 수 있는 기존 Blueprint 이벤트다.
+- 현재 Host 흐름은 `L_Lobby`로 이동한 뒤 Listen Server 세션을 생성한다.
+- 새 기획 기준으로 최대 인원은 16명 기록에서 8명으로 줄이고, 빠른 게임과 선택 비밀번호 흐름은 아직 없다.
+
 ## 결정 필요
 - 빠른 게임의 방 선택 우선순위
 - 비밀번호 저장·재입력·실패 표시 흐름

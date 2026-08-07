@@ -33,6 +33,14 @@
 - C-01
 - C-07
 
+## 기존 구현 인수
+- `USnowballCreationComponent`가 `SnowSurface` 태그, 제작 진행도, 서버 생성 요청과 `SnowballItemClass`를 담당한다.
+- `USnowballEquipmentComponent`가 획득, 보유, 조준, 충전, 내려놓기, 굴리기 서버 요청과 복제 상태를 담당한다.
+- `ASnowballItem`이 `Ground`, `Rolling`, `Held`, `Thrown` 상태, 성장, 투척 충돌, 직접 피해·넉백과 `PlayImpactEffect` Blueprint 이벤트를 담당한다.
+- `ASnowRumbleCharacter`에는 `SnowballHoldPoint`, `SnowballSocket` 부착, `RollingSnowballCollision`, 조준 카메라와 HUD 연결 지점이 있다.
+- `ASnowballProjectile`은 현재 `Source` 사용처가 없는 레거시 클래스다. 참조 확인 전 삭제하지 않고, 현재 플레이 파이프라인은 `ASnowballItem` 기준으로 유지한다.
+- 기존 피해 기본값은 작은 눈 25 기반으로 남아 있으므로 새 기준 작은 눈 10, 큰 눈 35와 큰 눈 광역 효과를 C-07 계약에 맞춰 수정해야 한다.
+
 ## 결정 필요
 - 큰 눈 광역 반경과 거리별 감쇠
 - 같은 입력에 여러 행동이 겹칠 때의 최종 우선순위
