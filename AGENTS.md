@@ -40,6 +40,7 @@
 ## 공용 Task 실행 Skill
 
 - Task 시작·계속·순서 변경·추가·분할·오류 대응·대기·대체·인계·충돌 대응에는 프로젝트 공용 Skill `$snowrumble-run-task`를 사용합니다.
+- 사용자가 작업 완료를 확인하고 push를 요청하면 같은 Skill로 역할 브랜치 커밋·push와 조건을 통과한 `master` 병합·push까지 수행합니다.
 - 이 Skill은 확정된 담당자의 `ROLE_*.md`와 `PLAN_*.md`를 기준으로 작업을 분류하고, 개발자와의 대화 내용을 Codex가 계획과 Task 문서에 반영하게 합니다.
 - 개발자는 `PLAN_*.md`를 직접 작성할 필요가 없습니다. 원하는 결과, 문제, 우선순위만 대화로 전달합니다.
 - 역할 내부 변경은 해당 역할 Codex가 관리하며, 공용 계약·다른 역할 소유권·통합 순서에 영향이 있으면 C의 통합 경로를 사용합니다.
@@ -102,6 +103,7 @@
 ## 문서 확인 트리거
 
 - 세션 첫 작업·담당자 변경·Task 재개 전 → `$snowrumble-run-task`의 브랜치 확인·원격 동기화 절차
+- 사용자가 작업 완료 후 push를 요청할 때 → `$snowrumble-run-task`의 완료 작업 게시 절차
 - Task 실행·계획 변경·오류 대응·인계·충돌 처리 전 → `$snowrumble-run-task`
 - Task 시작·전환·상태 갱신 전 → 현재 담당자의 `PLAN_*.md`, `docs/PLANS.md`, `docs/WORKFLOW.md`
 - 기획 또는 협업 구조 개편 전 → `docs/PROGRESS_BASELINE_2026-08-07.md`
