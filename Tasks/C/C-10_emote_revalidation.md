@@ -33,6 +33,12 @@
 - C-06
 - C-08
 
+## 기존 구현 인수
+- `ASnowRumbleCharacter::RequestPlayEmote`, `ServerRequestPlayEmote`, `MulticastPlayEmote`가 기존 이모션 네트워크 흐름이다.
+- `UEmoteRadialMenuWidget`은 `EmoteButton0`~`EmoteButton7`을 자동 해석하고 클릭·호버 선택을 C++에서 연결한다.
+- 실제 자산 이름은 `Content/WBP/WBP_EmoteRadialMenuWidget.uasset`이며, 기존 문서의 `WBP_EmoteRadialMenu` 명칭은 새 Task 인계에서 이 이름으로 보정한다.
+- 얼음·사망·시작 제한 상태가 확정되면 `CanPlayEmote` 기준에 추가해야 한다.
+
 ## 결정 필요
 - 없음
 
