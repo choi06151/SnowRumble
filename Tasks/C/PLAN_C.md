@@ -11,6 +11,12 @@
 
 - 없음
 
+## 개발 스타일
+
+- 상태: 미확정
+- 최초 Task 시작 전 확인: Blueprint 위주 / C++ 위주 / 혼합 중 선택
+- 확인 후 처리: 현재 Task 대기열을 함께 검토하고, C의 개발 스타일에 맞게 우선순위·Task 범위·구현 승인 요청을 조정한다.
+
 ## 작업 대기열
 
 | 우선순위 | Task | 결과 | 필수 선행 | 상태 |
@@ -19,14 +25,16 @@
 | 2 | [C-02](C-02_session_room_flow.md) | 세션·방 설정 | C-01·기획 결정 | 예정 |
 | 3 | [C-03](C-03_random_team_lobby.md) | 랜덤 팀 대기방 | C-02 | 예정 |
 | 4 | [C-06](C-06_freeze_death_spectate.md) | 얼음·사망·관전 | C-01 | 예정 |
-| 5 | [C-07](C-07_shared_effect_contracts.md) | 부활·아이템·환경 공용 계약 | C-06 | 예정 |
+| 5 | [C-07](C-07_shared_effect_contracts.md) | 피해·회복·무적·능력 보정 계약 | C-06 | 예정 |
 | 6 | [C-04](C-04_random_map_loading.md) | 랜덤 맵과 로딩 | C-03 | 예정 |
-| 7 | [C-08](C-08_spawn_intro_identity.md) | 팀 등장과 식별 데이터 | C-03 | 예정 |
+| 7 | [C-08](C-08_spawn_intro_identity.md) | 팀 식별 데이터 | C-03 | 예정 |
 | 8 | [C-09](C-09_snow_combat_completion.md) | 눈 전투 완성 | C-01, C-07 | 예정 |
 | 9 | [C-05](C-05_round_match_flow.md) | 3판 2선승 경기 흐름 | C-04, C-06 | 예정 |
 | 10 | [C-10](C-10_emote_revalidation.md) | 이모션 재검증 | C-01, C-06, C-08 | 예정 |
 | 11 | [C-11](C-11_customization_contract.md) | 커스터마이징 데이터 계약 | C-02·기획 결정 | 예정 |
-| 12 | [C-12](C-12_mvp_integration.md) | MVP 최종 통합 | 모든 파트 통합 Task | 예정 |
+| 12 | [C-13](C-13_revive_contract.md) | 핫팩 부활 계약 | C-06, C-07 | 예정 |
+| 13 | [C-14](C-14_spawn_intro_flow.md) | 팀 스폰과 시작 연출 | C-03, C-04 | 예정 |
+| 14 | [C-12](C-12_mvp_integration.md) | MVP 최종 통합 | 모든 파트 통합 Task | 예정 |
 
 ## 통합 변경 요청
 
@@ -35,3 +43,5 @@
 ## 계획 변경 기록
 
 - 2026-08-07: 새 GDD와 4인 구조를 기준으로 최초 대기열 작성.
+- 2026-08-07: Task 분할 재검토에 따라 C-07을 기본 효과 계약으로 축소하고, 핫팩 부활은 C-13, 팀 스폰·시작 연출은 C-14로 분리.
+- 2026-08-07: 최초 Task 시작 전 개발 스타일을 확인하고 Task 대기열을 스타일에 맞게 재검토하도록 계획 항목 추가.

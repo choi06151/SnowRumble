@@ -50,6 +50,23 @@ Choose one path from the user's conversation:
 
 The developer describes desired outcomes and problems. Maintain PLAN and Task documents on the developer's behalf.
 
+## First task style calibration
+
+Before a confirmed role starts its first implementation Task in the current role plan:
+
+1. Check the role's `PLAN_*.md` for whether the developer style has already been recorded.
+2. If it is not recorded, pause before implementation approval and ask the developer how they want to work:
+   - Blueprint-focused;
+   - C++-focused;
+   - mixed C++ and Blueprint.
+3. Summarize the role's current Task queue and the highest-priority startable Tasks so the developer can review whether the order matches their style.
+4. Adapt the role `PLAN_*.md` and directly affected role-local Task documents to the confirmed style before starting implementation.
+5. Keep stable Task IDs. Reorder priorities, split Task scope, or add role-local notes instead of renaming existing Tasks.
+6. For C, update `docs/PLANS.md` if the style adaptation changes public dependencies, contracts, locks, or integration gates.
+7. For K, S, or J, record cross-role effects under that role PLAN's `통합 변경 요청` instead of editing central documents directly.
+
+Style adaptation must not weaken server authority, replication ownership, file ownership, or MVP requirements. Blueprint-focused work still uses public C++ contracts for authoritative gameplay state.
+
 ## Apply role-local autonomy
 
 Within the confirmed role's owned scope, update its `PLAN_*.md` and Task documents when the conversation clearly establishes the change. Preserve stable Task IDs and record the reason in the plan or Task change history.

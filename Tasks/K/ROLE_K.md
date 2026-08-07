@@ -34,5 +34,6 @@
 - [K-08 모닥불](K-08_campfire.md)
 - [K-09 황금 보상](K-09_golden_rewards.md)
 - [K-10 아이템 통합](K-10_item_integration.md)
+- [K-11 선물상자 라운드 스케줄 연결](K-11_gift_box_round_schedule.md)
 
 역할 내부 상태와 우선순위는 `PLAN_K.md`, 파트 간 계약·선점은 `docs/PLANS.md`를 기준으로 판단합니다.

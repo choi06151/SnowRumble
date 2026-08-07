@@ -32,11 +32,13 @@
 - [C-04 랜덤 맵과 로딩 동기화](C-04_random_map_loading.md)
 - [C-05 3판 2선승 경기 흐름](C-05_round_match_flow.md)
 - [C-06 얼음·사망·관전](C-06_freeze_death_spectate.md)
-- [C-07 부활·효과·환경 공용 계약](C-07_shared_effect_contracts.md)
-- [C-08 팀 등장과 식별 데이터](C-08_spawn_intro_identity.md)
+- [C-07 플레이어 효과 공용 계약](C-07_shared_effect_contracts.md)
+- [C-08 팀 식별 데이터](C-08_spawn_intro_identity.md)
 - [C-09 눈 전투 완성](C-09_snow_combat_completion.md)
 - [C-10 이모션 재검증](C-10_emote_revalidation.md)
 - [C-11 커스터마이징 데이터 계약](C-11_customization_contract.md)
 - [C-12 MVP 통합](C-12_mvp_integration.md)
+- [C-13 핫팩 부활 계약](C-13_revive_contract.md)
+- [C-14 팀 스폰과 시작 연출](C-14_spawn_intro_flow.md)
 
 역할 내부 상태와 우선순위는 `PLAN_C.md`, 파트 간 계약·선점과 통합 상태는 `docs/PLANS.md`를 기준으로 판단합니다.
