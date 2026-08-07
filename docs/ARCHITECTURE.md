@@ -88,6 +88,7 @@ UI·표현 ────────> 공개 읽기 상태·이벤트
   - `UI/`: Widget Blueprint가 상속해 사용할 시작화면, 대기방, 메인 HUD 배치, 체력 바, 임시 이모션 원형 메뉴 버튼 연결 기본 클래스와 메뉴/대기방 UI 자동 생성 PlayerController
 - `Config/`: 엔진, 게임, 입력 등 프로젝트 기본 설정
 - `Content/`: Blueprint, 맵, UI, 애니메이션, 모델, 머티리얼 등 Unreal 자산
+  - `Models/`: S가 소유하는 공용 캐릭터·아이템 표현 모델 기준선. 부츠, 선물상자, 장갑, 핫초코, 핫팩, 눈오리 제작기, 눈삽의 Static Mesh·Material Instance·Texture 자산과 공용 마스터 머티리얼을 포함
   - `Snowball/`: C++ 눈덩이 액터를 부모로 사용하는 비UI Blueprint와 표현 자산
 - `docs/GDD/`: 전체 게임 기획과 현재 MVP 범위
   - `Game_GDD.md`: 전체 게임 규칙과 기능의 기준
