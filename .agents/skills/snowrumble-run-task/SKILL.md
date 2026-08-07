@@ -1,6 +1,6 @@
 ---
 name: snowrumble-run-task
-description: Run and adapt SnowRumble role-based work safely. Use in the SnowRumble repository when a role Codex starts a session or Task, checks or switches the role branch, synchronizes remote changes, starts or continues a Task, changes priorities, splits or adds a Task, handles a bug or unwanted result, pauses or replaces work, requests a cross-role contract, resolves an ownership conflict, records a handoff, or updates the role PLAN and central integration board.
+description: Run and adapt SnowRumble role-based work safely. Use in the SnowRumble repository when a role Codex starts a session or Task, checks or switches the role branch, synchronizes remote changes, starts or continues a Task, changes priorities, splits or adds a Task, handles a bug or unwanted result, pauses or replaces work, requests a cross-role contract, resolves an ownership conflict, records a handoff, publishes completed work to the role branch and master, or updates the role PLAN and central integration board.
 ---
 
 # SnowRumble Task Runner
@@ -17,7 +17,7 @@ Before starting or resuming project work, and whenever the confirmed role change
 
 1. Inspect the current branch, upstream, and working tree without changing them.
 2. Run `git fetch origin --prune` to refresh remote branch state.
-3. Map the normal work branch directly from the role: `C`, `K`, `S`, or `J`. Use `master` only when C explicitly performs integration.
+3. Map the normal work branch directly from the role: `C`, `K`, `S`, or `J`. Use `master` only for integration.
 4. If the current branch differs, switch to the role branch only when the working tree has no staged, tracked, or untracked changes that could be carried across branches. Never auto-stash, auto-commit, reset, or discard work to enable switching.
 5. If the role branch has no upstream and the matching `origin/<role>` exists, connect that upstream.
 6. Compare the local branch with its upstream after fetch.
@@ -89,6 +89,24 @@ Use `docs/STYLEGUIDE.md` for encapsulation and naming. Never duplicate authorita
 - Use the conflict report in `docs/COLLABORATION.md`.
 - Mark a Task `대기` only with a concrete reason and restart condition, then select another startable role-local Task if useful.
 - Keep GDD ambiguity as a user decision; do not silently invent a game rule.
+
+## Publish completed work
+
+When the user explicitly says the work is complete and asks Codex to push:
+
+1. Treat the statement as human result confirmation for the named work. Identify the completed Task; do not mark unrelated work complete.
+2. Verify the current role branch, required tests, Task completion conditions, ownership, locks, and handoff records.
+3. Update the role Task and PLAN before committing. For non-C roles, preserve central-document ownership and record any pending integration request in the role PLAN.
+4. Fetch origin and stop if the role branch or `master` has unexpected divergence, the remote changed incompatibly, or a required contract or merge-order decision is unresolved.
+5. Stage only files owned by the completed Task plus its required records. Never use a broad add when unrelated modifications or untracked files exist, and never include secrets.
+6. Commit with a Task-specific message and push the confirmed role branch. If there is nothing new to commit, use the already verified role HEAD.
+7. Integrate the pushed role commit into the latest `origin/master` only when the Task is complete, tests passed, ownership is clean, and every public-contract or ordering approval is already recorded.
+8. Use a clean integration context. If the role worktree contains unrelated files, use a separate temporary worktree rather than carrying them to `master`.
+9. Fast-forward local `master` to `origin/master`, create an identifiable non-fast-forward merge from the pushed role commit, run the required integration checks, and push `master` without force.
+10. Fast-forward the role branch to the resulting `master` merge commit when safe, push it, and return the developer's worktree to the role branch.
+11. Report the role commit, master merge commit, pushed branches, verification, and any files intentionally excluded.
+
+If role push succeeds but master integration conflicts, validation fails, or a concurrent master push wins the race, keep the role commit and remote branch intact, do not force or invent a resolution, and report that master integration remains pending.
 
 ## Verify and close
 
