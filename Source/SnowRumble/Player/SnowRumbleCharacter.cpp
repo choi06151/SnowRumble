@@ -3,21 +3,26 @@
 #include "SnowRumbleCharacter.h"
 
 #include "SnowRumbleHealthComponent.h"
+#include "../Game/SnowRumblePlayerState.h"
+#include "../Interaction/LobbyInteractionBoard_C.h"
 #include "../Interaction/OutlineComponent.h"
 #include "../Snowball/SnowballCreationComponent.h"
 #include "../Snowball/SnowballEquipmentComponent.h"
 #include "../Snowball/SnowballItem.h"
 #include "../UI/EmoteRadialMenuWidget.h"
 #include "../UI/MainHUDWidget.h"
+#include "../UI/OverheadNameplateWidget_C.h"
 #include "Animation/AnimMontage.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/SphereComponent.h"
+#include "Components/WidgetComponent.h"
 #include "DrawDebugHelpers.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -83,6 +88,13 @@ ASnowRumbleCharacter::ASnowRumbleCharacter()
 	SnowballHoldPoint->SetupAttachment(GetMesh(), TEXT("SnowballSocket"));
 
 	OutlineComponent = CreateDefaultSubobject<UOutlineComponent>(TEXT("OutlineComponent"));
+
+	OverheadNameplateComponent =
+		CreateDefaultSubobject<UWidgetComponent>(TEXT("OverheadNameplateComponent"));
+	OverheadNameplateComponent->SetupAttachment(RootComponent);
+	OverheadNameplateComponent->SetWidgetSpace(EWidgetSpace::Screen);
+	OverheadNameplateComponent->SetDrawAtDesiredSize(true);
+	OverheadNameplateComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 void ASnowRumbleCharacter::Tick(float DeltaSeconds)
@@ -134,14 +146,17 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 	if (OutlineComponent)
 	{
 		AActor* OutlinedActor = nullptr;
-		if (IsLocallyControlled()
-			&& CanPerformGameplayAction()
-			&& SnowballEquipmentComponent
-			&& !SnowballEquipmentComponent->HasHeldSnowball())
+		if (IsLocallyControlled() && CanPerformGameplayAction())
 		{
-			OutlinedActor = SnowballEquipmentComponent->IsRollingSnowball()
-				? SnowballEquipmentComponent->GetRollingSnowball()
-				: SnowballEquipmentComponent->FindClosestPickupCandidate();
+			OutlinedActor = FindClosestLobbyBoardCandidate();
+			if (!OutlinedActor
+				&& SnowballEquipmentComponent
+				&& !SnowballEquipmentComponent->HasHeldSnowball())
+			{
+				OutlinedActor = SnowballEquipmentComponent->IsRollingSnowball()
+					? SnowballEquipmentComponent->GetRollingSnowball()
+					: SnowballEquipmentComponent->FindClosestPickupCandidate();
+			}
 		}
 
 		OutlineComponent->SetOutlinedActor(OutlinedActor);
@@ -428,6 +443,13 @@ float ASnowRumbleCharacter::TakeDamage(
 	return HealthComponent ? HealthComponent->ApplyDamage(ValidatedDamage) : 0.0f;
 }
 
+void ASnowRumbleCharacter::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
+
+	RefreshOverheadNameplateComponentSettings();
+}
+
 void ASnowRumbleCharacter::BeginPlay()
 {
 	Super::BeginPlay();
@@ -445,6 +467,7 @@ void ASnowRumbleCharacter::BeginPlay()
 
 	RefreshLocalSnowEffect();
 	ApplyCameraPitchLimits();
+	RefreshOverheadNameplateComponentSettings();
 
 	if (HealthComponent)
 	{
@@ -459,6 +482,45 @@ void ASnowRumbleCharacter::BeginPlay()
 			&ASnowRumbleCharacter::HandleSnowballAimingChanged);
 		HandleSnowballAimingChanged(SnowballEquipmentComponent->IsAiming());
 	}
+
+	BindOverheadNameToPlayerState();
+	RefreshOverheadPlayerName();
+}
+
+FString ASnowRumbleCharacter::GetOverheadPlayerName() const
+{
+	const ASnowRumblePlayerState* SnowRumblePlayerState =
+		GetPlayerState<ASnowRumblePlayerState>();
+	return SnowRumblePlayerState
+		? SnowRumblePlayerState->GetLobbyPlayerName()
+		: FString();
+}
+
+void ASnowRumbleCharacter::ClientFocusLobbyBoard_Implementation(
+	ALobbyInteractionBoard* Board)
+{
+	if (!IsLocallyControlled() || !Board)
+	{
+		return;
+	}
+
+	APlayerController* PlayerController =
+		Cast<APlayerController>(GetController());
+	if (!PlayerController)
+	{
+		return;
+	}
+
+	const FVector ViewLocation = FollowCamera
+		? FollowCamera->GetComponentLocation()
+		: GetPawnViewLocation();
+	const FVector FocusDirection = Board->GetFocusLocation() - ViewLocation;
+	if (FocusDirection.IsNearlyZero())
+	{
+		return;
+	}
+
+	PlayerController->SetControlRotation(FocusDirection.Rotation());
 }
 
 void ASnowRumbleCharacter::RefreshHeldEquipmentMovementState()
@@ -481,6 +543,14 @@ void ASnowRumbleCharacter::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ASnowRumbleCharacter, bIsPickingUpItem);
 }
 
+void ASnowRumbleCharacter::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+
+	BindOverheadNameToPlayerState();
+	RefreshOverheadPlayerName();
+}
+
 void ASnowRumbleCharacter::PawnClientRestart()
 {
 	Super::PawnClientRestart();
@@ -489,6 +559,46 @@ void ASnowRumbleCharacter::PawnClientRestart()
 	RefreshLocalSnowEffect();
 	EnsureEmoteRadialMenuWidget();
 	EnsureMainHUDWidget();
+}
+
+void ASnowRumbleCharacter::BindOverheadNameToPlayerState()
+{
+	if (ASnowRumblePlayerState* SnowRumblePlayerState =
+		GetPlayerState<ASnowRumblePlayerState>())
+	{
+		SnowRumblePlayerState->OnLobbyPlayerChanged.AddUniqueDynamic(
+			this,
+			&ASnowRumbleCharacter::RefreshOverheadPlayerName);
+	}
+}
+
+void ASnowRumbleCharacter::RefreshOverheadNameplateComponentSettings()
+{
+	if (!OverheadNameplateComponent)
+	{
+		return;
+	}
+
+	OverheadNameplateComponent->SetRelativeLocation(OverheadNameRelativeLocation);
+	if (OverheadNameplateWidgetClass)
+	{
+		OverheadNameplateComponent->SetWidgetClass(OverheadNameplateWidgetClass);
+	}
+}
+
+void ASnowRumbleCharacter::RefreshOverheadPlayerName()
+{
+	if (!OverheadNameplateComponent)
+	{
+		return;
+	}
+
+	OverheadNameplateComponent->InitWidget();
+	if (UOverheadNameplateWidget* NameplateWidget =
+		Cast<UOverheadNameplateWidget>(OverheadNameplateComponent->GetUserWidgetObject()))
+	{
+		NameplateWidget->SetObservedCharacter(this);
+	}
 }
 
 void ASnowRumbleCharacter::ApplyCameraPitchLimits()
@@ -847,7 +957,17 @@ void ASnowRumbleCharacter::HandleInteractCompleted()
 		}
 		else if (bIsInteractHeld && CanPerformGameplayAction())
 		{
-			SnowballEquipmentComponent->TryPickupSnowball();
+			const ALobbyInteractionBoard* OutlinedBoard = OutlineComponent
+				? Cast<ALobbyInteractionBoard>(OutlineComponent->GetOutlinedActor())
+				: nullptr;
+			if (OutlinedBoard)
+			{
+				TryInteractWithLobbyBoard();
+			}
+			else
+			{
+				SnowballEquipmentComponent->TryPickupSnowball();
+			}
 		}
 	}
 
@@ -1050,6 +1170,76 @@ void ASnowRumbleCharacter::HandleSnowballAimingChanged(bool bNewAiming)
 	{
 		ForceNetUpdate();
 	}
+}
+
+ALobbyInteractionBoard* ASnowRumbleCharacter::FindClosestLobbyBoardCandidate()
+	const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return nullptr;
+	}
+
+	const FVector CharacterLocation = GetActorLocation();
+	float ClosestDistanceSquared = TNumericLimits<float>::Max();
+	ALobbyInteractionBoard* ClosestBoard = nullptr;
+
+	for (TActorIterator<ALobbyInteractionBoard> Iterator(World); Iterator; ++Iterator)
+	{
+		ALobbyInteractionBoard* Candidate = *Iterator;
+		if (!Candidate || !Candidate->CanInteractWith(this))
+		{
+			continue;
+		}
+
+		const float DistanceSquared = FVector::DistSquared(
+			CharacterLocation,
+			Candidate->GetActorLocation());
+		if (DistanceSquared <= ClosestDistanceSquared)
+		{
+			ClosestDistanceSquared = DistanceSquared;
+			ClosestBoard = Candidate;
+		}
+	}
+
+	return ClosestBoard;
+}
+
+void ASnowRumbleCharacter::TryInteractWithLobbyBoard()
+{
+	if (!IsLocallyControlled() || !CanPerformGameplayAction())
+	{
+		return;
+	}
+
+	ALobbyInteractionBoard* Board = OutlineComponent
+		? Cast<ALobbyInteractionBoard>(OutlineComponent->GetOutlinedActor())
+		: nullptr;
+	if (!Board)
+	{
+		return;
+	}
+
+	if (HasAuthority())
+	{
+		ServerTryInteractWithLobbyBoard_Implementation(Board);
+	}
+	else
+	{
+		ServerTryInteractWithLobbyBoard(Board);
+	}
+}
+
+void ASnowRumbleCharacter::ServerTryInteractWithLobbyBoard_Implementation(
+	ALobbyInteractionBoard* Board)
+{
+	if (!CanPerformGameplayAction() || !Board || !Board->CanInteractWith(this))
+	{
+		return;
+	}
+
+	Board->Interact(this);
 }
 
 bool ASnowRumbleCharacter::CanPerformGameplayAction() const

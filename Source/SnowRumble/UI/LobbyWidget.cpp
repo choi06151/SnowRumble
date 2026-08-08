@@ -3,6 +3,11 @@
 #include "LobbyWidget.h"
 
 #include "../Game/SnowRumbleLobbyGameState.h"
+#include "../Online/SnowRumbleSessionSubsystem.h"
+#include "../Player/LocalPlayerIdentitySubsystem_C.h"
+#include "LobbyPlayerController.h"
+#include "Components/TextBlock.h"
+#include "Engine/GameInstance.h"
 #include "GameFramework/PlayerController.h"
 
 void ULobbyWidget::NativeConstruct()
@@ -10,6 +15,8 @@ void ULobbyWidget::NativeConstruct()
 	Super::NativeConstruct();
 
 	RefreshLobbyBindings();
+	ApplyLocalPlayerIdentity();
+	RefreshRoomCodeText();
 	OnLobbyStateChanged();
 }
 
@@ -27,6 +34,8 @@ void ULobbyWidget::NativeTick(
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
 	RefreshLobbyBindings();
+	ApplyLocalPlayerIdentity();
+	RefreshRoomCodeText();
 }
 
 TArray<ASnowRumblePlayerState*> ULobbyWidget::GetLobbyPlayers() const
@@ -87,6 +96,15 @@ bool ULobbyWidget::CanStartMatch() const
 	return LobbyGameState && LobbyGameState->CanStartLobbyMatch();
 }
 
+FString ULobbyWidget::GetCurrentRoomCode() const
+{
+	UGameInstance* GameInstance = GetGameInstance();
+	const USnowRumbleSessionSubsystem* SessionSubsystem = GameInstance
+		? GameInstance->GetSubsystem<USnowRumbleSessionSubsystem>()
+		: nullptr;
+	return SessionSubsystem ? SessionSubsystem->GetCurrentRoomCode() : FString();
+}
+
 ASnowRumblePlayerState* ULobbyWidget::GetLocalSnowRumblePlayerState() const
 {
 	const APlayerController* PlayerController = GetOwningPlayer();
@@ -99,6 +117,52 @@ ASnowRumbleLobbyGameState* ULobbyWidget::GetLobbyGameState() const
 {
 	UWorld* World = GetWorld();
 	return World ? World->GetGameState<ASnowRumbleLobbyGameState>() : nullptr;
+}
+
+void ULobbyWidget::ApplyLocalPlayerIdentity()
+{
+	ASnowRumblePlayerState* PlayerState = GetLocalSnowRumblePlayerState();
+	if (!PlayerState)
+	{
+		return;
+	}
+
+	UGameInstance* GameInstance = GetGameInstance();
+	const ULocalPlayerIdentitySubsystem* IdentitySubsystem = GameInstance
+		? GameInstance->GetSubsystem<ULocalPlayerIdentitySubsystem>()
+		: nullptr;
+	if (!IdentitySubsystem || !IdentitySubsystem->HasDesiredPlayerName())
+	{
+		return;
+	}
+
+	const FString DesiredPlayerName = IdentitySubsystem->GetDesiredPlayerName();
+	if (PlayerState->GetLobbyPlayerName() == DesiredPlayerName)
+	{
+		IdentityAppliedPlayerState = PlayerState;
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	const double CurrentTime = World ? World->GetTimeSeconds() : 0.0;
+	constexpr double RetryIntervalSeconds = 0.5;
+	if (IdentityAppliedPlayerState == PlayerState
+		&& CurrentTime - LastIdentityApplyRequestTime < RetryIntervalSeconds)
+	{
+		return;
+	}
+
+	if (ALobbyPlayerController* LobbyPlayerController =
+		Cast<ALobbyPlayerController>(GetOwningPlayer()))
+	{
+		LobbyPlayerController->RequestApplyLobbyPlayerName(DesiredPlayerName);
+	}
+	else
+	{
+		PlayerState->RequestSetLobbyPlayerName(DesiredPlayerName);
+	}
+	IdentityAppliedPlayerState = PlayerState;
+	LastIdentityApplyRequestTime = CurrentTime;
 }
 
 void ULobbyWidget::RefreshLobbyBindings()
@@ -117,6 +181,14 @@ void ULobbyWidget::RefreshLobbyBindings()
 			this,
 			&ULobbyWidget::HandleLobbyStateChanged);
 		OnLobbyStateChanged();
+	}
+}
+
+void ULobbyWidget::RefreshRoomCodeText()
+{
+	if (RoomCodeTextBlock)
+	{
+		RoomCodeTextBlock->SetText(FText::FromString(GetCurrentRoomCode()));
 	}
 }
 

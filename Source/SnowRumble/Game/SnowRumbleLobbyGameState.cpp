@@ -22,13 +22,13 @@ TArray<ASnowRumblePlayerState*> ASnowRumbleLobbyGameState::GetLobbyPlayers()
 bool ASnowRumbleLobbyGameState::CanStartLobbyMatch() const
 {
 	const TArray<ASnowRumblePlayerState*> LobbyPlayers = GetLobbyPlayers();
-	if (LobbyPlayers.Num() < 2)
+	if (LobbyPlayers.Num() < 2 || LobbyPlayers.Num() > 8)
 	{
 		return false;
 	}
 
-	bool bHasRedPlayer = false;
-	bool bHasBluePlayer = false;
+	int32 RedPlayers = 0;
+	int32 BluePlayers = 0;
 	for (const ASnowRumblePlayerState* PlayerState : LobbyPlayers)
 	{
 		if (!PlayerState || !PlayerState->IsLobbyReady())
@@ -36,11 +36,38 @@ bool ASnowRumbleLobbyGameState::CanStartLobbyMatch() const
 			return false;
 		}
 
-		bHasRedPlayer |= PlayerState->GetLobbyTeam() == ESnowRumbleTeam::Red;
-		bHasBluePlayer |= PlayerState->GetLobbyTeam() == ESnowRumbleTeam::Blue;
+		switch (PlayerState->GetLobbyTeam())
+		{
+		case ESnowRumbleTeam::Red:
+			++RedPlayers;
+			break;
+		case ESnowRumbleTeam::Blue:
+			++BluePlayers;
+			break;
+		default:
+			return false;
+		}
 	}
 
-	return bHasRedPlayer && bHasBluePlayer;
+	constexpr int32 MaxPlayersPerTeam = 4;
+	return RedPlayers == BluePlayers
+		&& RedPlayers >= 1
+		&& RedPlayers <= MaxPlayersPerTeam
+		&& BluePlayers <= MaxPlayersPerTeam;
+}
+
+int32 ASnowRumbleLobbyGameState::GetLobbyTeamPlayerCount(
+	ESnowRumbleTeam Team) const
+{
+	int32 PlayerCount = 0;
+	for (const ASnowRumblePlayerState* PlayerState : GetLobbyPlayers())
+	{
+		if (PlayerState && PlayerState->GetLobbyTeam() == Team)
+		{
+			++PlayerCount;
+		}
+	}
+	return PlayerCount;
 }
 
 void ASnowRumbleLobbyGameState::NotifyLobbyStateChanged()

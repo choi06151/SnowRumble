@@ -34,6 +34,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Lobby")
 	bool IsLobbyReady() const;
 
+	/** 서버가 랜덤 팀 배정 결과를 적용한다. 클라이언트 직접 팀 선택에는 사용하지 않는다. */
+	void AssignLobbyTeamFromServer(ESnowRumbleTeam NewTeam);
+
 	/** 소유 클라이언트가 대기방 이름 변경을 서버에 요청한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Lobby")
 	void RequestSetLobbyPlayerName(const FString& NewName);

@@ -2,7 +2,10 @@
 
 #include "LobbyPlayerController.h"
 
+#include "../Game/SnowRumblePlayerState.h"
+#include "../Player/LocalPlayerIdentitySubsystem_C.h"
 #include "Blueprint/UserWidget.h"
+#include "Engine/GameInstance.h"
 #include "LobbyWidget.h"
 
 void ALobbyPlayerController::BeginPlay()
@@ -12,6 +15,7 @@ void ALobbyPlayerController::BeginPlay()
 	if (IsLocalController())
 	{
 		ShowLobby();
+		ApplySavedLobbyPlayerName();
 	}
 }
 
@@ -40,12 +44,45 @@ void ALobbyPlayerController::ShowLobby()
 		Widget->AddToViewport();
 	}
 
+	EnableLobbyGameInput();
+}
+
+void ALobbyPlayerController::EnableLobbyUiInput()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	ULobbyWidget* Widget = EnsureLobbyWidget();
+	if (!Widget)
+	{
+		return;
+	}
+
+	if (!Widget->IsInViewport())
+	{
+		Widget->AddToViewport();
+	}
+
 	bShowMouseCursor = true;
 
-	FInputModeUIOnly InputMode;
+	FInputModeGameAndUI InputMode;
 	InputMode.SetWidgetToFocus(Widget->TakeWidget());
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	InputMode.SetHideCursorDuringCapture(false);
 	SetInputMode(InputMode);
+}
+
+void ALobbyPlayerController::EnableLobbyGameInput()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	bShowMouseCursor = false;
+	SetInputMode(FInputModeGameOnly());
 }
 
 void ALobbyPlayerController::HideLobby()
@@ -59,6 +96,51 @@ void ALobbyPlayerController::HideLobby()
 	{
 		bShowMouseCursor = false;
 		SetInputMode(FInputModeGameOnly());
+	}
+}
+
+void ALobbyPlayerController::RequestApplyLobbyPlayerName(
+	const FString& NewName)
+{
+	if (HasAuthority())
+	{
+		ServerApplyLobbyPlayerName_Implementation(NewName);
+	}
+	else
+	{
+		ServerApplyLobbyPlayerName(NewName);
+	}
+}
+
+void ALobbyPlayerController::ClientRequestApplySavedLobbyPlayerName_Implementation()
+{
+	ApplySavedLobbyPlayerName();
+}
+
+void ALobbyPlayerController::ApplySavedLobbyPlayerName()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	UGameInstance* GameInstance = GetGameInstance();
+	const ULocalPlayerIdentitySubsystem* IdentitySubsystem = GameInstance
+		? GameInstance->GetSubsystem<ULocalPlayerIdentitySubsystem>()
+		: nullptr;
+	if (IdentitySubsystem && IdentitySubsystem->HasDesiredPlayerName())
+	{
+		RequestApplyLobbyPlayerName(IdentitySubsystem->GetDesiredPlayerName());
+	}
+}
+
+void ALobbyPlayerController::ServerApplyLobbyPlayerName_Implementation(
+	const FString& NewName)
+{
+	if (ASnowRumblePlayerState* SnowRumblePlayerState =
+		GetPlayerState<ASnowRumblePlayerState>())
+	{
+		SnowRumblePlayerState->RequestSetLobbyPlayerName(NewName);
 	}
 }
 
