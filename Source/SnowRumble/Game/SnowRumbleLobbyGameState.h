@@ -24,6 +24,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Lobby")
 	bool CanStartLobbyMatch() const;
 
+	/** 특정 팀에 배정된 현재 플레이어 수를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Lobby")
+	int32 GetLobbyTeamPlayerCount(ESnowRumbleTeam Team) const;
+
 	/** 대기방 상태 변경을 UI에 알린다. */
 	void NotifyLobbyStateChanged();
 

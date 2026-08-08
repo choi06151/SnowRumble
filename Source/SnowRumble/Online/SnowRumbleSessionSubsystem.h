@@ -15,7 +15,9 @@ enum class ESnowRumbleSessionOperation : uint8
 	None,
 	Host,
 	Search,
-	Join
+	Join,
+	QuickJoin,
+	JoinByCode
 };
 
 UENUM(BlueprintType)
@@ -37,6 +39,15 @@ struct FSnowRumbleSessionInfo
 
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Session")
 	FString HostName;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Session")
+	FString RoomName;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Session")
+	FString RoomCode;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Session")
+	FString GameModeName;
 
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Session")
 	int32 CurrentPlayers = 0;
@@ -73,19 +84,31 @@ public:
 
 	/** 최대 인원으로 광고되는 NULL LAN Listen Server 세션을 생성한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Session")
-	void HostLanSession(int32 MaxPlayers = 16);
+	void HostLanSession(int32 MaxPlayers = 8, const FString& RoomName = FString());
 
 	/** 현재 LAN에서 참가 가능한 NULL 세션을 검색한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Session")
 	void FindLanSessions();
 
+	/** 빈자리가 있는 첫 번째 LAN 세션을 찾아 자동 참가한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Session")
+	void QuickJoinLanSession();
+
 	/** 마지막 검색 결과의 인덱스를 사용해 세션 참가를 요청한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Session")
 	void JoinLanSession(int32 ResultIndex);
 
+	/** 방 코드와 일치하는 LAN 세션 참가를 요청한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Session")
+	void JoinLanSessionByRoomCode(const FString& RoomCode);
+
 	/** 마지막으로 변환된 Blueprint용 검색 결과를 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Session")
 	const TArray<FSnowRumbleSessionInfo>& GetSearchResults() const;
+
+	/** 현재 호스트 또는 참가 요청이 들고 있는 방 코드를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Session")
+	FString GetCurrentRoomCode() const;
 
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Session")
 	ESnowRumbleSessionOperation GetCurrentOperation() const;
@@ -105,6 +128,16 @@ private:
 
 	/** Listen Server NetDriver가 준비된 뒤 실제 LAN 세션을 생성한다. */
 	void CreateLanSession(int32 MaxPlayers);
+
+	/** 요청 목적에 맞는 LAN 세션 검색을 시작한다. */
+	void BeginFindLanSessions(
+		ESnowRumbleSessionOperation Operation,
+		const FString& Message);
+
+	/** 검색 결과 인덱스로 실제 세션 참가를 시작한다. */
+	void JoinSearchResult(
+		int32 ResultIndex,
+		ESnowRumbleSessionOperation Operation);
 
 	/** Host 맵 로드 완료 시 열린 포트를 사용해 LAN 세션 생성을 계속한다. */
 	void HandlePostLoadMap(UWorld* LoadedWorld);
@@ -138,6 +171,12 @@ private:
 	/** 등록된 세션 참가 완료 델리게이트를 해제한다. */
 	void ClearJoinSessionDelegate();
 
+	/** UI 입력 또는 세션 광고용 방 코드를 정규화한다. */
+	FString NormalizeRoomCode(const FString& RoomCode) const;
+
+	/** 새 방 생성에 사용할 짧은 숫자 코드를 만든다. */
+	FString GenerateRoomCode() const;
+
 	TSharedPtr<FOnlineSessionSearch> ActiveSessionSearch;
 	TArray<FSnowRumbleSessionInfo> SearchResults;
 
@@ -147,7 +186,11 @@ private:
 	FDelegateHandle PostLoadMapHandle;
 
 	FName LocalSessionName;
-	int32 PendingHostMaxPlayers = 16;
+	int32 PendingHostMaxPlayers = 8;
+	FString PendingHostRoomName;
+	FString PendingHostRoomCode;
+	FString PendingJoinRoomCode;
+	FString CurrentRoomCode;
 	bool bHostTravelPending = false;
 	ESnowRumbleSessionOperation CurrentOperation = ESnowRumbleSessionOperation::None;
 	ESnowRumbleSessionState CurrentState = ESnowRumbleSessionState::Idle;

@@ -81,7 +81,7 @@ UI·표현 ────────> 공개 읽기 상태·이벤트
 - `.agents/skills/snowrumble-run-task/`: 역할 확인 후 Task 실행·변경·오류·인계·충돌 흐름을 조정하는 공용 Skill
 - `Source/SnowRumble/`: `SnowRumble` 런타임 C++ 모듈
   - `Player/`: 플레이어 캐릭터의 이동·카메라·입력 연결과 분리된 HP·얼기 상태 컴포넌트
-  - `Interaction/`: 특정 대상 종류와 분리된 로컬 상호작용 표현 컴포넌트
+  - `Interaction/`: 특정 대상 종류와 분리된 로컬 상호작용 표현 컴포넌트와 로비 게시판처럼 배치 가능한 상호작용 액터
   - `Game/`: 인게임 게임 모드, 시작화면 GameMode, 대기방 GameMode/GameState/PlayerState와 서버 권한 시작 규칙의 기본 클래스
   - `Snowball/`: 바닥·장착·투척 상태를 갖는 눈덩이 아이템, 눈 바닥 제작 컴포넌트, 플레이어의 눈덩이 장비 컴포넌트와 기존 최소 투사체 프로토타입
   - `Online/`: GameInstance 수명 동안 유지되는 LAN 세션 생성·검색·참가 흐름과 UI 연결 지점
