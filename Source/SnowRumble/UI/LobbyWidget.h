@@ -9,6 +9,7 @@
 
 class ASnowRumbleLobbyGameState;
 class ASnowRumblePlayerState;
+class UTextBlock;
 
 UCLASS(Abstract, Blueprintable)
 class SNOWRUMBLE_API ULobbyWidget : public UUserWidget
@@ -44,6 +45,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI|Lobby")
 	bool CanStartMatch() const;
 
+	/** 현재 방의 방 코드를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI|Lobby")
+	FString GetCurrentRoomCode() const;
+
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
@@ -55,10 +60,16 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Lobby")
 	void OnLobbyStateChanged();
 
+	/** 있으면 현재 방 코드를 자동 표시하는 텍스트다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UTextBlock> RoomCodeTextBlock;
+
 private:
 	ASnowRumblePlayerState* GetLocalSnowRumblePlayerState() const;
 	ASnowRumbleLobbyGameState* GetLobbyGameState() const;
+	void ApplyLocalPlayerIdentity();
 	void RefreshLobbyBindings();
+	void RefreshRoomCodeText();
 	void UnbindLobbyBindings();
 
 	UFUNCTION()
@@ -66,4 +77,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<ASnowRumbleLobbyGameState> BoundLobbyGameState;
+
+	UPROPERTY(Transient)
+	TObjectPtr<ASnowRumblePlayerState> IdentityAppliedPlayerState;
+
+	double LastIdentityApplyRequestTime = -1.0;
 };

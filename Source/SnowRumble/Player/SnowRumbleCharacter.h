@@ -13,6 +13,7 @@ class UInputMappingContext;
 class UAnimMontage;
 class UEmoteRadialMenuWidget;
 class UMainHUDWidget;
+class UOverheadNameplateWidget;
 class UNiagaraComponent;
 class UOutlineComponent;
 class USceneComponent;
@@ -21,7 +22,9 @@ class USnowRumbleHealthComponent;
 class USnowballCreationComponent;
 class USnowballEquipmentComponent;
 class USpringArmComponent;
+class UWidgetComponent;
 class AController;
+class ALobbyInteractionBoard;
 class ASnowballItem;
 struct FDamageEvent;
 struct FInputActionValue;
@@ -160,9 +163,19 @@ public:
 		AController* EventInstigator,
 		AActor* DamageCauser) override;
 
+	/** 머리 위 이름표 WBP가 표시할 닉네임을 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Identity")
+	FString GetOverheadPlayerName() const;
+
+	/** 서버가 확정한 게시판 상호작용에 맞춰 소유 클라이언트 카메라를 게시판으로 돌린다. */
+	UFUNCTION(Client, Reliable)
+	void ClientFocusLobbyBoard(ALobbyInteractionBoard* Board);
+
 protected:
+	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void OnRep_PlayerState() override;
 	virtual void PawnClientRestart() override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
@@ -217,6 +230,12 @@ protected:
 	/** 로컬 PlayerCameraManager에 안전한 상하 시야각을 적용한다. */
 	void ApplyCameraPitchLimits();
 
+	/** PlayerState 닉네임 변경 이벤트에 머리 위 이름표 갱신을 연결한다. */
+	void BindOverheadNameToPlayerState();
+
+	/** 에디터와 런타임에서 이름표 컴포넌트 위치와 클래스를 현재 설정값으로 맞춘다. */
+	void RefreshOverheadNameplateComponentSettings();
+
 	/** 자신이 조종하는 캐릭터의 카메라에서만 눈 VFX를 활성화한다. */
 	void RefreshLocalSnowEffect();
 
@@ -239,6 +258,20 @@ protected:
 	/** 조준 상태에 따라 로컬 카메라와 모든 화면의 이동속도를 갱신한다. */
 	UFUNCTION()
 	void HandleSnowballAimingChanged(bool bNewAiming);
+
+	/** 복제된 PlayerState 닉네임으로 머리 위 이름표를 갱신한다. */
+	UFUNCTION()
+	void RefreshOverheadPlayerName();
+
+	/** 로컬 플레이어가 상호작용할 가장 가까운 로비 게시판을 찾는다. */
+	ALobbyInteractionBoard* FindClosestLobbyBoardCandidate() const;
+
+	/** 소유 플레이어가 가까운 로비 게시판 상호작용을 서버에 요청한다. */
+	void TryInteractWithLobbyBoard();
+
+	/** 서버가 현재 위치와 상태를 검사해 로비 게시판 상호작용을 확정한다. */
+	UFUNCTION(Server, Reliable)
+	void ServerTryInteractWithLobbyBoard(ALobbyInteractionBoard* Board);
 
 	/** 현재 캐릭터가 이동과 일반 행동을 수행할 수 있는지 확인한다. */
 	bool CanPerformGameplayAction() const;
@@ -319,6 +352,15 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Interaction")
 	TObjectPtr<UOutlineComponent> OutlineComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Identity")
+	TObjectPtr<UWidgetComponent> OverheadNameplateComponent;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Identity")
+	TSubclassOf<UOverheadNameplateWidget> OverheadNameplateWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Identity")
+	FVector OverheadNameRelativeLocation = FVector(0.0f, 0.0f, 130.0f);
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
 	TObjectPtr<UInputMappingContext> PlayerMappingContext;

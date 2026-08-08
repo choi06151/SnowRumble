@@ -2,8 +2,11 @@
 
 #include "MainMenuWidget.h"
 
+#include "../Player/LocalPlayerIdentitySubsystem_C.h"
 #include "Components/Button.h"
+#include "Components/EditableTextBox.h"
 #include "Components/TextBlock.h"
+#include "Components/Widget.h"
 #include "Engine/GameInstance.h"
 
 const TArray<FSnowRumbleSessionInfo> UMainMenuWidget::EmptyResults;
@@ -13,6 +16,8 @@ void UMainMenuWidget::NativeConstruct()
 	Super::NativeConstruct();
 
 	BindMenuButtons();
+	SetRoomCodeJoinPanelVisible(false);
+	InitializePlayerNameInput();
 	SetStatusMessage(TEXT("Ready"));
 	RefreshJoinButtonEnabled();
 
@@ -40,11 +45,12 @@ void UMainMenuWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
-void UMainMenuWidget::HostLanGame(int32 MaxPlayers)
+void UMainMenuWidget::HostLanGame(int32 MaxPlayers, const FString& RoomName)
 {
+	SavePlayerNameInput();
 	if (USnowRumbleSessionSubsystem* SessionSubsystem = GetSessionSubsystem())
 	{
-		SessionSubsystem->HostLanSession(MaxPlayers);
+		SessionSubsystem->HostLanSession(MaxPlayers, RoomName);
 	}
 }
 
@@ -56,11 +62,30 @@ void UMainMenuWidget::FindLanGames()
 	}
 }
 
+void UMainMenuWidget::QuickJoinLanGame()
+{
+	SavePlayerNameInput();
+	if (USnowRumbleSessionSubsystem* SessionSubsystem = GetSessionSubsystem())
+	{
+		SessionSubsystem->QuickJoinLanSession();
+	}
+}
+
 void UMainMenuWidget::JoinLanGame(int32 ResultIndex)
 {
+	SavePlayerNameInput();
 	if (USnowRumbleSessionSubsystem* SessionSubsystem = GetSessionSubsystem())
 	{
 		SessionSubsystem->JoinLanSession(ResultIndex);
+	}
+}
+
+void UMainMenuWidget::JoinLanGameByRoomCode(const FString& RoomCode)
+{
+	SavePlayerNameInput();
+	if (USnowRumbleSessionSubsystem* SessionSubsystem = GetSessionSubsystem())
+	{
+		SessionSubsystem->JoinLanSessionByRoomCode(RoomCode);
 	}
 }
 
@@ -97,6 +122,11 @@ void UMainMenuWidget::HandleSessionStateChanged(
 	const FString& Message)
 {
 	SetStatusMessage(Message.IsEmpty() ? TEXT("Session state changed") : Message);
+	if (Operation == ESnowRumbleSessionOperation::JoinByCode
+		&& State == ESnowRumbleSessionState::Succeeded)
+	{
+		SetRoomCodeJoinPanelVisible(false);
+	}
 	RefreshJoinButtonEnabled();
 	OnMainMenuSessionStateChanged(Operation, State, Message);
 }
@@ -111,17 +141,31 @@ void UMainMenuWidget::HandleSearchCompleted(
 
 void UMainMenuWidget::HandleHostButtonClicked()
 {
-	HostLanGame(16);
+	HostLanGame(8);
+}
+
+void UMainMenuWidget::HandleQuickJoinButtonClicked()
+{
+	QuickJoinLanGame();
 }
 
 void UMainMenuWidget::HandleFindButtonClicked()
 {
-	FindLanGames();
+	SetRoomCodeJoinPanelVisible(true);
+	OnRoomCodeJoinPromptRequested();
 }
 
-void UMainMenuWidget::HandleJoinFirstButtonClicked()
+void UMainMenuWidget::HandleConfirmRoomCodeJoinClicked()
 {
-	JoinLanGame(0);
+	const FString RoomCode = RoomCodeTextBox
+		? RoomCodeTextBox->GetText().ToString()
+		: FString();
+	JoinLanGameByRoomCode(RoomCode);
+}
+
+void UMainMenuWidget::HandleCancelRoomCodeJoinClicked()
+{
+	SetRoomCodeJoinPanelVisible(false);
 }
 
 void UMainMenuWidget::BindMenuButtons()
@@ -133,6 +177,13 @@ void UMainMenuWidget::BindMenuButtons()
 			&UMainMenuWidget::HandleHostButtonClicked);
 	}
 
+	if (QuickJoinButton)
+	{
+		QuickJoinButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UMainMenuWidget::HandleQuickJoinButtonClicked);
+	}
+
 	if (FindButton)
 	{
 		FindButton->OnClicked.AddUniqueDynamic(
@@ -140,11 +191,18 @@ void UMainMenuWidget::BindMenuButtons()
 			&UMainMenuWidget::HandleFindButtonClicked);
 	}
 
-	if (JoinFirstButton)
+	if (ConfirmRoomCodeJoinButton)
 	{
-		JoinFirstButton->OnClicked.AddUniqueDynamic(
+		ConfirmRoomCodeJoinButton->OnClicked.AddUniqueDynamic(
 			this,
-			&UMainMenuWidget::HandleJoinFirstButtonClicked);
+			&UMainMenuWidget::HandleConfirmRoomCodeJoinClicked);
+	}
+
+	if (CancelRoomCodeJoinButton)
+	{
+		CancelRoomCodeJoinButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UMainMenuWidget::HandleCancelRoomCodeJoinClicked);
 	}
 }
 
@@ -155,14 +213,75 @@ void UMainMenuWidget::UnbindMenuButtons()
 		HostButton->OnClicked.RemoveAll(this);
 	}
 
+	if (QuickJoinButton)
+	{
+		QuickJoinButton->OnClicked.RemoveAll(this);
+	}
+
 	if (FindButton)
 	{
 		FindButton->OnClicked.RemoveAll(this);
 	}
 
-	if (JoinFirstButton)
+	if (ConfirmRoomCodeJoinButton)
 	{
-		JoinFirstButton->OnClicked.RemoveAll(this);
+		ConfirmRoomCodeJoinButton->OnClicked.RemoveAll(this);
+	}
+
+	if (CancelRoomCodeJoinButton)
+	{
+		CancelRoomCodeJoinButton->OnClicked.RemoveAll(this);
+	}
+}
+
+void UMainMenuWidget::SetRoomCodeJoinPanelVisible(bool bVisible)
+{
+	if (RoomCodeJoinPanel)
+	{
+		RoomCodeJoinPanel->SetVisibility(
+			bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+
+	if (bVisible && RoomCodeTextBox)
+	{
+		RoomCodeTextBox->SetText(FText::GetEmpty());
+		RoomCodeTextBox->SetKeyboardFocus();
+	}
+}
+
+void UMainMenuWidget::SavePlayerNameInput()
+{
+	if (!PlayerNameTextBox)
+	{
+		return;
+	}
+
+	UGameInstance* GameInstance = GetGameInstance();
+	ULocalPlayerIdentitySubsystem* IdentitySubsystem = GameInstance
+		? GameInstance->GetSubsystem<ULocalPlayerIdentitySubsystem>()
+		: nullptr;
+	if (IdentitySubsystem)
+	{
+		IdentitySubsystem->SetDesiredPlayerName(
+			PlayerNameTextBox->GetText().ToString());
+	}
+}
+
+void UMainMenuWidget::InitializePlayerNameInput()
+{
+	if (!PlayerNameTextBox)
+	{
+		return;
+	}
+
+	UGameInstance* GameInstance = GetGameInstance();
+	const ULocalPlayerIdentitySubsystem* IdentitySubsystem = GameInstance
+		? GameInstance->GetSubsystem<ULocalPlayerIdentitySubsystem>()
+		: nullptr;
+	if (IdentitySubsystem && IdentitySubsystem->HasDesiredPlayerName())
+	{
+		PlayerNameTextBox->SetText(
+			FText::FromString(IdentitySubsystem->GetDesiredPlayerName()));
 	}
 }
 
@@ -176,8 +295,15 @@ void UMainMenuWidget::SetStatusMessage(const FString& Message)
 
 void UMainMenuWidget::RefreshJoinButtonEnabled()
 {
-	if (JoinFirstButton)
+	const bool bCanRequestSession =
+		GetSessionState() != ESnowRumbleSessionState::InProgress;
+	if (QuickJoinButton)
 	{
-		JoinFirstButton->SetIsEnabled(GetLanSearchResults().Num() > 0);
+		QuickJoinButton->SetIsEnabled(bCanRequestSession);
+	}
+
+	if (FindButton)
+	{
+		FindButton->SetIsEnabled(bCanRequestSession);
 	}
 }

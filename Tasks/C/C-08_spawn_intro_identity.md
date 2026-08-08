@@ -9,7 +9,9 @@
 - 완료 가능: 닉네임·팀 색·표시 상태와 S-05 인계 확인
 
 ## 구현 항목
-- [ ] 닉네임과 팀 색을 머리 위 UI가 읽을 수 있게 제공한다.
+- [x] 닉네임을 머리 위 표시가 읽을 수 있게 제공한다.
+- [x] 머리 위 닉네임 표시용 WidgetComponent와 WBP 부모 클래스를 추가한다.
+- [ ] 팀 색을 머리 위 UI가 읽을 수 있게 제공한다.
 - [ ] 이름표가 읽을 생존·관전 표시 보조 상태를 제공한다.
 
 ## 작업 배정
@@ -19,8 +21,12 @@
 - 병합 순서: C-03 후, S-05 전
 
 ## 공용 계약과 인계
-- 제공받을 계약: C-03 팀 상태
-- 제공할 계약: 닉네임·팀 색과 표시 상태
+- 제공받을 계약: C-02 닉네임 입력, `ALobbyPlayerController::RequestApplyLobbyPlayerName`, `ASnowRumblePlayerState::LobbyPlayerName`, C-03 팀 상태
+- 제공할 계약:
+  - `ASnowRumblePlayerState::GetLobbyPlayerName()`: 서버에 저장되고 복제된 표시 닉네임을 반환한다.
+  - `ASnowRumbleCharacter::OverheadNameplateComponent`: 캐릭터 머리 위에 붙는 `UWidgetComponent`다.
+  - `ASnowRumbleCharacter::OverheadNameplateWidgetClass`: S-05가 만든 이름표 WBP 클래스를 지정할 수 있는 확장 지점이다.
+  - `UOverheadNameplateWidget`: 이름표 WBP 부모 클래스다. WBP에서 `PlayerNameTextBlock` 이름의 TextBlock을 만들면 C++ 부모가 `ASnowRumbleCharacter::GetOverheadPlayerName()` 값을 자동 표시한다.
 - 인계 대상: S-05
 
 ## 범위 밖
@@ -30,13 +36,35 @@
 ## 사전 전제
 - C-03
 
+## 기존 구현 인수
+- `ASnowRumblePlayerState`의 `LobbyPlayerName` 복제와 `OnLobbyPlayerChanged` 델리게이트를 닉네임 표시 원본으로 사용한다.
+- `ASnowRumbleCharacter`는 `PlayerState` 복제 시점과 닉네임 변경 이벤트에 맞춰 머리 위 이름표 위젯을 갱신한다.
+- 서버 `PostLogin` 후 `ALobbyPlayerController::ClientRequestApplySavedLobbyPlayerName()`이 소유 클라이언트의 저장 닉네임 제출을 요청하고, 서버 `PlayerState`에 반영한다.
+- 서버 닉네임 적용 시 기본 `APlayerState::PlayerName`도 같은 값으로 갱신해 WBP가 기본 이름을 읽어도 `DESKTOP-...` 값이 남지 않게 한다.
+- `UOverheadNameplateWidget`은 표시 이름이 바뀌면 tick에서 다시 읽어 `PlayerNameTextBlock`을 갱신한다. 서버 화면에서 클라이언트 캐릭터 이름표가 초기 기본 PC 이름으로 만들어진 뒤에도 복제 닉네임으로 교체되게 하기 위한 보강이다.
+- `ASnowRumbleCharacter::RefreshOverheadPlayerName()`은 `UWidgetComponent::InitWidget()`으로 이름표 위젯 인스턴스를 보장한 뒤 관찰 캐릭터를 연결한다.
+
 ## 결정 필요
 - 없음
 
-## 수동 작업 (구현 후 구체화)
+## 수동 작업
+- S-05에서 이름표 WBP를 만들 때 부모 클래스를 `UOverheadNameplateWidget`으로 지정한다.
+- WBP 안에 TextBlock을 만들고 `PlayerNameTextBlock` 이름으로 바인딩하면 C++ 부모가 닉네임을 자동 표시한다.
+- 캐릭터 Blueprint에서 `OverheadNameplateWidgetClass`를 해당 WBP로 지정하면 최종 이름표 표현을 사용할 수 있다.
+
 ## 완료 조건
 ### 에이전트 확인
-- [ ] 닉네임·팀 색 계약 완료
-- [ ] S-05 인계 완료
+- [x] 닉네임 표시 계약 완료
+- [x] WidgetComponent 기반 머리 위 닉네임 표시 완료
+- [x] S-05 닉네임 표시 인계 기록 완료
+- [x] `SnowRumbleEditor Win64 Development` 빌드 성공
+- [x] 이름표 WBP 부모 `UOverheadNameplateWidget` 빌드 성공
+- [x] 서버 화면에서 클라이언트 이름표가 늦게 적용된 복제 닉네임으로 갱신되도록 위젯 갱신 타이밍 보강 완료
+- [ ] 팀 색 계약 완료
 - [ ] 표시 상태가 서버 원본을 중복하지 않음
-### 결과 확인 (구현 후 구체화)
+
+### 결과 확인
+- [ ] 호스트가 로비에 들어오면 자기 캐릭터 머리 위에 메인메뉴 닉네임이 표시된다.
+- [ ] 클라이언트가 로비에 들어오면 각 캐릭터 머리 위에 각자의 메인메뉴 닉네임이 표시된다.
+- [ ] 한 화면에서 다른 플레이어의 닉네임도 복제된 값으로 보인다.
+- [ ] 서버 화면에서 클라이언트 캐릭터 머리 위 이름표가 `DESKTOP-...` 같은 기본 PC 이름이 아니라 클라이언트 메인메뉴 닉네임으로 바뀐다.
