@@ -25,13 +25,13 @@
 
 | 계약 | 제공 Task | 소비 Task·파트 | 필요한 결과 | 상태 |
 | --- | --- | --- | --- | --- |
-| I-01 기존 기반 | C-01 | 모든 역할 | 재사용 파일·자산과 공용 소유권 | 진행중 |
-| I-02 세션·방 | C-02 | C-03, S-02 | 방 설정·검색·참가 상태와 요청 | 예정 |
-| I-03 팀·대기방 | C-03 | C-04, C-08, C-14, S-03 | 랜덤 팀·준비·동수 시작 상태 | 예정 |
+| I-01 기존 기반 | C-01 | 모든 역할 | 재사용 파일·자산과 공용 소유권 | 완료 |
+| I-02 세션·방 | C-02 | C-03, S-02 | 방 설정·검색·참가 상태와 요청 | 진행중 |
+| I-03 팀·대기방 | C-03 | C-04, C-08, C-14, S-03 | 랜덤 팀·준비·동수 시작 상태 | 진행중 |
 | I-04 랜덤 맵·로딩 | C-04 | C-05, S-04, S-10, J | 선택 맵·로딩 인원·시작 결과 | 예정 |
 | I-05 얼음·사망 | C-06 | C-05, C-07, C-13, K-07, S-07 | 얼음 잔여시간·사망·관전·전멸 결과 | 예정 |
 | I-06 플레이어 효과 | C-07 | K-01, K-03~K-06, K-08, S-09, S-10, J-02, J-04 | 피해·회복·무적·능력 보정 요청 | 예정 |
-| I-07 팀 식별 | C-08 | S-05 | 닉네임·팀 색·이름표용 상태 | 예정 |
+| I-07 팀 식별 | C-08 | S-05 | 닉네임·팀 색·이름표용 상태 | 진행중 |
 | I-08 눈 전투 | C-09 | K-05, K-06, K-08, S-06 | 눈 제작·조준·충전·피격과 큰 눈 광역 결과 | 예정 |
 | I-09 경기 흐름 | C-05 | K-11, S-11, 맵 담당 | 라운드 시간·승수·결과·금색 상자 시점 | 예정 |
 | I-10 커스터마이징 | C-11 | S-01, S-02, S-08 | 외형 저장·복제·적용 상태 | 예정 |
@@ -40,12 +40,13 @@
 | I-13 부활 계약 | C-13 | K-07, S-07, C-05 | 핫팩 부활 진행·취소·완료와 무적 결과 | 예정 |
 | I-14 팀 등장 | C-14 | S-10, J-02, J-04 | 팀 스폰·시작 제한·팀 소개 상태 | 예정 |
 | I-15 맵 환경 압박 | S-10, J-02, J-04 | C-05, C-12 | 레벨 담당 맵별 수위·자기장·눈 폭 서버 로직과 배치 | 예정 |
+| I-16 로비 게시판 상호작용 | C-15 | S-03, 사용자 | 게시판 outline, E 입력, 서버 검증 상호작용 이벤트 | 진행중 |
 
 ## 통합 관문
 
 | 관문 | 완료 조건 | 상태 |
 | --- | --- | --- |
-| G-01 기반 인수 | C-01 완료와 기존 진행중 선점 재정리 | 예정 |
+| G-01 기반 인수 | C-01 완료와 기존 진행중 선점 재정리 | 완료 |
 | G-02 공용 계약 | C-02~C-09, C-11, C-13, C-14 중 소비 파트에 필요한 계약 완료 | 예정 |
 | G-03 파트 통합 | K-10, S-12, J-05 완료 | 예정 |
 | G-04 MVP 통합 | C-12 결과 확인 완료 | 예정 |
@@ -64,7 +65,11 @@
 
 | Task | 담당자 | 기능 소유자 | 계약 소유자 | 자산 수정자 | 선점 파일·자산 | 상태 |
 | --- | --- | --- | --- | --- | --- | --- |
-| C-01 | C | 최재원(C) | 최재원(C) | 문서: 최재원(C), 코드·자산: 구현 승인 전 확정 | `Tasks/C/C-01_existing_foundation_migration.md`, `Tasks/C/PLAN_C.md`, 기존 코드·자산 조사 대상은 승인 전 확정 | 진행중 |
+| C-01 | C | 최재원(C) | 최재원(C) | 문서: 최재원(C), 코드·자산: 구현 승인 전 확정 | `Tasks/C/C-01_existing_foundation_migration.md`, `Tasks/C/PLAN_C.md`, 기존 코드·자산 조사 대상은 승인 전 확정 | 완료 |
+| C-02 | C | 최재원(C) | 최재원(C) | 문서·C++: 최재원(C), UI 자산: S-02 인계 | `Tasks/C/C-02_session_room_flow.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Online/SnowRumbleSessionSubsystem.*`, `Source/SnowRumble/UI/MainMenuWidget.*`, `Source/SnowRumble/UI/LobbyWidget.*` | 진행중 |
+| C-03 | C | 최재원(C) | 최재원(C) | 문서·C++: 최재원(C), 로비 맵 PlayerStart 배치: 사용자/S·J 인계 | `Tasks/C/C-03_random_team_lobby.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Game/SnowRumbleLobbyGameMode.*`, `Source/SnowRumble/Game/SnowRumbleLobbyGameState.*`, `Source/SnowRumble/Game/SnowRumblePlayerState.*`, `Source/SnowRumble/UI/LobbyPlayerController.*` | 진행중 |
+| C-08 | C | 최재원(C) | 최재원(C) | C++: 최재원(C), 이름표 WBP·그래픽: S-05 인계 | `Tasks/C/C-08_spawn_intro_identity.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/UI/OverheadNameplateWidget_C.*` | 진행중 |
+| C-15 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 게시판 Blueprint·맵 배치: 사용자/S 인계 | `Tasks/C/C-15_lobby_board_interaction.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Interaction/LobbyInteractionBoard_C.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*` | 진행중 |
 
 ## 상태 범례
 
@@ -76,16 +81,11 @@
 
 ## 최근 통합 로그
 
-- 2026-08-07: 구조 개편 커밋 `a1d4bfb`를 `master`, `C`, `K`, `S`, `J` 원격 브랜치에 배포함. 역할별 Task 분할 재검토, 환경 압박 로직의 레벨 담당 소유, 최초 Task 개발 스타일 확인 절차를 반영함.
-- 2026-08-08: 개편 전 `master` 구현을 C-01 기준으로 인수 적용함. 기존 세션·로비, HP·얼기, 눈 제작·전투, UI 부모, 이모션, 레거시 투사체 상태를 새 C Task와 소유권 기준에 연결함.
-- 2026-08-07: `Content/Models/`의 기존 모델·머티리얼·텍스처 `.uasset` 46개를 S 소유 공용 표현 자산 기준선으로 등록하고 Git LFS를 통해 모든 역할 브랜치에 배포함.
-- 2026-08-07: 사용자가 작업 완료와 push를 요청하면 담당 Codex가 소유 변경만 역할 브랜치에 commit·push하고, 검증·계약·충돌 조건을 통과한 경우 `master` 병합·push와 역할 브랜치 재동기화까지 수행하도록 확정함.
-- 2026-08-07: 세션·Task 시작과 담당자 변경 시 Codex가 원격을 fetch하고 담당 브랜치로 전환한 뒤 안전한 경우 `pull --ff-only`까지 자동 수행하도록 공용 실행 절차를 추가함.
-- 2026-08-07: `master`를 검증된 통합 기준으로 두고 담당자별 영구 브랜치 `C`, `K`, `S`, `J`를 같은 기준 커밋에서 운영하도록 확정함.
-- 2026-08-07: 공용 `$snowrumble-run-task` Skill을 추가하고 네 역할 진입 문서에 연결해 Task 실행·순서 변경·오류 대응·인계·충돌 흐름을 동일하게 적용함.
-- 2026-08-07: 역할 내부 순서와 상태를 `PLAN_C/K/S/J.md`로 분리하고 중앙 `PLANS.md`는 파트 간 계약·선점·통합 상태만 관리하도록 변경함.
-- 2026-08-07: 새 GDD와 4인 구조에 맞춰 기존 Task를 마이그레이션 장부로 보존하고 C·K·S·J 역할별 Task 구조를 작성함.
-- 2026-08-05: Task 03-2 대기방 팀 선택·준비 C++ 기본틀을 추가해 `PlayerState` 이름·팀·준비 복제, 대기방 시작 조건, 시작화면·대기방 UI 부모 위젯과 Host의 `L_Lobby` 이동 흐름을 구현함.
-- 2026-08-05: Task 03-2 시작화면과 대기방 UI를 Level Blueprint가 아니라 `MainMenuPlayerController`, `LobbyPlayerController`에서 자동 생성하도록 변경함.
-- 2026-08-05: Task 03-2 메인 메뉴 전용 `SnowRumbleMainMenuGameMode`를 추가해 시작화면 맵도 GameMode/PlayerController 구조로 통일함.
-- 2026-08-05: Task 03-2 Host 요청 시 항상 `L_Lobby`로 이동한 뒤 세션을 생성하도록 변경함.
+- 2026-08-08: C-03 서버 랜덤 팀 배정과 1vs1~4vs4 동수·전원 준비 시작 조건을 구현하고 `SnowRumbleEditor Win64 Development` 빌드 성공을 확인함.
+- 2026-08-08: C-08 서버 화면의 클라이언트 이름표가 초기 `DESKTOP-...` 값으로 남는 오류에 대응해 이름표 위젯 생성 보장과 표시 이름 변경 감지 갱신을 추가하고 빌드 성공을 확인함.
+- 2026-08-08: C-15 로비 게시판 상호작용을 추가함. 게시판 C++ 부모, outline 후보 탐색, E 입력 서버 검증 이벤트를 구현하고 직접 팀 선택은 범위 밖으로 유지함.
+- 2026-08-08: C-15 게시판 outline 후보 검사를 mesh bounds 기준으로 바꾸고 기본 상호작용 반경을 320cm로 늘려 큰 게시판 표면 근처에서도 잡히게 조정함.
+- 2026-08-08: C-15 게시판 상호작용을 현재 outline 대상 기준으로 제한하고, 상호작용 성공 시 소유 클라이언트 카메라가 게시판 bounds 중심을 바라보게 조정함. 눈덩이 기본 획득 반경은 180cm로 유지함.
+- 2026-08-08: C-08 닉네임 표시 하위 범위를 선점함. 캐릭터 `WidgetComponent`와 `UOverheadNameplateWidget` WBP 부모를 제공해 S-05가 이름표 WBP를 디자인할 수 있게 함.
+- 2026-08-08: 로비 입장 후 서버가 소유 클라이언트에 저장 닉네임 제출을 요청하는 RPC 핸드셰이크를 추가해 서버 화면의 클라이언트 이름표도 복제 닉네임으로 갱신되게 함.
+- 2026-08-08: 서버 닉네임 적용 시 기본 `APlayerState::PlayerName`도 함께 갱신해 WBP 또는 기본 이름 경로에서 `DESKTOP-...` 값이 남지 않도록 보강함.

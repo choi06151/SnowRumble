@@ -9,7 +9,7 @@
 
 ## 현재 집중 Task
 
-- [C-01](C-01_existing_foundation_migration.md) 기존 기반과 소유권 마이그레이션
+- [C-15](C-15_lobby_board_interaction.md) 로비 게시판 상호작용
 
 ## 개발 스타일
 
@@ -23,20 +23,21 @@
 
 | 우선순위 | Task | 결과 | 필수 선행 | 상태 |
 | --- | --- | --- | --- | --- |
-| 1 | [C-01](C-01_existing_foundation_migration.md) | 기존 기반과 소유권 마이그레이션 | 없음 | 진행중 |
-| 2 | [C-02](C-02_session_room_flow.md) | 세션·방 설정 | C-01·기획 결정 | 예정 |
-| 3 | [C-03](C-03_random_team_lobby.md) | 랜덤 팀 대기방 | C-02 | 예정 |
-| 4 | [C-06](C-06_freeze_death_spectate.md) | 얼음·사망·관전 | C-01 | 예정 |
-| 5 | [C-07](C-07_shared_effect_contracts.md) | 피해·회복·무적·능력 보정 계약 | C-06 | 예정 |
-| 6 | [C-04](C-04_random_map_loading.md) | 랜덤 맵과 로딩 | C-03 | 예정 |
-| 7 | [C-08](C-08_spawn_intro_identity.md) | 팀 식별 데이터 | C-03 | 예정 |
-| 8 | [C-09](C-09_snow_combat_completion.md) | 눈 전투 완성 | C-01, C-07 | 예정 |
-| 9 | [C-05](C-05_round_match_flow.md) | 3판 2선승 경기 흐름 | C-04, C-06 | 예정 |
-| 10 | [C-10](C-10_emote_revalidation.md) | 이모션 재검증 | C-01, C-06, C-08 | 예정 |
-| 11 | [C-11](C-11_customization_contract.md) | 커스터마이징 데이터 계약 | C-02·기획 결정 | 예정 |
-| 12 | [C-13](C-13_revive_contract.md) | 핫팩 부활 계약 | C-06, C-07 | 예정 |
-| 13 | [C-14](C-14_spawn_intro_flow.md) | 팀 스폰과 시작 연출 | C-03, C-04 | 예정 |
-| 14 | [C-12](C-12_mvp_integration.md) | MVP 최종 통합 | 모든 파트 통합 Task | 예정 |
+| 1 | [C-01](C-01_existing_foundation_migration.md) | 기존 기반과 소유권 마이그레이션 | 없음 | 완료 |
+| 2 | [C-02](C-02_session_room_flow.md) | 세션·방 설정 | C-01·기획 결정 | 진행중 |
+| 3 | [C-03](C-03_random_team_lobby.md) | 랜덤 팀 대기방 | C-02 | 진행중 |
+| 4 | [C-15](C-15_lobby_board_interaction.md) | 로비 게시판 상호작용 | 기존 입력·outline | 진행중 |
+| 5 | [C-06](C-06_freeze_death_spectate.md) | 얼음·사망·관전 | C-01 | 예정 |
+| 6 | [C-07](C-07_shared_effect_contracts.md) | 피해·회복·무적·능력 보정 계약 | C-06 | 예정 |
+| 7 | [C-04](C-04_random_map_loading.md) | 랜덤 맵과 로딩 | C-03 | 예정 |
+| 8 | [C-08](C-08_spawn_intro_identity.md) | 팀 식별 데이터 | C-03 | 진행중 |
+| 9 | [C-09](C-09_snow_combat_completion.md) | 눈 전투 완성 | C-01, C-07 | 예정 |
+| 10 | [C-05](C-05_round_match_flow.md) | 3판 2선승 경기 흐름 | C-04, C-06 | 예정 |
+| 11 | [C-10](C-10_emote_revalidation.md) | 이모션 재검증 | C-01, C-06, C-08 | 예정 |
+| 12 | [C-11](C-11_customization_contract.md) | 커스터마이징 데이터 계약 | C-02·기획 결정 | 예정 |
+| 13 | [C-13](C-13_revive_contract.md) | 핫팩 부활 계약 | C-06, C-07 | 예정 |
+| 14 | [C-14](C-14_spawn_intro_flow.md) | 팀 스폰과 시작 연출 | C-03, C-04 | 예정 |
+| 15 | [C-12](C-12_mvp_integration.md) | MVP 최종 통합 | 모든 파트 통합 Task | 예정 |
 
 ## 통합 변경 요청
 
@@ -50,3 +51,26 @@
 - 2026-08-07: 구조 개편 커밋 `a1d4bfb`를 `master`, `C`, `K`, `S`, `J` 원격 브랜치에 배포했고, 해당 내용을 C-01의 사전 정리 기록으로 반영. 실제 코드·자산 기준 분류와 소유권 인계는 C-01의 남은 작업으로 유지.
 - 2026-08-07: 최재원(C)의 개발 스타일을 C++ 위주로 확정. C Task는 서버 권한·복제·공용 계약을 C++ 중심으로 먼저 고정하고 Blueprint는 표현·연결 책임으로 분리한다.
 - 2026-08-08: 개편 전 `master` 구현을 현재 C-01 기준으로 적용했다. 세션·로비, HP·얼기, 눈 전투, UI 부모, 이모션, 레거시 투사체의 유지·수정·대체·폐기 보류·재검증 분류를 C-01과 관련 C Task에 반영했다.
+- 2026-08-08: 최재원(C)이 프로젝트 정상 동작을 확인해 C-01을 완료 처리하고, 다음 후보를 C-02 세션·방 설정으로 전환했다.
+- 2026-08-08: C-02의 빠른 게임 기준을 빈자리 있는 첫 LAN 방 자동 참가로 확정하고, 직접 방 찾기는 방 코드 입력 참가로 확정해 C-02를 진행중으로 전환했다.
+- 2026-08-08: C-02 세션 C++ 계약 구현과 공백 점검을 완료했다. 최종 빌드는 MSVC PCH 가상 메모리 부족 `C3859/C1076`으로 환경에서 막혀 page file 여유 확보 후 재확인이 필요하다.
+- 2026-08-08: page file 여유 확보 후 C-02 최종 `SnowRumbleEditor Win64 Development` 빌드가 성공했다. 최종 완료 처리는 호스트·클라이언트 수동 결과 확인 후 진행한다.
+- 2026-08-08: 빠른 참가·코드 참가 반응 없음 확인을 돕기 위해 세션 흐름 로그와 클라이언트 방 만들기 방어 메시지를 추가하고 재빌드 성공을 확인했다.
+- 2026-08-08: 참가하기 버튼은 바로 첫 검색 결과에 참가하지 않고 `OnRoomCodeJoinPromptRequested`로 방 코드 입력 UI를 열도록 C++ 부모 계약을 조정했다.
+- 2026-08-08: WBP는 바인딩만 하도록 `UMainMenuWidget`에 `RoomCodeJoinPanel`, `RoomCodeTextBox`, `ConfirmRoomCodeJoinButton`, `CancelRoomCodeJoinButton` 선택 바인딩을 추가했다.
+- 2026-08-08: 방 코드 입력 패널을 여는 버튼 이름을 `JoinFirstButton` 대신 `FindButton`으로 정리했다.
+- 2026-08-08: 빠른 참여 버튼 이름을 `QuickJoinButton`으로 명확히 하고 C++ 자동 바인딩을 추가했다.
+- 2026-08-08: 로비 우측 상단 방 코드 표시는 `RoomCodeTextBlock` 선택 바인딩 이름만 맞추면 C++ 부모가 자동 갱신하도록 보강했다.
+- 2026-08-08: 닉네임 정체성 데이터를 먼저 잡기 위해 `ULocalPlayerIdentitySubsystem`을 추가했다. 현재는 `PlayerNameTextBox` 닉네임만 저장·적용하고, 추후 커스터마이징 데이터 확장을 고려해 세션 책임과 분리했다.
+- 2026-08-08: 최초 닉네임이 비어 있을 때 랜덤 기본 닉네임을 `PlayerNameTextBox`에 자동 표시하도록 후보 목록과 초기화 흐름을 추가했다.
+- 2026-08-08: 로비 입장 후 기본 캐릭터 스폰과 이동 가능 상태를 먼저 확인하기 위해 C-03을 진행중으로 전환했다.
+- 2026-08-08: 로비 기본 상태는 `GameOnly` 입력과 숨김 커서로 두고, 추후 로비 설정 UI는 `EnableLobbyUiInput`/`EnableLobbyGameInput` 전환 함수로 열고 닫게 조정했다.
+- 2026-08-08: 로비와 인게임에서 닉네임이 먼저 보이도록 C-08 닉네임 표시 하위 범위를 진행중으로 전환했다.
+- 2026-08-08: 머리 위 닉네임 표시를 `TextRenderComponent`가 아니라 `UOverheadNameplateWidget` WBP 부모와 `WidgetComponent` 방식으로 구현하도록 조정했다.
+- 2026-08-08: 서버 화면에서 클라이언트 닉네임이 기본 PC 이름으로 남는 문제를 해결하기 위해 로비 `PostLogin` 이후 클라이언트 저장 닉네임 제출 RPC 핸드셰이크를 추가했다.
+- 2026-08-08: 닉네임 적용 시 `LobbyPlayerName`과 기본 `APlayerState::PlayerName`을 함께 갱신해 서버 화면 이름표의 기본 PC 이름 노출 경로를 추가로 차단했다.
+- 2026-08-08: C-03 서버 랜덤 팀 배정과 1vs1~4vs4 동수·전원 준비 시작 조건을 구현하고, 직접 팀 선택 요청은 MVP에서 무시하도록 정리했다.
+- 2026-08-08: 서버 화면의 클라이언트 이름표가 초기 `DESKTOP-...` 값으로 남는 오류에 대응해 이름표 위젯 생성 보장과 표시 이름 변경 감지 갱신을 추가했다.
+- 2026-08-08: 사용자가 게시판 outline과 `E` 상호작용을 요청해 C-15를 추가하고, 직접 팀 선택은 범위 밖으로 둔 채 게시판 C++ 부모와 서버 검증 이벤트를 구현했다.
+- 2026-08-08: 게시판 크기 때문에 outline 후보가 잘 잡히지 않아 C-15 거리 검사를 게시판 중심 기준에서 mesh bounds 기준으로 바꾸고 기본 반경을 320cm로 늘렸다.
+- 2026-08-08: C-15에서 눈덩이 기본 상호작용 거리는 180cm로 유지하고, 게시판은 자체 `InteractionRadius`로 조절하게 정리했다. `E`는 현재 outline 게시판에만 반응하고 성공 시 카메라가 게시판을 보게 했다.

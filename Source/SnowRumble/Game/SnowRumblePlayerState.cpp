@@ -24,6 +24,21 @@ bool ASnowRumblePlayerState::IsLobbyReady() const
 	return bLobbyReady;
 }
 
+void ASnowRumblePlayerState::AssignLobbyTeamFromServer(ESnowRumbleTeam NewTeam)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	LobbyTeam =
+		NewTeam == ESnowRumbleTeam::Red || NewTeam == ESnowRumbleTeam::Blue
+			? NewTeam
+			: ESnowRumbleTeam::None;
+	bLobbyReady = false;
+	BroadcastLobbyPlayerChanged();
+}
+
 void ASnowRumblePlayerState::RequestSetLobbyPlayerName(
 	const FString& NewName)
 {
@@ -102,23 +117,21 @@ void ASnowRumblePlayerState::ServerSetLobbyPlayerName_Implementation(
 	const FString& NewName)
 {
 	LobbyPlayerName = SanitizeLobbyPlayerName(NewName);
+	SetPlayerName(LobbyPlayerName);
 	BroadcastLobbyPlayerChanged();
 }
 
 void ASnowRumblePlayerState::ServerSetLobbyTeam_Implementation(
 	ESnowRumbleTeam NewTeam)
 {
-	LobbyTeam =
-		NewTeam == ESnowRumbleTeam::Red || NewTeam == ESnowRumbleTeam::Blue
-			? NewTeam
-			: ESnowRumbleTeam::None;
-	BroadcastLobbyPlayerChanged();
+	// MVP에서는 직접 팀 선택을 제공하지 않고 서버의 랜덤 배정만 사용한다.
+	(void)NewTeam;
 }
 
 void ASnowRumblePlayerState::ServerSetLobbyReady_Implementation(
 	bool bNewReady)
 {
-	bLobbyReady = bNewReady;
+	bLobbyReady = bNewReady && LobbyTeam != ESnowRumbleTeam::None;
 	BroadcastLobbyPlayerChanged();
 }
 
