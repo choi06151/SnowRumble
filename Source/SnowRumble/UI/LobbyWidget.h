@@ -9,6 +9,7 @@
 
 class ASnowRumbleLobbyGameState;
 class ASnowRumblePlayerState;
+class UBorder;
 class UTextBlock;
 
 UCLASS(Abstract, Blueprintable)
@@ -64,12 +65,37 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
 	TObjectPtr<UTextBlock> RoomCodeTextBlock;
 
+	/** 있으면 준비 완료한 인원 수와 전체 인원 수를 자동 표시하는 텍스트다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UTextBlock> ReadyPlayerCountText;
+
+	/** 있으면 현재 선택된 로비 게임 모드를 자동 표시하는 텍스트다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UTextBlock> CurrentGameModeText;
+
+	/** 있으면 로컬 플레이어 이름을 자동 표시하는 텍스트다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UTextBlock> LocalPlayerNameText;
+
+	/** 있으면 로컬 플레이어 팀 색 이름을 자동 표시하는 텍스트다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UTextBlock> LocalTeamColorText;
+
+	/** 있으면 로컬 플레이어 준비 상태를 자동 표시하는 텍스트다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UTextBlock> LocalReadyStateText;
+
+	/** 있으면 로컬 플레이어 팀 색을 배경 swatch로 자동 표시한다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UBorder> LocalTeamColorBorder;
+
 private:
 	ASnowRumblePlayerState* GetLocalSnowRumblePlayerState() const;
 	ASnowRumbleLobbyGameState* GetLobbyGameState() const;
 	void ApplyLocalPlayerIdentity();
 	void RefreshLobbyBindings();
 	void RefreshRoomCodeText();
+	void RefreshLobbyStatusTexts();
 	void UnbindLobbyBindings();
 
 	UFUNCTION()

@@ -27,7 +27,7 @@
 | --- | --- | --- | --- | --- |
 | I-01 기존 기반 | C-01 | 모든 역할 | 재사용 파일·자산과 공용 소유권 | 완료 |
 | I-02 세션·방 | C-02 | C-03, S-02 | 방 설정·검색·참가 상태와 요청 | 진행중 |
-| I-03 팀·대기방 | C-03 | C-04, C-08, C-14, S-03 | 랜덤 팀·준비·동수 시작 상태 | 진행중 |
+| I-03 팀·대기방 | C-03 | C-04, C-08, C-14, S-03 | 팀 색 선택·준비·다색 팀 시작 상태 | 진행중 |
 | I-04 랜덤 맵·로딩 | C-04 | C-05, S-04, S-10, J | 선택 맵·로딩 인원·시작 결과 | 예정 |
 | I-05 얼음·사망 | C-06 | C-05, C-07, C-13, K-07, S-07 | 얼음 잔여시간·사망·관전·전멸 결과 | 예정 |
 | I-06 플레이어 효과 | C-07 | K-01, K-03~K-06, K-08, S-09, S-10, J-02, J-04 | 피해·회복·무적·능력 보정 요청 | 예정 |
@@ -40,7 +40,7 @@
 | I-13 부활 계약 | C-13 | K-07, S-07, C-05 | 핫팩 부활 진행·취소·완료와 무적 결과 | 예정 |
 | I-14 팀 등장 | C-14 | S-10, J-02, J-04 | 팀 스폰·시작 제한·팀 소개 상태 | 예정 |
 | I-15 맵 환경 압박 | S-10, J-02, J-04 | C-05, C-12 | 레벨 담당 맵별 수위·자기장·눈 폭 서버 로직과 배치 | 예정 |
-| I-16 로비 게시판 상호작용 | C-15 | S-03, 사용자 | 게시판 outline, E 입력, 서버 검증 상호작용 이벤트 | 진행중 |
+| I-16 로비 게시판 상호작용 | C-15 | S-03, 사용자 | 게시판 outline, E 입력, 서버 검증 상호작용 이벤트, 카메라 컴포넌트 기반 포커스, 월드 UI 버튼 액션, 팀 색 선택, 매치 시작 로딩창 | 진행중 |
 
 ## 통합 관문
 
@@ -69,7 +69,7 @@
 | C-02 | C | 최재원(C) | 최재원(C) | 문서·C++: 최재원(C), UI 자산: S-02 인계 | `Tasks/C/C-02_session_room_flow.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Online/SnowRumbleSessionSubsystem.*`, `Source/SnowRumble/UI/MainMenuWidget.*`, `Source/SnowRumble/UI/LobbyWidget.*` | 진행중 |
 | C-03 | C | 최재원(C) | 최재원(C) | 문서·C++: 최재원(C), 로비 맵 PlayerStart 배치: 사용자/S·J 인계 | `Tasks/C/C-03_random_team_lobby.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Game/SnowRumbleLobbyGameMode.*`, `Source/SnowRumble/Game/SnowRumbleLobbyGameState.*`, `Source/SnowRumble/Game/SnowRumblePlayerState.*`, `Source/SnowRumble/UI/LobbyPlayerController.*` | 진행중 |
 | C-08 | C | 최재원(C) | 최재원(C) | C++: 최재원(C), 이름표 WBP·그래픽: S-05 인계 | `Tasks/C/C-08_spawn_intro_identity.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/UI/OverheadNameplateWidget_C.*` | 진행중 |
-| C-15 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 게시판 Blueprint·맵 배치: 사용자/S 인계 | `Tasks/C/C-15_lobby_board_interaction.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Interaction/LobbyInteractionBoard_C.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*` | 진행중 |
+| C-15 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 게시판 Blueprint·맵 배치·로딩 WBP: 사용자/S 인계 | `Tasks/C/C-15_lobby_board_interaction.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Interaction/LobbyInteractionBoard_C.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/UI/*LoadingScreen*`, `Source/SnowRumble/UI/SnowRumblePlayerController.*`, `Source/SnowRumble/Game/SnowRumbleGameMode.*` | 진행중 |
 
 ## 상태 범례
 
@@ -89,3 +89,10 @@
 - 2026-08-08: C-08 닉네임 표시 하위 범위를 선점함. 캐릭터 `WidgetComponent`와 `UOverheadNameplateWidget` WBP 부모를 제공해 S-05가 이름표 WBP를 디자인할 수 있게 함.
 - 2026-08-08: 로비 입장 후 서버가 소유 클라이언트에 저장 닉네임 제출을 요청하는 RPC 핸드셰이크를 추가해 서버 화면의 클라이언트 이름표도 복제 닉네임으로 갱신되게 함.
 - 2026-08-08: 서버 닉네임 적용 시 기본 `APlayerState::PlayerName`도 함께 갱신해 WBP 또는 기본 이름 경로에서 `DESKTOP-...` 값이 남지 않도록 보강함.
+- 2026-08-09: C-15 게시판 포커스를 `E` 토글 방식으로 바꾸고, 게시판 Blueprint의 `FocusCameraComponent` 구도를 포커스 뷰로 쓰도록 공용 계약을 확장함.
+- 2026-08-09: C-15 게시판 포커스 중 마우스 UI 입력 모드와 이동·시점 입력 차단을 추가하고, `ULobbyBoardWidget` 버튼 클릭을 서버 검증된 게시판 액션 이벤트로 전달하게 함.
+- 2026-08-09: 로비 팀 구조를 Red/Blue 2팀에서 8개 팀 색 선택으로 확장함. 게시판 팀 색 버튼이 PlayerState 팀을 서버 검증 변경하고 이름표 색에 반영되며, 시작 조건은 선택된 팀 색 2개 이상·각 팀 1~4명으로 변경됨.
+- 2026-08-09: C-15 listen 환경 팀 변경 실패에 대응해 게시판 포커스 시점의 소유 `ALobbyPlayerController`를 월드 위젯에 직접 전달하고, 팀 색 버튼은 해당 컨트롤러 서버 RPC로 우선 요청하게 보강함.
+- 2026-08-09: C-15 listen 환경 팀 변경 경로를 캐릭터 소유 `ServerRequestLobbyTeamSelection` RPC로 직접화함. 서버는 게시판 거리와 캐릭터 상태를 검증한 뒤 해당 캐릭터의 PlayerState 팀을 변경함.
+- 2026-08-09: C-15 기존 `WBP_Lobby` 표시 계약을 확장함. `ULobbyWidget`은 준비 인원 수·현재 게임모드·내 이름·팀색·준비 상태를 표시하고, 로비 GameState에 복제 로비 모드 상태를 추가함.
+- 2026-08-09: C-15 매치 시작 로딩창 계약을 추가함. 호스트가 게임 시작을 누르면 모든 참여자에게 로딩창 표시 RPC를 보내고, PvP GameMode가 예상 참여 인원 PostLogin 완료 후 로딩창 닫기 RPC를 보냄.

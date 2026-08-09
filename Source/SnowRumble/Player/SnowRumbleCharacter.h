@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "../Interaction/LobbyInteractionBoard_C.h"
+#include "../Game/SnowRumblePlayerState.h"
 #include "GameFramework/Character.h"
 #include "SnowRumbleCharacter.generated.h"
 
@@ -22,6 +24,7 @@ class USnowRumbleHealthComponent;
 class USnowballCreationComponent;
 class USnowballEquipmentComponent;
 class USpringArmComponent;
+class UWidgetInteractionComponent;
 class UWidgetComponent;
 class AController;
 class ALobbyInteractionBoard;
@@ -167,9 +170,23 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Identity")
 	FString GetOverheadPlayerName() const;
 
+	/** 머리 위 이름표 WBP가 적용할 팀 색을 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Identity")
+	FLinearColor GetOverheadTeamColor() const;
+
 	/** 서버가 확정한 게시판 상호작용에 맞춰 소유 클라이언트 카메라를 게시판으로 돌린다. */
 	UFUNCTION(Client, Reliable)
 	void ClientFocusLobbyBoard(ALobbyInteractionBoard* Board);
+
+	/** 로컬 플레이어 화면의 게시판 포커스를 해제하고 게임 입력으로 복구한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Lobby|Board")
+	void CloseLobbyBoardFocus();
+
+	/** 포커스 중인 게시판 UI 버튼 액션을 서버 검증 요청으로 전달한다. */
+	void RequestLobbyBoardAction(ELobbyBoardAction BoardAction);
+
+	/** 포커스 중인 게시판 팀 색 선택을 서버 검증 요청으로 전달한다. */
+	void RequestLobbyTeamSelection(ESnowRumbleTeam NewTeam);
 
 protected:
 	virtual void OnConstruction(const FTransform& Transform) override;
@@ -218,6 +235,18 @@ protected:
 	/** 장비 내려놓기 입력을 Blueprint에 전달한다. */
 	void HandleDropEquipment();
 
+	/** 게시판 포커스 중 마우스 좌클릭을 월드 위젯 누름으로 전달한다. */
+	void HandleLobbyBoardPointerPressed();
+
+	/** 게시판 포커스 중 마우스 좌클릭 해제를 월드 위젯 해제로 전달한다. */
+	void HandleLobbyBoardPointerReleased();
+
+	/** 포커스 중인 게시판 위젯을 마우스 화면 좌표 기준 trace로 갱신한다. */
+	bool UpdateLobbyBoardWidgetHitResult();
+
+	/** 멀티 PIE/listen에서 월드 UI 입력이 서로 충돌하지 않도록 고유 포인터 값을 설정한다. */
+	void ConfigureLobbyBoardWidgetInteraction(APlayerController* PlayerController);
+
 	/** 이모션 입력 누름 상태를 Blueprint에 전달한다. */
 	void HandleEmoteStarted();
 
@@ -238,6 +267,9 @@ protected:
 
 	/** 자신이 조종하는 캐릭터의 카메라에서만 눈 VFX를 활성화한다. */
 	void RefreshLocalSnowEffect();
+
+	/** PvP 맵의 로컬 플레이어 카메라에서만 눈 VFX를 표시해야 하는지 확인한다. */
+	bool ShouldShowLocalSnowEffect() const;
 
 	/** 로컬 플레이어용 이모션 원형 메뉴 위젯을 필요할 때 생성한다. */
 	void EnsureEmoteRadialMenuWidget();
@@ -269,9 +301,24 @@ protected:
 	/** 소유 플레이어가 가까운 로비 게시판 상호작용을 서버에 요청한다. */
 	void TryInteractWithLobbyBoard();
 
+	/** 로컬 플레이어 화면의 로비 게시판 카메라 포커스를 원래 캐릭터 카메라로 복구한다. */
+	void ClearLobbyBoardFocus();
+
 	/** 서버가 현재 위치와 상태를 검사해 로비 게시판 상호작용을 확정한다. */
 	UFUNCTION(Server, Reliable)
 	void ServerTryInteractWithLobbyBoard(ALobbyInteractionBoard* Board);
+
+	/** 서버가 현재 포커스 대상과 버튼 액션을 검사해 게시판 이벤트를 확정한다. */
+	UFUNCTION(Server, Reliable)
+	void ServerRequestLobbyBoardAction(
+		ALobbyInteractionBoard* Board,
+		ELobbyBoardAction BoardAction);
+
+	/** 서버가 현재 포커스 게시판과 팀 색 요청을 검사해 PlayerState 팀을 변경한다. */
+	UFUNCTION(Server, Reliable)
+	void ServerRequestLobbyTeamSelection(
+		ALobbyInteractionBoard* Board,
+		ESnowRumbleTeam NewTeam);
 
 	/** 현재 캐릭터가 이동과 일반 행동을 수행할 수 있는지 확인한다. */
 	bool CanPerformGameplayAction() const;
@@ -352,6 +399,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Interaction")
 	TObjectPtr<UOutlineComponent> OutlineComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Interaction")
+	TObjectPtr<UWidgetInteractionComponent> LobbyBoardWidgetInteractionComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Identity")
 	TObjectPtr<UWidgetComponent> OverheadNameplateComponent;
@@ -475,5 +525,10 @@ protected:
 
 	bool bIsInteractHeld = false;
 	bool bUsedInteractForRolling = false;
+	bool bLobbyBoardPointerPressed = false;
+	bool bLocalSnowEffectActive = false;
+
+	UPROPERTY(Transient)
+	TObjectPtr<ALobbyInteractionBoard> FocusedLobbyBoard;
 
 };
