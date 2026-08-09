@@ -6,9 +6,51 @@
 #include "../Online/SnowRumbleSessionSubsystem.h"
 #include "../Player/LocalPlayerIdentitySubsystem_C.h"
 #include "LobbyPlayerController.h"
+#include "Components/Border.h"
 #include "Components/TextBlock.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/PlayerController.h"
+
+namespace
+{
+FText GetLobbyModeText(ESnowRumbleLobbyMode LobbyMode)
+{
+	switch (LobbyMode)
+	{
+	case ESnowRumbleLobbyMode::Pvp:
+		return FText::FromString(TEXT("PvP"));
+	case ESnowRumbleLobbyMode::Snowman:
+		return FText::FromString(TEXT("눈사람 모드"));
+	default:
+		return FText::FromString(TEXT("-"));
+	}
+}
+
+FText GetTeamText(ESnowRumbleTeam Team)
+{
+	switch (Team)
+	{
+	case ESnowRumbleTeam::Red:
+		return FText::FromString(TEXT("빨강"));
+	case ESnowRumbleTeam::Sky:
+		return FText::FromString(TEXT("하늘"));
+	case ESnowRumbleTeam::Green:
+		return FText::FromString(TEXT("초록"));
+	case ESnowRumbleTeam::Yellow:
+		return FText::FromString(TEXT("노랑"));
+	case ESnowRumbleTeam::Purple:
+		return FText::FromString(TEXT("보라"));
+	case ESnowRumbleTeam::Pink:
+		return FText::FromString(TEXT("핑크"));
+	case ESnowRumbleTeam::Blue:
+		return FText::FromString(TEXT("파랑"));
+	case ESnowRumbleTeam::White:
+		return FText::FromString(TEXT("하양"));
+	default:
+		return FText::FromString(TEXT("미선택"));
+	}
+}
+}
 
 void ULobbyWidget::NativeConstruct()
 {
@@ -17,6 +59,7 @@ void ULobbyWidget::NativeConstruct()
 	RefreshLobbyBindings();
 	ApplyLocalPlayerIdentity();
 	RefreshRoomCodeText();
+	RefreshLobbyStatusTexts();
 	OnLobbyStateChanged();
 }
 
@@ -36,6 +79,7 @@ void ULobbyWidget::NativeTick(
 	RefreshLobbyBindings();
 	ApplyLocalPlayerIdentity();
 	RefreshRoomCodeText();
+	RefreshLobbyStatusTexts();
 }
 
 TArray<ASnowRumblePlayerState*> ULobbyWidget::GetLobbyPlayers() const
@@ -189,6 +233,61 @@ void ULobbyWidget::RefreshRoomCodeText()
 	if (RoomCodeTextBlock)
 	{
 		RoomCodeTextBlock->SetText(FText::FromString(GetCurrentRoomCode()));
+	}
+}
+
+void ULobbyWidget::RefreshLobbyStatusTexts()
+{
+	const ASnowRumbleLobbyGameState* LobbyGameState = GetLobbyGameState();
+	const ASnowRumblePlayerState* PlayerState = GetLocalSnowRumblePlayerState();
+
+	if (ReadyPlayerCountText)
+	{
+		const int32 ReadyPlayerCount = LobbyGameState
+			? LobbyGameState->GetReadyPlayerCount()
+			: 0;
+		const int32 ReadyRequiredPlayerCount = LobbyGameState
+			? LobbyGameState->GetReadyRequiredPlayerCount()
+			: 0;
+		ReadyPlayerCountText->SetText(FText::FromString(FString::Printf(
+			TEXT("%d / %d"),
+			ReadyPlayerCount,
+			ReadyRequiredPlayerCount)));
+	}
+
+	if (CurrentGameModeText)
+	{
+		CurrentGameModeText->SetText(LobbyGameState
+			? GetLobbyModeText(LobbyGameState->GetLobbyMode())
+			: FText::FromString(TEXT("-")));
+	}
+
+	if (LocalPlayerNameText)
+	{
+		LocalPlayerNameText->SetText(PlayerState
+			? FText::FromString(PlayerState->GetLobbyPlayerName())
+			: FText::FromString(TEXT("-")));
+	}
+
+	if (LocalTeamColorText)
+	{
+		LocalTeamColorText->SetText(PlayerState
+			? GetTeamText(PlayerState->GetLobbyTeam())
+			: FText::FromString(TEXT("미선택")));
+	}
+
+	if (LocalReadyStateText)
+	{
+		const bool bReady = PlayerState && PlayerState->IsLobbyReady();
+		LocalReadyStateText->SetText(FText::FromString(
+			bReady ? TEXT("준비 완료") : TEXT("준비 전")));
+	}
+
+	if (LocalTeamColorBorder)
+	{
+		LocalTeamColorBorder->SetBrushColor(PlayerState
+			? PlayerState->GetLobbyTeamColor()
+			: FLinearColor::White);
 	}
 }
 

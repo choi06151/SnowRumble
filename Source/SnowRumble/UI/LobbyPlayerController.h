@@ -3,13 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/PlayerController.h"
+#include "../Game/SnowRumblePlayerState.h"
+#include "SnowRumblePlayerController.h"
 #include "LobbyPlayerController.generated.h"
 
 class ULobbyWidget;
 
 UCLASS(Blueprintable)
-class SNOWRUMBLE_API ALobbyPlayerController : public APlayerController
+class SNOWRUMBLE_API ALobbyPlayerController : public ASnowRumblePlayerController
 {
 	GENERATED_BODY()
 
@@ -34,6 +35,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby")
 	void RequestApplyLobbyPlayerName(const FString& NewName);
 
+	/** 소유 클라이언트가 로비 팀 색을 서버 PlayerState에 적용하도록 요청한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby")
+	void RequestApplyLobbyTeam(ESnowRumbleTeam NewTeam);
+
 	/** 서버가 로비 입장 완료 후 소유 클라이언트의 저장 닉네임 제출을 요청한다. */
 	UFUNCTION(Client, Reliable)
 	void ClientRequestApplySavedLobbyPlayerName();
@@ -41,6 +46,7 @@ public:
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void ClientShowLoadingScreen_Implementation() override;
 
 	/** 대기방에서 자동 생성할 WBP_Lobby 클래스다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Lobby")
@@ -52,6 +58,9 @@ private:
 
 	UFUNCTION(Server, Reliable)
 	void ServerApplyLobbyPlayerName(const FString& NewName);
+
+	UFUNCTION(Server, Reliable)
+	void ServerApplyLobbyTeam(ESnowRumbleTeam NewTeam);
 
 	/** 대기방 위젯 인스턴스가 없으면 생성한다. */
 	ULobbyWidget* EnsureLobbyWidget();

@@ -112,9 +112,28 @@ void ALobbyPlayerController::RequestApplyLobbyPlayerName(
 	}
 }
 
+void ALobbyPlayerController::RequestApplyLobbyTeam(ESnowRumbleTeam NewTeam)
+{
+	if (HasAuthority())
+	{
+		ServerApplyLobbyTeam_Implementation(NewTeam);
+	}
+	else
+	{
+		ServerApplyLobbyTeam(NewTeam);
+	}
+}
+
 void ALobbyPlayerController::ClientRequestApplySavedLobbyPlayerName_Implementation()
 {
 	ApplySavedLobbyPlayerName();
+}
+
+void ALobbyPlayerController::ClientShowLoadingScreen_Implementation()
+{
+	HideLobby();
+
+	Super::ClientShowLoadingScreen_Implementation();
 }
 
 void ALobbyPlayerController::ApplySavedLobbyPlayerName()
@@ -141,6 +160,16 @@ void ALobbyPlayerController::ServerApplyLobbyPlayerName_Implementation(
 		GetPlayerState<ASnowRumblePlayerState>())
 	{
 		SnowRumblePlayerState->RequestSetLobbyPlayerName(NewName);
+	}
+}
+
+void ALobbyPlayerController::ServerApplyLobbyTeam_Implementation(
+	ESnowRumbleTeam NewTeam)
+{
+	if (ASnowRumblePlayerState* SnowRumblePlayerState =
+		GetPlayerState<ASnowRumblePlayerState>())
+	{
+		SnowRumblePlayerState->RequestSetLobbyTeam(NewTeam);
 	}
 }
 

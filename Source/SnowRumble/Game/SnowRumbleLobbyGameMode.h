@@ -30,7 +30,20 @@ protected:
 	/** 현재 대기방에서 해당 팀에 배정된 인원을 센다. */
 	int32 CountLobbyTeamPlayers(ESnowRumbleTeam Team) const;
 
-	/** 대기방에서 시작 시 이동할 게임방 맵 경로다. */
+	/** 현재 참가 인원을 URL 옵션에 포함한 PvP 맵 이동 경로를 만든다. */
+	FString BuildMatchTravelUrl(int32 ExpectedPlayerCount) const;
+
+	/** 현재 연결된 모든 클라이언트에 매치 로딩창 표시를 요청한다. */
+	void ShowMatchLoadingScreens();
+
+	/** 로딩창 표시 RPC가 나간 다음 틱에 실제 PvP 맵 이동을 실행한다. */
+	void StartPendingMatchTravel();
+
+	/** 대기방에서 PvP 시작 시 이동할 게임방 맵 경로다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Lobby")
-	FString MatchTravelUrl = TEXT("/Game/Maps/L_Prototype?listen");
+	FString MatchTravelUrl =
+		TEXT("/Game/LowpolyStyle/WinterEnvironment/Maps/DemoMap?listen");
+
+	FString PendingMatchTravelUrl;
+	bool bMatchTravelPending = false;
 };
