@@ -11,6 +11,7 @@ class UHealthBarWidget;
 class UOverheadTimedActionWidget;
 class UPanelWidget;
 class UProgressBar;
+class UTextBlock;
 class UWidget;
 
 UCLASS(Abstract, Blueprintable)
@@ -51,6 +52,18 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UOverheadTimedActionWidget> OverheadTimedActionBar;
 
+	/** WBP에서 직접 배치한 PvP 시작 카운트다운 TextBlock에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> StartCountdownText;
+
+	/** WBP에서 직접 배치한 라운드 종료 패널에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UPanelWidget> EndRoundPanel;
+
+	/** WBP에서 직접 배치한 라운드 종료 결과 TextBlock에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> EndRoundResultText;
+
 private:
 	/** 현재 로컬 플레이어와 다른 플레이어 체력 바 연결을 갱신한다. */
 	void RefreshHealthBars();
@@ -58,9 +71,20 @@ private:
 	/** 조준점과 투척 충전 바 표시를 로컬 플레이어 상태에 맞게 갱신한다. */
 	void RefreshCombatHudPresentation();
 
+	/** PvP 시작 카운트다운 표시를 현재 GameState에 맞게 갱신한다. */
+	void RefreshStartCountdownPresentation();
+
+	/** 라운드 종료 패널 표시를 현재 GameState에 맞게 갱신한다. */
+	void RefreshEndRoundPresentation();
+
 	/** 다른 플레이어 체력 바 목록에서 더 이상 유효하지 않은 항목을 제거한다. */
 	void RemoveInvalidOtherPlayerHealthBars(
 		const TSet<TWeakObjectPtr<ASnowRumbleCharacter>>& ValidOtherPlayers);
+
+	/** 로컬 플레이어와 같은 팀인 다른 플레이어만 팀원 HP 목록에 표시한다. */
+	bool ShouldShowOtherPlayerHealthBar(
+		const ASnowRumbleCharacter* LocalCharacter,
+		const ASnowRumbleCharacter* OtherCharacter) const;
 
 	TMap<TWeakObjectPtr<ASnowRumbleCharacter>, TWeakObjectPtr<UHealthBarWidget>>
 		OtherPlayerHealthBars;

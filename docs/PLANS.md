@@ -68,8 +68,12 @@
 | C-01 | C | 최재원(C) | 최재원(C) | 문서: 최재원(C), 코드·자산: 구현 승인 전 확정 | `Tasks/C/C-01_existing_foundation_migration.md`, `Tasks/C/PLAN_C.md`, 기존 코드·자산 조사 대상은 승인 전 확정 | 완료 |
 | C-02 | C | 최재원(C) | 최재원(C) | 문서·C++: 최재원(C), UI 자산: S-02 인계 | `Tasks/C/C-02_session_room_flow.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Online/SnowRumbleSessionSubsystem.*`, `Source/SnowRumble/UI/MainMenuWidget.*`, `Source/SnowRumble/UI/LobbyWidget.*` | 진행중 |
 | C-03 | C | 최재원(C) | 최재원(C) | 문서·C++: 최재원(C), 로비 맵 PlayerStart 배치: 사용자/S·J 인계 | `Tasks/C/C-03_random_team_lobby.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Game/SnowRumbleLobbyGameMode.*`, `Source/SnowRumble/Game/SnowRumbleLobbyGameState.*`, `Source/SnowRumble/Game/SnowRumblePlayerState.*`, `Source/SnowRumble/UI/LobbyPlayerController.*` | 진행중 |
+| C-06 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 얼음/사망 표현 UI·VFX: 사용자/S 인계 | `Tasks/C/C-06_freeze_death_spectate.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Player/SnowRumbleHealthComponent.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*` | 진행중 |
+| C-05 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 결과 UI/연출: 사용자/S 인계 | `Tasks/C/C-05_round_match_flow.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Game/SnowRumbleGameMode.*`, `Source/SnowRumble/Game/SnowRumbleGameState_C.*`, `Source/SnowRumble/Player/SnowRumbleHealthComponent.cpp` | 진행중 |
 | C-08 | C | 최재원(C) | 최재원(C) | C++: 최재원(C), 이름표 WBP·그래픽: S-05 인계 | `Tasks/C/C-08_spawn_intro_identity.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/UI/OverheadNameplateWidget_C.*` | 진행중 |
 | C-15 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 게시판 Blueprint·맵 배치·로딩 WBP: 사용자/S 인계 | `Tasks/C/C-15_lobby_board_interaction.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Interaction/LobbyInteractionBoard_C.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/UI/*LoadingScreen*`, `Source/SnowRumble/UI/SnowRumblePlayerController.*`, `Source/SnowRumble/Game/SnowRumbleGameMode.*` | 진행중 |
+| C-16 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), HUD WBP 배치: 사용자/S 인계 | `Tasks/C/C-16_teammate_health_hud.md`, `Tasks/C/PLAN_C.md`, `Tasks/C/ROLE_C.md`, `docs/PLANS.md`, `Source/SnowRumble/UI/MainHUDWidget.*` | 완료 |
+| C-17 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 카운트다운 WBP 표시 배치: 사용자/S 인계 | `Tasks/C/C-17_pvp_start_countdown.md`, `Tasks/C/PLAN_C.md`, `Tasks/C/ROLE_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Game/SnowRumbleGameState_C.*`, `Source/SnowRumble/Game/SnowRumbleGameMode.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/UI/MainHUDWidget.*` | 진행중 |
 
 ## 상태 범례
 
@@ -96,3 +100,15 @@
 - 2026-08-09: C-15 listen 환경 팀 변경 경로를 캐릭터 소유 `ServerRequestLobbyTeamSelection` RPC로 직접화함. 서버는 게시판 거리와 캐릭터 상태를 검증한 뒤 해당 캐릭터의 PlayerState 팀을 변경함.
 - 2026-08-09: C-15 기존 `WBP_Lobby` 표시 계약을 확장함. `ULobbyWidget`은 준비 인원 수·현재 게임모드·내 이름·팀색·준비 상태를 표시하고, 로비 GameState에 복제 로비 모드 상태를 추가함.
 - 2026-08-09: C-15 매치 시작 로딩창 계약을 추가함. 호스트가 게임 시작을 누르면 모든 참여자에게 로딩창 표시 RPC를 보내고, PvP GameMode가 예상 참여 인원 PostLogin 완료 후 로딩창 닫기 RPC를 보냄.
+- 2026-08-09: C-15 PvP 스폰이 같은 PlayerStart 위치에 겹치는 문제를 보강함. 서버가 선택된 PlayerStart 주변 900cm 반경 안에서 실제 Pawn 생성 위치를 분산하고, 이미 확정한 스폰 위치와 최소 240cm 간격을 우선 확보함.
+- 2026-08-09: C-16 팀원 HP HUD를 추가함. `UMainHUDWidget`은 로컬 플레이어와 같은 팀 색을 가진 다른 캐릭터만 `OtherPlayersHealthPanel`에 동적 `UHealthBarWidget`으로 표시함.
+- 2026-08-09: C-16 팀원 HP HUD는 사용자 실행 확인으로 완료 처리함.
+- 2026-08-09: C-17 PvP 시작 카운트다운을 추가함. PvP GameState가 시작 서버 시간을 복제하고, 시작 전 캐릭터 입력을 잠그며 HUD `StartCountdownText`에 `3`, `2`, `1`, `시작!`을 표시함.
+- 2026-08-09: C-17 카운트다운을 로딩 후 PvP 맵 전용으로 조정함. 로비 화면이나 로딩창 위에서는 표시하지 않고, PvP GameMode가 로딩창을 닫은 뒤 짧은 지연 후 시작함.
+- 2026-08-09: 로비 이동 후 C-17 카운트다운이 보이지 않는 문제에 대응해, 모든 예상 플레이어가 PvP Pawn까지 가진 뒤 로딩창 닫기와 카운트다운을 시작하게 조정함.
+- 2026-08-09: C-17 seamless travel 시작 경로를 보강함. `PostLogin`, `HandleStartingNewPlayer_Implementation`, Pawn 스폰 직후에 로딩 완료 조건을 재확인하고 로딩창 제거 후 1초 뒤 카운트다운을 시작함.
+- 2026-08-09: C-17 Pawn 준비 대기 조건이 클라이언트 스폰을 막을 수 있어 제거함. 로딩창 닫기는 예상 인원 접속 기준으로 되돌리고, 카운트다운은 로딩창 제거 3초 뒤 시작함.
+- 2026-08-10: C-17 로딩창 종료 후 카운트다운 시작 전 지연 구간의 초기 입력 누수를 막음. PvP GameState는 카운트다운 시작 전에도 입력 잠금으로 처리하고, 로컬 캐릭터는 잠금 중 PlayerController move/look ignore를 적용함.
+- 2026-08-10: C-06 얼음 60초 후 사망 첫 범위를 구현함. `USnowRumbleHealthComponent`가 HP 0에서 얼음 타이머를 시작하고 만료 시 라운드 사망 상태를 복제하며, 핫팩 부활용 `ReviveFromFrozen` 계약을 제공함.
+- 2026-08-10: C-05 단일 라운드 종료 판정을 구현함. 얼음/사망 상태가 아닌 생존 플레이어가 한 팀 색에만 남으면 `ASnowRumbleGameState`가 라운드 종료와 승리 팀 색을 복제하고 전체 입력을 잠금.
+- 2026-08-10: C-05 라운드 종료 HUD 연결을 추가함. `UMainHUDWidget`은 `EndRoundPanel`과 `EndRoundResultText` 선택 바인딩으로 라운드 종료 패널과 승리 팀 문구를 표시함.
