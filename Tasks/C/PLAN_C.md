@@ -74,3 +74,22 @@
 - 2026-08-08: 사용자가 게시판 outline과 `E` 상호작용을 요청해 C-15를 추가하고, 직접 팀 선택은 범위 밖으로 둔 채 게시판 C++ 부모와 서버 검증 이벤트를 구현했다.
 - 2026-08-08: 게시판 크기 때문에 outline 후보가 잘 잡히지 않아 C-15 거리 검사를 게시판 중심 기준에서 mesh bounds 기준으로 바꾸고 기본 반경을 320cm로 늘렸다.
 - 2026-08-08: C-15에서 눈덩이 기본 상호작용 거리는 180cm로 유지하고, 게시판은 자체 `InteractionRadius`로 조절하게 정리했다. `E`는 현재 outline 게시판에만 반응하고 성공 시 카메라가 게시판을 보게 했다.
+- 2026-08-09: C-15 게시판 포커스를 토글 방식으로 보강했다. 포커스 중 `E`를 다시 누르면 캐릭터 카메라로 돌아오고, 게시판 Blueprint의 `FocusCameraComponent` 위치·회전으로 포커스 구도를 조정하게 했다.
+- 2026-08-09: C-15 게시판 포커스 중 마우스 커서와 UI 입력 모드를 켜고 이동·시점 입력을 차단하게 했다. `ULobbyBoardWidget`과 `BoardWidgetComponent`를 추가해 게시판 WBP 버튼 클릭을 서버 검증된 액션 이벤트로 전달한다.
+- 2026-08-09: C-15 게시판 클릭 대상을 여러 WidgetComponent로 확장했다. `ULobbyBoardWidget` 기반 WBP가 연결된 컴포넌트는 자식 Blueprint에서 추가해도 같은 포커스 클릭 경로를 사용한다.
+- 2026-08-09: 로비 팀 모델을 8색 팀으로 확장했다. 게시판 팀 색 버튼은 서버 검증 후 PlayerState 팀을 변경하고 이름표 글자색·배경색에 복제 팀 색을 반영한다.
+- 2026-08-09: Listen 환경에서 게시판 월드 위젯이 팀 변경 요청자를 잘못 찾는 문제에 대응해 포커스 시점의 소유 `ALobbyPlayerController`를 직접 저장하고 그 RPC 경로로 팀 색 변경을 우선 요청하게 보강했다.
+- 2026-08-09: Listen 환경에서 팀 변경이 계속 실패해 버튼 클릭 경로를 캐릭터 소유 `ServerRequestLobbyTeamSelection` RPC로 직접화하고, 서버가 게시판 거리 검증 후 해당 캐릭터의 PlayerState 팀을 변경하게 보강했다.
+- 2026-08-09: Listen 2창에서 팀 변경이 정상 동작하는 것을 확인하고, 추적용 로그와 화면 디버그 메시지는 제거했다. 멀티 PIE/listen 월드 UI 입력 충돌 방지를 위한 고유 `VirtualUserIndex`/`PointerIndex` 설정은 유지한다.
+- 2026-08-09: 게시판 포커스 중에는 outline을 숨기고, 포커스 해제 후에는 근처 게시판 outline이 기존 후보 탐색으로 다시 표시되게 조정했다.
+- 2026-08-09: 게시판 WBP에 `ReadyStartButton`/`ReadyStartButtonText` 자동 바인딩을 추가했다. 같은 버튼을 호스트는 `게임 시작`, 클라이언트는 ready 상태에 따라 `준비 완료`/`준비 취소`로 보게 하고 클릭 동작도 시작 요청과 ready 토글로 분기한다.
+- 2026-08-09: 기존 `WBP_Lobby`가 쓰는 `ULobbyWidget`에 준비 인원 수·현재 게임모드·내 이름·팀색·준비 상태 자동 표시를 추가했다. 로비 GameState에는 복제 로비 모드 상태를 유지한다.
+- 2026-08-09: `ReadyPlayerCountText` 표시 기준을 호스트 제외로 조정했다. 2인 listen 대기방에서는 클라이언트 준비 전 `0 / 1`, 준비 후 `1 / 1`로 표시한다.
+- 2026-08-09: 클라이언트 화면에서 호스트가 준비 필요 인원에 포함되는 문제를 해결하기 위해 PlayerState에 복제 `IsLobbyHost` 상태를 추가하고, 준비 인원 수 계산은 이 복제값으로 호스트를 제외하게 했다.
+- 2026-08-09: 이름표 WBP에 `ReadyStateImage`와 `HostStateImage` 선택 바인딩을 추가했다. 비호스트 ready 상태와 로비 호스트 상태를 PlayerState 복제값 기준으로 표시한다.
+- 2026-08-09: 로비와 PvP가 같은 캐릭터를 공유해 로비에서도 카메라 snow VFX가 보이는 문제를 막았다. `LocalSnowEffect`는 로비 GameState가 아닌 PvP 맵에서만 활성화한다.
+- 2026-08-09: 게임 시작 조건을 호스트 제외 전원 ready 기준으로 정리했다. 호스트가 `게임 시작`을 누르면 현재 모드가 PvP이고 조건을 만족할 때 `/Game/Maps/L_Prototype?listen`으로 이동한다.
+- 2026-08-09: 매치 시작 로딩창 흐름을 추가했다. 게임 시작 직전 모든 참여자에게 로딩창 표시 RPC를 보내고, PvP GameMode에서 예상 참여 인원이 모두 PostLogin되면 로딩창을 닫는다.
+- 2026-08-09: 로딩창 WBP에 접속 완료 인원 기준 ProgressBar와 상태 텍스트 바인딩을 추가했다. `LoadingProgressBar`, `LoadingStatusText`, `LoadingMessageText` 이름으로 자동 갱신된다.
+- 2026-08-09: PvP 이동 후 이름표가 기본 PC 이름과 흰색으로 되돌아가는 문제를 해결했다. 매치 이동을 seamless travel로 전환하고 PlayerState의 로비 이름·팀 색 상태를 복사한다.
+- 2026-08-09: PvP 스폰을 전체 PlayerStart 랜덤 선택으로 변경하고, 기본 이동 맵을 `L_Prototype`에서 겨울 환경 `DemoMap`으로 바꿨다. PlayerStart 태그는 스폰 규칙에 사용하지 않는다.

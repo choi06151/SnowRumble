@@ -7,8 +7,16 @@
 #include "SnowRumbleLobbyGameState.generated.h"
 
 class ASnowRumblePlayerState;
+enum class ESnowRumbleTeam : uint8;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSnowRumbleLobbyStateChanged);
+
+UENUM(BlueprintType)
+enum class ESnowRumbleLobbyMode : uint8
+{
+	Pvp,
+	Snowman
+};
 
 UCLASS()
 class SNOWRUMBLE_API ASnowRumbleLobbyGameState : public AGameStateBase
@@ -28,9 +36,36 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Lobby")
 	int32 GetLobbyTeamPlayerCount(ESnowRumbleTeam Team) const;
 
+	/** 현재 준비 완료한 플레이어 수를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Lobby")
+	int32 GetReadyPlayerCount() const;
+
+	/** 준비 상태를 눌러야 하는 비호스트 플레이어 수를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Lobby")
+	int32 GetReadyRequiredPlayerCount() const;
+
+	/** 현재 선택된 로비 게임 모드를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Lobby")
+	ESnowRumbleLobbyMode GetLobbyMode() const;
+
+	/** 서버가 현재 로비 게임 모드를 변경한다. */
+	void SetLobbyModeFromServer(ESnowRumbleLobbyMode NewLobbyMode);
+
+	virtual void GetLifetimeReplicatedProps(
+		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
 	/** 대기방 상태 변경을 UI에 알린다. */
 	void NotifyLobbyStateChanged();
 
 	UPROPERTY(BlueprintAssignable, Category = "SnowRumble|Lobby")
 	FOnSnowRumbleLobbyStateChanged OnLobbyStateChanged;
+
+protected:
+	/** 복제된 로비 게임 모드 변경을 UI에 알린다. */
+	UFUNCTION()
+	void OnRep_LobbyMode();
+
+private:
+	UPROPERTY(ReplicatedUsing = OnRep_LobbyMode)
+	ESnowRumbleLobbyMode LobbyMode = ESnowRumbleLobbyMode::Pvp;
 };
