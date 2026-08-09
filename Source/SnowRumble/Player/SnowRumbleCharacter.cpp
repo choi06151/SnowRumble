@@ -3,6 +3,7 @@
 #include "SnowRumbleCharacter.h"
 
 #include "SnowRumbleHealthComponent.h"
+#include "../Game/SnowRumbleLobbyGameState.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "../Interaction/LobbyInteractionBoard_C.h"
 #include "../Interaction/OutlineComponent.h"
@@ -18,6 +19,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/SphereComponent.h"
+#include "Components/WidgetInteractionComponent.h"
 #include "Components/WidgetComponent.h"
 #include "DrawDebugHelpers.h"
 #include "EnhancedInputComponent.h"
@@ -29,6 +31,7 @@
 #include "InputAction.h"
 #include "InputActionValue.h"
 #include "InputMappingContext.h"
+#include "InputCoreTypes.h"
 #include "Net/UnrealNetwork.h"
 #include "NiagaraComponent.h"
 #include "TimerManager.h"
@@ -89,6 +92,17 @@ ASnowRumbleCharacter::ASnowRumbleCharacter()
 
 	OutlineComponent = CreateDefaultSubobject<UOutlineComponent>(TEXT("OutlineComponent"));
 
+	LobbyBoardWidgetInteractionComponent =
+		CreateDefaultSubobject<UWidgetInteractionComponent>(
+			TEXT("LobbyBoardWidgetInteractionComponent"));
+	LobbyBoardWidgetInteractionComponent->SetupAttachment(FollowCamera);
+	LobbyBoardWidgetInteractionComponent->InteractionSource =
+		EWidgetInteractionSource::Custom;
+	LobbyBoardWidgetInteractionComponent->InteractionDistance = 3000.0f;
+	LobbyBoardWidgetInteractionComponent->TraceChannel = ECC_Visibility;
+	LobbyBoardWidgetInteractionComponent->bEnableHitTesting = true;
+	LobbyBoardWidgetInteractionComponent->SetActive(false);
+
 	OverheadNameplateComponent =
 		CreateDefaultSubobject<UWidgetComponent>(TEXT("OverheadNameplateComponent"));
 	OverheadNameplateComponent->SetupAttachment(RootComponent);
@@ -146,7 +160,9 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 	if (OutlineComponent)
 	{
 		AActor* OutlinedActor = nullptr;
-		if (IsLocallyControlled() && CanPerformGameplayAction())
+		if (IsLocallyControlled()
+			&& CanPerformGameplayAction()
+			&& !FocusedLobbyBoard)
 		{
 			OutlinedActor = FindClosestLobbyBoardCandidate();
 			if (!OutlinedActor
@@ -164,6 +180,30 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 
 	DrawRollingSnowballCollisionDebug();
 	ApplyMovementSpeed();
+	RefreshLocalSnowEffect();
+
+	if (IsLocallyControlled() && FocusedLobbyBoard)
+	{
+		APlayerController* PlayerController =
+			Cast<APlayerController>(GetController());
+		if (PlayerController)
+		{
+			UpdateLobbyBoardWidgetHitResult();
+
+			if (!bLobbyBoardPointerPressed
+				&& PlayerController->WasInputKeyJustPressed(EKeys::LeftMouseButton))
+			{
+				HandleLobbyBoardPointerPressed();
+				bLobbyBoardPointerPressed = true;
+			}
+			else if (bLobbyBoardPointerPressed
+				&& PlayerController->WasInputKeyJustReleased(EKeys::LeftMouseButton))
+			{
+				HandleLobbyBoardPointerReleased();
+				bLobbyBoardPointerPressed = false;
+			}
+		}
+	}
 }
 
 bool ASnowRumbleCharacter::IsMoving() const
@@ -496,6 +536,15 @@ FString ASnowRumbleCharacter::GetOverheadPlayerName() const
 		: FString();
 }
 
+FLinearColor ASnowRumbleCharacter::GetOverheadTeamColor() const
+{
+	const ASnowRumblePlayerState* SnowRumblePlayerState =
+		GetPlayerState<ASnowRumblePlayerState>();
+	return SnowRumblePlayerState
+		? SnowRumblePlayerState->GetLobbyTeamColor()
+		: FLinearColor::White;
+}
+
 void ASnowRumbleCharacter::ClientFocusLobbyBoard_Implementation(
 	ALobbyInteractionBoard* Board)
 {
@@ -511,16 +560,33 @@ void ASnowRumbleCharacter::ClientFocusLobbyBoard_Implementation(
 		return;
 	}
 
-	const FVector ViewLocation = FollowCamera
-		? FollowCamera->GetComponentLocation()
-		: GetPawnViewLocation();
-	const FVector FocusDirection = Board->GetFocusLocation() - ViewLocation;
-	if (FocusDirection.IsNearlyZero())
+	if (FocusedLobbyBoard == Board)
 	{
+		ClearLobbyBoardFocus();
 		return;
 	}
 
-	PlayerController->SetControlRotation(FocusDirection.Rotation());
+	if (FocusedLobbyBoard)
+	{
+		FocusedLobbyBoard->SetFocusedCharacter(nullptr);
+	}
+
+	FocusedLobbyBoard = Board;
+	FocusedLobbyBoard->SetFocusedCharacter(this);
+	bLobbyBoardPointerPressed = false;
+	PlayerController->SetViewTargetWithBlend(Board, 0.15f);
+
+	FInputModeGameAndUI InputMode;
+	InputMode.SetHideCursorDuringCapture(false);
+	PlayerController->SetInputMode(InputMode);
+	PlayerController->SetShowMouseCursor(true);
+	PlayerController->SetIgnoreMoveInput(true);
+	PlayerController->SetIgnoreLookInput(true);
+	if (LobbyBoardWidgetInteractionComponent)
+	{
+		ConfigureLobbyBoardWidgetInteraction(PlayerController);
+		LobbyBoardWidgetInteractionComponent->SetActive(true);
+	}
 }
 
 void ASnowRumbleCharacter::RefreshHeldEquipmentMovementState()
@@ -626,7 +692,13 @@ void ASnowRumbleCharacter::RefreshLocalSnowEffect()
 		return;
 	}
 
-	const bool bShouldShowLocalSnow = IsLocallyControlled();
+	const bool bShouldShowLocalSnow = ShouldShowLocalSnowEffect();
+	if (bLocalSnowEffectActive == bShouldShowLocalSnow)
+	{
+		return;
+	}
+
+	bLocalSnowEffectActive = bShouldShowLocalSnow;
 	LocalSnowEffect->SetVisibility(bShouldShowLocalSnow, true);
 
 	if (bShouldShowLocalSnow)
@@ -637,6 +709,19 @@ void ASnowRumbleCharacter::RefreshLocalSnowEffect()
 	{
 		LocalSnowEffect->Deactivate();
 	}
+}
+
+bool ASnowRumbleCharacter::ShouldShowLocalSnowEffect() const
+{
+	if (!IsLocallyControlled())
+	{
+		return false;
+	}
+
+	const UWorld* World = GetWorld();
+	return World
+		&& World->GetGameState()
+		&& !World->GetGameState<ASnowRumbleLobbyGameState>();
 }
 
 void ASnowRumbleCharacter::EnsureEmoteRadialMenuWidget()
@@ -670,6 +755,12 @@ void ASnowRumbleCharacter::EnsureMainHUDWidget()
 	if (!IsLocallyControlled()
 		|| MainHUDWidget
 		|| !MainHUDWidgetClass)
+	{
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	if (World && World->GetGameState<ASnowRumbleLobbyGameState>())
 	{
 		return;
 	}
@@ -955,6 +1046,10 @@ void ASnowRumbleCharacter::HandleInteractCompleted()
 		{
 			SnowballEquipmentComponent->StopRollingSnowball();
 		}
+		else if (FocusedLobbyBoard)
+		{
+			ClearLobbyBoardFocus();
+		}
 		else if (bIsInteractHeld && CanPerformGameplayAction())
 		{
 			const ALobbyInteractionBoard* OutlinedBoard = OutlineComponent
@@ -1059,6 +1154,160 @@ void ASnowRumbleCharacter::HandleDropEquipment()
 
 		OnDropEquipmentInput();
 	}
+}
+
+void ASnowRumbleCharacter::HandleLobbyBoardPointerPressed()
+{
+	if (FocusedLobbyBoard
+		&& LobbyBoardWidgetInteractionComponent
+		&& UpdateLobbyBoardWidgetHitResult())
+	{
+		LobbyBoardWidgetInteractionComponent->PressPointerKey(
+			EKeys::LeftMouseButton);
+	}
+}
+
+void ASnowRumbleCharacter::HandleLobbyBoardPointerReleased()
+{
+	if (FocusedLobbyBoard && LobbyBoardWidgetInteractionComponent)
+	{
+		UpdateLobbyBoardWidgetHitResult();
+		LobbyBoardWidgetInteractionComponent->ReleasePointerKey(
+			EKeys::LeftMouseButton);
+	}
+}
+
+bool ASnowRumbleCharacter::UpdateLobbyBoardWidgetHitResult()
+{
+	if (!FocusedLobbyBoard || !LobbyBoardWidgetInteractionComponent)
+	{
+		return false;
+	}
+
+	TArray<UWidgetComponent*> BoardWidgetComponents;
+	FocusedLobbyBoard->GetBoardWidgetComponents(BoardWidgetComponents);
+	if (BoardWidgetComponents.IsEmpty())
+	{
+		return false;
+	}
+
+	APlayerController* PlayerController =
+		Cast<APlayerController>(GetController());
+	if (!PlayerController)
+	{
+		return false;
+	}
+
+	float MouseX = 0.0f;
+	float MouseY = 0.0f;
+	if (!PlayerController->GetMousePosition(MouseX, MouseY))
+	{
+		return false;
+	}
+
+	FVector WorldLocation;
+	FVector WorldDirection;
+	if (!PlayerController->DeprojectScreenPositionToWorld(
+		MouseX,
+		MouseY,
+		WorldLocation,
+		WorldDirection))
+	{
+		return false;
+	}
+
+	const FVector TraceEnd =
+		WorldLocation
+		+ WorldDirection * LobbyBoardWidgetInteractionComponent->InteractionDistance;
+
+	FHitResult ClosestHitResult;
+	float ClosestHitDistance = TNumericLimits<float>::Max();
+
+	for (UWidgetComponent* BoardWidgetComponent : BoardWidgetComponents)
+	{
+		if (!BoardWidgetComponent)
+		{
+			continue;
+		}
+
+		const FVector WidgetOrigin = BoardWidgetComponent->GetComponentLocation();
+		const FVector WidgetNormal = BoardWidgetComponent->GetForwardVector();
+		const float PlaneDot = FVector::DotProduct(WorldDirection, WidgetNormal);
+		if (FMath::IsNearlyZero(PlaneDot))
+		{
+			continue;
+		}
+
+		const float HitDistance =
+			FVector::DotProduct(WidgetOrigin - WorldLocation, WidgetNormal)
+			/ PlaneDot;
+		if (HitDistance < 0.0f
+			|| HitDistance > LobbyBoardWidgetInteractionComponent->InteractionDistance
+			|| HitDistance >= ClosestHitDistance)
+		{
+			continue;
+		}
+
+		const FVector HitLocation = WorldLocation + WorldDirection * HitDistance;
+		const FVector WidgetDelta = HitLocation - WidgetOrigin;
+		const FVector2D DrawSize = BoardWidgetComponent->GetDrawSize();
+		const FVector ComponentScale = BoardWidgetComponent->GetComponentScale();
+		const float HalfWidth = DrawSize.X * FMath::Abs(ComponentScale.Y) * 0.5f;
+		const float HalfHeight = DrawSize.Y * FMath::Abs(ComponentScale.Z) * 0.5f;
+		const float RightDistance = FVector::DotProduct(
+			WidgetDelta,
+			BoardWidgetComponent->GetRightVector());
+		const float UpDistance = FVector::DotProduct(
+			WidgetDelta,
+			BoardWidgetComponent->GetUpVector());
+		if (FMath::Abs(RightDistance) > HalfWidth
+			|| FMath::Abs(UpDistance) > HalfHeight)
+		{
+			continue;
+		}
+
+		ClosestHitDistance = HitDistance;
+		ClosestHitResult = FHitResult();
+		ClosestHitResult.bBlockingHit = true;
+		ClosestHitResult.Time =
+			HitDistance / FVector::Distance(WorldLocation, TraceEnd);
+		ClosestHitResult.Distance = HitDistance;
+		ClosestHitResult.Location = HitLocation;
+		ClosestHitResult.ImpactPoint = HitLocation;
+		ClosestHitResult.TraceStart = WorldLocation;
+		ClosestHitResult.TraceEnd = TraceEnd;
+		ClosestHitResult.Normal = WidgetNormal;
+		ClosestHitResult.ImpactNormal = WidgetNormal;
+		ClosestHitResult.HitObjectHandle =
+			FActorInstanceHandle(FocusedLobbyBoard);
+		ClosestHitResult.Component = BoardWidgetComponent;
+	}
+
+	if (!ClosestHitResult.bBlockingHit)
+	{
+		return false;
+	}
+
+	LobbyBoardWidgetInteractionComponent->SetCustomHitResult(ClosestHitResult);
+	return true;
+}
+
+void ASnowRumbleCharacter::ConfigureLobbyBoardWidgetInteraction(
+	APlayerController* PlayerController)
+{
+	if (!LobbyBoardWidgetInteractionComponent || !PlayerController)
+	{
+		return;
+	}
+
+	const int32 ControllerUniqueId =
+		static_cast<int32>(PlayerController->GetUniqueID() % 10000);
+	const int32 CharacterUniqueId =
+		static_cast<int32>(GetUniqueID() % 10000);
+	LobbyBoardWidgetInteractionComponent->VirtualUserIndex =
+		100 + ControllerUniqueId;
+	LobbyBoardWidgetInteractionComponent->PointerIndex =
+		100 + CharacterUniqueId;
 }
 
 void ASnowRumbleCharacter::HandleEmoteStarted()
@@ -1231,6 +1480,86 @@ void ASnowRumbleCharacter::TryInteractWithLobbyBoard()
 	}
 }
 
+void ASnowRumbleCharacter::CloseLobbyBoardFocus()
+{
+	ClearLobbyBoardFocus();
+}
+
+void ASnowRumbleCharacter::RequestLobbyBoardAction(
+	ELobbyBoardAction BoardAction)
+{
+	if (!IsLocallyControlled() || !FocusedLobbyBoard)
+	{
+		return;
+	}
+
+	if (HasAuthority())
+	{
+		ServerRequestLobbyBoardAction_Implementation(
+			FocusedLobbyBoard,
+			BoardAction);
+	}
+	else
+	{
+		ServerRequestLobbyBoardAction(FocusedLobbyBoard, BoardAction);
+	}
+}
+
+void ASnowRumbleCharacter::RequestLobbyTeamSelection(ESnowRumbleTeam NewTeam)
+{
+	if (!IsLocallyControlled() || !FocusedLobbyBoard)
+	{
+		return;
+	}
+
+	if (HasAuthority())
+	{
+		ServerRequestLobbyTeamSelection_Implementation(
+			FocusedLobbyBoard,
+			NewTeam);
+	}
+	else
+	{
+		ServerRequestLobbyTeamSelection(FocusedLobbyBoard, NewTeam);
+	}
+}
+
+void ASnowRumbleCharacter::ClearLobbyBoardFocus()
+{
+	if (!IsLocallyControlled())
+	{
+		FocusedLobbyBoard = nullptr;
+		return;
+	}
+
+	APlayerController* PlayerController =
+		Cast<APlayerController>(GetController());
+	if (PlayerController)
+	{
+		PlayerController->SetViewTargetWithBlend(this, 0.15f);
+		PlayerController->SetInputMode(FInputModeGameOnly());
+		PlayerController->SetShowMouseCursor(false);
+		PlayerController->SetIgnoreMoveInput(false);
+		PlayerController->SetIgnoreLookInput(false);
+	}
+	if (LobbyBoardWidgetInteractionComponent)
+	{
+		if (bLobbyBoardPointerPressed)
+		{
+			LobbyBoardWidgetInteractionComponent->ReleasePointerKey(
+				EKeys::LeftMouseButton);
+		}
+		LobbyBoardWidgetInteractionComponent->SetActive(false);
+	}
+	bLobbyBoardPointerPressed = false;
+
+	if (FocusedLobbyBoard)
+	{
+		FocusedLobbyBoard->SetFocusedCharacter(nullptr);
+	}
+	FocusedLobbyBoard = nullptr;
+}
+
 void ASnowRumbleCharacter::ServerTryInteractWithLobbyBoard_Implementation(
 	ALobbyInteractionBoard* Board)
 {
@@ -1240,6 +1569,34 @@ void ASnowRumbleCharacter::ServerTryInteractWithLobbyBoard_Implementation(
 	}
 
 	Board->Interact(this);
+}
+
+void ASnowRumbleCharacter::ServerRequestLobbyBoardAction_Implementation(
+	ALobbyInteractionBoard* Board,
+	ELobbyBoardAction BoardAction)
+{
+	if (!CanPerformGameplayAction() || !Board || !Board->CanInteractWith(this))
+	{
+		return;
+	}
+
+	Board->HandleBoardAction(this, BoardAction);
+}
+
+void ASnowRumbleCharacter::ServerRequestLobbyTeamSelection_Implementation(
+	ALobbyInteractionBoard* Board,
+	ESnowRumbleTeam NewTeam)
+{
+	if (!CanPerformGameplayAction() || !Board || !Board->CanInteractWith(this))
+	{
+		return;
+	}
+
+	if (ASnowRumblePlayerState* SnowRumblePlayerState =
+		GetPlayerState<ASnowRumblePlayerState>())
+	{
+		SnowRumblePlayerState->RequestSetLobbyTeam(NewTeam);
+	}
 }
 
 bool ASnowRumbleCharacter::CanPerformGameplayAction() const

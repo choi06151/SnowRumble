@@ -2,15 +2,20 @@
 
 #include "OverheadNameplateWidget_C.h"
 
+#include "../Game/SnowRumbleLobbyGameState.h"
+#include "../Game/SnowRumblePlayerState.h"
 #include "../Player/SnowRumbleCharacter.h"
+#include "Components/Border.h"
+#include "Components/Image.h"
 #include "Components/TextBlock.h"
+#include "Engine/World.h"
 
 void UOverheadNameplateWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
 	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-	RefreshNameText();
+	RefreshNameplatePresentation();
 }
 
 void UOverheadNameplateWidget::NativeTick(
@@ -20,9 +25,15 @@ void UOverheadNameplateWidget::NativeTick(
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
 	const FString CurrentDisplayName = GetDisplayName();
-	if (CurrentDisplayName != LastDisplayName)
+	const FLinearColor CurrentTeamColor = GetTeamColor();
+	const bool bCurrentShowReadyImage = ShouldShowReadyImage();
+	const bool bCurrentShowHostImage = ShouldShowHostImage();
+	if (CurrentDisplayName != LastDisplayName
+		|| CurrentTeamColor != LastTeamColor
+		|| bCurrentShowReadyImage != bLastShowReadyImage
+		|| bCurrentShowHostImage != bLastShowHostImage)
 	{
-		RefreshNameText();
+		RefreshNameplatePresentation();
 	}
 }
 
@@ -30,7 +41,7 @@ void UOverheadNameplateWidget::SetObservedCharacter(
 	ASnowRumbleCharacter* NewCharacter)
 {
 	ObservedCharacter = NewCharacter;
-	RefreshNameText();
+	RefreshNameplatePresentation();
 }
 
 ASnowRumbleCharacter* UOverheadNameplateWidget::GetObservedCharacter() const
@@ -45,11 +56,72 @@ FString UOverheadNameplateWidget::GetDisplayName() const
 		: FString();
 }
 
-void UOverheadNameplateWidget::RefreshNameText()
+FLinearColor UOverheadNameplateWidget::GetTeamColor() const
+{
+	return ObservedCharacter
+		? ObservedCharacter->GetOverheadTeamColor()
+		: FLinearColor::White;
+}
+
+bool UOverheadNameplateWidget::ShouldShowReadyImage() const
+{
+	if (!GetWorld() || !GetWorld()->GetGameState<ASnowRumbleLobbyGameState>())
+	{
+		return false;
+	}
+
+	const ASnowRumblePlayerState* PlayerState = ObservedCharacter
+		? ObservedCharacter->GetPlayerState<ASnowRumblePlayerState>()
+		: nullptr;
+	return PlayerState && !PlayerState->IsLobbyHost()
+		&& PlayerState->IsLobbyReady();
+}
+
+bool UOverheadNameplateWidget::ShouldShowHostImage() const
+{
+	if (!GetWorld() || !GetWorld()->GetGameState<ASnowRumbleLobbyGameState>())
+	{
+		return false;
+	}
+
+	const ASnowRumblePlayerState* PlayerState = ObservedCharacter
+		? ObservedCharacter->GetPlayerState<ASnowRumblePlayerState>()
+		: nullptr;
+	return PlayerState && PlayerState->IsLobbyHost();
+}
+
+void UOverheadNameplateWidget::RefreshNameplatePresentation()
 {
 	LastDisplayName = GetDisplayName();
+	LastTeamColor = GetTeamColor();
+	bLastShowReadyImage = ShouldShowReadyImage();
+	bLastShowHostImage = ShouldShowHostImage();
 	if (PlayerNameTextBlock)
 	{
 		PlayerNameTextBlock->SetText(FText::FromString(LastDisplayName));
+		PlayerNameTextBlock->SetColorAndOpacity(FSlateColor(LastTeamColor));
+	}
+
+	if (PlayerNameBackgroundBorder)
+	{
+		FLinearColor BackgroundColor = LastTeamColor;
+		BackgroundColor.A = 0.35f;
+		PlayerNameBackgroundBorder->SetBrushColor(BackgroundColor);
+	}
+
+	if (ReadyStateImage)
+	{
+		ReadyStateImage->SetVisibility(
+			bLastShowReadyImage
+				? ESlateVisibility::SelfHitTestInvisible
+				: ESlateVisibility::Collapsed);
+	}
+
+	if (HostStateImage)
+	{
+		HostStateImage->SetVisibility(
+			bLastShowHostImage
+				? ESlateVisibility::SelfHitTestInvisible
+				: ESlateVisibility::Collapsed);
 	}
 }

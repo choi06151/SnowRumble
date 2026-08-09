@@ -11,7 +11,13 @@ enum class ESnowRumbleTeam : uint8
 {
 	None,
 	Red,
-	Blue
+	Sky,
+	Green,
+	Yellow,
+	Purple,
+	Pink,
+	Blue,
+	White
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSnowRumbleLobbyPlayerChanged);
@@ -30,12 +36,23 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Lobby")
 	ESnowRumbleTeam GetLobbyTeam() const;
 
+	/** 현재 선택한 팀 색을 이름표와 UI에 적용할 색으로 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Lobby")
+	FLinearColor GetLobbyTeamColor() const;
+
 	/** 현재 준비 상태를 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Lobby")
 	bool IsLobbyReady() const;
 
-	/** 서버가 랜덤 팀 배정 결과를 적용한다. 클라이언트 직접 팀 선택에는 사용하지 않는다. */
+	/** 현재 대기방 호스트인지 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Lobby")
+	bool IsLobbyHost() const;
+
+	/** 서버가 기본 팀 배정 결과를 적용한다. */
 	void AssignLobbyTeamFromServer(ESnowRumbleTeam NewTeam);
+
+	/** 서버가 대기방 호스트 여부를 적용한다. */
+	void AssignLobbyHostFromServer(bool bNewLobbyHost);
 
 	/** 소유 클라이언트가 대기방 이름 변경을 서버에 요청한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Lobby")
@@ -52,6 +69,9 @@ public:
 	/** 호스트가 경기 시작을 서버에 요청한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Lobby")
 	void RequestStartLobbyMatch();
+
+	virtual void CopyProperties(APlayerState* PlayerState) override;
+	virtual void OverrideWith(APlayerState* PlayerState) override;
 
 	virtual void GetLifetimeReplicatedProps(
 		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -71,6 +91,10 @@ protected:
 	/** 복제된 준비 상태 변경을 UI에 알린다. */
 	UFUNCTION()
 	void OnRep_LobbyReady();
+
+	/** 복제된 호스트 여부 변경을 UI에 알린다. */
+	UFUNCTION()
+	void OnRep_LobbyHost();
 
 	UFUNCTION(Server, Reliable)
 	void ServerSetLobbyPlayerName(const FString& NewName);
@@ -99,4 +123,7 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_LobbyReady)
 	bool bLobbyReady = false;
+
+	UPROPERTY(ReplicatedUsing = OnRep_LobbyHost)
+	bool bLobbyHost = false;
 };

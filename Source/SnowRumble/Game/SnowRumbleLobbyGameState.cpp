@@ -2,6 +2,7 @@
 
 #include "SnowRumbleLobbyGameState.h"
 
+#include "Net/UnrealNetwork.h"
 #include "SnowRumblePlayerState.h"
 
 TArray<ASnowRumblePlayerState*> ASnowRumbleLobbyGameState::GetLobbyPlayers()
@@ -27,33 +28,44 @@ bool ASnowRumbleLobbyGameState::CanStartLobbyMatch() const
 		return false;
 	}
 
-	int32 RedPlayers = 0;
-	int32 BluePlayers = 0;
+	TMap<ESnowRumbleTeam, int32> TeamPlayerCounts;
 	for (const ASnowRumblePlayerState* PlayerState : LobbyPlayers)
 	{
-		if (!PlayerState || !PlayerState->IsLobbyReady())
+		if (!PlayerState)
+		{
+			return false;
+		}
+		if (!PlayerState->IsLobbyHost() && !PlayerState->IsLobbyReady())
 		{
 			return false;
 		}
 
-		switch (PlayerState->GetLobbyTeam())
+		const ESnowRumbleTeam LobbyTeam = PlayerState->GetLobbyTeam();
+		if (LobbyTeam == ESnowRumbleTeam::None)
 		{
-		case ESnowRumbleTeam::Red:
-			++RedPlayers;
-			break;
-		case ESnowRumbleTeam::Blue:
-			++BluePlayers;
-			break;
-		default:
+			return false;
+		}
+
+		int32& TeamPlayerCount = TeamPlayerCounts.FindOrAdd(LobbyTeam);
+		++TeamPlayerCount;
+	}
+
+	constexpr int32 MaxPlayersPerTeam = 4;
+	if (TeamPlayerCounts.Num() < 2)
+	{
+		return false;
+	}
+
+	for (const TPair<ESnowRumbleTeam, int32>& TeamPlayerCount : TeamPlayerCounts)
+	{
+		if (TeamPlayerCount.Value < 1
+			|| TeamPlayerCount.Value > MaxPlayersPerTeam)
+		{
 			return false;
 		}
 	}
 
-	constexpr int32 MaxPlayersPerTeam = 4;
-	return RedPlayers == BluePlayers
-		&& RedPlayers >= 1
-		&& RedPlayers <= MaxPlayersPerTeam
-		&& BluePlayers <= MaxPlayersPerTeam;
+	return true;
 }
 
 int32 ASnowRumbleLobbyGameState::GetLobbyTeamPlayerCount(
@@ -70,7 +82,65 @@ int32 ASnowRumbleLobbyGameState::GetLobbyTeamPlayerCount(
 	return PlayerCount;
 }
 
+int32 ASnowRumbleLobbyGameState::GetReadyPlayerCount() const
+{
+	int32 ReadyPlayerCount = 0;
+	for (const ASnowRumblePlayerState* PlayerState : GetLobbyPlayers())
+	{
+		if (PlayerState
+			&& !PlayerState->IsLobbyHost()
+			&& PlayerState->IsLobbyReady())
+		{
+			++ReadyPlayerCount;
+		}
+	}
+	return ReadyPlayerCount;
+}
+
+int32 ASnowRumbleLobbyGameState::GetReadyRequiredPlayerCount() const
+{
+	int32 ReadyRequiredPlayerCount = 0;
+	for (const ASnowRumblePlayerState* PlayerState : GetLobbyPlayers())
+	{
+		if (PlayerState && !PlayerState->IsLobbyHost())
+		{
+			++ReadyRequiredPlayerCount;
+		}
+	}
+	return ReadyRequiredPlayerCount;
+}
+
+ESnowRumbleLobbyMode ASnowRumbleLobbyGameState::GetLobbyMode() const
+{
+	return LobbyMode;
+}
+
+void ASnowRumbleLobbyGameState::SetLobbyModeFromServer(
+	ESnowRumbleLobbyMode NewLobbyMode)
+{
+	if (!HasAuthority() || LobbyMode == NewLobbyMode)
+	{
+		return;
+	}
+
+	LobbyMode = NewLobbyMode;
+	NotifyLobbyStateChanged();
+}
+
+void ASnowRumbleLobbyGameState::GetLifetimeReplicatedProps(
+	TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ASnowRumbleLobbyGameState, LobbyMode);
+}
+
 void ASnowRumbleLobbyGameState::NotifyLobbyStateChanged()
 {
 	OnLobbyStateChanged.Broadcast();
+}
+
+void ASnowRumbleLobbyGameState::OnRep_LobbyMode()
+{
+	NotifyLobbyStateChanged();
 }
