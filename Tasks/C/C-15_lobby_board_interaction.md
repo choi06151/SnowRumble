@@ -38,6 +38,7 @@
 - [x] 로딩창 WBP에 접속 완료 인원 기준 진행률 ProgressBar와 상태 TextBlock 바인딩을 제공한다.
 - [x] PvP 레벨 이동 후에도 로비에서 확정한 플레이어 이름과 팀 색이 유지되게 한다.
 - [x] PvP 레벨에서 모든 PlayerStart 중 매번 랜덤한 지점에 스폰되게 한다.
+- [x] 같은 PlayerStart 기준으로 여러 명이 스폰돼도 서로 겹치지 않도록 PlayerStart 주변 넓은 범위의 랜덤 위치로 실제 Pawn 생성 지점을 분산한다.
 - [x] 현재 PvP 이동 기본 맵을 `L_Prototype`에서 겨울 환경 `DemoMap`으로 변경한다.
 
 ## 작업 배정
@@ -109,6 +110,10 @@
   - `ASnowRumblePlayerState::CopyProperties(APlayerState* PlayerState)`: seamless travel 시 로비 이름, 팀 색, 준비 상태, 호스트 상태를 새 PlayerState로 복사한다.
   - `ASnowRumblePlayerState::OverrideWith(APlayerState* PlayerState)`: seamless travel 복구 경로에서 기존 로비 이름과 팀 색 상태를 현재 PlayerState에 반영한다.
   - `ASnowRumbleGameMode::ChoosePlayerStart_Implementation(AController* Player)`: PvP 레벨에서 전체 PlayerStart 중 아직 사용하지 않은 지점을 랜덤 선택하고, 후보를 모두 사용하면 전체 후보 중 다시 랜덤 선택한다.
+  - `ASnowRumbleGameMode::RestartPlayerAtPlayerStart(AController* NewPlayer, AActor* StartSpot)`: 선택된 PlayerStart 주변의 랜덤 위치로 실제 Pawn을 생성해 같은 Start 기준 다인 스폰이 겹치지 않게 한다.
+  - `ASnowRumbleGameMode::PlayerStartSpawnScatterRadius`: PlayerStart 기준 실제 Pawn 생성 위치를 흩뿌릴 반경이다. 기본값은 900cm다.
+  - `ASnowRumbleGameMode::PlayerStartSpawnMinimumSpacing`: 이번 매치에서 이미 확정한 스폰 위치와 새 위치 사이에 요구하는 최소 2D 간격이다. 기본값은 240cm다.
+  - `ASnowRumbleGameMode::PlayerStartSpawnScatterAttempts`: 최소 간격을 만족하는 랜덤 위치를 찾기 위해 시도할 횟수다. 기본값은 24회다.
   - `ASnowRumbleCharacter::ServerRequestLobbyTeamSelection(ALobbyInteractionBoard* Board, ESnowRumbleTeam NewTeam)`: 서버가 게시판 거리와 캐릭터 상태를 다시 검사한 뒤 해당 캐릭터의 PlayerState 팀을 변경한다.
   - `ALobbyPlayerController::RequestApplyLobbyTeam(ESnowRumbleTeam NewTeam)`: 소유 클라이언트가 로비 팀 색을 서버 PlayerState에 적용하도록 요청한다.
   - `ASnowRumbleCharacter::ServerRequestLobbyBoardAction(ALobbyInteractionBoard* Board, ELobbyBoardAction BoardAction)`: 서버가 캐릭터 상태와 게시판 거리를 다시 검사해 UI 버튼 액션을 확정한다.
@@ -161,6 +166,7 @@
 - 현재 기본 PvP 이동 대상은 `/Game/LowpolyStyle/WinterEnvironment/Maps/DemoMap?listen`이다. 다른 PvP 맵이 준비되면 `ASnowRumbleLobbyGameMode::MatchTravelUrl` 또는 로비 GameMode Blueprint의 `MatchTravelUrl`을 새 맵 경로로 바꾼다.
 - PvP 대상 레벨의 World Settings GameMode Override가 `ASnowRumbleGameMode` 또는 그 Blueprint 자식인지 확인한다.
 - PvP 대상 레벨에 PlayerStart를 원하는 수만큼 배치한다. `Player Start Tag`는 스폰 규칙에 사용하지 않는다.
+- PvP GameMode Blueprint에서 같은 PlayerStart 주변 스폰 분산 폭을 바꾸려면 `PlayerStartSpawnScatterRadius`, `PlayerStartSpawnMinimumSpacing`, `PlayerStartSpawnScatterAttempts` 값을 조정한다.
 - `BP_LobbyInteractionBoard_C`의 `BoardWidgetComponent`에 게시판 WBP 클래스를 연결하고 게시판 표면에 맞게 위치·회전·크기를 조정한다.
 - 게시판에 두 번째 이상의 WidgetComponent가 필요하면 `BP_LobbyInteractionBoard_C` 자식 Blueprint에 WidgetComponent를 추가하고, Widget Class를 `ULobbyBoardWidget` 기반 WBP로 설정한 뒤 위치·회전·크기를 조정한다.
 - `BP_LobbyInteractionBoard_C`를 로비 맵에 배치한다.
@@ -223,6 +229,7 @@
 - 2026-08-09: 로딩창 진행률을 접속 완료 인원 기준으로 추가했다. 로비에서는 `0 / 예상 인원`으로 시작하고, PvP GameMode는 `PostLogin`마다 모든 접속 완료 클라이언트에 현재 인원 / 예상 인원을 RPC로 갱신한다.
 - 2026-08-09: PvP 레벨 이동 후 이름표가 `DESKTOP-...`와 흰색으로 되돌아가는 문제를 막기 위해 로비 매치 이동을 seamless travel로 전환하고, `ASnowRumblePlayerState`의 로비 이름·팀 색 상태를 새 PlayerState로 복사하게 했다. 로딩창 표시 시 기존 로비 UI도 함께 숨긴다.
 - 2026-08-09: PvP 스폰을 전체 PlayerStart 랜덤 선택으로 변경했다. 먼저 아직 사용하지 않은 PlayerStart 중 랜덤 선택하고, 후보를 모두 사용하면 전체 PlayerStart 중 다시 랜덤 선택한다. 기본 PvP 이동 대상은 겨울 환경 `DemoMap`으로 변경했다.
+- 2026-08-09: PlayerStart 수보다 참여자가 많거나 팀 군집 규칙으로 같은 PlayerStart를 재사용할 때 캐릭터가 겹쳐 튀는 문제에 대응했다. 서버가 선택된 PlayerStart 주변 900cm 안에서 최소 240cm 간격을 우선 만족하는 실제 Pawn 생성 위치를 랜덤으로 확정한다. `git diff --check`는 통과했고 `SnowRumbleGameMode.cpp`와 `Module.SnowRumble.cpp` 컴파일은 통과했지만, 실행 중인 Unreal Editor가 `UnrealEditor-SnowRumble.dll`을 잡고 있어 링크는 `LNK1104`로 실패했다.
 
 ### 결과 확인
 
@@ -253,6 +260,7 @@
 - [ ] PvP 레벨에서 예상 참여 인원이 모두 접속되면 모든 화면의 로딩창이 사라진다.
 - [ ] PvP 레벨 이동 후에도 각 플레이어 이름표가 로비에서 설정한 이름과 팀 색으로 유지된다.
 - [ ] PvP 레벨에서 플레이어들은 전체 PlayerStart 중 랜덤한 지점에 스폰된다.
+- [ ] 4명 이상이 같은 팀 또는 가까운 팀 색 군집에서 시작해도 같은 PlayerStart 위치에 완전히 겹쳐 생성되지 않고 PlayerStart 주변 넓은 범위에 흩어져 나온다.
 - [ ] 로비 GameState에서는 인게임 `MainHUDWidget`이 보이지 않고 기존 `WBP_Lobby`가 보인다.
 - [ ] 기존 `WBP_Lobby`의 준비 완료 인원 수는 호스트를 제외해 표시되고, 2인 listen 대기방에서 클라이언트 준비 전 `0 / 1`, 준비 후 `1 / 1`로 보인다.
 - [ ] 기존 `WBP_Lobby`의 현재 게임모드, 내 이름, 내 팀색, 내 준비 상태가 호스트와 클라이언트 각각 자신의 로컬 상태에 맞게 표시된다.

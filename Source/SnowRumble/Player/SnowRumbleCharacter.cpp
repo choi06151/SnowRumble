@@ -3,6 +3,7 @@
 #include "SnowRumbleCharacter.h"
 
 #include "SnowRumbleHealthComponent.h"
+#include "../Game/SnowRumbleGameState_C.h"
 #include "../Game/SnowRumbleLobbyGameState.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "../Interaction/LobbyInteractionBoard_C.h"
@@ -179,6 +180,7 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 	}
 
 	DrawRollingSnowballCollisionDebug();
+	RefreshPvpMatchInputLock();
 	ApplyMovementSpeed();
 	RefreshLocalSnowEffect();
 
@@ -229,6 +231,18 @@ bool ASnowRumbleCharacter::IsSprinting() const
 bool ASnowRumbleCharacter::IsFrozen() const
 {
 	return HealthComponent && HealthComponent->IsFrozen();
+}
+
+bool ASnowRumbleCharacter::IsDead() const
+{
+	return HealthComponent && HealthComponent->IsDead();
+}
+
+float ASnowRumbleCharacter::GetFrozenSecondsRemaining() const
+{
+	return HealthComponent
+		? HealthComponent->GetFrozenSecondsRemaining()
+		: 0.0f;
 }
 
 bool ASnowRumbleCharacter::IsHoldingSnowball() const
@@ -512,7 +526,9 @@ void ASnowRumbleCharacter::BeginPlay()
 	if (HealthComponent)
 	{
 		HealthComponent->OnFrozenChanged.AddDynamic(this, &ASnowRumbleCharacter::HandleFrozenChanged);
+		HealthComponent->OnDeathChanged.AddDynamic(this, &ASnowRumbleCharacter::HandleDeathChanged);
 		HandleFrozenChanged(HealthComponent->IsFrozen());
+		HandleDeathChanged(HealthComponent->IsDead());
 	}
 
 	if (SnowballEquipmentComponent)
@@ -525,6 +541,7 @@ void ASnowRumbleCharacter::BeginPlay()
 
 	BindOverheadNameToPlayerState();
 	RefreshOverheadPlayerName();
+	RefreshPvpMatchInputLock();
 }
 
 FString ASnowRumbleCharacter::GetOverheadPlayerName() const
@@ -625,6 +642,7 @@ void ASnowRumbleCharacter::PawnClientRestart()
 	RefreshLocalSnowEffect();
 	EnsureEmoteRadialMenuWidget();
 	EnsureMainHUDWidget();
+	RefreshPvpMatchInputLock();
 }
 
 void ASnowRumbleCharacter::BindOverheadNameToPlayerState()
@@ -967,7 +985,7 @@ void ASnowRumbleCharacter::Move(const FInputActionValue& Value)
 
 void ASnowRumbleCharacter::Look(const FInputActionValue& Value)
 {
-	if (bIsEmoteRadialMenuOpen)
+	if (bIsEmoteRadialMenuOpen || IsPvpMatchInputLocked())
 	{
 		return;
 	}
@@ -1390,8 +1408,37 @@ void ASnowRumbleCharacter::HandleFrozenChanged(bool bIsFrozen)
 	}
 	else
 	{
-		MovementComponent->SetMovementMode(MOVE_Walking);
+		if (!HealthComponent || !HealthComponent->IsDead())
+		{
+			MovementComponent->SetMovementMode(MOVE_Walking);
+		}
 	}
+}
+
+void ASnowRumbleCharacter::HandleDeathChanged(bool bIsDead)
+{
+	if (!bIsDead)
+	{
+		return;
+	}
+
+	bIsSprinting = false;
+	bIsPickingUpItem = false;
+	if (SnowballEquipmentComponent)
+	{
+		SnowballEquipmentComponent->SetAiming(false);
+	}
+	if (SnowballCreationComponent)
+	{
+		SnowballCreationComponent->CancelCreatingSnowball();
+	}
+	if (UCharacterMovementComponent* MovementComponent = GetCharacterMovement())
+	{
+		MovementComponent->StopMovementImmediately();
+		MovementComponent->DisableMovement();
+	}
+	StopJumping();
+	ApplyMovementSpeed();
 }
 
 void ASnowRumbleCharacter::HandleSnowballAimingChanged(bool bNewAiming)
@@ -1603,7 +1650,59 @@ bool ASnowRumbleCharacter::CanPerformGameplayAction() const
 {
 	return HealthComponent
 		&& !HealthComponent->IsFrozen()
-		&& !bIsPickingUpItem;
+		&& !HealthComponent->IsDead()
+		&& !bIsPickingUpItem
+		&& !IsPvpMatchInputLocked();
+}
+
+bool ASnowRumbleCharacter::IsPvpMatchInputLocked() const
+{
+	const UWorld* World = GetWorld();
+	const ASnowRumbleGameState* SnowRumbleGameState = World
+		? World->GetGameState<ASnowRumbleGameState>()
+		: nullptr;
+	return SnowRumbleGameState
+		&& SnowRumbleGameState->IsMatchInputLocked();
+}
+
+void ASnowRumbleCharacter::RefreshPvpMatchInputLock()
+{
+	if (!IsLocallyControlled())
+	{
+		return;
+	}
+
+	APlayerController* PlayerController =
+		Cast<APlayerController>(GetController());
+	if (!PlayerController)
+	{
+		return;
+	}
+
+	const bool bShouldBlockInput = IsPvpMatchInputLocked();
+	if (bShouldBlockInput)
+	{
+		if (!bPvpMatchInputIgnoreApplied)
+		{
+			PlayerController->SetIgnoreMoveInput(true);
+			PlayerController->SetIgnoreLookInput(true);
+			bPvpMatchInputIgnoreApplied = true;
+		}
+		if (UCharacterMovementComponent* MovementComponent =
+			GetCharacterMovement())
+		{
+			MovementComponent->StopMovementImmediately();
+		}
+		bIsSprinting = false;
+		return;
+	}
+
+	if (bPvpMatchInputIgnoreApplied && !FocusedLobbyBoard)
+	{
+		PlayerController->SetIgnoreMoveInput(false);
+		PlayerController->SetIgnoreLookInput(false);
+		bPvpMatchInputIgnoreApplied = false;
+	}
 }
 
 bool ASnowRumbleCharacter::IsValidEmoteIndex(int32 EmoteIndex) const
@@ -1654,7 +1753,11 @@ void ASnowRumbleCharacter::ApplyMovementSpeed()
 	if (UCharacterMovementComponent* MovementComponent = GetCharacterMovement())
 	{
 		MovementComponent->MaxWalkSpeed =
-			bIsPickingUpItem
+			IsPvpMatchInputLocked()
+				? 0.0f
+				: HealthComponent && HealthComponent->IsDead()
+				? 0.0f
+				: bIsPickingUpItem
 				? 0.0f
 				: SnowballEquipmentComponent
 					&& SnowballEquipmentComponent->IsRollingSnowball()

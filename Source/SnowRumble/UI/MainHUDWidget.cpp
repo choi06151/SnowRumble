@@ -2,9 +2,12 @@
 
 #include "MainHUDWidget.h"
 
+#include "../Game/SnowRumbleGameState_C.h"
+#include "../Game/SnowRumblePlayerState.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "Components/PanelWidget.h"
 #include "Components/ProgressBar.h"
+#include "Components/TextBlock.h"
 #include "EngineUtils.h"
 #include "HealthBarWidget.h"
 
@@ -14,6 +17,8 @@ void UMainHUDWidget::NativeConstruct()
 
 	RefreshHealthBars();
 	RefreshCombatHudPresentation();
+	RefreshStartCountdownPresentation();
+	RefreshEndRoundPresentation();
 }
 
 void UMainHUDWidget::NativeTick(
@@ -24,6 +29,8 @@ void UMainHUDWidget::NativeTick(
 
 	RefreshHealthBars();
 	RefreshCombatHudPresentation();
+	RefreshStartCountdownPresentation();
+	RefreshEndRoundPresentation();
 }
 
 void UMainHUDWidget::RefreshHealthBars()
@@ -45,7 +52,7 @@ void UMainHUDWidget::RefreshHealthBars()
 	for (TActorIterator<ASnowRumbleCharacter> It(World); It; ++It)
 	{
 		ASnowRumbleCharacter* Character = *It;
-		if (!Character || Character == LocalCharacter)
+		if (!ShouldShowOtherPlayerHealthBar(LocalCharacter, Character))
 		{
 			continue;
 		}
@@ -56,7 +63,18 @@ void UMainHUDWidget::RefreshHealthBars()
 			continue;
 		}
 
-		if (!OtherPlayersHealthPanel || !OtherPlayerHealthBarWidgetClass)
+		if (!OtherPlayersHealthPanel)
+		{
+			continue;
+		}
+
+		TSubclassOf<UHealthBarWidget> HealthBarWidgetClass =
+			OtherPlayerHealthBarWidgetClass;
+		if (!HealthBarWidgetClass && LocalHealthBar)
+		{
+			HealthBarWidgetClass = LocalHealthBar->GetClass();
+		}
+		if (!HealthBarWidgetClass)
 		{
 			continue;
 		}
@@ -64,7 +82,7 @@ void UMainHUDWidget::RefreshHealthBars()
 		UHealthBarWidget* NewHealthBar =
 			CreateWidget<UHealthBarWidget>(
 				GetOwningPlayer(),
-				OtherPlayerHealthBarWidgetClass);
+				HealthBarWidgetClass);
 		if (!NewHealthBar)
 		{
 			continue;
@@ -138,4 +156,97 @@ void UMainHUDWidget::RemoveInvalidOtherPlayerHealthBars(
 		}
 		It.RemoveCurrent();
 	}
+}
+
+void UMainHUDWidget::RefreshStartCountdownPresentation()
+{
+	if (!StartCountdownText)
+	{
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	const ASnowRumbleGameState* SnowRumbleGameState = World
+		? World->GetGameState<ASnowRumbleGameState>()
+		: nullptr;
+	if (!SnowRumbleGameState
+		|| !SnowRumbleGameState->ShouldShowStartCountdown())
+	{
+		StartCountdownText->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
+	StartCountdownText->SetText(
+		SnowRumbleGameState->GetStartCountdownText());
+	StartCountdownText->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+}
+
+void UMainHUDWidget::RefreshEndRoundPresentation()
+{
+	if (!EndRoundPanel && !EndRoundResultText)
+	{
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	const ASnowRumbleGameState* SnowRumbleGameState = World
+		? World->GetGameState<ASnowRumbleGameState>()
+		: nullptr;
+	const bool bRoundEnded = SnowRumbleGameState
+		&& SnowRumbleGameState->IsRoundEnded();
+
+	if (EndRoundPanel)
+	{
+		EndRoundPanel->SetVisibility(
+			bRoundEnded
+				? ESlateVisibility::SelfHitTestInvisible
+				: ESlateVisibility::Collapsed);
+	}
+
+	if (!EndRoundResultText)
+	{
+		return;
+	}
+
+	if (!bRoundEnded)
+	{
+		EndRoundResultText->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
+	const UEnum* TeamEnum =
+		StaticEnum<ESnowRumbleTeam>();
+	const FText TeamText = TeamEnum
+		? TeamEnum->GetDisplayNameTextByValue(
+			static_cast<int64>(SnowRumbleGameState->GetRoundWinningTeam()))
+		: FText::GetEmpty();
+	EndRoundResultText->SetText(FText::Format(
+		NSLOCTEXT("SnowRumble", "RoundWinnerFormat", "{0} 승리"),
+		TeamText));
+	EndRoundResultText->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+}
+
+bool UMainHUDWidget::ShouldShowOtherPlayerHealthBar(
+	const ASnowRumbleCharacter* LocalCharacter,
+	const ASnowRumbleCharacter* OtherCharacter) const
+{
+	if (!LocalCharacter
+		|| !OtherCharacter
+		|| LocalCharacter == OtherCharacter)
+	{
+		return false;
+	}
+
+	const ASnowRumblePlayerState* LocalPlayerState =
+		LocalCharacter->GetPlayerState<ASnowRumblePlayerState>();
+	const ASnowRumblePlayerState* OtherPlayerState =
+		OtherCharacter->GetPlayerState<ASnowRumblePlayerState>();
+	if (!LocalPlayerState || !OtherPlayerState)
+	{
+		return false;
+	}
+
+	const ESnowRumbleTeam LocalTeam = LocalPlayerState->GetLobbyTeam();
+	return LocalTeam != ESnowRumbleTeam::None
+		&& LocalTeam == OtherPlayerState->GetLobbyTeam();
 }
