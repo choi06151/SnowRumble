@@ -2,12 +2,17 @@
 
 #include "SnowRumblePlayerController.h"
 
+#include "Blueprint/WidgetBlueprintLibrary.h"
 #include "../Game/SnowRumblePlayerState.h"
+#include "../Player/SnowRumbleUserSettingsSubsystem_C.h"
 #include "ChatWidget_C.h"
+#include "Components/InputComponent.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/PlayerState.h"
 #include "InputCoreTypes.h"
+#include "LobbyWidget.h"
 #include "LoadingScreenSubsystem.h"
+#include "MainHUDWidget.h"
 
 void ASnowRumblePlayerController::BeginPlay()
 {
@@ -15,6 +20,17 @@ void ASnowRumblePlayerController::BeginPlay()
 
 	if (IsLocalController())
 	{
+		if (UGameInstance* GameInstance = GetGameInstance())
+		{
+			if (USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem =
+				GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>())
+			{
+				UserSettingsSubsystem->OnKeyBindingsChanged.AddUObject(
+					this,
+					&ASnowRumblePlayerController::HandleUserKeyBindingsChanged);
+			}
+		}
+
 		if (UChatWidget* Widget = EnsureChatWidget())
 		{
 			if (!Widget->IsInViewport())
@@ -34,6 +50,15 @@ void ASnowRumblePlayerController::EndPlay(
 		ChatWidget = nullptr;
 	}
 
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>())
+		{
+			UserSettingsSubsystem->OnKeyBindingsChanged.RemoveAll(this);
+		}
+	}
+
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -41,19 +66,58 @@ void ASnowRumblePlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 
-	if (InputComponent)
+	RebindConfiguredInputKeys();
+}
+
+void ASnowRumblePlayerController::RebindConfiguredInputKeys()
+{
+	if (!InputComponent)
+	{
+		return;
+	}
+
+	InputComponent->KeyBindings.RemoveAll([this](const FInputKeyBinding& Binding)
+	{
+		return Binding.KeyEvent == IE_Pressed
+			&& (Binding.Chord.Key == BoundChatInputKey
+				|| Binding.Chord.Key == BoundChatChannelToggleKey);
+	});
+
+	const UGameInstance* GameInstance = GetGameInstance();
+	const USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem =
+		GameInstance
+			? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>()
+			: nullptr;
+
+	BoundChatInputKey = UserSettingsSubsystem
+		? UserSettingsSubsystem->GetKeyBinding(TEXT("Chat"), EKeys::Enter)
+		: EKeys::Enter;
+	BoundChatChannelToggleKey = UserSettingsSubsystem
+		? UserSettingsSubsystem->GetKeyBinding(TEXT("ChatChannelToggle"), EKeys::Tab)
+		: EKeys::Tab;
+
+	if (BoundChatInputKey.IsValid())
 	{
 		InputComponent->BindKey(
-			EKeys::Enter,
+			BoundChatInputKey,
 			IE_Pressed,
 			this,
 			&ASnowRumblePlayerController::HandleChatInputPressed);
+	}
+	if (BoundChatChannelToggleKey.IsValid()
+		&& BoundChatChannelToggleKey != BoundChatInputKey)
+	{
 		InputComponent->BindKey(
-			EKeys::Tab,
+			BoundChatChannelToggleKey,
 			IE_Pressed,
 			this,
 			&ASnowRumblePlayerController::HandleChatChannelTogglePressed);
 	}
+}
+
+void ASnowRumblePlayerController::HandleUserKeyBindingsChanged()
+{
+	RebindConfiguredInputKeys();
 }
 
 void ASnowRumblePlayerController::OpenChatInput(
@@ -215,6 +279,45 @@ void ASnowRumblePlayerController::ClientReceiveChatMessage_Implementation(
 	}
 }
 
+void ASnowRumblePlayerController::ClientReceiveEventLogMessage_Implementation(
+	const FText& Message)
+{
+	if (!IsLocalController() || Message.IsEmpty())
+	{
+		return;
+	}
+
+	TArray<UUserWidget*> LobbyWidgets;
+	UWidgetBlueprintLibrary::GetAllWidgetsOfClass(
+		this,
+		LobbyWidgets,
+		ULobbyWidget::StaticClass(),
+		false);
+	for (UUserWidget* UserWidget : LobbyWidgets)
+	{
+		ULobbyWidget* LobbyWidget = Cast<ULobbyWidget>(UserWidget);
+		if (LobbyWidget && LobbyWidget->GetOwningPlayer() == this)
+		{
+			LobbyWidget->AddEventLogMessage(Message);
+		}
+	}
+
+	TArray<UUserWidget*> MainHUDWidgets;
+	UWidgetBlueprintLibrary::GetAllWidgetsOfClass(
+		this,
+		MainHUDWidgets,
+		UMainHUDWidget::StaticClass(),
+		false);
+	for (UUserWidget* UserWidget : MainHUDWidgets)
+	{
+		UMainHUDWidget* MainHUDWidget = Cast<UMainHUDWidget>(UserWidget);
+		if (MainHUDWidget && MainHUDWidget->GetOwningPlayer() == this)
+		{
+			MainHUDWidget->AddEventLogMessage(Message);
+		}
+	}
+}
+
 void ASnowRumblePlayerController::HandleChatInputPressed()
 {
 	if (ChatWidget && ChatWidget->IsChatInputOpen())
@@ -222,7 +325,11 @@ void ASnowRumblePlayerController::HandleChatInputPressed()
 		return;
 	}
 
-	OpenChatInput(ESnowRumbleChatChannel::All);
+	const ESnowRumbleChatChannel InitialChannel =
+		ChatWidget && SupportsTeamChat()
+			? ChatWidget->GetActiveChatChannel()
+			: ESnowRumbleChatChannel::All;
+	OpenChatInput(InitialChannel);
 }
 
 void ASnowRumblePlayerController::HandleChatChannelTogglePressed()

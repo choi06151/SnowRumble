@@ -9,6 +9,7 @@
 
 class ULobbyEscapeMenuWidget;
 class ULobbyWidget;
+class UOptionsWidget;
 
 UCLASS(Blueprintable)
 class SNOWRUMBLE_API ALobbyPlayerController : public ASnowRumblePlayerController
@@ -56,6 +57,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby")
 	void RequestReturnToMainMenu();
 
+	/** 로비에서 공통 옵션 위젯을 연다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Options")
+	void ShowOptionsMenu();
+
+	/** 로비에서 공통 옵션 위젯을 닫고 ESC 메뉴 입력으로 돌아간다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Options")
+	void HideOptionsMenu();
+
 	/** 서버가 로비 입장 완료 후 소유 클라이언트의 저장 닉네임 제출을 요청한다. */
 	UFUNCTION(Client, Reliable)
 	void ClientRequestApplySavedLobbyPlayerName();
@@ -75,6 +84,10 @@ protected:
 	/** ESC를 눌렀을 때 자동 생성할 로비 전용 메뉴 WBP 클래스다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Lobby")
 	TSubclassOf<ULobbyEscapeMenuWidget> LobbyEscapeMenuWidgetClass;
+
+	/** 메인메뉴와 로비에서 공통으로 사용할 옵션 WBP 클래스다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Options")
+	TSubclassOf<UOptionsWidget> OptionsWidgetClass;
 
 	/** ESC 메뉴에서 메인메뉴로 이동할 때 사용할 travel URL이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Lobby")
@@ -99,9 +112,15 @@ private:
 	/** ESC 메뉴 위젯 인스턴스가 없으면 생성한다. */
 	ULobbyEscapeMenuWidget* EnsureLobbyEscapeMenuWidget();
 
+	/** 옵션 위젯 인스턴스가 없으면 생성한다. */
+	UOptionsWidget* EnsureOptionsWidget();
+
 	UPROPERTY(Transient)
 	TObjectPtr<ULobbyWidget> LobbyWidget;
 
 	UPROPERTY(Transient)
 	TObjectPtr<ULobbyEscapeMenuWidget> LobbyEscapeMenuWidget;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UOptionsWidget> OptionsWidget;
 };

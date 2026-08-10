@@ -4,12 +4,14 @@
 
 void USnowRumbleMatchSubsystem::BeginPvPMatch(
 	int32 InRoundLimit,
+	ESnowRumbleGameSpeed InGameSpeed,
 	const TArray<FString>& InPvPLevelPaths)
 {
 	bPvPMatchActive = true;
 	bMatchComplete = false;
 	CurrentRoundNumber = 1;
 	RoundLimit = NormalizeRoundLimit(InRoundLimit);
+	GameSpeed = InGameSpeed;
 	TeamRoundWins.Empty();
 	PvPLevelPaths.Empty();
 	LastSelectedPvPLevelPath.Empty();
@@ -29,6 +31,7 @@ void USnowRumbleMatchSubsystem::ResetPvPMatch()
 	bMatchComplete = false;
 	CurrentRoundNumber = 1;
 	RoundLimit = 1;
+	GameSpeed = ESnowRumbleGameSpeed::Normal;
 	PvPLevelPaths.Empty();
 	LastSelectedPvPLevelPath.Empty();
 	TeamRoundWins.Empty();
@@ -102,6 +105,26 @@ int32 USnowRumbleMatchSubsystem::GetCurrentRoundNumber() const
 int32 USnowRumbleMatchSubsystem::GetRoundLimit() const
 {
 	return RoundLimit;
+}
+
+ESnowRumbleGameSpeed USnowRumbleMatchSubsystem::GetGameSpeed() const
+{
+	return GameSpeed;
+}
+
+float USnowRumbleMatchSubsystem::GetMapShrinkIntervalSeconds(
+	ESnowRumbleGameSpeed InGameSpeed)
+{
+	switch (InGameSpeed)
+	{
+	case ESnowRumbleGameSpeed::Slow:
+		return 90.0f;
+	case ESnowRumbleGameSpeed::Fast:
+		return 30.0f;
+	case ESnowRumbleGameSpeed::Normal:
+	default:
+		return 60.0f;
+	}
 }
 
 int32 USnowRumbleMatchSubsystem::GetTeamRoundWinCount(

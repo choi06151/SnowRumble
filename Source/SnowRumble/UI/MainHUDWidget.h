@@ -20,6 +20,11 @@ class SNOWRUMBLE_API UMainHUDWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
+public:
+	/** HUD 이벤트 로그에 새 메시지를 추가한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Event Log")
+	void AddEventLogMessage(const FText& Message);
+
 protected:
 	/** HUD 생성 시 로컬 플레이어와 다른 플레이어 체력 바를 초기화한다. */
 	virtual void NativeConstruct() override;
@@ -61,6 +66,14 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> CurrentRoundText;
 
+	/** WBP에서 직접 배치한 현재 경기 시간 표시 TextBlock에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> MatchElapsedTimeText;
+
+	/** WBP에서 직접 배치한 다음 맵 축소 안내 TextBlock에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> MapShrinkCountdownText;
+
 	/** WBP에서 직접 배치한 라운드 종료 패널에 자동 연결된다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UPanelWidget> EndRoundPanel;
@@ -68,6 +81,14 @@ protected:
 	/** WBP에서 직접 배치한 라운드 종료 결과 TextBlock에 자동 연결된다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> EndRoundResultText;
+
+	/** WBP에서 직접 배치한 누적 이벤트 로그 TextBlock에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> EventLogText;
+
+	/** 이벤트 로그 한 줄이 화면에 유지되는 시간이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Event Log", meta = (ClampMin = "0.0"))
+	float EventLogEntryVisibleSeconds = 5.0f;
 
 	/** WBP에서 직접 배치한 빨강 팀 점수 TextBlock에 자동 연결된다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
@@ -146,11 +167,17 @@ private:
 	/** 현재 라운드 번호 표시를 현재 GameState에 맞게 갱신한다. */
 	void RefreshCurrentRoundPresentation();
 
+	/** 현재 경기 시간과 다음 맵 축소 안내를 현재 GameState에 맞게 갱신한다. */
+	void RefreshMatchTimerPresentation();
+
 	/** 라운드 종료 패널 표시를 현재 GameState에 맞게 갱신한다. */
 	void RefreshEndRoundPresentation();
 
 	/** 팀별 라운드 승리 점수 표시를 현재 GameState에 맞게 갱신한다. */
 	void RefreshTeamScorePresentation();
+
+	/** 만료된 이벤트 로그 줄을 제거하고 TextBlock을 갱신한다. */
+	void RefreshEventLogText();
 
 	/** 선택 바인딩된 점수 TextBlock 하나를 해당 팀 승수로 갱신한다. */
 	void SetTeamScoreText(UTextBlock* ScoreText, ESnowRumbleTeam Team) const;
@@ -178,4 +205,12 @@ private:
 
 	TMap<TWeakObjectPtr<ASnowRumbleCharacter>, TWeakObjectPtr<UHealthBarWidget>>
 		OtherPlayerHealthBars;
+
+	struct FEventLogEntry
+	{
+		FText Message;
+		double ExpireTimeSeconds = 0.0;
+	};
+
+	TArray<FEventLogEntry> EventLogEntries;
 };

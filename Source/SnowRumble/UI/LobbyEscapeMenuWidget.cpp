@@ -115,6 +115,10 @@ void ULobbyEscapeMenuWidget::HandleReturnToMainMenuButtonClicked()
 void ULobbyEscapeMenuWidget::HandleSettingsButtonClicked()
 {
 	OnSettingsRequested();
+	if (LobbyPlayerController)
+	{
+		LobbyPlayerController->ShowOptionsMenu();
+	}
 }
 
 void ULobbyEscapeMenuWidget::HandleInviteFriendsButtonClicked()

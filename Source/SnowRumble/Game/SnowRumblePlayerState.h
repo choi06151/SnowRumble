@@ -112,6 +112,9 @@ private:
 	/** 서버에서 변경된 대기방 플레이어 정보를 GameState와 UI에 알린다. */
 	void BroadcastLobbyPlayerChanged();
 
+	/** 서버가 모든 로비 참가자에게 이벤트 로그 메시지를 보낸다. */
+	void BroadcastLobbyEventLogMessage(const FText& Message) const;
+
 	/** 서버에 저장하기 전에 플레이어 이름 길이와 공백을 정리한다. */
 	FString SanitizeLobbyPlayerName(const FString& NewName) const;
 
@@ -126,4 +129,6 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_LobbyHost)
 	bool bLobbyHost = false;
+
+	bool bLobbyJoinAnnouncementSent = false;
 };

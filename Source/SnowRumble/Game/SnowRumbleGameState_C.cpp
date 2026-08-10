@@ -16,7 +16,38 @@ void ASnowRumbleGameState::StartMatchCountdownFromServer(
 	MatchStartCountdownSeconds = FMath::Max(0.0f, CountdownSeconds);
 	MatchStartServerTime =
 		GetServerWorldTimeSeconds() + MatchStartCountdownSeconds;
+	RoundStartServerTime = MatchStartServerTime;
+	NextMapShrinkServerTime = RoundStartServerTime
+		+ GetMapShrinkIntervalSeconds();
 	bStartCountdownActive = true;
+	ForceNetUpdate();
+}
+
+void ASnowRumbleGameState::StartMapShrinkFromServer(
+	float ShrinkDurationSeconds)
+{
+	if (!HasAuthority() || bRoundEnded || bMapShrinkInProgress)
+	{
+		return;
+	}
+
+	bMapShrinkInProgress = true;
+	MapShrinkStartedServerTime = GetServerWorldTimeSeconds();
+	MapShrinkDurationSeconds = FMath::Max(0.0f, ShrinkDurationSeconds);
+	NextMapShrinkServerTime = MapShrinkStartedServerTime;
+	ForceNetUpdate();
+}
+
+void ASnowRumbleGameState::CompleteMapShrinkFromServer()
+{
+	if (!HasAuthority() || bRoundEnded || !bMapShrinkInProgress)
+	{
+		return;
+	}
+
+	bMapShrinkInProgress = false;
+	NextMapShrinkServerTime =
+		GetServerWorldTimeSeconds() + GetMapShrinkIntervalSeconds();
 	ForceNetUpdate();
 }
 
@@ -50,6 +81,7 @@ void ASnowRumbleGameState::ApplyMatchStateFromServer(
 
 	CurrentRoundNumber = MatchSubsystem->GetCurrentRoundNumber();
 	RoundLimit = MatchSubsystem->GetRoundLimit();
+	GameSpeed = MatchSubsystem->GetGameSpeed();
 	bMatchEnded = MatchSubsystem->IsMatchComplete();
 	MatchWinningTeam = bMatchEnded
 		? MatchSubsystem->GetLeadingTeam()
@@ -145,6 +177,76 @@ FText ASnowRumbleGameState::GetStartCountdownText() const
 	return FText::AsNumber(DisplaySeconds);
 }
 
+float ASnowRumbleGameState::GetRoundElapsedSeconds() const
+{
+	if (!bStartCountdownActive || RoundStartServerTime <= 0.0f)
+	{
+		return 0.0f;
+	}
+
+	return FMath::Max(
+		0.0f,
+		GetServerWorldTimeSeconds() - RoundStartServerTime);
+}
+
+FText ASnowRumbleGameState::GetRoundElapsedTimeText() const
+{
+	return FText::Format(
+		NSLOCTEXT("SnowRumble", "RoundElapsedTimeFormat", "경기 시간 {0}"),
+		FormatSecondsAsClock(GetRoundElapsedSeconds()));
+}
+
+float ASnowRumbleGameState::GetSecondsUntilNextMapShrink() const
+{
+	if (bMapShrinkInProgress)
+	{
+		return 0.0f;
+	}
+	if (!bStartCountdownActive || NextMapShrinkServerTime <= 0.0f)
+	{
+		return GetMapShrinkIntervalSeconds();
+	}
+
+	return FMath::Max(
+		0.0f,
+		NextMapShrinkServerTime - GetServerWorldTimeSeconds());
+}
+
+FText ASnowRumbleGameState::GetMapShrinkCountdownText() const
+{
+	if (bMapShrinkInProgress)
+	{
+		return NSLOCTEXT(
+			"SnowRumble",
+			"MapShrinkInProgressText",
+			"맵이 축소됩니다!");
+	}
+
+	const int32 DisplaySeconds =
+		FMath::Max(0, FMath::CeilToInt(GetSecondsUntilNextMapShrink()));
+	return FText::Format(
+		NSLOCTEXT(
+			"SnowRumble",
+			"MapShrinkCountdownFormat",
+			"{0}초 후 맵이 축소됩니다"),
+		FText::AsNumber(DisplaySeconds));
+}
+
+bool ASnowRumbleGameState::IsMapShrinkInProgress() const
+{
+	return bMapShrinkInProgress;
+}
+
+ESnowRumbleGameSpeed ASnowRumbleGameState::GetGameSpeed() const
+{
+	return GameSpeed;
+}
+
+float ASnowRumbleGameState::GetMapShrinkIntervalSeconds() const
+{
+	return USnowRumbleMatchSubsystem::GetMapShrinkIntervalSeconds(GameSpeed);
+}
+
 void ASnowRumbleGameState::GetLifetimeReplicatedProps(
 	TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -153,6 +255,12 @@ void ASnowRumbleGameState::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ASnowRumbleGameState, bStartCountdownActive);
 	DOREPLIFETIME(ASnowRumbleGameState, MatchStartServerTime);
 	DOREPLIFETIME(ASnowRumbleGameState, MatchStartCountdownSeconds);
+	DOREPLIFETIME(ASnowRumbleGameState, RoundStartServerTime);
+	DOREPLIFETIME(ASnowRumbleGameState, NextMapShrinkServerTime);
+	DOREPLIFETIME(ASnowRumbleGameState, MapShrinkStartedServerTime);
+	DOREPLIFETIME(ASnowRumbleGameState, MapShrinkDurationSeconds);
+	DOREPLIFETIME(ASnowRumbleGameState, bMapShrinkInProgress);
+	DOREPLIFETIME(ASnowRumbleGameState, GameSpeed);
 	DOREPLIFETIME(ASnowRumbleGameState, bRoundEnded);
 	DOREPLIFETIME(ASnowRumbleGameState, RoundWinningTeam);
 	DOREPLIFETIME(ASnowRumbleGameState, RedTeamRoundWins);
@@ -172,6 +280,17 @@ void ASnowRumbleGameState::GetLifetimeReplicatedProps(
 float ASnowRumbleGameState::GetSecondsUntilMatchStart() const
 {
 	return MatchStartServerTime - GetServerWorldTimeSeconds();
+}
+
+FText ASnowRumbleGameState::FormatSecondsAsClock(float Seconds) const
+{
+	const int32 TotalSeconds = FMath::Max(0, FMath::FloorToInt(Seconds));
+	const int32 Minutes = TotalSeconds / 60;
+	const int32 RemainingSeconds = TotalSeconds % 60;
+	return FText::FromString(FString::Printf(
+		TEXT("%d:%02d"),
+		Minutes,
+		RemainingSeconds));
 }
 
 void ASnowRumbleGameState::OnRep_RoundResult()

@@ -36,6 +36,7 @@ void UChatWidget::NativeConstruct()
 	Super::NativeConstruct();
 
 	SetIsFocusable(true);
+	ShowChatLog();
 	if (ChatInputTextBox)
 	{
 		ChatInputTextBox->OnTextCommitted.AddUniqueDynamic(
@@ -61,6 +62,28 @@ void UChatWidget::NativeDestruct()
 	}
 
 	Super::NativeDestruct();
+}
+
+void UChatWidget::NativeTick(
+	const FGeometry& MyGeometry,
+	float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	RefreshChatVisibility();
+}
+
+FReply UChatWidget::NativeOnPreviewKeyDown(
+	const FGeometry& InGeometry,
+	const FKeyEvent& InKeyEvent)
+{
+	if (bChatInputOpen && InKeyEvent.GetKey() == EKeys::Tab)
+	{
+		ToggleChatChannel();
+		return FReply::Handled();
+	}
+
+	return Super::NativeOnPreviewKeyDown(InGeometry, InKeyEvent);
 }
 
 FReply UChatWidget::NativeOnKeyDown(
@@ -96,6 +119,7 @@ void UChatWidget::OpenChatInput(ESnowRumbleChatChannel InitialChannel)
 {
 	SetActiveChatChannel(InitialChannel);
 	bChatInputOpen = true;
+	ShowChatLog();
 
 	if (ChatInputTextBox)
 	{
@@ -144,6 +168,8 @@ void UChatWidget::AddChatMessage(
 	const FString& SenderName,
 	const FString& Message)
 {
+	ShowChatLog();
+
 	const FText DisplayText = FText::Format(
 		NSLOCTEXT("SnowRumble", "ChatMessageFormat", "[{0}] {1}: {2}"),
 		GetChatChannelText(Channel),
@@ -160,7 +186,7 @@ void UChatWidget::AddChatMessage(
 	{
 		ChatLogText->SetText(FText::FromString(ChatLog));
 	}
-	AddMessageTextRow(DisplayText);
+	AddMessageTextRow(Channel, DisplayText);
 
 	OnChatMessageAdded(Channel, SenderName, Message, DisplayText);
 }
@@ -272,7 +298,47 @@ void UChatWidget::RefreshChatLogChrome()
 	}
 }
 
-void UChatWidget::AddMessageTextRow(const FText& DisplayText)
+void UChatWidget::RefreshChatVisibility()
+{
+	if (bChatInputOpen)
+	{
+		SetRenderOpacity(1.0f);
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const float ElapsedTime =
+		World->GetTimeSeconds() - LastChatVisibilityRefreshTime;
+	if (ElapsedTime <= ChatVisibleDuration)
+	{
+		SetRenderOpacity(1.0f);
+		return;
+	}
+
+	const float FadeAlpha = FMath::Clamp(
+		(ElapsedTime - ChatVisibleDuration) / ChatFadeOutDuration,
+		0.0f,
+		1.0f);
+	SetRenderOpacity(1.0f - FadeAlpha);
+}
+
+void UChatWidget::ShowChatLog()
+{
+	if (const UWorld* World = GetWorld())
+	{
+		LastChatVisibilityRefreshTime = World->GetTimeSeconds();
+	}
+	SetRenderOpacity(1.0f);
+}
+
+void UChatWidget::AddMessageTextRow(
+	ESnowRumbleChatChannel Channel,
+	const FText& DisplayText)
 {
 	if (!ChatLogScrollBox || !WidgetTree)
 	{
@@ -290,6 +356,11 @@ void UChatWidget::AddMessageTextRow(const FText& DisplayText)
 
 	MessageTextBlock->SetText(DisplayText);
 	MessageTextBlock->SetFont(ChatMessageFont);
+	MessageTextBlock->SetColorAndOpacity(
+		FSlateColor(
+			Channel == ESnowRumbleChatChannel::Team
+				? TeamChatMessageColor
+				: AllChatMessageColor));
 	MessageTextBlock->SetAutoWrapText(true);
 	ChatLogScrollBox->AddChild(MessageTextBlock);
 	if (!bChatInputOpen)

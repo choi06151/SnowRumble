@@ -85,7 +85,9 @@
 | C-16 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), HUD WBP 배치: 사용자/S 인계 | `Tasks/C/C-16_teammate_health_hud.md`, `Tasks/C/PLAN_C.md`, `Tasks/C/ROLE_C.md`, `docs/PLANS.md`, `Source/SnowRumble/UI/MainHUDWidget.*` | 완료 |
 | C-17 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 카운트다운 WBP 표시 배치: 사용자/S 인계 | `Tasks/C/C-17_pvp_start_countdown.md`, `Tasks/C/PLAN_C.md`, `Tasks/C/ROLE_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Game/SnowRumbleGameState_C.*`, `Source/SnowRumble/Game/SnowRumbleGameMode.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/UI/MainHUDWidget.*` | 진행중 |
 | C-18 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), Steam App ID·테스트 계정·빌드 환경: 사용자 확인 | `Tasks/C/C-18_steam_session_integration.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Config/DefaultEngine.ini`, `Source/SnowRumble/Online/SnowRumbleSessionSubsystem.*`, `Source/SnowRumble/UI/LobbyEscapeMenuWidget.*`, `Source/SnowRumble/UI/MainMenuWidget.*`, `Source/SnowRumble/UI/LobbyPlayerController.*` | 예정 |
-| C-19 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 채팅 WBP 배치·스타일: 사용자/S 인계 | `Tasks/C/C-19_text_chat.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/UI/ChatWidget_C.*`, `Source/SnowRumble/UI/SnowRumblePlayerController.*`, `Source/SnowRumble/UI/LobbyPlayerController.*` | 완료 |
+| C-19 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 채팅 WBP 배치·스타일: 사용자/S 인계 | `Tasks/C/C-19_text_chat.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/UI/ChatWidget_C.*`, `Source/SnowRumble/UI/SnowRumblePlayerController.*`, `Source/SnowRumble/UI/LobbyPlayerController.*` | 진행중 |
+| C-20 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 로비/HUD 로그 WBP 배치·스타일: 사용자/S 인계 | `Tasks/C/C-20_event_log_ui.md`, `Tasks/C/ROLE_C.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/UI/SnowRumblePlayerController.*`, `Source/SnowRumble/UI/LobbyWidget.*`, `Source/SnowRumble/UI/MainHUDWidget.*`, `Source/SnowRumble/Game/SnowRumblePlayerState.*`, `Source/SnowRumble/Game/SnowRumbleGameMode.*` | 진행중 |
+| C-21 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 옵션 WBP 배치·스타일: 사용자/S 인계 | `Tasks/C/C-21_options_menu.md`, `Tasks/C/ROLE_C.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/UI/OptionsWidget_C.*`, `Source/SnowRumble/UI/OptionsKeyBindingRowWidget_C.*`, `Source/SnowRumble/UI/MainMenuWidget.*`, `Source/SnowRumble/UI/MainMenuPlayerController.*`, `Source/SnowRumble/UI/LobbyEscapeMenuWidget.*`, `Source/SnowRumble/UI/LobbyPlayerController.*`, `Source/SnowRumble/UI/SnowRumblePlayerController.*`, `Source/SnowRumble/Player/SnowRumbleUserSettingsSubsystem_C.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*` | 진행중 |
 
 ## 상태 범례
 
@@ -107,3 +109,11 @@
 - 2026-08-10: C-19 전체/팀 텍스트 채팅 계약을 추가함. `ASnowRumblePlayerController`가 Enter 입력, 서버 검증, 전체/팀 라우팅을 맡고 `UChatWidget` WBP 부모를 로비·PvP·추후 모드에서 재사용하게 함.
 - 2026-08-10: C-19 채팅 채널 정책을 조정함. 로비는 전체 채팅만 허용하고, PvP와 추후 모드는 채팅 입력 중 Tab으로 전체/팀 채팅을 전환하게 함.
 - 2026-08-10: C-19 채팅 입력 UX를 완료함. Enter 입력 시 TextBox 포커스, Enter 제출 후 GameOnly 복귀, 입력 중 스크롤, 채널 표시, 로그 스크롤바와 테두리 표시 정책을 정리하고 빌드 통과 후 완료 처리함.
+- 2026-08-10: C-19 채팅 로그 표시 수명주기를 추가함. 마지막 채팅 갱신 또는 Enter 입력 후 5초 동안 표시하고 이후 서서히 사라지며, Enter 입력이나 새 메시지 수신 시 즉시 다시 표시함.
+- 2026-08-10: C-20 이벤트 로그 UI 계약을 추가함. 로비/HUD WBP는 `EventLogText` 선택 바인딩을 통해 누적 로그를 표시하고, 서버 이벤트는 `ASnowRumblePlayerController::ClientReceiveEventLogMessage()`로 각 클라이언트에 전달함.
+- 2026-08-10: C-21 옵션 메뉴 기능 정의를 추가함. 옵션은 메인메뉴와 로비에서 같은 WBP로 열고, PvP와 눈사람 모드에서는 ESC 옵션 메뉴를 열지 않는 정책으로 정리함.
+- 2026-08-10: C-21 옵션 WBP 부모 `UOptionsWidget`을 추가함. 상단 카테고리 버튼 4개와 하단 `OptionsContentSwitcher` 인덱스 0 감도, 1 사운드, 2 키 설정, 3 마이크 구조를 제공함.
+- 2026-08-11: C-21 메인메뉴와 로비 옵션 진입 연결을 추가함. 메인메뉴 `SettingsButton`과 로비 ESC 메뉴 `SettingsButton`은 각 PlayerController의 `OptionsWidgetClass`로 같은 옵션 WBP를 열 수 있음.
+- 2026-08-11: C-21 옵션 WBP 포커스 경고를 막기 위해 `UOptionsWidget` 기본 포커스를 생성자와 런타임 구성 단계에서 활성화하고, 키바인딩 패널 표시용 `UOptionsKeyBindingRowWidget` 부모와 기본 조작 목록 계약을 추가함.
+- 2026-08-11: C-21 키바인딩 행의 변경 버튼을 누르면 다음 키보드/마우스 버튼 입력을 캡처해 UI 할당값을 변경하고, `Esc` 입력으로 대기 상태를 취소하게 함.
+- 2026-08-11: C-21 키바인딩 변경값을 로컬 사용자 설정에 저장하고, 캐릭터 Enhanced Input 매핑과 채팅 열기 직접 키 바인딩에 실제 적용하게 함.

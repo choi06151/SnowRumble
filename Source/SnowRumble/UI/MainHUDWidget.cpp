@@ -40,8 +40,10 @@ void UMainHUDWidget::NativeConstruct()
 	RefreshCombatHudPresentation();
 	RefreshStartCountdownPresentation();
 	RefreshCurrentRoundPresentation();
+	RefreshMatchTimerPresentation();
 	RefreshEndRoundPresentation();
 	RefreshTeamScorePresentation();
+	RefreshEventLogText();
 }
 
 void UMainHUDWidget::NativeTick(
@@ -54,8 +56,27 @@ void UMainHUDWidget::NativeTick(
 	RefreshCombatHudPresentation();
 	RefreshStartCountdownPresentation();
 	RefreshCurrentRoundPresentation();
+	RefreshMatchTimerPresentation();
 	RefreshEndRoundPresentation();
 	RefreshTeamScorePresentation();
+	RefreshEventLogText();
+}
+
+void UMainHUDWidget::AddEventLogMessage(const FText& Message)
+{
+	if (Message.IsEmpty())
+	{
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	FEventLogEntry NewEntry;
+	NewEntry.Message = Message;
+	NewEntry.ExpireTimeSeconds = World
+		? World->GetTimeSeconds() + EventLogEntryVisibleSeconds
+		: EventLogEntryVisibleSeconds;
+	EventLogEntries.Add(NewEntry);
+	RefreshEventLogText();
 }
 
 void UMainHUDWidget::RefreshHealthBars()
@@ -230,6 +251,53 @@ void UMainHUDWidget::RefreshCurrentRoundPresentation()
 	CurrentRoundText->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 }
 
+void UMainHUDWidget::RefreshMatchTimerPresentation()
+{
+	if (!MatchElapsedTimeText && !MapShrinkCountdownText)
+	{
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	const ASnowRumbleGameState* SnowRumbleGameState = World
+		? World->GetGameState<ASnowRumbleGameState>()
+		: nullptr;
+	const bool bShouldShowMatchTimers =
+		SnowRumbleGameState
+		&& !SnowRumbleGameState->IsMatchInputLocked()
+		&& !SnowRumbleGameState->IsRoundEnded();
+
+	if (MatchElapsedTimeText)
+	{
+		if (bShouldShowMatchTimers)
+		{
+			MatchElapsedTimeText->SetText(
+				SnowRumbleGameState->GetRoundElapsedTimeText());
+			MatchElapsedTimeText->SetVisibility(
+				ESlateVisibility::SelfHitTestInvisible);
+		}
+		else
+		{
+			MatchElapsedTimeText->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+
+	if (MapShrinkCountdownText)
+	{
+		if (bShouldShowMatchTimers)
+		{
+			MapShrinkCountdownText->SetText(
+				SnowRumbleGameState->GetMapShrinkCountdownText());
+			MapShrinkCountdownText->SetVisibility(
+				ESlateVisibility::SelfHitTestInvisible);
+		}
+		else
+		{
+			MapShrinkCountdownText->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+}
+
 void UMainHUDWidget::RefreshEndRoundPresentation()
 {
 	if (!EndRoundPanel && !EndRoundResultText)
@@ -308,6 +376,42 @@ void UMainHUDWidget::RefreshTeamScorePresentation()
 		}
 
 	}
+}
+
+void UMainHUDWidget::RefreshEventLogText()
+{
+	if (!EventLogText)
+	{
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	const double CurrentTimeSeconds = World ? World->GetTimeSeconds() : 0.0;
+	EventLogEntries.RemoveAll(
+		[CurrentTimeSeconds](const FEventLogEntry& Entry)
+		{
+			return Entry.ExpireTimeSeconds <= CurrentTimeSeconds;
+		});
+
+	if (EventLogEntries.IsEmpty())
+	{
+		EventLogText->SetText(FText::GetEmpty());
+		EventLogText->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
+	FString CombinedLog;
+	for (const FEventLogEntry& Entry : EventLogEntries)
+	{
+		if (!CombinedLog.IsEmpty())
+		{
+			CombinedLog += LINE_TERMINATOR;
+		}
+		CombinedLog += Entry.Message.ToString();
+	}
+
+	EventLogText->SetText(FText::FromString(CombinedLog));
+	EventLogText->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 }
 
 void UMainHUDWidget::SetTeamScoreText(

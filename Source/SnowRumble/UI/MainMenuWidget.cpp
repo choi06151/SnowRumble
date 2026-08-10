@@ -8,6 +8,7 @@
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "Engine/GameInstance.h"
+#include "MainMenuPlayerController.h"
 
 const TArray<FSnowRumbleSessionInfo> UMainMenuWidget::EmptyResults;
 
@@ -155,6 +156,15 @@ void UMainMenuWidget::HandleFindButtonClicked()
 	OnRoomCodeJoinPromptRequested();
 }
 
+void UMainMenuWidget::HandleSettingsButtonClicked()
+{
+	if (AMainMenuPlayerController* MainMenuPlayerController =
+		Cast<AMainMenuPlayerController>(GetOwningPlayer()))
+	{
+		MainMenuPlayerController->ShowOptionsMenu();
+	}
+}
+
 void UMainMenuWidget::HandleConfirmRoomCodeJoinClicked()
 {
 	const FString RoomCode = RoomCodeTextBox
@@ -191,6 +201,13 @@ void UMainMenuWidget::BindMenuButtons()
 			&UMainMenuWidget::HandleFindButtonClicked);
 	}
 
+	if (SettingsButton)
+	{
+		SettingsButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UMainMenuWidget::HandleSettingsButtonClicked);
+	}
+
 	if (ConfirmRoomCodeJoinButton)
 	{
 		ConfirmRoomCodeJoinButton->OnClicked.AddUniqueDynamic(
@@ -221,6 +238,11 @@ void UMainMenuWidget::UnbindMenuButtons()
 	if (FindButton)
 	{
 		FindButton->OnClicked.RemoveAll(this);
+	}
+
+	if (SettingsButton)
+	{
+		SettingsButton->OnClicked.RemoveAll(this);
 	}
 
 	if (ConfirmRoomCodeJoinButton)

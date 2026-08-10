@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "SnowRumbleMatchSubsystem_C.h"
 #include "GameFramework/GameStateBase.h"
 #include "SnowRumbleLobbyGameState.generated.h"
 
@@ -60,11 +61,18 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Lobby")
 	int32 GetMatchRoundLimit() const;
 
+	/** 로비에서 선택한 게임 속도를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Lobby")
+	ESnowRumbleGameSpeed GetGameSpeed() const;
+
 	/** 서버가 현재 로비 게임 모드를 변경한다. */
 	void SetLobbyModeFromServer(ESnowRumbleLobbyMode NewLobbyMode);
 
 	/** 서버가 PvP 총 라운드 수를 1, 3, 5 중 하나로 변경한다. */
 	void SetMatchRoundLimitFromServer(int32 NewRoundLimit);
+
+	/** 서버가 PvP 게임 속도를 변경한다. */
+	void SetGameSpeedFromServer(ESnowRumbleGameSpeed NewGameSpeed);
 
 	virtual void GetLifetimeReplicatedProps(
 		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -84,6 +92,10 @@ protected:
 	UFUNCTION()
 	void OnRep_MatchRoundLimit();
 
+	/** 복제된 게임 속도 변경을 UI에 알린다. */
+	UFUNCTION()
+	void OnRep_GameSpeed();
+
 private:
 	int32 NormalizeRoundLimit(int32 NewRoundLimit) const;
 
@@ -92,4 +104,7 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_MatchRoundLimit)
 	int32 MatchRoundLimit = 1;
+
+	UPROPERTY(ReplicatedUsing = OnRep_GameSpeed)
+	ESnowRumbleGameSpeed GameSpeed = ESnowRumbleGameSpeed::Normal;
 };
