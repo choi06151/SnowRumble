@@ -33,6 +33,7 @@
 #include "InputActionValue.h"
 #include "InputMappingContext.h"
 #include "InputCoreTypes.h"
+#include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "NiagaraComponent.h"
 #include "TimerManager.h"
@@ -107,7 +108,7 @@ ASnowRumbleCharacter::ASnowRumbleCharacter()
 	OverheadNameplateComponent =
 		CreateDefaultSubobject<UWidgetComponent>(TEXT("OverheadNameplateComponent"));
 	OverheadNameplateComponent->SetupAttachment(RootComponent);
-	OverheadNameplateComponent->SetWidgetSpace(EWidgetSpace::Screen);
+	OverheadNameplateComponent->SetWidgetSpace(EWidgetSpace::World);
 	OverheadNameplateComponent->SetDrawAtDesiredSize(true);
 	OverheadNameplateComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
@@ -180,6 +181,7 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 	}
 
 	DrawRollingSnowballCollisionDebug();
+	RefreshOverheadNameplateFacing();
 	RefreshPvpMatchInputLock();
 	ApplyMovementSpeed();
 	RefreshLocalSnowEffect();
@@ -664,10 +666,40 @@ void ASnowRumbleCharacter::RefreshOverheadNameplateComponentSettings()
 	}
 
 	OverheadNameplateComponent->SetRelativeLocation(OverheadNameRelativeLocation);
+	OverheadNameplateComponent->SetWidgetSpace(EWidgetSpace::World);
+	OverheadNameplateComponent->SetDrawAtDesiredSize(true);
+	OverheadNameplateComponent->SetDrawSize(OverheadNameplateDrawSize);
+	const float SafeWorldScale = FMath::Max(0.001f, OverheadNameplateWorldScale);
+	OverheadNameplateComponent->SetRelativeScale3D(
+		FVector(SafeWorldScale, SafeWorldScale, SafeWorldScale));
 	if (OverheadNameplateWidgetClass)
 	{
 		OverheadNameplateComponent->SetWidgetClass(OverheadNameplateWidgetClass);
 	}
+}
+
+void ASnowRumbleCharacter::RefreshOverheadNameplateFacing()
+{
+	if (!OverheadNameplateComponent)
+	{
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	const APlayerCameraManager* CameraManager = World
+		? UGameplayStatics::GetPlayerCameraManager(World, 0)
+		: nullptr;
+	if (!CameraManager)
+	{
+		return;
+	}
+
+	const FVector NameplateLocation =
+		OverheadNameplateComponent->GetComponentLocation();
+	const FVector CameraLocation = CameraManager->GetCameraLocation();
+	const FRotator LookAtCameraRotation =
+		(CameraLocation - NameplateLocation).Rotation();
+	OverheadNameplateComponent->SetWorldRotation(LookAtCameraRotation);
 }
 
 void ASnowRumbleCharacter::RefreshOverheadPlayerName()
@@ -1699,8 +1731,10 @@ void ASnowRumbleCharacter::RefreshPvpMatchInputLock()
 
 	if (bPvpMatchInputIgnoreApplied && !FocusedLobbyBoard)
 	{
-		PlayerController->SetIgnoreMoveInput(false);
-		PlayerController->SetIgnoreLookInput(false);
+		PlayerController->ResetIgnoreMoveInput();
+		PlayerController->ResetIgnoreLookInput();
+		PlayerController->SetInputMode(FInputModeGameOnly());
+		PlayerController->SetShowMouseCursor(false);
 		bPvpMatchInputIgnoreApplied = false;
 	}
 }

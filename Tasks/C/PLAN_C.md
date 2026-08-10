@@ -9,7 +9,7 @@
 
 ## 현재 집중 Task
 
-- [C-05](C-05_round_match_flow.md) 3판 2선승 경기 흐름
+- [C-05](C-05_round_match_flow.md) 1/3/5 라운드 매치 흐름
 
 ## 개발 스타일
 
@@ -29,7 +29,7 @@
 | 4 | [C-15](C-15_lobby_board_interaction.md) | 로비 게시판 상호작용 | 기존 입력·outline | 진행중 |
 | 5 | [C-06](C-06_freeze_death_spectate.md) | 얼음·사망·관전 | C-01 | 진행중 |
 | 6 | [C-07](C-07_shared_effect_contracts.md) | 피해·회복·무적·능력 보정 계약 | C-06 | 예정 |
-| 7 | [C-04](C-04_random_map_loading.md) | 랜덤 맵과 로딩 | C-03 | 예정 |
+| 7 | [C-04](C-04_random_map_loading.md) | 랜덤 맵과 로딩 | C-03 | 진행중 |
 | 8 | [C-08](C-08_spawn_intro_identity.md) | 팀 식별 데이터 | C-03 | 진행중 |
 | 9 | [C-09](C-09_snow_combat_completion.md) | 눈 전투 완성 | C-01, C-07 | 예정 |
 | 10 | [C-05](C-05_round_match_flow.md) | 3판 2선승 경기 흐름 | C-04, C-06 | 진행중 |
@@ -40,6 +40,7 @@
 | 15 | [C-12](C-12_mvp_integration.md) | MVP 최종 통합 | 모든 파트 통합 Task | 예정 |
 | 16 | [C-16](C-16_teammate_health_hud.md) | 팀원 HP HUD | C-03·기존 HP UI | 완료 |
 | 17 | [C-17](C-17_pvp_start_countdown.md) | PvP 시작 카운트다운 | C-15·기존 HUD·캐릭터 입력 | 진행중 |
+| 18 | [C-18](C-18_steam_session_integration.md) | Steam 세션 최종 통합 | LAN 기반 MVP 흐름 안정화·Steam 테스트 환경 | 예정 |
 
 ## 통합 변경 요청
 
@@ -107,3 +108,14 @@
 - 2026-08-10: 사용자가 PvP 종료 조건의 선행으로 얼음 60초 후 사망을 요청해 C-06을 진행중으로 전환했다. HP 0에서 60초 얼음 타이머를 시작하고 만료 시 라운드 사망 상태를 복제하는 첫 범위를 구현했다.
 - 2026-08-10: 사용자가 PvP 종료 조건을 요청해 C-05 단일 라운드 종료 판정을 진행중으로 전환했다. 얼음/사망 상태가 아닌 생존 플레이어가 한 팀 색에만 남으면 라운드 종료와 승리 팀 복제를 확정한다.
 - 2026-08-10: 라운드 종료 시 HUD WBP가 표시할 `EndRoundPanel`과 `EndRoundResultText` 선택 바인딩을 추가했다.
+- 2026-08-10: C-17 `시작!` 이후 입력 잠금이 풀리지 않는 문제를 수정했다. 카운트다운 종료 시 PlayerController move/look ignore 카운터를 reset하고 PvP 게임 입력 모드로 복구한다.
+- 2026-08-10: C-17 입력 잠금이 계속 남는 추가 원인을 수정했다. PvP 스폰 중 첫 팀 Pawn만 생존한 순간 C-05 라운드 종료가 조기 확정되지 않도록, 시작 전 입력 잠금 중에는 `EvaluateRoundEndCondition()`이 판정을 건너뛰게 했다.
+- 2026-08-10: C-05 팀별 승리 점수 HUD 계약을 추가했다. 라운드 승리 팀 점수를 GameState가 1점 올려 복제하고, `WBP_MainHUDWidget`의 팀별 ScoreText 선택 바인딩으로 표시한다.
+- 2026-08-10: C-05 팀 점수 HUD를 참가 팀만 보이게 확장했다. 팀별 Row 또는 ScoreText는 현재 참가 팀 기준으로 표시되고 점수 내림차순으로 같은 VerticalBox 안에서 재배치된다.
+- 2026-08-10: C-05 팀 점수 Row 탐색을 보강했다. `*TeamScoreRow` 이름의 HorizontalBox를 WidgetTree에서 직접 찾아 Row 전체를 숨김·정렬 대상으로 쓴다.
+- 2026-08-10: C-05 팀 점수 Row 정렬을 VerticalBox 전용으로 보강했다. Row의 직접 부모가 VerticalBox일 때만 `AddChildToVerticalBox()`로 재배치한다.
+- 2026-08-10: C-05 팀 점수 Row 정렬을 `ShiftChild()` 방식으로 변경했다. 기존 슬롯을 유지해 Row 겹침 가능성을 줄이고, 참가 팀 ScoreText visibility를 복구한다.
+- 2026-08-10: C-08 머리 위 이름표를 Screen space에서 World space로 전환했다. 이름표가 로컬 카메라를 향하고 거리감에 따라 자연스럽게 크기가 달라지도록 했다.
+- 2026-08-10: 사용자가 PvP 레벨 후보 지정과 랜덤 진입을 요청해 C-04를 진행중으로 전환했다. `ASnowRumbleLobbyGameMode`에 `PvPLevelCandidates` 후보 배열과 서버 랜덤 선택 travel URL 생성을 추가했다.
+- 2026-08-10: 사용자가 로비 설정 기반 1/3/5 라운드와 라운드 사이 랜덤 PvP 맵 변경을 요청해 C-05 범위를 확장했다. `USnowRumbleMatchSubsystem`이 travel 사이 매치 누적 점수를 유지하고, 남은 라운드가 있으면 다음 PvP 후보 맵으로 이동하며, 마지막 라운드 후 매치 1등 팀을 복제한다.
+- 2026-08-10: Steam 출시는 최종 목표로 유지하되 현재 개발과 테스트는 LAN/NULL 세션으로 계속 진행하기로 결정했다. Steam 세션, Overlay 친구 초대, 초대 수락과 세션 정리는 C-18 최종 통합 Task로 분리하고, 앞으로 UI·PvP·로비 코드는 세션 구현 세부사항에 직접 의존하지 않도록 공개 세션 계약을 통해 개발한다.

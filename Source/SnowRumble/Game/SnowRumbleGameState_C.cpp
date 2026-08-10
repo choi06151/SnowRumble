@@ -3,6 +3,7 @@
 #include "SnowRumbleGameState_C.h"
 
 #include "Net/UnrealNetwork.h"
+#include "SnowRumbleMatchSubsystem_C.h"
 
 void ASnowRumbleGameState::StartMatchCountdownFromServer(
 	float CountdownSeconds)
@@ -19,7 +20,9 @@ void ASnowRumbleGameState::StartMatchCountdownFromServer(
 	ForceNetUpdate();
 }
 
-void ASnowRumbleGameState::EndRoundFromServer(ESnowRumbleTeam WinningTeam)
+void ASnowRumbleGameState::EndRoundFromServer(
+	ESnowRumbleTeam WinningTeam,
+	const USnowRumbleMatchSubsystem* MatchSubsystem)
 {
 	if (!HasAuthority() || bRoundEnded || WinningTeam == ESnowRumbleTeam::None)
 	{
@@ -28,7 +31,30 @@ void ASnowRumbleGameState::EndRoundFromServer(ESnowRumbleTeam WinningTeam)
 
 	bRoundEnded = true;
 	RoundWinningTeam = WinningTeam;
+	ApplyMatchStateFromServer(MatchSubsystem);
+	if (bMatchEnded && MatchWinningTeam == ESnowRumbleTeam::None)
+	{
+		MatchWinningTeam = WinningTeam;
+	}
 	OnRep_RoundResult();
+	ForceNetUpdate();
+}
+
+void ASnowRumbleGameState::ApplyMatchStateFromServer(
+	const USnowRumbleMatchSubsystem* MatchSubsystem)
+{
+	if (!HasAuthority() || !MatchSubsystem)
+	{
+		return;
+	}
+
+	CurrentRoundNumber = MatchSubsystem->GetCurrentRoundNumber();
+	RoundLimit = MatchSubsystem->GetRoundLimit();
+	bMatchEnded = MatchSubsystem->IsMatchComplete();
+	MatchWinningTeam = bMatchEnded
+		? MatchSubsystem->GetLeadingTeam()
+		: ESnowRumbleTeam::None;
+	CopyRoundWinsFromMatchSubsystem(MatchSubsystem);
 	ForceNetUpdate();
 }
 
@@ -47,6 +73,52 @@ bool ASnowRumbleGameState::IsRoundEnded() const
 ESnowRumbleTeam ASnowRumbleGameState::GetRoundWinningTeam() const
 {
 	return RoundWinningTeam;
+}
+
+int32 ASnowRumbleGameState::GetTeamRoundWinCount(
+	ESnowRumbleTeam Team) const
+{
+	switch (Team)
+	{
+	case ESnowRumbleTeam::Red:
+		return RedTeamRoundWins;
+	case ESnowRumbleTeam::Sky:
+		return SkyTeamRoundWins;
+	case ESnowRumbleTeam::Green:
+		return GreenTeamRoundWins;
+	case ESnowRumbleTeam::Yellow:
+		return YellowTeamRoundWins;
+	case ESnowRumbleTeam::Purple:
+		return PurpleTeamRoundWins;
+	case ESnowRumbleTeam::Pink:
+		return PinkTeamRoundWins;
+	case ESnowRumbleTeam::Blue:
+		return BlueTeamRoundWins;
+	case ESnowRumbleTeam::White:
+		return WhiteTeamRoundWins;
+	default:
+		return 0;
+	}
+}
+
+int32 ASnowRumbleGameState::GetCurrentRoundNumber() const
+{
+	return CurrentRoundNumber;
+}
+
+int32 ASnowRumbleGameState::GetRoundLimit() const
+{
+	return RoundLimit;
+}
+
+bool ASnowRumbleGameState::IsMatchEnded() const
+{
+	return bMatchEnded;
+}
+
+ESnowRumbleTeam ASnowRumbleGameState::GetMatchWinningTeam() const
+{
+	return MatchWinningTeam;
 }
 
 bool ASnowRumbleGameState::ShouldShowStartCountdown() const
@@ -83,6 +155,18 @@ void ASnowRumbleGameState::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ASnowRumbleGameState, MatchStartCountdownSeconds);
 	DOREPLIFETIME(ASnowRumbleGameState, bRoundEnded);
 	DOREPLIFETIME(ASnowRumbleGameState, RoundWinningTeam);
+	DOREPLIFETIME(ASnowRumbleGameState, RedTeamRoundWins);
+	DOREPLIFETIME(ASnowRumbleGameState, SkyTeamRoundWins);
+	DOREPLIFETIME(ASnowRumbleGameState, GreenTeamRoundWins);
+	DOREPLIFETIME(ASnowRumbleGameState, YellowTeamRoundWins);
+	DOREPLIFETIME(ASnowRumbleGameState, PurpleTeamRoundWins);
+	DOREPLIFETIME(ASnowRumbleGameState, PinkTeamRoundWins);
+	DOREPLIFETIME(ASnowRumbleGameState, BlueTeamRoundWins);
+	DOREPLIFETIME(ASnowRumbleGameState, WhiteTeamRoundWins);
+	DOREPLIFETIME(ASnowRumbleGameState, CurrentRoundNumber);
+	DOREPLIFETIME(ASnowRumbleGameState, RoundLimit);
+	DOREPLIFETIME(ASnowRumbleGameState, bMatchEnded);
+	DOREPLIFETIME(ASnowRumbleGameState, MatchWinningTeam);
 }
 
 float ASnowRumbleGameState::GetSecondsUntilMatchStart() const
@@ -93,4 +177,30 @@ float ASnowRumbleGameState::GetSecondsUntilMatchStart() const
 void ASnowRumbleGameState::OnRep_RoundResult()
 {
 	OnRoundResultChanged.Broadcast();
+}
+
+void ASnowRumbleGameState::CopyRoundWinsFromMatchSubsystem(
+	const USnowRumbleMatchSubsystem* MatchSubsystem)
+{
+	if (!HasAuthority() || !MatchSubsystem)
+	{
+		return;
+	}
+
+	RedTeamRoundWins =
+		MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Red);
+	SkyTeamRoundWins =
+		MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Sky);
+	GreenTeamRoundWins =
+		MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Green);
+	YellowTeamRoundWins =
+		MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Yellow);
+	PurpleTeamRoundWins =
+		MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Purple);
+	PinkTeamRoundWins =
+		MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Pink);
+	BlueTeamRoundWins =
+		MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Blue);
+	WhiteTeamRoundWins =
+		MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::White);
 }

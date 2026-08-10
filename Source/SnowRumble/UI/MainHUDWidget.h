@@ -13,6 +13,7 @@ class UPanelWidget;
 class UProgressBar;
 class UTextBlock;
 class UWidget;
+enum class ESnowRumbleTeam : uint8;
 
 UCLASS(Abstract, Blueprintable)
 class SNOWRUMBLE_API UMainHUDWidget : public UUserWidget
@@ -56,6 +57,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> StartCountdownText;
 
+	/** WBP에서 직접 배치한 현재 라운드 표시 TextBlock에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> CurrentRoundText;
+
 	/** WBP에서 직접 배치한 라운드 종료 패널에 자동 연결된다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UPanelWidget> EndRoundPanel;
@@ -63,6 +68,70 @@ protected:
 	/** WBP에서 직접 배치한 라운드 종료 결과 TextBlock에 자동 연결된다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> EndRoundResultText;
+
+	/** WBP에서 직접 배치한 빨강 팀 점수 TextBlock에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> RedTeamScoreText;
+
+	/** WBP에서 직접 배치한 빨강 팀 점수 행 위젯에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> RedTeamScoreRow;
+
+	/** WBP에서 직접 배치한 하늘 팀 점수 TextBlock에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> SkyTeamScoreText;
+
+	/** WBP에서 직접 배치한 하늘 팀 점수 행 위젯에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> SkyTeamScoreRow;
+
+	/** WBP에서 직접 배치한 초록 팀 점수 TextBlock에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> GreenTeamScoreText;
+
+	/** WBP에서 직접 배치한 초록 팀 점수 행 위젯에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> GreenTeamScoreRow;
+
+	/** WBP에서 직접 배치한 노랑 팀 점수 TextBlock에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> YellowTeamScoreText;
+
+	/** WBP에서 직접 배치한 노랑 팀 점수 행 위젯에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> YellowTeamScoreRow;
+
+	/** WBP에서 직접 배치한 보라 팀 점수 TextBlock에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> PurpleTeamScoreText;
+
+	/** WBP에서 직접 배치한 보라 팀 점수 행 위젯에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> PurpleTeamScoreRow;
+
+	/** WBP에서 직접 배치한 핑크 팀 점수 TextBlock에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> PinkTeamScoreText;
+
+	/** WBP에서 직접 배치한 핑크 팀 점수 행 위젯에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> PinkTeamScoreRow;
+
+	/** WBP에서 직접 배치한 파랑 팀 점수 TextBlock에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> BlueTeamScoreText;
+
+	/** WBP에서 직접 배치한 파랑 팀 점수 행 위젯에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> BlueTeamScoreRow;
+
+	/** WBP에서 직접 배치한 하양 팀 점수 TextBlock에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> WhiteTeamScoreText;
+
+	/** WBP에서 직접 배치한 하양 팀 점수 행 위젯에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> WhiteTeamScoreRow;
 
 private:
 	/** 현재 로컬 플레이어와 다른 플레이어 체력 바 연결을 갱신한다. */
@@ -74,8 +143,29 @@ private:
 	/** PvP 시작 카운트다운 표시를 현재 GameState에 맞게 갱신한다. */
 	void RefreshStartCountdownPresentation();
 
+	/** 현재 라운드 번호 표시를 현재 GameState에 맞게 갱신한다. */
+	void RefreshCurrentRoundPresentation();
+
 	/** 라운드 종료 패널 표시를 현재 GameState에 맞게 갱신한다. */
 	void RefreshEndRoundPresentation();
+
+	/** 팀별 라운드 승리 점수 표시를 현재 GameState에 맞게 갱신한다. */
+	void RefreshTeamScorePresentation();
+
+	/** 선택 바인딩된 점수 TextBlock 하나를 해당 팀 승수로 갱신한다. */
+	void SetTeamScoreText(UTextBlock* ScoreText, ESnowRumbleTeam Team) const;
+
+	/** 점수 행 위젯이 있으면 행을, 없으면 점수 TextBlock 자체를 표시 대상으로 반환한다. */
+	UWidget* GetTeamScoreDisplayWidget(ESnowRumbleTeam Team) const;
+
+	/** WBP 트리에서 팀 점수 행 위젯을 이름으로 찾는다. */
+	UWidget* FindTeamScoreRowWidget(ESnowRumbleTeam Team) const;
+
+	/** 팀 점수 TextBlock 바인딩을 반환한다. */
+	UTextBlock* GetTeamScoreText(ESnowRumbleTeam Team) const;
+
+	/** 현재 PvP에 참가 중인 팀인지 반환한다. */
+	bool IsTeamParticipating(ESnowRumbleTeam Team) const;
 
 	/** 다른 플레이어 체력 바 목록에서 더 이상 유효하지 않은 항목을 제거한다. */
 	void RemoveInvalidOtherPlayerHealthBars(

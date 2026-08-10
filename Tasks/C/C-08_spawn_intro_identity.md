@@ -11,6 +11,7 @@
 ## 구현 항목
 - [x] 닉네임을 머리 위 표시가 읽을 수 있게 제공한다.
 - [x] 머리 위 닉네임 표시용 WidgetComponent와 WBP 부모 클래스를 추가한다.
+- [x] 이름표가 거리에 따라 자연스럽게 보이도록 월드 공간 WidgetComponent로 표시한다.
 - [ ] 팀 색을 머리 위 UI가 읽을 수 있게 제공한다.
 - [ ] 이름표가 읽을 생존·관전 표시 보조 상태를 제공한다.
 
@@ -26,6 +27,8 @@
   - `ASnowRumblePlayerState::GetLobbyPlayerName()`: 서버에 저장되고 복제된 표시 닉네임을 반환한다.
   - `ASnowRumbleCharacter::OverheadNameplateComponent`: 캐릭터 머리 위에 붙는 `UWidgetComponent`다.
   - `ASnowRumbleCharacter::OverheadNameplateWidgetClass`: S-05가 만든 이름표 WBP 클래스를 지정할 수 있는 확장 지점이다.
+  - `ASnowRumbleCharacter::OverheadNameplateDrawSize`: 월드 공간 이름표의 위젯 draw size다.
+  - `ASnowRumbleCharacter::OverheadNameplateWorldScale`: 월드 공간 이름표의 기본 월드 스케일이다.
   - `UOverheadNameplateWidget`: 이름표 WBP 부모 클래스다. WBP에서 `PlayerNameTextBlock` 이름의 TextBlock을 만들면 C++ 부모가 `ASnowRumbleCharacter::GetOverheadPlayerName()` 값을 자동 표시한다.
 - 인계 대상: S-05
 
@@ -51,6 +54,7 @@
 - S-05에서 이름표 WBP를 만들 때 부모 클래스를 `UOverheadNameplateWidget`으로 지정한다.
 - WBP 안에 TextBlock을 만들고 `PlayerNameTextBlock` 이름으로 바인딩하면 C++ 부모가 닉네임을 자동 표시한다.
 - 캐릭터 Blueprint에서 `OverheadNameplateWidgetClass`를 해당 WBP로 지정하면 최종 이름표 표현을 사용할 수 있다.
+- 이름표 크기가 너무 크거나 작으면 캐릭터 Blueprint에서 `OverheadNameplateDrawSize`와 `OverheadNameplateWorldScale`을 조정한다.
 
 ## 완료 조건
 ### 에이전트 확인
@@ -60,11 +64,18 @@
 - [x] `SnowRumbleEditor Win64 Development` 빌드 성공
 - [x] 이름표 WBP 부모 `UOverheadNameplateWidget` 빌드 성공
 - [x] 서버 화면에서 클라이언트 이름표가 늦게 적용된 복제 닉네임으로 갱신되도록 위젯 갱신 타이밍 보강 완료
+- [x] 이름표 월드 공간 거리감 적용 완료
 - [ ] 팀 색 계약 완료
 - [ ] 표시 상태가 서버 원본을 중복하지 않음
+
+### 검증 메모
+
+- 2026-08-10: `ASnowRumbleCharacter::OverheadNameplateComponent`를 `World` space로 전환하고, `OverheadNameplateDrawSize`, `OverheadNameplateWorldScale` 조정값을 추가했다. Tick에서 `RefreshOverheadNameplateFacing()`이 로컬 PlayerCameraManager를 기준으로 이름표를 카메라 쪽으로 회전시킨다. `git diff --check`는 통과했고 C++ 컴파일도 통과했지만, 실행 중인 Unreal Editor가 `UnrealEditor-SnowRumble.dll`을 잡고 있어 최종 링크는 `LNK1104`로 실패했다.
 
 ### 결과 확인
 - [ ] 호스트가 로비에 들어오면 자기 캐릭터 머리 위에 메인메뉴 닉네임이 표시된다.
 - [ ] 클라이언트가 로비에 들어오면 각 캐릭터 머리 위에 각자의 메인메뉴 닉네임이 표시된다.
 - [ ] 한 화면에서 다른 플레이어의 닉네임도 복제된 값으로 보인다.
 - [ ] 서버 화면에서 클라이언트 캐릭터 머리 위 이름표가 `DESKTOP-...` 같은 기본 PC 이름이 아니라 클라이언트 메인메뉴 닉네임으로 바뀐다.
+- [ ] 이름표가 가까운 플레이어보다 먼 플레이어에서 더 작게 보인다.
+- [ ] 이름표가 카메라를 향해 읽을 수 있게 보인다.

@@ -2,12 +2,14 @@
 
 #include "SnowRumbleLobbyGameMode.h"
 
+#include "Engine/GameInstance.h"
 #include "GameFramework/PlayerController.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "../UI/LobbyPlayerController.h"
 #include "../UI/SnowRumblePlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "SnowRumbleLobbyGameState.h"
+#include "SnowRumbleMatchSubsystem_C.h"
 #include "SnowRumblePlayerState.h"
 
 namespace
@@ -106,6 +108,119 @@ void ASnowRumbleLobbyGameMode::PostLogin(APlayerController* NewPlayer)
 	}
 }
 
+void ASnowRumbleLobbyGameMode::ShuffleLobbyTeamsFromServer(int32 TeamCount)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	TeamCount = FMath::Clamp(TeamCount, 2, 4);
+	TArray<ASnowRumblePlayerState*> LobbyPlayers = GetShuffleableLobbyPlayers();
+	if (LobbyPlayers.Num() < TeamCount)
+	{
+		return;
+	}
+
+	const TArray<ESnowRumbleTeam>& TeamChoices = GetLobbyTeamChoices();
+	TArray<int32> PlayerOrder;
+	TArray<int32> TeamOrder;
+	for (int32 PlayerIndex = 0; PlayerIndex < LobbyPlayers.Num(); ++PlayerIndex)
+	{
+		PlayerOrder.Add(PlayerIndex);
+	}
+	for (int32 TeamIndex = 0; TeamIndex < TeamChoices.Num(); ++TeamIndex)
+	{
+		TeamOrder.Add(TeamIndex);
+	}
+
+	for (int32 Index = PlayerOrder.Num() - 1; Index > 0; --Index)
+	{
+		const int32 SwapIndex = FMath::RandRange(0, Index);
+		PlayerOrder.Swap(Index, SwapIndex);
+	}
+	for (int32 Index = TeamOrder.Num() - 1; Index > 0; --Index)
+	{
+		const int32 SwapIndex = FMath::RandRange(0, Index);
+		TeamOrder.Swap(Index, SwapIndex);
+	}
+
+	for (int32 AssignmentIndex = 0; AssignmentIndex < PlayerOrder.Num();
+		++AssignmentIndex)
+	{
+		ASnowRumblePlayerState* PlayerState =
+			LobbyPlayers[PlayerOrder[AssignmentIndex]];
+		const ESnowRumbleTeam AssignedTeam =
+			TeamChoices[TeamOrder[AssignmentIndex % TeamCount]];
+		if (PlayerState)
+		{
+			PlayerState->AssignLobbyTeamFromServer(AssignedTeam);
+		}
+	}
+
+	if (ASnowRumbleLobbyGameState* LobbyGameState =
+		GetGameState<ASnowRumbleLobbyGameState>())
+	{
+		LobbyGameState->NotifyLobbyStateChanged();
+	}
+}
+
+void ASnowRumbleLobbyGameMode::ShuffleLobbyPlayersIndividuallyFromServer()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	TArray<ASnowRumblePlayerState*> LobbyPlayers = GetShuffleableLobbyPlayers();
+	const TArray<ESnowRumbleTeam>& TeamChoices = GetLobbyTeamChoices();
+	if (LobbyPlayers.IsEmpty() || LobbyPlayers.Num() > TeamChoices.Num())
+	{
+		return;
+	}
+
+	TArray<int32> PlayerOrder;
+	TArray<int32> TeamOrder;
+	for (int32 PlayerIndex = 0; PlayerIndex < LobbyPlayers.Num(); ++PlayerIndex)
+	{
+		PlayerOrder.Add(PlayerIndex);
+	}
+	for (int32 TeamIndex = 0; TeamIndex < TeamChoices.Num(); ++TeamIndex)
+	{
+		TeamOrder.Add(TeamIndex);
+	}
+
+	for (int32 Index = PlayerOrder.Num() - 1; Index > 0; --Index)
+	{
+		const int32 SwapIndex = FMath::RandRange(0, Index);
+		PlayerOrder.Swap(Index, SwapIndex);
+	}
+	for (int32 Index = TeamOrder.Num() - 1; Index > 0; --Index)
+	{
+		const int32 SwapIndex = FMath::RandRange(0, Index);
+		TeamOrder.Swap(Index, SwapIndex);
+	}
+
+	for (int32 AssignmentIndex = 0; AssignmentIndex < PlayerOrder.Num();
+		++AssignmentIndex)
+	{
+		ASnowRumblePlayerState* PlayerState =
+			LobbyPlayers[PlayerOrder[AssignmentIndex]];
+		const ESnowRumbleTeam AssignedTeam =
+			TeamChoices[TeamOrder[AssignmentIndex]];
+		if (PlayerState)
+		{
+			PlayerState->AssignLobbyTeamFromServer(AssignedTeam);
+		}
+	}
+
+	if (ASnowRumbleLobbyGameState* LobbyGameState =
+		GetGameState<ASnowRumbleLobbyGameState>())
+	{
+		LobbyGameState->NotifyLobbyStateChanged();
+	}
+}
+
 void ASnowRumbleLobbyGameMode::AssignLobbyTeam(APlayerController* NewPlayer)
 {
 	if (!NewPlayer)
@@ -137,6 +252,18 @@ void ASnowRumbleLobbyGameMode::AssignLobbyTeam(APlayerController* NewPlayer)
 	SnowRumblePlayerState->AssignLobbyTeamFromServer(AssignedTeam);
 }
 
+TArray<ASnowRumblePlayerState*> ASnowRumbleLobbyGameMode::GetShuffleableLobbyPlayers()
+	const
+{
+	TArray<ASnowRumblePlayerState*> LobbyPlayers;
+	if (const ASnowRumbleLobbyGameState* LobbyGameState =
+		GetGameState<ASnowRumbleLobbyGameState>())
+	{
+		LobbyPlayers = LobbyGameState->GetLobbyPlayers();
+	}
+	return LobbyPlayers;
+}
+
 int32 ASnowRumbleLobbyGameMode::CountLobbyTeamPlayers(
 	ESnowRumbleTeam Team) const
 {
@@ -148,14 +275,41 @@ int32 ASnowRumbleLobbyGameMode::CountLobbyTeamPlayers(
 }
 
 FString ASnowRumbleLobbyGameMode::BuildMatchTravelUrl(
-	int32 ExpectedPlayerCount) const
+	int32 ExpectedPlayerCount)
 {
-	if (MatchTravelUrl.IsEmpty())
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleMatchSubsystem* MatchSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleMatchSubsystem>())
+		{
+			const ASnowRumbleLobbyGameState* LobbyGameState =
+				GetGameState<ASnowRumbleLobbyGameState>();
+			TArray<FString> PvPLevelPaths = GetPvPLevelCandidatePaths();
+			if (PvPLevelPaths.IsEmpty() && !MatchTravelUrl.IsEmpty())
+			{
+				PvPLevelPaths.Add(MatchTravelUrl);
+			}
+			MatchSubsystem->BeginPvPMatch(
+				LobbyGameState ? LobbyGameState->GetMatchRoundLimit() : 1,
+				PvPLevelPaths);
+		}
+	}
+
+	FString TravelUrl = SelectPvPLevelPath();
+	if (TravelUrl.IsEmpty())
+	{
+		TravelUrl = MatchTravelUrl;
+	}
+	if (TravelUrl.IsEmpty())
 	{
 		return FString();
 	}
 
-	FString TravelUrl = MatchTravelUrl;
+	if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
+	{
+		TravelUrl += TEXT("?listen");
+	}
+
 	if (ExpectedPlayerCount > 0)
 	{
 		TravelUrl += FString::Printf(
@@ -163,6 +317,47 @@ FString ASnowRumbleLobbyGameMode::BuildMatchTravelUrl(
 			ExpectedPlayerCount);
 	}
 	return TravelUrl;
+}
+
+FString ASnowRumbleLobbyGameMode::SelectPvPLevelPath() const
+{
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleMatchSubsystem* MatchSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleMatchSubsystem>())
+		{
+			return MatchSubsystem->SelectNextPvPLevelPath(MatchTravelUrl);
+		}
+	}
+
+	const TArray<FString> CandidateLevelPaths = GetPvPLevelCandidatePaths();
+	if (CandidateLevelPaths.IsEmpty())
+	{
+		return FString();
+	}
+
+	return CandidateLevelPaths[
+		FMath::RandRange(0, CandidateLevelPaths.Num() - 1)];
+}
+
+TArray<FString> ASnowRumbleLobbyGameMode::GetPvPLevelCandidatePaths() const
+{
+	TArray<FString> CandidateLevelPaths;
+	for (const TSoftObjectPtr<UWorld>& PvPLevelCandidate : PvPLevelCandidates)
+	{
+		const FSoftObjectPath LevelPath = PvPLevelCandidate.ToSoftObjectPath();
+		if (!LevelPath.IsValid())
+		{
+			continue;
+		}
+		const FString LongPackageName = LevelPath.GetLongPackageName();
+		if (!LongPackageName.IsEmpty())
+		{
+			CandidateLevelPaths.AddUnique(LongPackageName);
+		}
+	}
+
+	return CandidateLevelPaths;
 }
 
 void ASnowRumbleLobbyGameMode::ShowMatchLoadingScreens()
