@@ -14,6 +14,7 @@
 #include "../UI/EmoteRadialMenuWidget.h"
 #include "../UI/MainHUDWidget.h"
 #include "../UI/OverheadNameplateWidget_C.h"
+#include "../UI/SnowRumblePlayerController.h"
 #include "Animation/AnimMontage.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/PlayerCameraManager.h"
@@ -1680,11 +1681,15 @@ void ASnowRumbleCharacter::ServerRequestLobbyTeamSelection_Implementation(
 
 bool ASnowRumbleCharacter::CanPerformGameplayAction() const
 {
+	const ASnowRumblePlayerController* SnowRumblePlayerController =
+		Cast<ASnowRumblePlayerController>(GetController());
 	return HealthComponent
 		&& !HealthComponent->IsFrozen()
 		&& !HealthComponent->IsDead()
 		&& !bIsPickingUpItem
-		&& !IsPvpMatchInputLocked();
+		&& !IsPvpMatchInputLocked()
+		&& (!SnowRumblePlayerController
+			|| !SnowRumblePlayerController->IsChatInputOpen());
 }
 
 bool ASnowRumbleCharacter::IsPvpMatchInputLocked() const

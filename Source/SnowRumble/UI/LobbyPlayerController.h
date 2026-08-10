@@ -65,6 +65,8 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void SetupInputComponent() override;
 	virtual void ClientShowLoadingScreen_Implementation() override;
+	virtual bool CanOpenChatInput() const override;
+	virtual bool SupportsTeamChat() const override;
 
 	/** 대기방에서 자동 생성할 WBP_Lobby 클래스다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Lobby")

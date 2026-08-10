@@ -41,6 +41,7 @@
 | 16 | [C-16](C-16_teammate_health_hud.md) | 팀원 HP HUD | C-03·기존 HP UI | 완료 |
 | 17 | [C-17](C-17_pvp_start_countdown.md) | PvP 시작 카운트다운 | C-15·기존 HUD·캐릭터 입력 | 진행중 |
 | 18 | [C-18](C-18_steam_session_integration.md) | Steam 세션 최종 통합 | LAN 기반 MVP 흐름 안정화·Steam 테스트 환경 | 예정 |
+| 19 | [C-19](C-19_text_chat.md) | 텍스트 채팅 | C-03 팀 색·공용 PlayerController | 완료 |
 
 ## 통합 변경 요청
 
@@ -119,3 +120,7 @@
 - 2026-08-10: 사용자가 PvP 레벨 후보 지정과 랜덤 진입을 요청해 C-04를 진행중으로 전환했다. `ASnowRumbleLobbyGameMode`에 `PvPLevelCandidates` 후보 배열과 서버 랜덤 선택 travel URL 생성을 추가했다.
 - 2026-08-10: 사용자가 로비 설정 기반 1/3/5 라운드와 라운드 사이 랜덤 PvP 맵 변경을 요청해 C-05 범위를 확장했다. `USnowRumbleMatchSubsystem`이 travel 사이 매치 누적 점수를 유지하고, 남은 라운드가 있으면 다음 PvP 후보 맵으로 이동하며, 마지막 라운드 후 매치 1등 팀을 복제한다.
 - 2026-08-10: Steam 출시는 최종 목표로 유지하되 현재 개발과 테스트는 LAN/NULL 세션으로 계속 진행하기로 결정했다. Steam 세션, Overlay 친구 초대, 초대 수락과 세션 정리는 C-18 최종 통합 Task로 분리하고, 앞으로 UI·PvP·로비 코드는 세션 구현 세부사항에 직접 의존하지 않도록 공개 세션 계약을 통해 개발한다.
+- 2026-08-10: C-05 게임 속도별 맵 축소 호출 준비를 추가했다. 로비 게시판은 느리게/보통/빠르게 버튼으로 90/60/30초 축소 주기를 설정하고, PvP HUD는 `MatchElapsedTimeText`와 `MapShrinkCountdownText`로 경기 시간과 다음 축소 안내를 표시한다. 실제 맵 축소는 `ASnowRumbleGameMode::OnMapShrinkRequested` 이벤트와 `CompleteMapShrinkFromBlueprint()` 완료 신호를 J 또는 맵 담당 Blueprint에 인계한다.
+- 2026-08-10: 사용자가 로비, PvP, 추후 좀비맵에서 사용할 전체/팀 텍스트 채팅을 요청해 C-19를 추가하고 진행중으로 전환했다.
+- 2026-08-10: C-19 채팅 채널 전환을 버튼에서 입력 중 Tab으로 변경하고, 로비는 전체 채팅만 허용하도록 조정했다.
+- 2026-08-10: 사용자가 C-19 채팅 입력, 스크롤, 포커스, 채널 표시와 로그 테두리 표시 정책을 확인하고 push를 요청해 C-19를 완료로 전환했다.
