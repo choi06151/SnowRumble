@@ -81,6 +81,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
 	bool IsFrozen() const;
 
+	/** Animation Blueprint와 UI에서 라운드 사망 상태인지 확인한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Health")
+	bool IsDead() const;
+
+	/** UI에서 얼음 상태 사망까지 남은 시간을 표시하기 위해 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Health")
+	float GetFrozenSecondsRemaining() const;
+
 	/** Animation Blueprint와 UI에서 눈덩이 장착 여부를 확인한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
 	bool IsHoldingSnowball() const;
@@ -265,6 +273,9 @@ protected:
 	/** 에디터와 런타임에서 이름표 컴포넌트 위치와 클래스를 현재 설정값으로 맞춘다. */
 	void RefreshOverheadNameplateComponentSettings();
 
+	/** 월드 공간 이름표가 로컬 카메라를 향하도록 회전시킨다. */
+	void RefreshOverheadNameplateFacing();
+
 	/** 자신이 조종하는 캐릭터의 카메라에서만 눈 VFX를 활성화한다. */
 	void RefreshLocalSnowEffect();
 
@@ -286,6 +297,10 @@ protected:
 	/** 얼기 상태에 따라 캐릭터 이동을 중지하거나 복구한다. */
 	UFUNCTION()
 	void HandleFrozenChanged(bool bIsFrozen);
+
+	/** 사망 상태에 따라 캐릭터 이동과 행동을 중지한다. */
+	UFUNCTION()
+	void HandleDeathChanged(bool bIsDead);
 
 	/** 조준 상태에 따라 로컬 카메라와 모든 화면의 이동속도를 갱신한다. */
 	UFUNCTION()
@@ -322,6 +337,12 @@ protected:
 
 	/** 현재 캐릭터가 이동과 일반 행동을 수행할 수 있는지 확인한다. */
 	bool CanPerformGameplayAction() const;
+
+	/** PvP 시작 카운트다운으로 입력이 잠겨 있는지 확인한다. */
+	bool IsPvpMatchInputLocked() const;
+
+	/** PvP 시작 잠금 상태에 맞춰 로컬 컨트롤러 입력 연결을 차단하거나 복구한다. */
+	void RefreshPvpMatchInputLock();
 
 	/** 스프린트 상태에 맞는 최대 이동속도를 CharacterMovement에 적용한다. */
 	void ApplyMovementSpeed();
@@ -411,6 +432,12 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Identity")
 	FVector OverheadNameRelativeLocation = FVector(0.0f, 0.0f, 130.0f);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Identity", meta = (ClampMin = "1.0"))
+	FVector2D OverheadNameplateDrawSize = FVector2D(220.0f, 64.0f);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Identity", meta = (ClampMin = "0.001"))
+	float OverheadNameplateWorldScale = 0.35f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
 	TObjectPtr<UInputMappingContext> PlayerMappingContext;
@@ -508,6 +535,7 @@ protected:
 	TObjectPtr<UMainHUDWidget> MainHUDWidget;
 
 	bool bIsEmoteRadialMenuOpen = false;
+	bool bPvpMatchInputIgnoreApplied = false;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_IsSprinting, Category = "SnowRumble|Movement")
 	bool bIsSprinting = false;

@@ -7,6 +7,7 @@
 #include "SnowRumblePlayerController.h"
 #include "LobbyPlayerController.generated.h"
 
+class ULobbyEscapeMenuWidget;
 class ULobbyWidget;
 
 UCLASS(Blueprintable)
@@ -39,6 +40,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby")
 	void RequestApplyLobbyTeam(ESnowRumbleTeam NewTeam);
 
+	/** 로비 UI에 예외행동 사유를 표시하고 피드백 애니메이션을 재생한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby")
+	void ShowLobbyInvalidActionFeedback(const FText& ReasonText);
+
+	/** 로비 ESC 메뉴를 열고 마우스 UI 입력으로 전환한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby")
+	void ShowLobbyEscapeMenu();
+
+	/** 로비 ESC 메뉴를 닫고 로비 게임 입력으로 되돌린다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby")
+	void HideLobbyEscapeMenu();
+
+	/** 로비 ESC 메뉴에서 메인메뉴 맵으로 이동한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby")
+	void RequestReturnToMainMenu();
+
 	/** 서버가 로비 입장 완료 후 소유 클라이언트의 저장 닉네임 제출을 요청한다. */
 	UFUNCTION(Client, Reliable)
 	void ClientRequestApplySavedLobbyPlayerName();
@@ -46,15 +63,29 @@ public:
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void SetupInputComponent() override;
 	virtual void ClientShowLoadingScreen_Implementation() override;
+	virtual bool CanOpenChatInput() const override;
+	virtual bool SupportsTeamChat() const override;
 
 	/** 대기방에서 자동 생성할 WBP_Lobby 클래스다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Lobby")
 	TSubclassOf<ULobbyWidget> LobbyWidgetClass;
 
+	/** ESC를 눌렀을 때 자동 생성할 로비 전용 메뉴 WBP 클래스다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Lobby")
+	TSubclassOf<ULobbyEscapeMenuWidget> LobbyEscapeMenuWidgetClass;
+
+	/** ESC 메뉴에서 메인메뉴로 이동할 때 사용할 travel URL이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Lobby")
+	FString MainMenuTravelUrl = TEXT("/Game/Maps/L_MainMenu");
+
 private:
 	/** 로컬 GameInstance에 저장된 닉네임을 서버로 제출한다. */
 	void ApplySavedLobbyPlayerName();
+
+	/** ESC 키 입력으로 로비 메뉴를 토글한다. */
+	void HandleEscapePressed();
 
 	UFUNCTION(Server, Reliable)
 	void ServerApplyLobbyPlayerName(const FString& NewName);
@@ -65,6 +96,12 @@ private:
 	/** 대기방 위젯 인스턴스가 없으면 생성한다. */
 	ULobbyWidget* EnsureLobbyWidget();
 
+	/** ESC 메뉴 위젯 인스턴스가 없으면 생성한다. */
+	ULobbyEscapeMenuWidget* EnsureLobbyEscapeMenuWidget();
+
 	UPROPERTY(Transient)
 	TObjectPtr<ULobbyWidget> LobbyWidget;
+
+	UPROPERTY(Transient)
+	TObjectPtr<ULobbyEscapeMenuWidget> LobbyEscapeMenuWidget;
 };

@@ -28,19 +28,28 @@
 | I-01 기존 기반 | C-01 | 모든 역할 | 재사용 파일·자산과 공용 소유권 | 완료 |
 | I-02 세션·방 | C-02 | C-03, S-02 | 방 설정·검색·참가 상태와 요청 | 진행중 |
 | I-03 팀·대기방 | C-03 | C-04, C-08, C-14, S-03 | 팀 색 선택·준비·다색 팀 시작 상태 | 진행중 |
-| I-04 랜덤 맵·로딩 | C-04 | C-05, S-04, S-10, J | 선택 맵·로딩 인원·시작 결과 | 예정 |
+| I-04 랜덤 맵·로딩 | C-04 | C-05, S-04, S-10, J | 선택 맵·로딩 인원·시작 결과 | 진행중 |
 | I-05 얼음·사망 | C-06 | C-05, C-07, C-13, K-07, S-07 | 얼음 잔여시간·사망·관전·전멸 결과 | 예정 |
 | I-06 플레이어 효과 | C-07 | K-01, K-03~K-06, K-08, S-09, S-10, J-02, J-04 | 피해·회복·무적·능력 보정 요청 | 예정 |
 | I-07 팀 식별 | C-08 | S-05 | 닉네임·팀 색·이름표용 상태 | 진행중 |
 | I-08 눈 전투 | C-09 | K-05, K-06, K-08, S-06 | 눈 제작·조준·충전·피격과 큰 눈 광역 결과 | 예정 |
-| I-09 경기 흐름 | C-05 | K-11, S-11, 맵 담당 | 라운드 시간·승수·결과·금색 상자 시점 | 예정 |
+| I-09 경기 흐름 | C-05 | K-11, S-11, 맵 담당 | 라운드 시간·승수·결과·금색 상자 시점 | 진행중 |
 | I-10 커스터마이징 | C-11 | S-01, S-02, S-08 | 외형 저장·복제·적용 상태 | 예정 |
 | I-11 아이템 | K-01~K-11 | C-12, S-08, S-09, S-10, J | 아이템 상태·모델 요구·배치·UI 계약 | 예정 |
 | I-12 레벨·비주얼 | S-12, J-05 | C-12 | 세 맵과 UI·모델·표현 자산 | 예정 |
 | I-13 부활 계약 | C-13 | K-07, S-07, C-05 | 핫팩 부활 진행·취소·완료와 무적 결과 | 예정 |
 | I-14 팀 등장 | C-14 | S-10, J-02, J-04 | 팀 스폰·시작 제한·팀 소개 상태 | 예정 |
-| I-15 맵 환경 압박 | S-10, J-02, J-04 | C-05, C-12 | 레벨 담당 맵별 수위·자기장·눈 폭 서버 로직과 배치 | 예정 |
+| I-15 맵 환경 압박 | C-05, S-10, J-02, J-04 | C-12 | C-05 게임 속도별 축소 주기·경기 시간·축소 호출 계약, 레벨 담당 맵별 수위·자기장·눈 폭 서버 로직과 배치 | 진행중 |
 | I-16 로비 게시판 상호작용 | C-15 | S-03, 사용자 | 게시판 outline, E 입력, 서버 검증 상호작용 이벤트, 카메라 컴포넌트 기반 포커스, 월드 UI 버튼 액션, 팀 색 선택, 매치 시작 로딩창 | 진행중 |
+| I-17 Steam 세션 전환 | C-18 | C-02, S-02, 사용자 | LAN fallback을 유지하면서 Steam 세션·Overlay 친구 초대·초대 수락·세션 정리 통합 | 예정 |
+
+## 세션 개발 정책
+
+- 현재 MVP 구현과 빠른 로컬 검증은 `OnlineSubsystem NULL` 기반 LAN 세션으로 계속 진행한다.
+- Steam 출시는 최종 목표로 유지하며 Steam 세션 통합은 C-18에서 별도 최종 Task로 처리한다.
+- 앞으로 메인메뉴, 로비, PvP, ESC 메뉴, 친구 초대 UI는 `USnowRumbleSessionSubsystem` 등 공개 세션 계약만 호출하고 LAN/Steam 구현 세부사항에 직접 의존하지 않는다.
+- 친구 부르기 버튼은 현재 Blueprint 이벤트와 UI 계약만 유지하고, 실제 Steam Overlay 초대 연결은 C-18에서 처리한다.
+- 새 기능이 세션 생성·검색·참가·초대·퇴장·복귀에 영향을 주면 C-18 Steam 전환 영향 여부를 함께 기록한다.
 
 ## 통합 관문
 
@@ -68,8 +77,15 @@
 | C-01 | C | 최재원(C) | 최재원(C) | 문서: 최재원(C), 코드·자산: 구현 승인 전 확정 | `Tasks/C/C-01_existing_foundation_migration.md`, `Tasks/C/PLAN_C.md`, 기존 코드·자산 조사 대상은 승인 전 확정 | 완료 |
 | C-02 | C | 최재원(C) | 최재원(C) | 문서·C++: 최재원(C), UI 자산: S-02 인계 | `Tasks/C/C-02_session_room_flow.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Online/SnowRumbleSessionSubsystem.*`, `Source/SnowRumble/UI/MainMenuWidget.*`, `Source/SnowRumble/UI/LobbyWidget.*` | 진행중 |
 | C-03 | C | 최재원(C) | 최재원(C) | 문서·C++: 최재원(C), 로비 맵 PlayerStart 배치: 사용자/S·J 인계 | `Tasks/C/C-03_random_team_lobby.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Game/SnowRumbleLobbyGameMode.*`, `Source/SnowRumble/Game/SnowRumbleLobbyGameState.*`, `Source/SnowRumble/Game/SnowRumblePlayerState.*`, `Source/SnowRumble/UI/LobbyPlayerController.*` | 진행중 |
+| C-04 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), PvP 후보 레벨 자산 지정: 사용자/S/J 인계 | `Tasks/C/C-04_random_map_loading.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Game/SnowRumbleLobbyGameMode.*`, `Source/SnowRumble/Game/SnowRumbleMatchSubsystem_C.*` | 진행중 |
+| C-06 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 얼음/사망 표현 UI·VFX: 사용자/S 인계 | `Tasks/C/C-06_freeze_death_spectate.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Player/SnowRumbleHealthComponent.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*` | 진행중 |
+| C-05 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 결과 UI/연출: 사용자/S 인계 | `Tasks/C/C-05_round_match_flow.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Game/SnowRumbleGameMode.*`, `Source/SnowRumble/Game/SnowRumbleGameState_C.*`, `Source/SnowRumble/Game/SnowRumbleLobbyGameState.*`, `Source/SnowRumble/Game/SnowRumbleMatchSubsystem_C.*`, `Source/SnowRumble/UI/LobbyBoardWidget_C.*`, `Source/SnowRumble/UI/MainHUDWidget.cpp`, `Source/SnowRumble/Player/SnowRumbleHealthComponent.cpp` | 진행중 |
 | C-08 | C | 최재원(C) | 최재원(C) | C++: 최재원(C), 이름표 WBP·그래픽: S-05 인계 | `Tasks/C/C-08_spawn_intro_identity.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/UI/OverheadNameplateWidget_C.*` | 진행중 |
 | C-15 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 게시판 Blueprint·맵 배치·로딩 WBP: 사용자/S 인계 | `Tasks/C/C-15_lobby_board_interaction.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Interaction/LobbyInteractionBoard_C.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/UI/*LoadingScreen*`, `Source/SnowRumble/UI/SnowRumblePlayerController.*`, `Source/SnowRumble/Game/SnowRumbleGameMode.*` | 진행중 |
+| C-16 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), HUD WBP 배치: 사용자/S 인계 | `Tasks/C/C-16_teammate_health_hud.md`, `Tasks/C/PLAN_C.md`, `Tasks/C/ROLE_C.md`, `docs/PLANS.md`, `Source/SnowRumble/UI/MainHUDWidget.*` | 완료 |
+| C-17 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 카운트다운 WBP 표시 배치: 사용자/S 인계 | `Tasks/C/C-17_pvp_start_countdown.md`, `Tasks/C/PLAN_C.md`, `Tasks/C/ROLE_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Game/SnowRumbleGameState_C.*`, `Source/SnowRumble/Game/SnowRumbleGameMode.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/UI/MainHUDWidget.*` | 진행중 |
+| C-18 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), Steam App ID·테스트 계정·빌드 환경: 사용자 확인 | `Tasks/C/C-18_steam_session_integration.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Config/DefaultEngine.ini`, `Source/SnowRumble/Online/SnowRumbleSessionSubsystem.*`, `Source/SnowRumble/UI/LobbyEscapeMenuWidget.*`, `Source/SnowRumble/UI/MainMenuWidget.*`, `Source/SnowRumble/UI/LobbyPlayerController.*` | 예정 |
+| C-19 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 채팅 WBP 배치·스타일: 사용자/S 인계 | `Tasks/C/C-19_text_chat.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/UI/ChatWidget_C.*`, `Source/SnowRumble/UI/SnowRumblePlayerController.*`, `Source/SnowRumble/UI/LobbyPlayerController.*` | 완료 |
 
 ## 상태 범례
 
@@ -81,18 +97,13 @@
 
 ## 최근 통합 로그
 
-- 2026-08-08: C-03 서버 랜덤 팀 배정과 1vs1~4vs4 동수·전원 준비 시작 조건을 구현하고 `SnowRumbleEditor Win64 Development` 빌드 성공을 확인함.
-- 2026-08-08: C-08 서버 화면의 클라이언트 이름표가 초기 `DESKTOP-...` 값으로 남는 오류에 대응해 이름표 위젯 생성 보장과 표시 이름 변경 감지 갱신을 추가하고 빌드 성공을 확인함.
-- 2026-08-08: C-15 로비 게시판 상호작용을 추가함. 게시판 C++ 부모, outline 후보 탐색, E 입력 서버 검증 이벤트를 구현하고 직접 팀 선택은 범위 밖으로 유지함.
-- 2026-08-08: C-15 게시판 outline 후보 검사를 mesh bounds 기준으로 바꾸고 기본 상호작용 반경을 320cm로 늘려 큰 게시판 표면 근처에서도 잡히게 조정함.
-- 2026-08-08: C-15 게시판 상호작용을 현재 outline 대상 기준으로 제한하고, 상호작용 성공 시 소유 클라이언트 카메라가 게시판 bounds 중심을 바라보게 조정함. 눈덩이 기본 획득 반경은 180cm로 유지함.
-- 2026-08-08: C-08 닉네임 표시 하위 범위를 선점함. 캐릭터 `WidgetComponent`와 `UOverheadNameplateWidget` WBP 부모를 제공해 S-05가 이름표 WBP를 디자인할 수 있게 함.
-- 2026-08-08: 로비 입장 후 서버가 소유 클라이언트에 저장 닉네임 제출을 요청하는 RPC 핸드셰이크를 추가해 서버 화면의 클라이언트 이름표도 복제 닉네임으로 갱신되게 함.
-- 2026-08-08: 서버 닉네임 적용 시 기본 `APlayerState::PlayerName`도 함께 갱신해 WBP 또는 기본 이름 경로에서 `DESKTOP-...` 값이 남지 않도록 보강함.
-- 2026-08-09: C-15 게시판 포커스를 `E` 토글 방식으로 바꾸고, 게시판 Blueprint의 `FocusCameraComponent` 구도를 포커스 뷰로 쓰도록 공용 계약을 확장함.
-- 2026-08-09: C-15 게시판 포커스 중 마우스 UI 입력 모드와 이동·시점 입력 차단을 추가하고, `ULobbyBoardWidget` 버튼 클릭을 서버 검증된 게시판 액션 이벤트로 전달하게 함.
-- 2026-08-09: 로비 팀 구조를 Red/Blue 2팀에서 8개 팀 색 선택으로 확장함. 게시판 팀 색 버튼이 PlayerState 팀을 서버 검증 변경하고 이름표 색에 반영되며, 시작 조건은 선택된 팀 색 2개 이상·각 팀 1~4명으로 변경됨.
-- 2026-08-09: C-15 listen 환경 팀 변경 실패에 대응해 게시판 포커스 시점의 소유 `ALobbyPlayerController`를 월드 위젯에 직접 전달하고, 팀 색 버튼은 해당 컨트롤러 서버 RPC로 우선 요청하게 보강함.
-- 2026-08-09: C-15 listen 환경 팀 변경 경로를 캐릭터 소유 `ServerRequestLobbyTeamSelection` RPC로 직접화함. 서버는 게시판 거리와 캐릭터 상태를 검증한 뒤 해당 캐릭터의 PlayerState 팀을 변경함.
-- 2026-08-09: C-15 기존 `WBP_Lobby` 표시 계약을 확장함. `ULobbyWidget`은 준비 인원 수·현재 게임모드·내 이름·팀색·준비 상태를 표시하고, 로비 GameState에 복제 로비 모드 상태를 추가함.
-- 2026-08-09: C-15 매치 시작 로딩창 계약을 추가함. 호스트가 게임 시작을 누르면 모든 참여자에게 로딩창 표시 RPC를 보내고, PvP GameMode가 예상 참여 인원 PostLogin 완료 후 로딩창 닫기 RPC를 보냄.
+- 2026-08-10: C-05 팀 점수 HUD를 참가 팀만 표시하도록 정리함. 팀별 Row 또는 ScoreText는 현재 참가 팀 기준으로 표시·숨김만 처리하고 WBP 배치 순서는 유지함.
+- 2026-08-10: C-08 머리 위 이름표를 Screen space에서 World space로 전환함. 이름표가 로컬 카메라를 향하고 거리감에 따라 자연스럽게 크기가 달라지도록 함.
+- 2026-08-10: C-04 PvP 후보 레벨 랜덤 진입 첫 범위를 구현함. `ASnowRumbleLobbyGameMode`는 `PvPLevelCandidates` 후보 배열에서 서버가 레벨을 선택하고 `?listen?ExpectedPlayers=` travel URL을 생성함.
+- 2026-08-10: C-05 로비 설정 기반 1/3/5 라운드 매치 흐름을 추가함. `USnowRumbleMatchSubsystem`이 travel 사이 누적 점수와 라운드 번호를 유지하고, 남은 라운드가 있으면 다음 PvP 후보 맵으로 이동하며, 마지막 라운드 후 `ASnowRumbleGameState`가 매치 1등 팀을 복제함.
+- 2026-08-10: C-05 모든 라운드 종료 후 임시 로비 복귀를 추가함. 매치 결과를 짧게 보여준 뒤 `/Game/Maps/L_Lobby?listen`으로 이동하고, 복귀 직전 `USnowRumbleMatchSubsystem` 누적 상태를 초기화함.
+- 2026-08-10: Steam 출시는 최종 목표로 유지하되 현재 개발과 테스트는 LAN/NULL 세션으로 계속 진행하기로 결정함. Steam 세션, Overlay 친구 초대, 초대 수락과 세션 정리는 C-18 최종 통합 Task로 분리하고, 앞으로 세션 관련 새 기능은 공개 세션 계약을 통해 개발해 LAN/Steam 세부 구현이 UI·PvP 코드로 새지 않게 함.
+- 2026-08-10: C-05 게임 속도별 맵 축소 호출 계약을 추가함. 로비 게시판은 90/60/30초 축소 주기 설정을 제공하고, PvP HUD는 경기 시간과 다음 축소 안내를 표시하며, 실제 맵 축소는 `ASnowRumbleGameMode::OnMapShrinkRequested`와 `CompleteMapShrinkFromBlueprint()`로 J/S 맵 담당에게 인계함.
+- 2026-08-10: C-19 전체/팀 텍스트 채팅 계약을 추가함. `ASnowRumblePlayerController`가 Enter 입력, 서버 검증, 전체/팀 라우팅을 맡고 `UChatWidget` WBP 부모를 로비·PvP·추후 모드에서 재사용하게 함.
+- 2026-08-10: C-19 채팅 채널 정책을 조정함. 로비는 전체 채팅만 허용하고, PvP와 추후 모드는 채팅 입력 중 Tab으로 전체/팀 채팅을 전환하게 함.
+- 2026-08-10: C-19 채팅 입력 UX를 완료함. Enter 입력 시 TextBox 포커스, Enter 제출 후 GameOnly 복귀, 입력 중 스크롤, 채널 표시, 로그 스크롤바와 테두리 표시 정책을 정리하고 빌드 통과 후 완료 처리함.

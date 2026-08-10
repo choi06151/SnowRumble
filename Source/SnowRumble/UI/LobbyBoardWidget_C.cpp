@@ -2,6 +2,7 @@
 
 #include "LobbyBoardWidget_C.h"
 
+#include "../Game/SnowRumbleLobbyGameMode.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "../Game/SnowRumbleLobbyGameState.h"
 #include "LobbyPlayerController.h"
@@ -82,6 +83,7 @@ void ULobbyBoardWidget::NativeConstruct()
 	BindBoardButtons();
 	RefreshTeamCountTexts();
 	RefreshReadyStartButtonText();
+	RefreshMatchRoundLimitText();
 }
 
 void ULobbyBoardWidget::NativeDestruct()
@@ -99,6 +101,7 @@ void ULobbyBoardWidget::NativeTick(
 
 	RefreshTeamCountTexts();
 	RefreshReadyStartButtonText();
+	RefreshMatchRoundLimitText();
 }
 
 void ULobbyBoardWidget::ResolveBoardButtons()
@@ -190,6 +193,46 @@ void ULobbyBoardWidget::ResolveBoardButtons()
 	{
 		ReadyStartButtonText =
 			WidgetTree->FindWidget<UTextBlock>(TEXT("ReadyStartButtonText"));
+	}
+	if (!Round1Button)
+	{
+		Round1Button =
+			WidgetTree->FindWidget<UButton>(TEXT("Round1Button"));
+	}
+	if (!Round3Button)
+	{
+		Round3Button =
+			WidgetTree->FindWidget<UButton>(TEXT("Round3Button"));
+	}
+	if (!Round5Button)
+	{
+		Round5Button =
+			WidgetTree->FindWidget<UButton>(TEXT("Round5Button"));
+	}
+	if (!Shuffle2TeamsButton)
+	{
+		Shuffle2TeamsButton =
+			WidgetTree->FindWidget<UButton>(TEXT("Shuffle2TeamsButton"));
+	}
+	if (!Shuffle3TeamsButton)
+	{
+		Shuffle3TeamsButton =
+			WidgetTree->FindWidget<UButton>(TEXT("Shuffle3TeamsButton"));
+	}
+	if (!Shuffle4TeamsButton)
+	{
+		Shuffle4TeamsButton =
+			WidgetTree->FindWidget<UButton>(TEXT("Shuffle4TeamsButton"));
+	}
+	if (!ShuffleSoloButton)
+	{
+		ShuffleSoloButton =
+			WidgetTree->FindWidget<UButton>(TEXT("ShuffleSoloButton"));
+	}
+	if (!MatchRoundLimitText)
+	{
+		MatchRoundLimitText =
+			WidgetTree->FindWidget<UTextBlock>(TEXT("MatchRoundLimitText"));
 	}
 }
 
@@ -340,6 +383,48 @@ void ULobbyBoardWidget::BindBoardButtons()
 			this,
 			&ULobbyBoardWidget::HandleReadyStartButtonClicked);
 	}
+	if (Round1Button)
+	{
+		Round1Button->OnClicked.AddUniqueDynamic(
+			this,
+			&ULobbyBoardWidget::HandleRound1ButtonClicked);
+	}
+	if (Round3Button)
+	{
+		Round3Button->OnClicked.AddUniqueDynamic(
+			this,
+			&ULobbyBoardWidget::HandleRound3ButtonClicked);
+	}
+	if (Round5Button)
+	{
+		Round5Button->OnClicked.AddUniqueDynamic(
+			this,
+			&ULobbyBoardWidget::HandleRound5ButtonClicked);
+	}
+	if (Shuffle2TeamsButton)
+	{
+		Shuffle2TeamsButton->OnClicked.AddUniqueDynamic(
+			this,
+			&ULobbyBoardWidget::HandleShuffle2TeamsButtonClicked);
+	}
+	if (Shuffle3TeamsButton)
+	{
+		Shuffle3TeamsButton->OnClicked.AddUniqueDynamic(
+			this,
+			&ULobbyBoardWidget::HandleShuffle3TeamsButtonClicked);
+	}
+	if (Shuffle4TeamsButton)
+	{
+		Shuffle4TeamsButton->OnClicked.AddUniqueDynamic(
+			this,
+			&ULobbyBoardWidget::HandleShuffle4TeamsButtonClicked);
+	}
+	if (ShuffleSoloButton)
+	{
+		ShuffleSoloButton->OnClicked.AddUniqueDynamic(
+			this,
+			&ULobbyBoardWidget::HandleShuffleSoloButtonClicked);
+	}
 }
 
 void ULobbyBoardWidget::UnbindBoardButtons()
@@ -407,6 +492,34 @@ void ULobbyBoardWidget::UnbindBoardButtons()
 	if (ReadyStartButton)
 	{
 		ReadyStartButton->OnClicked.RemoveAll(this);
+	}
+	if (Round1Button)
+	{
+		Round1Button->OnClicked.RemoveAll(this);
+	}
+	if (Round3Button)
+	{
+		Round3Button->OnClicked.RemoveAll(this);
+	}
+	if (Round5Button)
+	{
+		Round5Button->OnClicked.RemoveAll(this);
+	}
+	if (Shuffle2TeamsButton)
+	{
+		Shuffle2TeamsButton->OnClicked.RemoveAll(this);
+	}
+	if (Shuffle3TeamsButton)
+	{
+		Shuffle3TeamsButton->OnClicked.RemoveAll(this);
+	}
+	if (Shuffle4TeamsButton)
+	{
+		Shuffle4TeamsButton->OnClicked.RemoveAll(this);
+	}
+	if (ShuffleSoloButton)
+	{
+		ShuffleSoloButton->OnClicked.RemoveAll(this);
 	}
 }
 
@@ -498,7 +611,24 @@ void ULobbyBoardWidget::HandleReadyStartButtonClicked()
 
 	if (IsRequestingPlayerHost())
 	{
-		PlayerState->RequestStartLobbyMatch();
+		const UWorld* World = GetWorld();
+		const ASnowRumbleLobbyGameState* LobbyGameState = World
+			? World->GetGameState<ASnowRumbleLobbyGameState>()
+			: nullptr;
+		if (!LobbyGameState || !LobbyGameState->CanStartLobbyMatch())
+		{
+			ShowInvalidActionFeedback(
+				LobbyGameState
+					? LobbyGameState->GetStartMatchInvalidReasonText()
+					: NSLOCTEXT(
+						"SnowRumble",
+						"LobbyBoardInvalidStartFallback",
+						"게임을 시작할 수 없습니다."));
+		}
+		else
+		{
+			PlayerState->RequestStartLobbyMatch();
+		}
 	}
 	else
 	{
@@ -506,6 +636,41 @@ void ULobbyBoardWidget::HandleReadyStartButtonClicked()
 	}
 
 	RefreshReadyStartButtonText();
+}
+
+void ULobbyBoardWidget::HandleRound1ButtonClicked()
+{
+	SubmitMatchRoundLimit(1);
+}
+
+void ULobbyBoardWidget::HandleRound3ButtonClicked()
+{
+	SubmitMatchRoundLimit(3);
+}
+
+void ULobbyBoardWidget::HandleRound5ButtonClicked()
+{
+	SubmitMatchRoundLimit(5);
+}
+
+void ULobbyBoardWidget::HandleShuffle2TeamsButtonClicked()
+{
+	SubmitShuffleTeams(2);
+}
+
+void ULobbyBoardWidget::HandleShuffle3TeamsButtonClicked()
+{
+	SubmitShuffleTeams(3);
+}
+
+void ULobbyBoardWidget::HandleShuffle4TeamsButtonClicked()
+{
+	SubmitShuffleTeams(4);
+}
+
+void ULobbyBoardWidget::HandleShuffleSoloButtonClicked()
+{
+	SubmitShuffleSolo();
 }
 
 void ULobbyBoardWidget::SubmitBoardAction(ELobbyBoardAction BoardAction)
@@ -527,6 +692,17 @@ void ULobbyBoardWidget::SubmitTeamColorFromBlueprint(
 	ELobbyBoardTeamColor TeamColor)
 {
 	const ESnowRumbleTeam SnowRumbleTeam = ToSnowRumbleTeam(TeamColor);
+	const ASnowRumblePlayerState* PlayerState = GetRequestingPlayerState();
+	if (PlayerState && PlayerState->IsLobbyReady()
+		&& PlayerState->GetLobbyTeam() != SnowRumbleTeam)
+	{
+		ShowInvalidActionFeedback(
+			NSLOCTEXT(
+				"SnowRumble",
+				"LobbyBoardInvalidTeamChangeWhileReady",
+				"준비 완료 상태에서는 팀 색을 변경할 수 없습니다."));
+		return;
+	}
 
 	if (FocusedCharacter)
 	{
@@ -563,15 +739,23 @@ ALobbyPlayerController* ULobbyBoardWidget::GetRequestingLobbyPlayerController()
 
 void ULobbyBoardWidget::SubmitLobbyMode(ELobbyBoardGameMode GameMode)
 {
-	if (IsRequestingPlayerHost())
+	if (!IsRequestingPlayerHost())
 	{
-		UWorld* World = GetWorld();
-		if (ASnowRumbleLobbyGameState* LobbyGameState = World
-			? World->GetGameState<ASnowRumbleLobbyGameState>()
-			: nullptr)
-		{
-			LobbyGameState->SetLobbyModeFromServer(ToLobbyMode(GameMode));
-		}
+		ShowInvalidActionFeedback(
+			NSLOCTEXT(
+				"SnowRumble",
+				"LobbyBoardInvalidHostOnlySetting",
+				"방 설정은 호스트만 변경할 수 있습니다."));
+		OnLobbyModeButtonClicked(GameMode);
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (ASnowRumbleLobbyGameState* LobbyGameState = World
+		? World->GetGameState<ASnowRumbleLobbyGameState>()
+		: nullptr)
+	{
+		LobbyGameState->SetLobbyModeFromServer(ToLobbyMode(GameMode));
 	}
 
 	OnLobbyModeButtonClicked(GameMode);
@@ -606,6 +790,128 @@ void ULobbyBoardWidget::RefreshReadyStartButtonText()
 	const bool bReady = PlayerState && PlayerState->IsLobbyReady();
 	ReadyStartButtonText->SetText(FText::FromString(
 		bReady ? TEXT("준비 취소") : TEXT("준비 완료")));
+}
+
+void ULobbyBoardWidget::RefreshMatchRoundLimitText()
+{
+	if (!MatchRoundLimitText)
+	{
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	const ASnowRumbleLobbyGameState* LobbyGameState = World
+		? World->GetGameState<ASnowRumbleLobbyGameState>()
+		: nullptr;
+	const int32 MatchRoundLimit = LobbyGameState
+		? LobbyGameState->GetMatchRoundLimit()
+		: 1;
+	MatchRoundLimitText->SetText(FText::Format(
+		NSLOCTEXT("SnowRumble", "LobbyMatchRoundLimitFormat", "{0} 라운드"),
+		FText::AsNumber(MatchRoundLimit)));
+}
+
+void ULobbyBoardWidget::SubmitMatchRoundLimit(int32 NewRoundLimit)
+{
+	if (!IsRequestingPlayerHost())
+	{
+		ShowInvalidActionFeedback(
+			NSLOCTEXT(
+				"SnowRumble",
+				"LobbyBoardInvalidHostOnlyRound",
+				"라운드 수는 호스트만 변경할 수 있습니다."));
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (ASnowRumbleLobbyGameState* LobbyGameState = World
+		? World->GetGameState<ASnowRumbleLobbyGameState>()
+		: nullptr)
+	{
+		LobbyGameState->SetMatchRoundLimitFromServer(NewRoundLimit);
+	}
+}
+
+void ULobbyBoardWidget::SubmitShuffleTeams(int32 TeamCount)
+{
+	if (!IsRequestingPlayerHost())
+	{
+		ShowInvalidActionFeedback(
+			NSLOCTEXT(
+				"SnowRumble",
+				"LobbyBoardInvalidHostOnlyShuffle",
+				"팀 섞기는 호스트만 사용할 수 있습니다."));
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	const ASnowRumbleLobbyGameState* LobbyGameState = World
+		? World->GetGameState<ASnowRumbleLobbyGameState>()
+		: nullptr;
+	const int32 LobbyPlayerCount = LobbyGameState
+		? LobbyGameState->GetLobbyPlayers().Num()
+		: 0;
+	if (LobbyPlayerCount < TeamCount)
+	{
+		ShowInvalidActionFeedback(
+			NSLOCTEXT(
+				"SnowRumble",
+				"LobbyBoardInvalidShuffleNeedPlayers",
+				"선택한 팀 수보다 플레이어가 적습니다."));
+		return;
+	}
+
+	ASnowRumbleLobbyGameMode* LobbyGameMode = World
+		? World->GetAuthGameMode<ASnowRumbleLobbyGameMode>()
+		: nullptr;
+	if (LobbyGameMode)
+	{
+		LobbyGameMode->ShuffleLobbyTeamsFromServer(TeamCount);
+	}
+}
+
+void ULobbyBoardWidget::SubmitShuffleSolo()
+{
+	if (!IsRequestingPlayerHost())
+	{
+		ShowInvalidActionFeedback(
+			NSLOCTEXT(
+				"SnowRumble",
+				"LobbyBoardInvalidHostOnlySoloShuffle",
+				"개인전 섞기는 호스트만 사용할 수 있습니다."));
+		return;
+	}
+
+	ASnowRumbleLobbyGameMode* LobbyGameMode = nullptr;
+	if (UWorld* World = GetWorld())
+	{
+		LobbyGameMode = World->GetAuthGameMode<ASnowRumbleLobbyGameMode>();
+	}
+	if (LobbyGameMode)
+	{
+		LobbyGameMode->ShuffleLobbyPlayersIndividuallyFromServer();
+	}
+}
+
+void ULobbyBoardWidget::ShowInvalidActionFeedback(const FText& ReasonText)
+{
+	if (ALobbyPlayerController* LobbyPlayerController =
+		GetRequestingLobbyPlayerController())
+	{
+		LobbyPlayerController->ShowLobbyInvalidActionFeedback(ReasonText);
+	}
+
+	if (InvalidActionReasonText)
+	{
+		InvalidActionReasonText->SetText(ReasonText);
+		InvalidActionReasonText->SetVisibility(
+			ESlateVisibility::SelfHitTestInvisible);
+	}
+	if (InvalidActionAnimation)
+	{
+		PlayAnimation(InvalidActionAnimation);
+	}
+	OnInvalidActionFeedback(ReasonText);
 }
 
 void ULobbyBoardWidget::SetTeamCountText(
