@@ -9,7 +9,7 @@
 
 ## 현재 집중 Task
 
-- [C-15](C-15_lobby_board_interaction.md) 로비 게시판 상호작용
+- [C-05](C-05_round_match_flow.md) 1/3/5 라운드 매치 흐름
 
 ## 개발 스타일
 
@@ -27,17 +27,21 @@
 | 2 | [C-02](C-02_session_room_flow.md) | 세션·방 설정 | C-01·기획 결정 | 진행중 |
 | 3 | [C-03](C-03_random_team_lobby.md) | 랜덤 팀 대기방 | C-02 | 진행중 |
 | 4 | [C-15](C-15_lobby_board_interaction.md) | 로비 게시판 상호작용 | 기존 입력·outline | 진행중 |
-| 5 | [C-06](C-06_freeze_death_spectate.md) | 얼음·사망·관전 | C-01 | 예정 |
+| 5 | [C-06](C-06_freeze_death_spectate.md) | 얼음·사망·관전 | C-01 | 진행중 |
 | 6 | [C-07](C-07_shared_effect_contracts.md) | 피해·회복·무적·능력 보정 계약 | C-06 | 예정 |
-| 7 | [C-04](C-04_random_map_loading.md) | 랜덤 맵과 로딩 | C-03 | 예정 |
+| 7 | [C-04](C-04_random_map_loading.md) | 랜덤 맵과 로딩 | C-03 | 진행중 |
 | 8 | [C-08](C-08_spawn_intro_identity.md) | 팀 식별 데이터 | C-03 | 진행중 |
 | 9 | [C-09](C-09_snow_combat_completion.md) | 눈 전투 완성 | C-01, C-07 | 예정 |
-| 10 | [C-05](C-05_round_match_flow.md) | 3판 2선승 경기 흐름 | C-04, C-06 | 예정 |
+| 10 | [C-05](C-05_round_match_flow.md) | 3판 2선승 경기 흐름 | C-04, C-06 | 진행중 |
 | 11 | [C-10](C-10_emote_revalidation.md) | 이모션 재검증 | C-01, C-06, C-08 | 예정 |
 | 12 | [C-11](C-11_customization_contract.md) | 커스터마이징 데이터 계약 | C-02·기획 결정 | 예정 |
 | 13 | [C-13](C-13_revive_contract.md) | 핫팩 부활 계약 | C-06, C-07 | 예정 |
 | 14 | [C-14](C-14_spawn_intro_flow.md) | 팀 스폰과 시작 연출 | C-03, C-04 | 예정 |
 | 15 | [C-12](C-12_mvp_integration.md) | MVP 최종 통합 | 모든 파트 통합 Task | 예정 |
+| 16 | [C-16](C-16_teammate_health_hud.md) | 팀원 HP HUD | C-03·기존 HP UI | 완료 |
+| 17 | [C-17](C-17_pvp_start_countdown.md) | PvP 시작 카운트다운 | C-15·기존 HUD·캐릭터 입력 | 진행중 |
+| 18 | [C-18](C-18_steam_session_integration.md) | Steam 세션 최종 통합 | LAN 기반 MVP 흐름 안정화·Steam 테스트 환경 | 예정 |
+| 19 | [C-19](C-19_text_chat.md) | 텍스트 채팅 | C-03 팀 색·공용 PlayerController | 완료 |
 
 ## 통합 변경 요청
 
@@ -93,3 +97,30 @@
 - 2026-08-09: 로딩창 WBP에 접속 완료 인원 기준 ProgressBar와 상태 텍스트 바인딩을 추가했다. `LoadingProgressBar`, `LoadingStatusText`, `LoadingMessageText` 이름으로 자동 갱신된다.
 - 2026-08-09: PvP 이동 후 이름표가 기본 PC 이름과 흰색으로 되돌아가는 문제를 해결했다. 매치 이동을 seamless travel로 전환하고 PlayerState의 로비 이름·팀 색 상태를 복사한다.
 - 2026-08-09: PvP 스폰을 전체 PlayerStart 랜덤 선택으로 변경하고, 기본 이동 맵을 `L_Prototype`에서 겨울 환경 `DemoMap`으로 바꿨다. PlayerStart 태그는 스폰 규칙에 사용하지 않는다.
+- 2026-08-09: 4명 이상이 같은 PlayerStart 위치에 겹쳐 생성되는 문제에 대응해 실제 Pawn 생성 위치를 선택된 PlayerStart 주변 900cm 반경 안에서 최소 240cm 간격을 우선 만족하도록 분산했다.
+- 2026-08-09: C-16 팀원 HP HUD를 추가하고 진행중으로 전환했다. `UMainHUDWidget`은 자기 HP 바를 유지하면서 같은 팀 색의 다른 플레이어 HP 바만 좌측 상단 패널에 동적으로 생성한다.
+- 2026-08-09: 사용자가 팀원 HP HUD 동작을 확인해 C-16을 완료로 전환했다.
+- 2026-08-09: C-17 PvP 시작 카운트다운을 추가하고 진행중으로 전환했다. PvP GameState가 서버 확정 시작 시간을 복제하고, HUD는 `StartCountdownText`로 `3`, `2`, `1`, `시작!`을 표시한다.
+- 2026-08-09: C-17 카운트다운 조건을 로딩 후 PvP 맵 전용으로 조정했다. 로비 화면이나 로딩창 위에서는 표시하지 않고, PvP GameMode가 로딩창을 닫은 뒤 짧은 지연 후 시작한다.
+- 2026-08-09: 로비 이동 후 C-17 카운트다운이 보이지 않는 문제에 대응해, 모든 예상 플레이어가 PvP Pawn까지 가진 뒤 로딩창 닫기와 카운트다운을 시작하게 조정했다.
+- 2026-08-09: C-17 seamless travel 시작 경로를 보강했다. `PostLogin`, `HandleStartingNewPlayer_Implementation`, Pawn 스폰 직후에 로딩 완료 조건을 재확인하고 로딩창 제거 후 1초 뒤 카운트다운을 시작한다.
+- 2026-08-09: C-17 Pawn 준비 대기 조건이 클라이언트 스폰을 막을 수 있어 제거했다. 로딩창 닫기는 예상 인원 접속 기준으로 되돌리고, 카운트다운은 로딩창 제거 3초 뒤 시작한다.
+- 2026-08-10: C-17 로딩창 종료 후 카운트다운 시작 전 지연 구간의 초기 입력 누수를 막았다. PvP GameState는 카운트다운 시작 전에도 입력 잠금으로 처리하고, 로컬 캐릭터는 잠금 중 PlayerController move/look ignore를 적용한다.
+- 2026-08-10: 사용자가 PvP 종료 조건의 선행으로 얼음 60초 후 사망을 요청해 C-06을 진행중으로 전환했다. HP 0에서 60초 얼음 타이머를 시작하고 만료 시 라운드 사망 상태를 복제하는 첫 범위를 구현했다.
+- 2026-08-10: 사용자가 PvP 종료 조건을 요청해 C-05 단일 라운드 종료 판정을 진행중으로 전환했다. 얼음/사망 상태가 아닌 생존 플레이어가 한 팀 색에만 남으면 라운드 종료와 승리 팀 복제를 확정한다.
+- 2026-08-10: 라운드 종료 시 HUD WBP가 표시할 `EndRoundPanel`과 `EndRoundResultText` 선택 바인딩을 추가했다.
+- 2026-08-10: C-17 `시작!` 이후 입력 잠금이 풀리지 않는 문제를 수정했다. 카운트다운 종료 시 PlayerController move/look ignore 카운터를 reset하고 PvP 게임 입력 모드로 복구한다.
+- 2026-08-10: C-17 입력 잠금이 계속 남는 추가 원인을 수정했다. PvP 스폰 중 첫 팀 Pawn만 생존한 순간 C-05 라운드 종료가 조기 확정되지 않도록, 시작 전 입력 잠금 중에는 `EvaluateRoundEndCondition()`이 판정을 건너뛰게 했다.
+- 2026-08-10: C-05 팀별 승리 점수 HUD 계약을 추가했다. 라운드 승리 팀 점수를 GameState가 1점 올려 복제하고, `WBP_MainHUDWidget`의 팀별 ScoreText 선택 바인딩으로 표시한다.
+- 2026-08-10: C-05 팀 점수 HUD를 참가 팀만 보이게 확장했다. 팀별 Row 또는 ScoreText는 현재 참가 팀 기준으로 표시되고 점수 내림차순으로 같은 VerticalBox 안에서 재배치된다.
+- 2026-08-10: C-05 팀 점수 Row 탐색을 보강했다. `*TeamScoreRow` 이름의 HorizontalBox를 WidgetTree에서 직접 찾아 Row 전체를 숨김·정렬 대상으로 쓴다.
+- 2026-08-10: C-05 팀 점수 Row 정렬을 VerticalBox 전용으로 보강했다. Row의 직접 부모가 VerticalBox일 때만 `AddChildToVerticalBox()`로 재배치한다.
+- 2026-08-10: C-05 팀 점수 Row 정렬을 `ShiftChild()` 방식으로 변경했다. 기존 슬롯을 유지해 Row 겹침 가능성을 줄이고, 참가 팀 ScoreText visibility를 복구한다.
+- 2026-08-10: C-08 머리 위 이름표를 Screen space에서 World space로 전환했다. 이름표가 로컬 카메라를 향하고 거리감에 따라 자연스럽게 크기가 달라지도록 했다.
+- 2026-08-10: 사용자가 PvP 레벨 후보 지정과 랜덤 진입을 요청해 C-04를 진행중으로 전환했다. `ASnowRumbleLobbyGameMode`에 `PvPLevelCandidates` 후보 배열과 서버 랜덤 선택 travel URL 생성을 추가했다.
+- 2026-08-10: 사용자가 로비 설정 기반 1/3/5 라운드와 라운드 사이 랜덤 PvP 맵 변경을 요청해 C-05 범위를 확장했다. `USnowRumbleMatchSubsystem`이 travel 사이 매치 누적 점수를 유지하고, 남은 라운드가 있으면 다음 PvP 후보 맵으로 이동하며, 마지막 라운드 후 매치 1등 팀을 복제한다.
+- 2026-08-10: Steam 출시는 최종 목표로 유지하되 현재 개발과 테스트는 LAN/NULL 세션으로 계속 진행하기로 결정했다. Steam 세션, Overlay 친구 초대, 초대 수락과 세션 정리는 C-18 최종 통합 Task로 분리하고, 앞으로 UI·PvP·로비 코드는 세션 구현 세부사항에 직접 의존하지 않도록 공개 세션 계약을 통해 개발한다.
+- 2026-08-10: C-05 게임 속도별 맵 축소 호출 준비를 추가했다. 로비 게시판은 느리게/보통/빠르게 버튼으로 90/60/30초 축소 주기를 설정하고, PvP HUD는 `MatchElapsedTimeText`와 `MapShrinkCountdownText`로 경기 시간과 다음 축소 안내를 표시한다. 실제 맵 축소는 `ASnowRumbleGameMode::OnMapShrinkRequested` 이벤트와 `CompleteMapShrinkFromBlueprint()` 완료 신호를 J 또는 맵 담당 Blueprint에 인계한다.
+- 2026-08-10: 사용자가 로비, PvP, 추후 좀비맵에서 사용할 전체/팀 텍스트 채팅을 요청해 C-19를 추가하고 진행중으로 전환했다.
+- 2026-08-10: C-19 채팅 채널 전환을 버튼에서 입력 중 Tab으로 변경하고, 로비는 전체 채팅만 허용하도록 조정했다.
+- 2026-08-10: 사용자가 C-19 채팅 입력, 스크롤, 포커스, 채널 표시와 로그 테두리 표시 정책을 확인하고 push를 요청해 C-19를 완료로 전환했다.

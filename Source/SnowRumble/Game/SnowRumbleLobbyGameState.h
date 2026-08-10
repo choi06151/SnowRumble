@@ -32,6 +32,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Lobby")
 	bool CanStartLobbyMatch() const;
 
+	/** 현재 경기 시작이 불가능한 사유를 UI 표시용 문구로 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Lobby")
+	FText GetStartMatchInvalidReasonText() const;
+
+	/** 현재 선택된 유효 팀 색 수를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Lobby")
+	int32 GetAssignedLobbyTeamCount() const;
+
 	/** 특정 팀에 배정된 현재 플레이어 수를 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Lobby")
 	int32 GetLobbyTeamPlayerCount(ESnowRumbleTeam Team) const;
@@ -48,8 +56,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Lobby")
 	ESnowRumbleLobbyMode GetLobbyMode() const;
 
+	/** 로비에서 선택한 PvP 총 라운드 수를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Lobby")
+	int32 GetMatchRoundLimit() const;
+
 	/** 서버가 현재 로비 게임 모드를 변경한다. */
 	void SetLobbyModeFromServer(ESnowRumbleLobbyMode NewLobbyMode);
+
+	/** 서버가 PvP 총 라운드 수를 1, 3, 5 중 하나로 변경한다. */
+	void SetMatchRoundLimitFromServer(int32 NewRoundLimit);
 
 	virtual void GetLifetimeReplicatedProps(
 		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -65,7 +80,16 @@ protected:
 	UFUNCTION()
 	void OnRep_LobbyMode();
 
+	/** 복제된 총 라운드 수 변경을 UI에 알린다. */
+	UFUNCTION()
+	void OnRep_MatchRoundLimit();
+
 private:
+	int32 NormalizeRoundLimit(int32 NewRoundLimit) const;
+
 	UPROPERTY(ReplicatedUsing = OnRep_LobbyMode)
 	ESnowRumbleLobbyMode LobbyMode = ESnowRumbleLobbyMode::Pvp;
+
+	UPROPERTY(ReplicatedUsing = OnRep_MatchRoundLimit)
+	int32 MatchRoundLimit = 1;
 };

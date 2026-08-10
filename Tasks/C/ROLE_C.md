@@ -41,5 +41,9 @@
 - [C-13 핫팩 부활 계약](C-13_revive_contract.md)
 - [C-14 팀 스폰과 시작 연출](C-14_spawn_intro_flow.md)
 - [C-15 로비 게시판 상호작용](C-15_lobby_board_interaction.md)
+- [C-16 팀원 HP HUD](C-16_teammate_health_hud.md)
+- [C-17 PvP 시작 카운트다운](C-17_pvp_start_countdown.md)
+- [C-18 Steam 세션 최종 통합](C-18_steam_session_integration.md)
+- [C-19 텍스트 채팅](C-19_text_chat.md)
 
 역할 내부 상태와 우선순위는 `PLAN_C.md`, 파트 간 계약·선점과 통합 상태는 `docs/PLANS.md`를 기준으로 판단합니다.

@@ -619,7 +619,8 @@ void USnowballEquipmentComponent::OnRep_HeldSnowball()
 		Character->RefreshHeldEquipmentMovementState();
 	}
 
-	OnHeldSnowballChanged.Broadcast(HeldSnowball);
+	OnHeldSnowballChanged.Broadcast(
+HeldSnowball);
 }
 
 void USnowballEquipmentComponent::OnRep_IsAiming()

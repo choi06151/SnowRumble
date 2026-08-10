@@ -68,6 +68,74 @@ bool ASnowRumbleLobbyGameState::CanStartLobbyMatch() const
 	return true;
 }
 
+FText ASnowRumbleLobbyGameState::GetStartMatchInvalidReasonText() const
+{
+	const TArray<ASnowRumblePlayerState*> LobbyPlayers = GetLobbyPlayers();
+	if (LobbyPlayers.Num() < 2)
+	{
+		return NSLOCTEXT(
+			"SnowRumble",
+			"LobbyInvalidStartNeedPlayers",
+			"게임 시작에는 최소 2명이 필요합니다.");
+	}
+	if (LobbyPlayers.Num() > 8)
+	{
+		return NSLOCTEXT(
+			"SnowRumble",
+			"LobbyInvalidStartTooManyPlayers",
+			"게임 시작은 최대 8명까지 가능합니다.");
+	}
+
+	TSet<ESnowRumbleTeam> AssignedTeams;
+	for (const ASnowRumblePlayerState* PlayerState : LobbyPlayers)
+	{
+		if (!PlayerState || PlayerState->GetLobbyTeam() == ESnowRumbleTeam::None)
+		{
+			return NSLOCTEXT(
+				"SnowRumble",
+				"LobbyInvalidStartNeedTeam",
+				"모든 플레이어가 팀 색을 선택해야 합니다.");
+		}
+
+		AssignedTeams.Add(PlayerState->GetLobbyTeam());
+	}
+
+	if (AssignedTeams.Num() < 2)
+	{
+		return NSLOCTEXT(
+			"SnowRumble",
+			"LobbyInvalidStartNeedTwoTeams",
+			"두 개 이상의 팀이 있어야 게임을 시작할 수 있습니다.");
+	}
+
+	for (const ASnowRumblePlayerState* PlayerState : LobbyPlayers)
+	{
+		if (PlayerState && !PlayerState->IsLobbyHost()
+			&& !PlayerState->IsLobbyReady())
+		{
+			return NSLOCTEXT(
+				"SnowRumble",
+				"LobbyInvalidStartNotReady",
+				"모든 플레이어가 준비 완료해야 시작할 수 있습니다.");
+		}
+	}
+
+	return FText::GetEmpty();
+}
+
+int32 ASnowRumbleLobbyGameState::GetAssignedLobbyTeamCount() const
+{
+	TSet<ESnowRumbleTeam> AssignedTeams;
+	for (const ASnowRumblePlayerState* PlayerState : GetLobbyPlayers())
+	{
+		if (PlayerState && PlayerState->GetLobbyTeam() != ESnowRumbleTeam::None)
+		{
+			AssignedTeams.Add(PlayerState->GetLobbyTeam());
+		}
+	}
+	return AssignedTeams.Num();
+}
+
 int32 ASnowRumbleLobbyGameState::GetLobbyTeamPlayerCount(
 	ESnowRumbleTeam Team) const
 {
@@ -115,6 +183,11 @@ ESnowRumbleLobbyMode ASnowRumbleLobbyGameState::GetLobbyMode() const
 	return LobbyMode;
 }
 
+int32 ASnowRumbleLobbyGameState::GetMatchRoundLimit() const
+{
+	return MatchRoundLimit;
+}
+
 void ASnowRumbleLobbyGameState::SetLobbyModeFromServer(
 	ESnowRumbleLobbyMode NewLobbyMode)
 {
@@ -127,12 +200,26 @@ void ASnowRumbleLobbyGameState::SetLobbyModeFromServer(
 	NotifyLobbyStateChanged();
 }
 
+void ASnowRumbleLobbyGameState::SetMatchRoundLimitFromServer(
+	int32 NewRoundLimit)
+{
+	const int32 NormalizedRoundLimit = NormalizeRoundLimit(NewRoundLimit);
+	if (!HasAuthority() || MatchRoundLimit == NormalizedRoundLimit)
+	{
+		return;
+	}
+
+	MatchRoundLimit = NormalizedRoundLimit;
+	NotifyLobbyStateChanged();
+}
+
 void ASnowRumbleLobbyGameState::GetLifetimeReplicatedProps(
 	TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ASnowRumbleLobbyGameState, LobbyMode);
+	DOREPLIFETIME(ASnowRumbleLobbyGameState, MatchRoundLimit);
 }
 
 void ASnowRumbleLobbyGameState::NotifyLobbyStateChanged()
@@ -143,4 +230,23 @@ void ASnowRumbleLobbyGameState::NotifyLobbyStateChanged()
 void ASnowRumbleLobbyGameState::OnRep_LobbyMode()
 {
 	NotifyLobbyStateChanged();
+}
+
+void ASnowRumbleLobbyGameState::OnRep_MatchRoundLimit()
+{
+	NotifyLobbyStateChanged();
+}
+
+int32 ASnowRumbleLobbyGameState::NormalizeRoundLimit(
+	int32 NewRoundLimit) const
+{
+	if (NewRoundLimit <= 1)
+	{
+		return 1;
+	}
+	if (NewRoundLimit <= 3)
+	{
+		return 3;
+	}
+	return 5;
 }

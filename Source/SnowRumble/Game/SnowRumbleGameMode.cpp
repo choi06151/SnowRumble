@@ -2,18 +2,62 @@
 
 #include "SnowRumbleGameMode.h"
 
+#include "Engine/GameInstance.h"
 #include "../Player/SnowRumbleCharacter.h"
+#include "../Player/SnowRumbleHealthComponent.h"
 #include "../UI/SnowRumblePlayerController.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerStart.h"
+#include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
+#include "SnowRumbleGameState_C.h"
+#include "SnowRumbleMatchSubsystem_C.h"
 #include "SnowRumblePlayerState.h"
+
+namespace
+{
+FVector MakeRandomHorizontalOffset(float Radius)
+{
+	if (Radius <= 0.0f)
+	{
+		return FVector::ZeroVector;
+	}
+
+	const float AngleRadians =
+		FMath::FRandRange(0.0f, UE_TWO_PI);
+	const float Distance =
+		FMath::Sqrt(FMath::FRand()) * Radius;
+	return FVector(
+		FMath::Cos(AngleRadians) * Distance,
+		FMath::Sin(AngleRadians) * Distance,
+		0.0f);
+}
+}
 
 ASnowRumbleGameMode::ASnowRumbleGameMode()
 {
 	PlayerControllerClass = ASnowRumblePlayerController::StaticClass();
+	GameStateClass = ASnowRumbleGameState::StaticClass();
 	PlayerStateClass = ASnowRumblePlayerState::StaticClass();
 	DefaultPawnClass = ASnowRumbleCharacter::StaticClass();
+	bUseSeamlessTravel = true;
+
+	if (IConsoleVariable* AllowPieSeamlessTravel =
+		IConsoleManager::Get().FindConsoleVariable(TEXT("net.AllowPIESeamlessTravel")))
+	{
+		AllowPieSeamlessTravel->Set(1);
+	}
+}
+
+void ASnowRumbleGameMode::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (ASnowRumbleGameState* SnowRumbleGameState =
+		GetGameState<ASnowRumbleGameState>())
+	{
+		SnowRumbleGameState->ApplyMatchStateFromServer(GetMatchSubsystem());
+	}
 }
 
 void ASnowRumbleGameMode::InitGame(
@@ -29,11 +73,21 @@ void ASnowRumbleGameMode::InitGame(
 		? 0
 		: FMath::Max(0, FCString::Atoi(*ExpectedPlayersOption));
 	bLoadingScreensDismissed = false;
+	bStartCountdownStarted = false;
 }
 
 void ASnowRumbleGameMode::PostLogin(APlayerController* NewPlayer)
 {
 	Super::PostLogin(NewPlayer);
+
+	BroadcastLoadingProgress();
+	TryDismissLoadingScreens();
+}
+
+void ASnowRumbleGameMode::HandleStartingNewPlayer_Implementation(
+	APlayerController* NewPlayer)
+{
+	Super::HandleStartingNewPlayer_Implementation(NewPlayer);
 
 	BroadcastLoadingProgress();
 	TryDismissLoadingScreens();
@@ -70,6 +124,43 @@ void ASnowRumbleGameMode::TryDismissLoadingScreens()
 		{
 			PlayerController->ClientHideLoadingScreen();
 		}
+	}
+
+	if (!bStartCountdownStarted)
+	{
+		bStartCountdownStarted = true;
+		World->GetTimerManager().SetTimerForNextTick(
+			this,
+			&ASnowRumbleGameMode::StartMatchCountdownAfterLoading);
+	}
+}
+
+void ASnowRumbleGameMode::StartMatchCountdownAfterLoading()
+{
+	if (MatchStartCountdownDelaySeconds > 0.0f)
+	{
+		FTimerHandle CountdownDelayTimerHandle;
+		GetWorldTimerManager().SetTimer(
+			CountdownDelayTimerHandle,
+			[this]()
+			{
+				if (ASnowRumbleGameState* SnowRumbleGameState =
+					GetGameState<ASnowRumbleGameState>())
+				{
+					SnowRumbleGameState->StartMatchCountdownFromServer(
+						MatchStartCountdownSeconds);
+				}
+			},
+			MatchStartCountdownDelaySeconds,
+			false);
+		return;
+	}
+
+	if (ASnowRumbleGameState* SnowRumbleGameState =
+		GetGameState<ASnowRumbleGameState>())
+	{
+		SnowRumbleGameState->StartMatchCountdownFromServer(
+			MatchStartCountdownSeconds);
 	}
 }
 
@@ -114,6 +205,217 @@ AActor* ASnowRumbleGameMode::ChoosePlayerStart_Implementation(
 	return SelectedPlayerStart;
 }
 
+void ASnowRumbleGameMode::RestartPlayerAtPlayerStart(
+	AController* NewPlayer,
+	AActor* StartSpot)
+{
+	if (!NewPlayer || !StartSpot)
+	{
+		Super::RestartPlayerAtPlayerStart(NewPlayer, StartSpot);
+		return;
+	}
+
+	const FTransform SpawnTransform =
+		BuildScatteredPlayerStartTransform(StartSpot);
+	UsedSpawnLocations.Add(SpawnTransform.GetLocation());
+	RestartPlayerAtTransform(NewPlayer, SpawnTransform);
+	BindPawnLifeState(NewPlayer->GetPawn());
+	EvaluateRoundEndCondition();
+}
+
+void ASnowRumbleGameMode::EvaluateRoundEndCondition()
+{
+	ASnowRumbleGameState* SnowRumbleGameState =
+		GetGameState<ASnowRumbleGameState>();
+	if (!HasAuthority()
+		|| !SnowRumbleGameState
+		|| SnowRumbleGameState->IsRoundEnded()
+		|| SnowRumbleGameState->IsMatchInputLocked())
+	{
+		return;
+	}
+
+	TSet<ESnowRumbleTeam> ParticipatingTeams;
+	TSet<ESnowRumbleTeam> AliveTeams;
+	for (APlayerState* PlayerState : GameState->PlayerArray)
+	{
+		const ASnowRumblePlayerState* SnowRumblePlayerState =
+			Cast<ASnowRumblePlayerState>(PlayerState);
+		if (!SnowRumblePlayerState
+			|| !IsValidRoundTeam(SnowRumblePlayerState->GetLobbyTeam()))
+		{
+			continue;
+		}
+
+		const ESnowRumbleTeam Team = SnowRumblePlayerState->GetLobbyTeam();
+		ParticipatingTeams.Add(Team);
+
+		const APawn* Pawn = SnowRumblePlayerState->GetPawn();
+		const ASnowRumbleCharacter* Character =
+			Cast<ASnowRumbleCharacter>(Pawn);
+		if (Character && !Character->IsFrozen() && !Character->IsDead())
+		{
+			AliveTeams.Add(Team);
+		}
+	}
+
+	if (ParticipatingTeams.Num() < 2 || AliveTeams.Num() != 1)
+	{
+		return;
+	}
+
+	for (const ESnowRumbleTeam WinningTeam : AliveTeams)
+	{
+		USnowRumbleMatchSubsystem* MatchSubsystem = GetMatchSubsystem();
+		if (MatchSubsystem)
+		{
+			MatchSubsystem->RecordRoundWin(WinningTeam);
+		}
+
+		SnowRumbleGameState->EndRoundFromServer(
+			WinningTeam,
+			MatchSubsystem);
+
+		if (MatchSubsystem && !MatchSubsystem->IsMatchComplete())
+		{
+			FTimerHandle NextRoundTravelTimerHandle;
+			GetWorldTimerManager().SetTimer(
+				NextRoundTravelTimerHandle,
+				this,
+				&ASnowRumbleGameMode::TravelToNextRoundIfNeeded,
+				NextRoundTravelDelaySeconds,
+				false);
+		}
+		else if (MatchSubsystem && MatchSubsystem->IsMatchComplete())
+		{
+			FTimerHandle LobbyReturnTimerHandle;
+			GetWorldTimerManager().SetTimer(
+				LobbyReturnTimerHandle,
+				this,
+				&ASnowRumbleGameMode::ReturnToLobbyAfterMatchEnd,
+				MatchEndLobbyReturnDelaySeconds,
+				false);
+		}
+		return;
+	}
+}
+
+void ASnowRumbleGameMode::TravelToNextRoundIfNeeded()
+{
+	USnowRumbleMatchSubsystem* MatchSubsystem = GetMatchSubsystem();
+	if (!HasAuthority()
+		|| !MatchSubsystem
+		|| MatchSubsystem->IsMatchComplete())
+	{
+		return;
+	}
+
+	MatchSubsystem->AdvanceToNextRound();
+	FString NextLevelPath = MatchSubsystem->SelectNextPvPLevelPath(FString());
+	if (NextLevelPath.IsEmpty())
+	{
+		return;
+	}
+
+	if (!NextLevelPath.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
+	{
+		NextLevelPath += TEXT("?listen");
+	}
+	if (ExpectedPlayerCount > 0)
+	{
+		NextLevelPath += FString::Printf(
+			TEXT("?ExpectedPlayers=%d"),
+			ExpectedPlayerCount);
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		for (FConstPlayerControllerIterator It =
+				World->GetPlayerControllerIterator();
+			It;
+			++It)
+		{
+			if (ASnowRumblePlayerController* PlayerController =
+				Cast<ASnowRumblePlayerController>(It->Get()))
+			{
+				PlayerController->ClientShowLoadingScreen();
+				PlayerController->ClientUpdateLoadingProgress(
+					0,
+					ExpectedPlayerCount);
+			}
+		}
+
+		World->ServerTravel(NextLevelPath);
+	}
+}
+
+void ASnowRumbleGameMode::ReturnToLobbyAfterMatchEnd()
+{
+	USnowRumbleMatchSubsystem* MatchSubsystem = GetMatchSubsystem();
+	if (!HasAuthority()
+		|| !MatchSubsystem
+		|| !MatchSubsystem->IsMatchComplete()
+		|| LobbyReturnTravelUrl.IsEmpty())
+	{
+		return;
+	}
+
+	FString TravelUrl = LobbyReturnTravelUrl;
+	if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
+	{
+		TravelUrl += TEXT("?listen");
+	}
+
+	MatchSubsystem->ResetPvPMatch();
+	if (UWorld* World = GetWorld())
+	{
+		World->ServerTravel(TravelUrl);
+	}
+}
+
+void ASnowRumbleGameMode::HandlePlayerLifeStateChanged(bool bUnused)
+{
+	EvaluateRoundEndCondition();
+}
+
+void ASnowRumbleGameMode::BindPawnLifeState(APawn* Pawn)
+{
+	ASnowRumbleCharacter* Character = Cast<ASnowRumbleCharacter>(Pawn);
+	if (!Character)
+	{
+		return;
+	}
+
+	if (USnowRumbleHealthComponent* HealthComponent =
+		Character->FindComponentByClass<USnowRumbleHealthComponent>())
+	{
+		HealthComponent->OnFrozenChanged.AddUniqueDynamic(
+			this,
+			&ASnowRumbleGameMode::HandlePlayerLifeStateChanged);
+		HealthComponent->OnDeathChanged.AddUniqueDynamic(
+			this,
+			&ASnowRumbleGameMode::HandlePlayerLifeStateChanged);
+	}
+}
+
+bool ASnowRumbleGameMode::IsValidRoundTeam(ESnowRumbleTeam Team) const
+{
+	switch (Team)
+	{
+	case ESnowRumbleTeam::Red:
+	case ESnowRumbleTeam::Sky:
+	case ESnowRumbleTeam::Green:
+	case ESnowRumbleTeam::Yellow:
+	case ESnowRumbleTeam::Purple:
+	case ESnowRumbleTeam::Pink:
+	case ESnowRumbleTeam::Blue:
+	case ESnowRumbleTeam::White:
+		return true;
+	default:
+		return false;
+	}
+}
+
 void ASnowRumbleGameMode::BroadcastLoadingProgress()
 {
 	UWorld* World = GetWorld();
@@ -136,4 +438,68 @@ void ASnowRumbleGameMode::BroadcastLoadingProgress()
 				RequiredPlayerCount);
 		}
 	}
+}
+
+USnowRumbleMatchSubsystem* ASnowRumbleGameMode::GetMatchSubsystem() const
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	return GameInstance
+		? GameInstance->GetSubsystem<USnowRumbleMatchSubsystem>()
+		: nullptr;
+}
+
+FTransform ASnowRumbleGameMode::BuildScatteredPlayerStartTransform(
+	const AActor* StartSpot) const
+{
+	const FVector StartLocation = StartSpot->GetActorLocation();
+	const FRotator StartRotation = StartSpot->GetActorRotation();
+
+	FVector BestCandidateLocation = StartLocation;
+	float BestCandidateDistanceSquared = -1.0f;
+
+	const int32 Attempts = FMath::Max(1, PlayerStartSpawnScatterAttempts);
+	for (int32 AttemptIndex = 0; AttemptIndex < Attempts; ++AttemptIndex)
+	{
+		const FVector CandidateLocation =
+			StartLocation
+			+ MakeRandomHorizontalOffset(PlayerStartSpawnScatterRadius);
+		if (IsSpawnLocationFarEnough(CandidateLocation))
+		{
+			return FTransform(StartRotation, CandidateLocation);
+		}
+
+		float ClosestUsedDistanceSquared = TNumericLimits<float>::Max();
+		for (const FVector& UsedSpawnLocation : UsedSpawnLocations)
+		{
+			const float DistanceSquared =
+				FVector::DistSquared2D(CandidateLocation, UsedSpawnLocation);
+			ClosestUsedDistanceSquared =
+				FMath::Min(ClosestUsedDistanceSquared, DistanceSquared);
+		}
+
+		if (ClosestUsedDistanceSquared > BestCandidateDistanceSquared)
+		{
+			BestCandidateDistanceSquared = ClosestUsedDistanceSquared;
+			BestCandidateLocation = CandidateLocation;
+		}
+	}
+
+	return FTransform(StartRotation, BestCandidateLocation);
+}
+
+bool ASnowRumbleGameMode::IsSpawnLocationFarEnough(
+	const FVector& CandidateLocation) const
+{
+	const float MinimumSpacingSquared =
+		FMath::Square(PlayerStartSpawnMinimumSpacing);
+	for (const FVector& UsedSpawnLocation : UsedSpawnLocations)
+	{
+		if (FVector::DistSquared2D(CandidateLocation, UsedSpawnLocation)
+			< MinimumSpacingSquared)
+		{
+			return false;
+		}
+	}
+
+	return true;
 }

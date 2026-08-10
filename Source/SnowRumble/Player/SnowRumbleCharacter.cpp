@@ -3,6 +3,7 @@
 #include "SnowRumbleCharacter.h"
 
 #include "SnowRumbleHealthComponent.h"
+#include "../Game/SnowRumbleGameState_C.h"
 #include "../Game/SnowRumbleLobbyGameState.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "../Interaction/LobbyInteractionBoard_C.h"
@@ -13,6 +14,7 @@
 #include "../UI/EmoteRadialMenuWidget.h"
 #include "../UI/MainHUDWidget.h"
 #include "../UI/OverheadNameplateWidget_C.h"
+#include "../UI/SnowRumblePlayerController.h"
 #include "Animation/AnimMontage.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/PlayerCameraManager.h"
@@ -32,6 +34,7 @@
 #include "InputActionValue.h"
 #include "InputMappingContext.h"
 #include "InputCoreTypes.h"
+#include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "NiagaraComponent.h"
 #include "TimerManager.h"
@@ -106,7 +109,7 @@ ASnowRumbleCharacter::ASnowRumbleCharacter()
 	OverheadNameplateComponent =
 		CreateDefaultSubobject<UWidgetComponent>(TEXT("OverheadNameplateComponent"));
 	OverheadNameplateComponent->SetupAttachment(RootComponent);
-	OverheadNameplateComponent->SetWidgetSpace(EWidgetSpace::Screen);
+	OverheadNameplateComponent->SetWidgetSpace(EWidgetSpace::World);
 	OverheadNameplateComponent->SetDrawAtDesiredSize(true);
 	OverheadNameplateComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
@@ -179,6 +182,8 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 	}
 
 	DrawRollingSnowballCollisionDebug();
+	RefreshOverheadNameplateFacing();
+	RefreshPvpMatchInputLock();
 	ApplyMovementSpeed();
 	RefreshLocalSnowEffect();
 
@@ -229,6 +234,18 @@ bool ASnowRumbleCharacter::IsSprinting() const
 bool ASnowRumbleCharacter::IsFrozen() const
 {
 	return HealthComponent && HealthComponent->IsFrozen();
+}
+
+bool ASnowRumbleCharacter::IsDead() const
+{
+	return HealthComponent && HealthComponent->IsDead();
+}
+
+float ASnowRumbleCharacter::GetFrozenSecondsRemaining() const
+{
+	return HealthComponent
+		? HealthComponent->GetFrozenSecondsRemaining()
+		: 0.0f;
 }
 
 bool ASnowRumbleCharacter::IsHoldingSnowball() const
@@ -512,7 +529,9 @@ void ASnowRumbleCharacter::BeginPlay()
 	if (HealthComponent)
 	{
 		HealthComponent->OnFrozenChanged.AddDynamic(this, &ASnowRumbleCharacter::HandleFrozenChanged);
+		HealthComponent->OnDeathChanged.AddDynamic(this, &ASnowRumbleCharacter::HandleDeathChanged);
 		HandleFrozenChanged(HealthComponent->IsFrozen());
+		HandleDeathChanged(HealthComponent->IsDead());
 	}
 
 	if (SnowballEquipmentComponent)
@@ -525,6 +544,7 @@ void ASnowRumbleCharacter::BeginPlay()
 
 	BindOverheadNameToPlayerState();
 	RefreshOverheadPlayerName();
+	RefreshPvpMatchInputLock();
 }
 
 FString ASnowRumbleCharacter::GetOverheadPlayerName() const
@@ -625,6 +645,7 @@ void ASnowRumbleCharacter::PawnClientRestart()
 	RefreshLocalSnowEffect();
 	EnsureEmoteRadialMenuWidget();
 	EnsureMainHUDWidget();
+	RefreshPvpMatchInputLock();
 }
 
 void ASnowRumbleCharacter::BindOverheadNameToPlayerState()
@@ -646,10 +667,40 @@ void ASnowRumbleCharacter::RefreshOverheadNameplateComponentSettings()
 	}
 
 	OverheadNameplateComponent->SetRelativeLocation(OverheadNameRelativeLocation);
+	OverheadNameplateComponent->SetWidgetSpace(EWidgetSpace::World);
+	OverheadNameplateComponent->SetDrawAtDesiredSize(true);
+	OverheadNameplateComponent->SetDrawSize(OverheadNameplateDrawSize);
+	const float SafeWorldScale = FMath::Max(0.001f, OverheadNameplateWorldScale);
+	OverheadNameplateComponent->SetRelativeScale3D(
+		FVector(SafeWorldScale, SafeWorldScale, SafeWorldScale));
 	if (OverheadNameplateWidgetClass)
 	{
 		OverheadNameplateComponent->SetWidgetClass(OverheadNameplateWidgetClass);
 	}
+}
+
+void ASnowRumbleCharacter::RefreshOverheadNameplateFacing()
+{
+	if (!OverheadNameplateComponent)
+	{
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	const APlayerCameraManager* CameraManager = World
+		? UGameplayStatics::GetPlayerCameraManager(World, 0)
+		: nullptr;
+	if (!CameraManager)
+	{
+		return;
+	}
+
+	const FVector NameplateLocation =
+		OverheadNameplateComponent->GetComponentLocation();
+	const FVector CameraLocation = CameraManager->GetCameraLocation();
+	const FRotator LookAtCameraRotation =
+		(CameraLocation - NameplateLocation).Rotation();
+	OverheadNameplateComponent->SetWorldRotation(LookAtCameraRotation);
 }
 
 void ASnowRumbleCharacter::RefreshOverheadPlayerName()
@@ -967,7 +1018,7 @@ void ASnowRumbleCharacter::Move(const FInputActionValue& Value)
 
 void ASnowRumbleCharacter::Look(const FInputActionValue& Value)
 {
-	if (bIsEmoteRadialMenuOpen)
+	if (bIsEmoteRadialMenuOpen || IsPvpMatchInputLocked())
 	{
 		return;
 	}
@@ -1390,8 +1441,37 @@ void ASnowRumbleCharacter::HandleFrozenChanged(bool bIsFrozen)
 	}
 	else
 	{
-		MovementComponent->SetMovementMode(MOVE_Walking);
+		if (!HealthComponent || !HealthComponent->IsDead())
+		{
+			MovementComponent->SetMovementMode(MOVE_Walking);
+		}
 	}
+}
+
+void ASnowRumbleCharacter::HandleDeathChanged(bool bIsDead)
+{
+	if (!bIsDead)
+	{
+		return;
+	}
+
+	bIsSprinting = false;
+	bIsPickingUpItem = false;
+	if (SnowballEquipmentComponent)
+	{
+		SnowballEquipmentComponent->SetAiming(false);
+	}
+	if (SnowballCreationComponent)
+	{
+		SnowballCreationComponent->CancelCreatingSnowball();
+	}
+	if (UCharacterMovementComponent* MovementComponent = GetCharacterMovement())
+	{
+		MovementComponent->StopMovementImmediately();
+		MovementComponent->DisableMovement();
+	}
+	StopJumping();
+	ApplyMovementSpeed();
 }
 
 void ASnowRumbleCharacter::HandleSnowballAimingChanged(bool bNewAiming)
@@ -1601,9 +1681,67 @@ void ASnowRumbleCharacter::ServerRequestLobbyTeamSelection_Implementation(
 
 bool ASnowRumbleCharacter::CanPerformGameplayAction() const
 {
+	const ASnowRumblePlayerController* SnowRumblePlayerController =
+		Cast<ASnowRumblePlayerController>(GetController());
 	return HealthComponent
 		&& !HealthComponent->IsFrozen()
-		&& !bIsPickingUpItem;
+		&& !HealthComponent->IsDead()
+		&& !bIsPickingUpItem
+		&& !IsPvpMatchInputLocked()
+		&& (!SnowRumblePlayerController
+			|| !SnowRumblePlayerController->IsChatInputOpen());
+}
+
+bool ASnowRumbleCharacter::IsPvpMatchInputLocked() const
+{
+	const UWorld* World = GetWorld();
+	const ASnowRumbleGameState* SnowRumbleGameState = World
+		? World->GetGameState<ASnowRumbleGameState>()
+		: nullptr;
+	return SnowRumbleGameState
+		&& SnowRumbleGameState->IsMatchInputLocked();
+}
+
+void ASnowRumbleCharacter::RefreshPvpMatchInputLock()
+{
+	if (!IsLocallyControlled())
+	{
+		return;
+	}
+
+	APlayerController* PlayerController =
+		Cast<APlayerController>(GetController());
+	if (!PlayerController)
+	{
+		return;
+	}
+
+	const bool bShouldBlockInput = IsPvpMatchInputLocked();
+	if (bShouldBlockInput)
+	{
+		if (!bPvpMatchInputIgnoreApplied)
+		{
+			PlayerController->SetIgnoreMoveInput(true);
+			PlayerController->SetIgnoreLookInput(true);
+			bPvpMatchInputIgnoreApplied = true;
+		}
+		if (UCharacterMovementComponent* MovementComponent =
+			GetCharacterMovement())
+		{
+			MovementComponent->StopMovementImmediately();
+		}
+		bIsSprinting = false;
+		return;
+	}
+
+	if (bPvpMatchInputIgnoreApplied && !FocusedLobbyBoard)
+	{
+		PlayerController->ResetIgnoreMoveInput();
+		PlayerController->ResetIgnoreLookInput();
+		PlayerController->SetInputMode(FInputModeGameOnly());
+		PlayerController->SetShowMouseCursor(false);
+		bPvpMatchInputIgnoreApplied = false;
+	}
 }
 
 bool ASnowRumbleCharacter::IsValidEmoteIndex(int32 EmoteIndex) const
@@ -1654,7 +1792,11 @@ void ASnowRumbleCharacter::ApplyMovementSpeed()
 	if (UCharacterMovementComponent* MovementComponent = GetCharacterMovement())
 	{
 		MovementComponent->MaxWalkSpeed =
-			bIsPickingUpItem
+			IsPvpMatchInputLocked()
+				? 0.0f
+				: HealthComponent && HealthComponent->IsDead()
+				? 0.0f
+				: bIsPickingUpItem
 				? 0.0f
 				: SnowballEquipmentComponent
 					&& SnowballEquipmentComponent->IsRollingSnowball()
