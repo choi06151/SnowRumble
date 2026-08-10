@@ -268,6 +268,17 @@ void ALobbyPlayerController::ClientShowLoadingScreen_Implementation()
 	Super::ClientShowLoadingScreen_Implementation();
 }
 
+bool ALobbyPlayerController::CanOpenChatInput() const
+{
+	return Super::CanOpenChatInput()
+		&& (!LobbyEscapeMenuWidget || !LobbyEscapeMenuWidget->IsInViewport());
+}
+
+bool ALobbyPlayerController::SupportsTeamChat() const
+{
+	return false;
+}
+
 void ALobbyPlayerController::ApplySavedLobbyPlayerName()
 {
 	if (!IsLocalController())
