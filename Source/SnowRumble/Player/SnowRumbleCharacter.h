@@ -273,6 +273,9 @@ protected:
 	/** 에디터와 런타임에서 이름표 컴포넌트 위치와 클래스를 현재 설정값으로 맞춘다. */
 	void RefreshOverheadNameplateComponentSettings();
 
+	/** 월드 공간 이름표가 로컬 카메라를 향하도록 회전시킨다. */
+	void RefreshOverheadNameplateFacing();
+
 	/** 자신이 조종하는 캐릭터의 카메라에서만 눈 VFX를 활성화한다. */
 	void RefreshLocalSnowEffect();
 
@@ -429,6 +432,12 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Identity")
 	FVector OverheadNameRelativeLocation = FVector(0.0f, 0.0f, 130.0f);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Identity", meta = (ClampMin = "1.0"))
+	FVector2D OverheadNameplateDrawSize = FVector2D(220.0f, 64.0f);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Identity", meta = (ClampMin = "0.001"))
+	float OverheadNameplateWorldScale = 0.35f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
 	TObjectPtr<UInputMappingContext> PlayerMappingContext;

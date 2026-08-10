@@ -19,6 +19,8 @@ class SNOWRUMBLE_API ASnowRumbleGameMode : public AGameModeBase
 public:
 	ASnowRumbleGameMode();
 
+	virtual void BeginPlay() override;
+
 	virtual void InitGame(
 		const FString& MapName,
 		const FString& Options,
@@ -58,11 +60,29 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Match", meta = (ClampMin = "0.0"))
 	float MatchStartCountdownDelaySeconds = 3.0f;
 
+	/** 라운드 종료 결과를 보여준 뒤 다음 라운드 맵으로 이동하기까지 기다릴 시간이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Match", meta = (ClampMin = "0.0"))
+	float NextRoundTravelDelaySeconds = 5.0f;
+
+	/** 매치 종료 결과를 보여준 뒤 로비로 복귀하기까지 기다릴 시간이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Match", meta = (ClampMin = "0.0"))
+	float MatchEndLobbyReturnDelaySeconds = 5.0f;
+
+	/** 매치 종료 후 복귀할 로비 맵 travel URL이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Match")
+	FString LobbyReturnTravelUrl = TEXT("/Game/Maps/L_Lobby?listen");
+
 	/** 모든 예상 플레이어가 접속하면 전체 클라이언트의 로딩창을 닫는다. */
 	void TryDismissLoadingScreens();
 
 	/** PvP 맵 로딩이 끝난 뒤 서버 확정 시작 카운트다운을 시작한다. */
 	void StartMatchCountdownAfterLoading();
+
+	/** 라운드 결과 표시 후 남은 라운드가 있으면 다음 PvP 맵으로 이동한다. */
+	void TravelToNextRoundIfNeeded();
+
+	/** 매치 결과 표시 후 로비로 복귀한다. */
+	void ReturnToLobbyAfterMatchEnd();
 
 	/** 새로 생성된 Pawn의 생명 상태 변경을 라운드 종료 검사에 연결한다. */
 	void BindPawnLifeState(APawn* Pawn);
@@ -72,6 +92,9 @@ private:
 
 	/** 현재 PvP 레벨 접속 진행률을 접속 완료된 클라이언트들에게 보낸다. */
 	void BroadcastLoadingProgress();
+
+	/** 현재 GameInstance에 저장된 PvP 매치 상태를 반환한다. */
+	class USnowRumbleMatchSubsystem* GetMatchSubsystem() const;
 
 	/** 이번 PvP 매치에서 이미 선택한 PlayerStart다. */
 	TSet<TWeakObjectPtr<AActor>> UsedPlayerStarts;

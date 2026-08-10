@@ -105,6 +105,17 @@ void ULobbyWidget::RequestSetLocalPlayerTeam(ESnowRumbleTeam NewTeam)
 	if (ASnowRumblePlayerState* PlayerState =
 		GetLocalSnowRumblePlayerState())
 	{
+		if (PlayerState->IsLobbyReady()
+			&& PlayerState->GetLobbyTeam() != NewTeam)
+		{
+			ShowInvalidActionFeedback(
+				NSLOCTEXT(
+					"SnowRumble",
+					"LobbyInvalidTeamChangeWhileReady",
+					"준비 완료 상태에서는 팀 색을 변경할 수 없습니다."));
+			return;
+		}
+
 		PlayerState->RequestSetLobbyTeam(NewTeam);
 	}
 }
@@ -120,6 +131,19 @@ void ULobbyWidget::RequestSetLocalPlayerReady(bool bNewReady)
 
 void ULobbyWidget::RequestStartMatch()
 {
+	if (!CanStartMatch())
+	{
+		const ASnowRumbleLobbyGameState* LobbyGameState = GetLobbyGameState();
+		ShowInvalidActionFeedback(
+			LobbyGameState
+				? LobbyGameState->GetStartMatchInvalidReasonText()
+				: NSLOCTEXT(
+					"SnowRumble",
+					"LobbyInvalidStartFallback",
+					"게임을 시작할 수 없습니다."));
+		return;
+	}
+
 	if (ASnowRumblePlayerState* PlayerState =
 		GetLocalSnowRumblePlayerState())
 	{
@@ -262,6 +286,15 @@ void ULobbyWidget::RefreshLobbyStatusTexts()
 			: FText::FromString(TEXT("-")));
 	}
 
+	if (MatchRoundLimitText)
+	{
+		MatchRoundLimitText->SetText(LobbyGameState
+			? FText::Format(
+				NSLOCTEXT("SnowRumble", "LobbyRoundLimitFormat", "{0} 라운드"),
+				FText::AsNumber(LobbyGameState->GetMatchRoundLimit()))
+			: FText::FromString(TEXT("-")));
+	}
+
 	if (LocalPlayerNameText)
 	{
 		LocalPlayerNameText->SetText(PlayerState
@@ -289,6 +322,21 @@ void ULobbyWidget::RefreshLobbyStatusTexts()
 			? PlayerState->GetLobbyTeamColor()
 			: FLinearColor::White);
 	}
+}
+
+void ULobbyWidget::ShowInvalidActionFeedback(const FText& ReasonText)
+{
+	if (InvalidActionReasonText)
+	{
+		InvalidActionReasonText->SetText(ReasonText);
+		InvalidActionReasonText->SetVisibility(
+			ESlateVisibility::SelfHitTestInvisible);
+	}
+	if (InvalidActionAnimation)
+	{
+		PlayAnimation(InvalidActionAnimation);
+	}
+	OnInvalidActionFeedback(ReasonText);
 }
 
 void ULobbyWidget::UnbindLobbyBindings()

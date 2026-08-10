@@ -2,13 +2,16 @@
 
 #include "SnowRumbleGameMode.h"
 
+#include "Engine/GameInstance.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "../Player/SnowRumbleHealthComponent.h"
 #include "../UI/SnowRumblePlayerController.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerStart.h"
+#include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "SnowRumbleGameState_C.h"
+#include "SnowRumbleMatchSubsystem_C.h"
 #include "SnowRumblePlayerState.h"
 
 namespace
@@ -37,6 +40,24 @@ ASnowRumbleGameMode::ASnowRumbleGameMode()
 	GameStateClass = ASnowRumbleGameState::StaticClass();
 	PlayerStateClass = ASnowRumblePlayerState::StaticClass();
 	DefaultPawnClass = ASnowRumbleCharacter::StaticClass();
+	bUseSeamlessTravel = true;
+
+	if (IConsoleVariable* AllowPieSeamlessTravel =
+		IConsoleManager::Get().FindConsoleVariable(TEXT("net.AllowPIESeamlessTravel")))
+	{
+		AllowPieSeamlessTravel->Set(1);
+	}
+}
+
+void ASnowRumbleGameMode::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (ASnowRumbleGameState* SnowRumbleGameState =
+		GetGameState<ASnowRumbleGameState>())
+	{
+		SnowRumbleGameState->ApplyMatchStateFromServer(GetMatchSubsystem());
+	}
 }
 
 void ASnowRumbleGameMode::InitGame(
@@ -208,7 +229,8 @@ void ASnowRumbleGameMode::EvaluateRoundEndCondition()
 		GetGameState<ASnowRumbleGameState>();
 	if (!HasAuthority()
 		|| !SnowRumbleGameState
-		|| SnowRumbleGameState->IsRoundEnded())
+		|| SnowRumbleGameState->IsRoundEnded()
+		|| SnowRumbleGameState->IsMatchInputLocked())
 	{
 		return;
 	}
@@ -244,8 +266,110 @@ void ASnowRumbleGameMode::EvaluateRoundEndCondition()
 
 	for (const ESnowRumbleTeam WinningTeam : AliveTeams)
 	{
-		SnowRumbleGameState->EndRoundFromServer(WinningTeam);
+		USnowRumbleMatchSubsystem* MatchSubsystem = GetMatchSubsystem();
+		if (MatchSubsystem)
+		{
+			MatchSubsystem->RecordRoundWin(WinningTeam);
+		}
+
+		SnowRumbleGameState->EndRoundFromServer(
+			WinningTeam,
+			MatchSubsystem);
+
+		if (MatchSubsystem && !MatchSubsystem->IsMatchComplete())
+		{
+			FTimerHandle NextRoundTravelTimerHandle;
+			GetWorldTimerManager().SetTimer(
+				NextRoundTravelTimerHandle,
+				this,
+				&ASnowRumbleGameMode::TravelToNextRoundIfNeeded,
+				NextRoundTravelDelaySeconds,
+				false);
+		}
+		else if (MatchSubsystem && MatchSubsystem->IsMatchComplete())
+		{
+			FTimerHandle LobbyReturnTimerHandle;
+			GetWorldTimerManager().SetTimer(
+				LobbyReturnTimerHandle,
+				this,
+				&ASnowRumbleGameMode::ReturnToLobbyAfterMatchEnd,
+				MatchEndLobbyReturnDelaySeconds,
+				false);
+		}
 		return;
+	}
+}
+
+void ASnowRumbleGameMode::TravelToNextRoundIfNeeded()
+{
+	USnowRumbleMatchSubsystem* MatchSubsystem = GetMatchSubsystem();
+	if (!HasAuthority()
+		|| !MatchSubsystem
+		|| MatchSubsystem->IsMatchComplete())
+	{
+		return;
+	}
+
+	MatchSubsystem->AdvanceToNextRound();
+	FString NextLevelPath = MatchSubsystem->SelectNextPvPLevelPath(FString());
+	if (NextLevelPath.IsEmpty())
+	{
+		return;
+	}
+
+	if (!NextLevelPath.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
+	{
+		NextLevelPath += TEXT("?listen");
+	}
+	if (ExpectedPlayerCount > 0)
+	{
+		NextLevelPath += FString::Printf(
+			TEXT("?ExpectedPlayers=%d"),
+			ExpectedPlayerCount);
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		for (FConstPlayerControllerIterator It =
+				World->GetPlayerControllerIterator();
+			It;
+			++It)
+		{
+			if (ASnowRumblePlayerController* PlayerController =
+				Cast<ASnowRumblePlayerController>(It->Get()))
+			{
+				PlayerController->ClientShowLoadingScreen();
+				PlayerController->ClientUpdateLoadingProgress(
+					0,
+					ExpectedPlayerCount);
+			}
+		}
+
+		World->ServerTravel(NextLevelPath);
+	}
+}
+
+void ASnowRumbleGameMode::ReturnToLobbyAfterMatchEnd()
+{
+	USnowRumbleMatchSubsystem* MatchSubsystem = GetMatchSubsystem();
+	if (!HasAuthority()
+		|| !MatchSubsystem
+		|| !MatchSubsystem->IsMatchComplete()
+		|| LobbyReturnTravelUrl.IsEmpty())
+	{
+		return;
+	}
+
+	FString TravelUrl = LobbyReturnTravelUrl;
+	if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
+	{
+		TravelUrl += TEXT("?listen");
+	}
+
+	MatchSubsystem->ResetPvPMatch();
+	if (UWorld* World = GetWorld())
+	{
+		World->ServerTravel(TravelUrl);
 	}
 }
 
@@ -314,6 +438,14 @@ void ASnowRumbleGameMode::BroadcastLoadingProgress()
 				RequiredPlayerCount);
 		}
 	}
+}
+
+USnowRumbleMatchSubsystem* ASnowRumbleGameMode::GetMatchSubsystem() const
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	return GameInstance
+		? GameInstance->GetSubsystem<USnowRumbleMatchSubsystem>()
+		: nullptr;
 }
 
 FTransform ASnowRumbleGameMode::BuildScatteredPlayerStartTransform(

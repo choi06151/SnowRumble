@@ -18,6 +18,8 @@ PvP 맵에 들어온 뒤 로딩창이 닫히면 `3`, `2`, `1`, `시작!` 카운�
 - [x] 카운트다운 중 이동, 점프, 스프린트, 상호작용, 조준, 공격, 이모션 입력을 무시한다.
 - [x] 카운트다운 중 시점 회전 입력도 무시한다.
 - [x] PvP 맵 진입 직후 카운트다운이 아직 시작되지 않은 지연 구간에도 이동·시점 입력 연결을 차단한다.
+- [x] 로비 게시판 포커스에서 남은 입력 ignore 상태가 있어도 카운트다운 종료 후 PvP 게임 입력으로 복구한다.
+- [x] PvP 시작 전 스폰 중 라운드 종료 판정이 먼저 걸려 카운트다운 이후에도 입력이 잠기는 경로를 차단한다.
 - [x] HUD WBP의 `StartCountdownText`가 있으면 `3`, `2`, `1`, `시작!`을 자동 표시한다.
 - [x] 시작 후 카운트다운 UI를 숨긴다.
 
@@ -72,6 +74,8 @@ PvP 맵에 들어온 뒤 로딩창이 닫히면 `3`, `2`, `1`, `시작!` 카운�
 - 2026-08-09: Seamless travel 경로에서 일반 PostLogin 타이밍만으로 시작 조건을 잡지 못할 수 있어, `HandleStartingNewPlayer_Implementation`과 Pawn 스폰 직후에도 로딩 완료·카운트다운 시작 조건을 재확인하게 보강했다. 로딩창 제거 후 HUD 생성 여유 시간은 1초로 늘렸다.
 - 2026-08-09: Pawn 준비 대기 조건이 클라이언트 스폰을 막을 수 있어 제거했다. 로딩창 닫기는 예상 인원 접속 기준으로 되돌리고, 카운트다운은 HUD 준비 여유를 위해 로딩창 제거 3초 뒤 시작하게 조정했다.
 - 2026-08-10: 로딩창 종료 후 카운트다운 시작 전 지연 구간에 잠깐 움직일 수 있는 문제에 대응했다. PvP GameState는 카운트다운 시작 전에도 입력 잠금으로 간주하고, 로컬 캐릭터는 잠금 중 PlayerController의 move/look input ignore를 켠 뒤 카운트다운 종료 시 복구한다.
+- 2026-08-10: 사용자가 `시작!` 이후 이동 잠금이 풀리지 않는 문제를 확인해, 카운트다운 종료 시 `APlayerController`의 move/look input ignore 카운터를 reset하고 `GameOnly` 입력 모드와 숨김 커서로 복구하게 수정했다.
+- 2026-08-10: 입력 잠금이 계속 남는 추가 원인으로 PvP 스폰 중 `EvaluateRoundEndCondition()`이 먼저 실행되어 `bRoundEnded`가 true가 되는 경로를 확인했다. 라운드 종료 판정은 `ASnowRumbleGameState::IsMatchInputLocked()`가 false인 실제 경기 시작 이후에만 실행되게 막았다.
 
 ## 수동 작업
 
@@ -86,7 +90,7 @@ PvP 맵에 들어온 뒤 로딩창이 닫히면 `3`, `2`, `1`, `시작!` 카운�
 - [x] 관련 코드 변경 완료
 - [x] `git diff --check` 공백 점검 통과
 - [x] 관련 C++ 컴파일 통과
-- [ ] Unreal Editor 종료 후 `SnowRumbleEditor Win64 Development` 최종 링크 확인
+- [x] Unreal Editor 종료 후 `SnowRumbleEditor Win64 Development` 최종 링크 확인
 - [x] 역할·소유권·담당자 이니셜 규칙 위반 없음
 - [x] 공용 계약과 캡슐화 규칙 위반 없음
 - [x] 현재 Task 문서가 실제 구현 기준으로 갱신됨
@@ -94,6 +98,8 @@ PvP 맵에 들어온 뒤 로딩창이 닫히면 `3`, `2`, `1`, `시작!` 카운�
 ### 검증 메모
 
 - 2026-08-10: `ASnowRumbleGameState`를 추가하고, 모든 예상 플레이어가 PvP 맵에 접속한 뒤 로딩창이 닫히면 `ASnowRumbleGameMode`가 3초 시작 카운트다운을 확정하게 했다. `ASnowRumbleCharacter`는 PvP GameState가 존재하지만 카운트다운이 아직 시작되지 않은 구간부터 이동·행동·시점 입력을 차단하고, 카운트다운 종료 후 입력 ignore를 복구한다. `UMainHUDWidget`은 `StartCountdownText`로 `3`, `2`, `1`, `시작!`을 표시한다. 카운트다운은 로비 화면이나 로딩창 위가 아니라 PvP 맵에서 로딩창 제거 후 3초 지연 뒤 시작한다. `PostLogin`과 seamless travel 시작 처리에서 시작 조건을 확인한다. `git diff --check`는 통과했고 관련 C++ 컴파일도 통과했지만, 실행 중인 Unreal Editor가 `UnrealEditor-SnowRumble.dll`을 잡고 있어 최종 링크는 `LNK1104`로 실패했다. 에디터 종료 후 재빌드 확인이 필요하다.
+- 2026-08-10: `시작!` 이후 입력 잠금이 풀리지 않는 문제에 대응해 `ASnowRumbleCharacter::RefreshPvpMatchInputLock()`의 해제 경로를 `ResetIgnoreMoveInput()`/`ResetIgnoreLookInput()`으로 바꾸고, `GameOnly` 입력 모드와 숨김 커서로 복구하게 했다. 로비 게시판 포커스 상태에서 PvP 이동이 시작되며 남은 ignore 카운터가 카운트다운 해제 뒤에도 입력을 막을 수 있는 경로를 정리한 것이다. `git diff --check -- Source/SnowRumble/Player/SnowRumbleCharacter.cpp`와 `SnowRumbleEditor Win64 Development` 빌드가 통과했다.
+- 2026-08-10: 추가 확인에서 스폰 중 첫 팀 Pawn만 생존한 순간 라운드 종료가 즉시 확정되어 `bRoundEnded` 입력 잠금이 계속 남을 수 있음을 확인했다. `ASnowRumbleGameMode::EvaluateRoundEndCondition()`은 카운트다운과 시작 전 입력 잠금이 끝난 뒤에만 라운드 종료를 확정한다. `git diff --check`는 통과했고 C++ 컴파일도 통과했지만, 실행 중인 Unreal Editor가 `UnrealEditor-SnowRumble.dll`을 잡고 있어 최종 링크는 `LNK1104`로 실패했다.
 
 ### 결과 확인
 

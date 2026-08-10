@@ -41,7 +41,7 @@
 - 인계 대상: S-02, C-03
 
 ## 범위 밖
-- Steam과 전용 서버
+- Steam과 전용 서버. Steam 세션, Steam Overlay 친구 초대와 초대 수락은 C-18 최종 통합 Task에서 처리한다.
 - UI 레이아웃과 그래픽
 - 경기 결과 뒤 대기방 복귀와 방 나가기
 
@@ -63,6 +63,9 @@
 - 대기방 UI는 방 오른쪽 상단에 현재 방 코드를 표시한다. 실제 위젯 배치와 그래픽은 S-02 범위다.
 - 방 찾기는 사용자가 입력한 방 코드와 일치하는 LAN 검색 결과를 찾아 참가한다.
 - 방 코드가 없거나 일치하는 방이 없거나 방이 가득 찬 경우, C++는 실패 상태와 메시지를 UI로 전달한다.
+- 현재 개발과 테스트는 LAN/NULL 세션을 유지한다.
+- 이후 새 UI·로비·PvP 기능은 `USnowRumbleSessionSubsystem`의 공개 함수와 이벤트를 통해 세션 기능을 사용하고, LAN/Steam 구현 세부사항에 직접 의존하지 않는다.
+- Steam 출시용 세션 전환은 C-18에서 `USnowRumbleSessionSubsystem` 내부 구현을 확장하는 방식으로 처리한다.
 
 ## 수동 작업 (구현 후 구체화)
 - S-02에서 `WBP_MainMenu` 또는 새 시작화면 WBP의 빠른 게임 버튼을 `UMainMenuWidget::QuickJoinLanGame()`에 연결한다.

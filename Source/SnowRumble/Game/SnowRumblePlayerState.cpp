@@ -232,9 +232,12 @@ void ASnowRumblePlayerState::ServerSetLobbyTeam_Implementation(
 	{
 		return;
 	}
+	if (bLobbyReady && LobbyTeam != NewTeam)
+	{
+		return;
+	}
 
 	LobbyTeam = NewTeam;
-	bLobbyReady = false;
 	BroadcastLobbyPlayerChanged();
 }
 

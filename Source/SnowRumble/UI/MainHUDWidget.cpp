@@ -8,8 +8,29 @@
 #include "Components/PanelWidget.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
+#include "Components/Widget.h"
 #include "EngineUtils.h"
 #include "HealthBarWidget.h"
+#include "Blueprint/WidgetTree.h"
+
+namespace
+{
+const TArray<ESnowRumbleTeam>& GetScoreboardTeamOrder()
+{
+	static const TArray<ESnowRumbleTeam> TeamOrder = {
+		ESnowRumbleTeam::Red,
+		ESnowRumbleTeam::Sky,
+		ESnowRumbleTeam::Green,
+		ESnowRumbleTeam::Yellow,
+		ESnowRumbleTeam::Purple,
+		ESnowRumbleTeam::Pink,
+		ESnowRumbleTeam::Blue,
+		ESnowRumbleTeam::White
+	};
+	return TeamOrder;
+}
+
+}
 
 void UMainHUDWidget::NativeConstruct()
 {
@@ -18,7 +39,9 @@ void UMainHUDWidget::NativeConstruct()
 	RefreshHealthBars();
 	RefreshCombatHudPresentation();
 	RefreshStartCountdownPresentation();
+	RefreshCurrentRoundPresentation();
 	RefreshEndRoundPresentation();
+	RefreshTeamScorePresentation();
 }
 
 void UMainHUDWidget::NativeTick(
@@ -30,7 +53,9 @@ void UMainHUDWidget::NativeTick(
 	RefreshHealthBars();
 	RefreshCombatHudPresentation();
 	RefreshStartCountdownPresentation();
+	RefreshCurrentRoundPresentation();
 	RefreshEndRoundPresentation();
+	RefreshTeamScorePresentation();
 }
 
 void UMainHUDWidget::RefreshHealthBars()
@@ -181,6 +206,30 @@ void UMainHUDWidget::RefreshStartCountdownPresentation()
 	StartCountdownText->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 }
 
+void UMainHUDWidget::RefreshCurrentRoundPresentation()
+{
+	if (!CurrentRoundText)
+	{
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	const ASnowRumbleGameState* SnowRumbleGameState = World
+		? World->GetGameState<ASnowRumbleGameState>()
+		: nullptr;
+	if (!SnowRumbleGameState)
+	{
+		CurrentRoundText->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
+	CurrentRoundText->SetText(FText::Format(
+		NSLOCTEXT("SnowRumble", "CurrentRoundFormat", "라운드 {0} / {1}"),
+		FText::AsNumber(SnowRumbleGameState->GetCurrentRoundNumber()),
+		FText::AsNumber(SnowRumbleGameState->GetRoundLimit())));
+	CurrentRoundText->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+}
+
 void UMainHUDWidget::RefreshEndRoundPresentation()
 {
 	if (!EndRoundPanel && !EndRoundResultText)
@@ -214,16 +263,207 @@ void UMainHUDWidget::RefreshEndRoundPresentation()
 		return;
 	}
 
-	const UEnum* TeamEnum =
-		StaticEnum<ESnowRumbleTeam>();
+	const UEnum* TeamEnum = StaticEnum<ESnowRumbleTeam>();
+	const ESnowRumbleTeam ResultTeam = SnowRumbleGameState->IsMatchEnded()
+		? SnowRumbleGameState->GetMatchWinningTeam()
+		: SnowRumbleGameState->GetRoundWinningTeam();
 	const FText TeamText = TeamEnum
-		? TeamEnum->GetDisplayNameTextByValue(
-			static_cast<int64>(SnowRumbleGameState->GetRoundWinningTeam()))
+		? TeamEnum->GetDisplayNameTextByValue(static_cast<int64>(ResultTeam))
 		: FText::GetEmpty();
-	EndRoundResultText->SetText(FText::Format(
-		NSLOCTEXT("SnowRumble", "RoundWinnerFormat", "{0} 승리"),
-		TeamText));
+	EndRoundResultText->SetText(SnowRumbleGameState->IsMatchEnded()
+		? FText::Format(
+			NSLOCTEXT("SnowRumble", "MatchWinnerFormat", "{0} 1등"),
+			TeamText)
+		: FText::Format(
+			NSLOCTEXT("SnowRumble", "RoundWinnerFormat", "{0} 승리"),
+			TeamText));
 	EndRoundResultText->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+}
+
+void UMainHUDWidget::RefreshTeamScorePresentation()
+{
+	const UWorld* World = GetWorld();
+	const ASnowRumbleGameState* SnowRumbleGameState = World
+		? World->GetGameState<ASnowRumbleGameState>()
+		: nullptr;
+
+	for (const ESnowRumbleTeam Team : GetScoreboardTeamOrder())
+	{
+		UWidget* DisplayWidget = GetTeamScoreDisplayWidget(Team);
+		if (!DisplayWidget)
+		{
+			continue;
+		}
+
+		const bool bParticipating = IsTeamParticipating(Team);
+		DisplayWidget->SetVisibility(
+			bParticipating
+				? ESlateVisibility::SelfHitTestInvisible
+				: ESlateVisibility::Collapsed);
+		UTextBlock* ScoreText = GetTeamScoreText(Team);
+		SetTeamScoreText(ScoreText, Team);
+		if (ScoreText && bParticipating)
+		{
+			ScoreText->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		}
+
+	}
+}
+
+void UMainHUDWidget::SetTeamScoreText(
+	UTextBlock* ScoreText,
+	ESnowRumbleTeam Team) const
+{
+	if (!ScoreText)
+	{
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	const ASnowRumbleGameState* SnowRumbleGameState = World
+		? World->GetGameState<ASnowRumbleGameState>()
+		: nullptr;
+	const int32 TeamScore = SnowRumbleGameState
+		? SnowRumbleGameState->GetTeamRoundWinCount(Team)
+		: 0;
+	ScoreText->SetText(FText::AsNumber(TeamScore));
+}
+
+UWidget* UMainHUDWidget::GetTeamScoreDisplayWidget(
+	ESnowRumbleTeam Team) const
+{
+	switch (Team)
+	{
+	case ESnowRumbleTeam::Red:
+		return RedTeamScoreRow
+			? RedTeamScoreRow.Get()
+			: FindTeamScoreRowWidget(Team);
+	case ESnowRumbleTeam::Sky:
+		return SkyTeamScoreRow
+			? SkyTeamScoreRow.Get()
+			: FindTeamScoreRowWidget(Team);
+	case ESnowRumbleTeam::Green:
+		return GreenTeamScoreRow
+			? GreenTeamScoreRow.Get()
+			: FindTeamScoreRowWidget(Team);
+	case ESnowRumbleTeam::Yellow:
+		return YellowTeamScoreRow
+			? YellowTeamScoreRow.Get()
+			: FindTeamScoreRowWidget(Team);
+	case ESnowRumbleTeam::Purple:
+		return PurpleTeamScoreRow
+			? PurpleTeamScoreRow.Get()
+			: FindTeamScoreRowWidget(Team);
+	case ESnowRumbleTeam::Pink:
+		return PinkTeamScoreRow
+			? PinkTeamScoreRow.Get()
+			: FindTeamScoreRowWidget(Team);
+	case ESnowRumbleTeam::Blue:
+		return BlueTeamScoreRow
+			? BlueTeamScoreRow.Get()
+			: FindTeamScoreRowWidget(Team);
+	case ESnowRumbleTeam::White:
+		return WhiteTeamScoreRow
+			? WhiteTeamScoreRow.Get()
+			: FindTeamScoreRowWidget(Team);
+	default:
+		return nullptr;
+	}
+}
+
+UWidget* UMainHUDWidget::FindTeamScoreRowWidget(
+	ESnowRumbleTeam Team) const
+{
+	if (!WidgetTree)
+	{
+		return GetTeamScoreText(Team);
+	}
+
+	FName RowName = NAME_None;
+	switch (Team)
+	{
+	case ESnowRumbleTeam::Red:
+		RowName = TEXT("RedTeamScoreRow");
+		break;
+	case ESnowRumbleTeam::Sky:
+		RowName = TEXT("SkyTeamScoreRow");
+		break;
+	case ESnowRumbleTeam::Green:
+		RowName = TEXT("GreenTeamScoreRow");
+		break;
+	case ESnowRumbleTeam::Yellow:
+		RowName = TEXT("YellowTeamScoreRow");
+		break;
+	case ESnowRumbleTeam::Purple:
+		RowName = TEXT("PurpleTeamScoreRow");
+		break;
+	case ESnowRumbleTeam::Pink:
+		RowName = TEXT("PinkTeamScoreRow");
+		break;
+	case ESnowRumbleTeam::Blue:
+		RowName = TEXT("BlueTeamScoreRow");
+		break;
+	case ESnowRumbleTeam::White:
+		RowName = TEXT("WhiteTeamScoreRow");
+		break;
+	default:
+		break;
+	}
+
+	UWidget* RowWidget = RowName != NAME_None
+		? WidgetTree->FindWidget(RowName)
+		: nullptr;
+	return RowWidget ? RowWidget : GetTeamScoreText(Team);
+}
+
+UTextBlock* UMainHUDWidget::GetTeamScoreText(
+	ESnowRumbleTeam Team) const
+{
+	switch (Team)
+	{
+	case ESnowRumbleTeam::Red:
+		return RedTeamScoreText;
+	case ESnowRumbleTeam::Sky:
+		return SkyTeamScoreText;
+	case ESnowRumbleTeam::Green:
+		return GreenTeamScoreText;
+	case ESnowRumbleTeam::Yellow:
+		return YellowTeamScoreText;
+	case ESnowRumbleTeam::Purple:
+		return PurpleTeamScoreText;
+	case ESnowRumbleTeam::Pink:
+		return PinkTeamScoreText;
+	case ESnowRumbleTeam::Blue:
+		return BlueTeamScoreText;
+	case ESnowRumbleTeam::White:
+		return WhiteTeamScoreText;
+	default:
+		return nullptr;
+	}
+}
+
+bool UMainHUDWidget::IsTeamParticipating(ESnowRumbleTeam Team) const
+{
+	const UWorld* World = GetWorld();
+	const ASnowRumbleGameState* SnowRumbleGameState = World
+		? World->GetGameState<ASnowRumbleGameState>()
+		: nullptr;
+	if (!SnowRumbleGameState)
+	{
+		return false;
+	}
+
+	for (APlayerState* PlayerState : SnowRumbleGameState->PlayerArray)
+	{
+		const ASnowRumblePlayerState* SnowRumblePlayerState =
+			Cast<ASnowRumblePlayerState>(PlayerState);
+		if (SnowRumblePlayerState
+			&& SnowRumblePlayerState->GetLobbyTeam() == Team)
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 bool UMainHUDWidget::ShouldShowOtherPlayerHealthBar(

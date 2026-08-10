@@ -11,6 +11,7 @@ class ASnowRumbleLobbyGameState;
 class ASnowRumblePlayerState;
 class UBorder;
 class UTextBlock;
+class UWidgetAnimation;
 
 UCLASS(Abstract, Blueprintable)
 class SNOWRUMBLE_API ULobbyWidget : public UUserWidget
@@ -50,6 +51,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI|Lobby")
 	FString GetCurrentRoomCode() const;
 
+	/** 예외행동 사유를 표시하고 피드백 애니메이션을 재생한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby")
+	void ShowInvalidActionFeedback(const FText& ReasonText);
+
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
@@ -60,6 +65,18 @@ protected:
 	/** 대기방 목록 또는 플레이어 상태가 바뀌면 Blueprint UI에 알린다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Lobby")
 	void OnLobbyStateChanged();
+
+	/** 예외행동 피드백을 Blueprint가 직접 표시하거나 애니메이션으로 처리한다. */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Lobby")
+	void OnInvalidActionFeedback(const FText& ReasonText);
+
+	/** WBP에 같은 이름으로 만든 예외행동 피드백 애니메이션이다. */
+	UPROPERTY(Transient, meta = (BindWidgetAnimOptional))
+	TObjectPtr<UWidgetAnimation> InvalidActionAnimation;
+
+	/** WBP에 같은 이름으로 만든 예외행동 사유 표시 TextBlock이다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UTextBlock> InvalidActionReasonText;
 
 	/** 있으면 현재 방 코드를 자동 표시하는 텍스트다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
@@ -72,6 +89,10 @@ protected:
 	/** 있으면 현재 선택된 로비 게임 모드를 자동 표시하는 텍스트다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
 	TObjectPtr<UTextBlock> CurrentGameModeText;
+
+	/** 있으면 로비에서 선택한 총 라운드 수를 자동 표시하는 텍스트다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UTextBlock> MatchRoundLimitText;
 
 	/** 있으면 로컬 플레이어 이름을 자동 표시하는 텍스트다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
