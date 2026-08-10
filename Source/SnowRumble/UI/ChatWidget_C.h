@@ -65,6 +65,12 @@ public:
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+	virtual void NativeTick(
+		const FGeometry& MyGeometry,
+		float InDeltaTime) override;
+	virtual FReply NativeOnPreviewKeyDown(
+		const FGeometry& InGeometry,
+		const FKeyEvent& InKeyEvent) override;
 	virtual FReply NativeOnKeyDown(
 		const FGeometry& InGeometry,
 		const FKeyEvent& InKeyEvent) override;
@@ -96,9 +102,25 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Chat")
 	FSlateFontInfo ChatMessageFont;
 
+	/** C++가 새로 생성하는 전체 채팅 메시지 행에 적용할 색이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Chat")
+	FLinearColor AllChatMessageColor = FLinearColor::White;
+
+	/** C++가 새로 생성하는 팀 채팅 메시지 행에 적용할 색이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Chat")
+	FLinearColor TeamChatMessageColor = FLinearColor(0.35f, 0.85f, 1.0f, 1.0f);
+
 	/** 채널 표시 TextBlock에 적용할 폰트다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Chat")
 	FSlateFontInfo ChatChannelFont;
+
+	/** 마지막 채팅 갱신 후 채팅 로그가 완전히 보이는 시간이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Chat", meta = (ClampMin = "0.0"))
+	float ChatVisibleDuration = 5.0f;
+
+	/** 채팅 로그가 사라지는 데 걸리는 시간이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Chat", meta = (ClampMin = "0.05"))
+	float ChatFadeOutDuration = 1.5f;
 
 	/** 새 메시지를 Blueprint가 별도 행 UI로 표시할 때 사용한다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Chat")
@@ -127,8 +149,16 @@ private:
 	/** 입력 상태에 따라 로그 스크롤바와 장식 테두리 표시를 갱신한다. */
 	void RefreshChatLogChrome();
 
+	/** 현재 시간 기준으로 채팅 로그 투명도를 갱신한다. */
+	void RefreshChatVisibility();
+
+	/** 채팅 로그를 즉시 다시 보이게 하고 fade 기준 시간을 갱신한다. */
+	void ShowChatLog();
+
 	/** ScrollBox에 메시지 TextBlock 행을 추가한다. */
-	void AddMessageTextRow(const FText& DisplayText);
+	void AddMessageTextRow(
+		ESnowRumbleChatChannel Channel,
+		const FText& DisplayText);
 
 	/** 채팅 로그 TextBlock에 누적 표시할 문자열이다. */
 	FString ChatLog;
@@ -137,6 +167,8 @@ private:
 	TObjectPtr<ASnowRumblePlayerController> ChatPlayerController;
 
 	FLinearColor OriginalChatLogBorderBrushColor = FLinearColor::Transparent;
+
+	float LastChatVisibilityRefreshTime = 0.0f;
 
 	ESnowRumbleChatChannel ActiveChatChannel = ESnowRumbleChatChannel::All;
 	bool bChatInputOpen = false;

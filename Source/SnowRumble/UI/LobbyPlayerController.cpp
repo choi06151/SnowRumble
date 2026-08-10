@@ -9,6 +9,7 @@
 #include "InputCoreTypes.h"
 #include "LobbyEscapeMenuWidget.h"
 #include "LobbyWidget.h"
+#include "OptionsWidget_C.h"
 
 void ALobbyPlayerController::BeginPlay()
 {
@@ -23,6 +24,11 @@ void ALobbyPlayerController::BeginPlay()
 
 void ALobbyPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (OptionsWidget)
+	{
+		OptionsWidget->RemoveFromParent();
+		OptionsWidget = nullptr;
+	}
 	HideLobbyEscapeMenu();
 	HideLobby();
 
@@ -152,6 +158,11 @@ void ALobbyPlayerController::ShowLobbyEscapeMenu()
 
 void ALobbyPlayerController::HideLobbyEscapeMenu()
 {
+	if (OptionsWidget && OptionsWidget->IsInViewport())
+	{
+		OptionsWidget->RemoveFromParent();
+	}
+
 	if (LobbyEscapeMenuWidget)
 	{
 		LobbyEscapeMenuWidget->RemoveFromParent();
@@ -162,6 +173,48 @@ void ALobbyPlayerController::HideLobbyEscapeMenu()
 		SetIgnoreMoveInput(false);
 		SetIgnoreLookInput(false);
 		EnableLobbyGameInput();
+	}
+}
+
+void ALobbyPlayerController::ShowOptionsMenu()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	UOptionsWidget* Widget = EnsureOptionsWidget();
+	if (!Widget)
+	{
+		return;
+	}
+
+	if (!Widget->IsInViewport())
+	{
+		Widget->AddToViewport(200);
+	}
+	Widget->SetKeyboardFocus();
+
+	bShowMouseCursor = true;
+	SetIgnoreMoveInput(true);
+	SetIgnoreLookInput(true);
+
+	FInputModeUIOnly InputMode;
+	InputMode.SetWidgetToFocus(Widget->TakeWidget());
+	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	SetInputMode(InputMode);
+}
+
+void ALobbyPlayerController::HideOptionsMenu()
+{
+	if (OptionsWidget)
+	{
+		OptionsWidget->RemoveFromParent();
+	}
+
+	if (IsLocalController())
+	{
+		ShowLobbyEscapeMenu();
 	}
 }
 
@@ -271,7 +324,8 @@ void ALobbyPlayerController::ClientShowLoadingScreen_Implementation()
 bool ALobbyPlayerController::CanOpenChatInput() const
 {
 	return Super::CanOpenChatInput()
-		&& (!LobbyEscapeMenuWidget || !LobbyEscapeMenuWidget->IsInViewport());
+		&& (!LobbyEscapeMenuWidget || !LobbyEscapeMenuWidget->IsInViewport())
+		&& (!OptionsWidget || !OptionsWidget->IsInViewport());
 }
 
 bool ALobbyPlayerController::SupportsTeamChat() const
@@ -303,7 +357,11 @@ void ALobbyPlayerController::HandleEscapePressed()
 		return;
 	}
 
-	if (LobbyEscapeMenuWidget && LobbyEscapeMenuWidget->IsInViewport())
+	if (OptionsWidget && OptionsWidget->IsInViewport())
+	{
+		HideOptionsMenu();
+	}
+	else if (LobbyEscapeMenuWidget && LobbyEscapeMenuWidget->IsInViewport())
 	{
 		HideLobbyEscapeMenu();
 	}
@@ -368,4 +426,26 @@ ULobbyEscapeMenuWidget* ALobbyPlayerController::EnsureLobbyEscapeMenuWidget()
 		LobbyEscapeMenuWidget->SetLobbyPlayerController(this);
 	}
 	return LobbyEscapeMenuWidget;
+}
+
+UOptionsWidget* ALobbyPlayerController::EnsureOptionsWidget()
+{
+	if (OptionsWidget)
+	{
+		return OptionsWidget;
+	}
+
+	if (!OptionsWidgetClass)
+	{
+		return nullptr;
+	}
+
+	OptionsWidget = CreateWidget<UOptionsWidget>(this, OptionsWidgetClass);
+	if (OptionsWidget)
+	{
+		OptionsWidget->OnOptionsCloseRequestedNative.AddUObject(
+			this,
+			&ALobbyPlayerController::HideOptionsMenu);
+	}
+	return OptionsWidget;
 }

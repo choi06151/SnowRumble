@@ -47,6 +47,9 @@ public:
 	UFUNCTION(Client, Reliable, Category = "SnowRumble|UI|Loading")
 	void ClientUpdateLoadingProgress(int32 LoadedPlayers, int32 ExpectedPlayers);
 
+	UFUNCTION(Client, Reliable, Category = "SnowRumble|UI|Event Log")
+	void ClientReceiveEventLogMessage(const FText& Message);
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -56,6 +59,8 @@ protected:
 		int32 LoadedPlayers,
 		int32 ExpectedPlayers);
 	virtual void ClientHideLoadingScreen_Implementation();
+	virtual void ClientReceiveEventLogMessage_Implementation(
+		const FText& Message);
 
 	/** 현재 상태에서 Enter 채팅 입력을 열 수 있는지 반환한다. */
 	virtual bool CanOpenChatInput() const;
@@ -71,6 +76,12 @@ protected:
 	TSubclassOf<UChatWidget> ChatWidgetClass;
 
 private:
+	/** 로컬 옵션 설정 기준으로 채팅 직접 키 바인딩을 다시 묶는다. */
+	void RebindConfiguredInputKeys();
+
+	/** 사용자 설정 변경 시 로컬 직접 키 바인딩을 갱신한다. */
+	void HandleUserKeyBindingsChanged();
+
 	UFUNCTION(Server, Reliable)
 	void ServerSubmitChatMessage(
 		const FString& Message,
@@ -101,4 +112,7 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UChatWidget> ChatWidget;
+
+	FKey BoundChatInputKey = EKeys::Invalid;
+	FKey BoundChatChannelToggleKey = EKeys::Invalid;
 };

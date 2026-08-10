@@ -129,6 +129,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI")
 	ESnowRumbleTimedActionState GetTimedActionState() const;
 
+	/** 로컬 플레이어에게 현재 옵션 설정 기준 입력 매핑 컨텍스트를 적용한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Input")
+	void ApplyInputMappingContext();
+
 	/** UI에서 현재 머리 위 행동의 0~1 정규화된 진행도를 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI")
 	float GetTimedActionProgress() const;
@@ -260,9 +264,6 @@ protected:
 
 	/** 이모션 입력 해제 상태를 Blueprint에 전달한다. */
 	void HandleEmoteCompleted();
-
-	/** 로컬 플레이어에게 현재 캐릭터의 입력 매핑 컨텍스트를 적용한다. */
-	void ApplyInputMappingContext();
 
 	/** 로컬 PlayerCameraManager에 안전한 상하 시야각을 적용한다. */
 	void ApplyCameraPitchLimits();
@@ -441,6 +442,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
 	TObjectPtr<UInputMappingContext> PlayerMappingContext;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputMappingContext> RuntimePlayerMappingContext;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
 	TObjectPtr<UInputAction> MoveAction;

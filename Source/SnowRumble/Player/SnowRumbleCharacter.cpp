@@ -24,9 +24,11 @@
 #include "Components/WidgetInteractionComponent.h"
 #include "Components/WidgetComponent.h"
 #include "DrawDebugHelpers.h"
+#include "EnhancedActionKeyMapping.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "EngineUtils.h"
+#include "Engine/GameInstance.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -39,6 +41,7 @@
 #include "NiagaraComponent.h"
 #include "TimerManager.h"
 #include "Blueprint/UserWidget.h"
+#include "SnowRumbleUserSettingsSubsystem_C.h"
 
 ASnowRumbleCharacter::ASnowRumbleCharacter()
 {
@@ -1398,8 +1401,68 @@ void ASnowRumbleCharacter::ApplyInputMappingContext()
 	UEnhancedInputLocalPlayerSubsystem* InputSubsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
 	if (InputSubsystem && PlayerMappingContext)
 	{
+		RuntimePlayerMappingContext = DuplicateObject<UInputMappingContext>(
+			PlayerMappingContext,
+			this);
+		if (RuntimePlayerMappingContext)
+		{
+			const UGameInstance* GameInstance = GetGameInstance();
+			const USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem =
+				GameInstance
+					? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>()
+					: nullptr;
+
+			auto ApplySavedKey = [
+				this,
+				UserSettingsSubsystem](
+				const UInputAction* Action,
+				FKey DefaultKey,
+				FName BindingId)
+			{
+				if (!RuntimePlayerMappingContext
+					|| !Action
+					|| !UserSettingsSubsystem)
+				{
+					return;
+				}
+
+				const FKey SavedKey = UserSettingsSubsystem->GetKeyBinding(
+					BindingId,
+					DefaultKey);
+				const int32 MappingCount =
+					RuntimePlayerMappingContext->GetMappings().Num();
+				for (int32 MappingIndex = 0;
+					MappingIndex < MappingCount;
+					++MappingIndex)
+				{
+					FEnhancedActionKeyMapping& Mapping =
+						RuntimePlayerMappingContext->GetMapping(MappingIndex);
+					if (Mapping.Action == Action && Mapping.Key == DefaultKey)
+					{
+						Mapping.Key = SavedKey;
+					}
+				}
+			};
+
+			ApplySavedKey(MoveAction, EKeys::W, TEXT("MoveForward"));
+			ApplySavedKey(MoveAction, EKeys::S, TEXT("MoveBackward"));
+			ApplySavedKey(MoveAction, EKeys::A, TEXT("MoveLeft"));
+			ApplySavedKey(MoveAction, EKeys::D, TEXT("MoveRight"));
+			ApplySavedKey(JumpAction, EKeys::SpaceBar, TEXT("Jump"));
+			ApplySavedKey(SprintAction, EKeys::LeftShift, TEXT("Sprint"));
+			ApplySavedKey(InteractAction, EKeys::E, TEXT("Interact"));
+			ApplySavedKey(AimAction, EKeys::RightMouseButton, TEXT("Aim"));
+			ApplySavedKey(ActionAction, EKeys::LeftMouseButton, TEXT("Action"));
+			ApplySavedKey(DropEquipmentAction, EKeys::Q, TEXT("DropEquipment"));
+			ApplySavedKey(EmoteAction, EKeys::B, TEXT("Emote"));
+		}
+
 		InputSubsystem->ClearAllMappings();
-		InputSubsystem->AddMappingContext(PlayerMappingContext, 0);
+		InputSubsystem->AddMappingContext(
+			RuntimePlayerMappingContext
+				? RuntimePlayerMappingContext.Get()
+				: PlayerMappingContext.Get(),
+			0);
 	}
 }
 

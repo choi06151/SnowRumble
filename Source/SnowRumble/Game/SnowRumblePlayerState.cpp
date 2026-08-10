@@ -6,6 +6,7 @@
 #include "Net/UnrealNetwork.h"
 #include "SnowRumbleLobbyGameMode.h"
 #include "SnowRumbleLobbyGameState.h"
+#include "../UI/SnowRumblePlayerController.h"
 
 namespace
 {
@@ -223,6 +224,17 @@ void ASnowRumblePlayerState::ServerSetLobbyPlayerName_Implementation(
 	LobbyPlayerName = SanitizeLobbyPlayerName(NewName);
 	SetPlayerName(LobbyPlayerName);
 	BroadcastLobbyPlayerChanged();
+
+	if (!bLobbyJoinAnnouncementSent)
+	{
+		bLobbyJoinAnnouncementSent = true;
+		BroadcastLobbyEventLogMessage(FText::Format(
+			NSLOCTEXT(
+				"SnowRumble",
+				"LobbyEventPlayerJoined",
+				"{0}님이 접속했습니다"),
+			FText::FromString(GetLobbyPlayerName())));
+	}
 }
 
 void ASnowRumblePlayerState::ServerSetLobbyTeam_Implementation(
@@ -244,8 +256,19 @@ void ASnowRumblePlayerState::ServerSetLobbyTeam_Implementation(
 void ASnowRumblePlayerState::ServerSetLobbyReady_Implementation(
 	bool bNewReady)
 {
+	const bool bWasReady = bLobbyReady;
 	bLobbyReady = bNewReady && LobbyTeam != ESnowRumbleTeam::None;
 	BroadcastLobbyPlayerChanged();
+
+	if (!bWasReady && bLobbyReady)
+	{
+		BroadcastLobbyEventLogMessage(FText::Format(
+			NSLOCTEXT(
+				"SnowRumble",
+				"LobbyEventPlayerReady",
+				"{0}님이 준비 완료했습니다"),
+			FText::FromString(GetLobbyPlayerName())));
+	}
 }
 
 void ASnowRumblePlayerState::ServerRequestStartLobbyMatch_Implementation()
@@ -271,6 +294,27 @@ void ASnowRumblePlayerState::BroadcastLobbyPlayerChanged()
 			World->GetGameState<ASnowRumbleLobbyGameState>())
 		{
 			LobbyGameState->NotifyLobbyStateChanged();
+		}
+	}
+}
+
+void ASnowRumblePlayerState::BroadcastLobbyEventLogMessage(
+	const FText& Message) const
+{
+	UWorld* World = GetWorld();
+	if (!World || Message.IsEmpty())
+	{
+		return;
+	}
+
+	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
+		It;
+		++It)
+	{
+		if (ASnowRumblePlayerController* PlayerController =
+			Cast<ASnowRumblePlayerController>(It->Get()))
+		{
+			PlayerController->ClientReceiveEventLogMessage(Message);
 		}
 	}
 }

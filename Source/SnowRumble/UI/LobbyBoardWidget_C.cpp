@@ -229,6 +229,21 @@ void ULobbyBoardWidget::ResolveBoardButtons()
 		ShuffleSoloButton =
 			WidgetTree->FindWidget<UButton>(TEXT("ShuffleSoloButton"));
 	}
+	if (!SlowGameSpeedButton)
+	{
+		SlowGameSpeedButton =
+			WidgetTree->FindWidget<UButton>(TEXT("SlowGameSpeedButton"));
+	}
+	if (!NormalGameSpeedButton)
+	{
+		NormalGameSpeedButton =
+			WidgetTree->FindWidget<UButton>(TEXT("NormalGameSpeedButton"));
+	}
+	if (!FastGameSpeedButton)
+	{
+		FastGameSpeedButton =
+			WidgetTree->FindWidget<UButton>(TEXT("FastGameSpeedButton"));
+	}
 	if (!MatchRoundLimitText)
 	{
 		MatchRoundLimitText =
@@ -425,6 +440,24 @@ void ULobbyBoardWidget::BindBoardButtons()
 			this,
 			&ULobbyBoardWidget::HandleShuffleSoloButtonClicked);
 	}
+	if (SlowGameSpeedButton)
+	{
+		SlowGameSpeedButton->OnClicked.AddUniqueDynamic(
+			this,
+			&ULobbyBoardWidget::HandleSlowGameSpeedButtonClicked);
+	}
+	if (NormalGameSpeedButton)
+	{
+		NormalGameSpeedButton->OnClicked.AddUniqueDynamic(
+			this,
+			&ULobbyBoardWidget::HandleNormalGameSpeedButtonClicked);
+	}
+	if (FastGameSpeedButton)
+	{
+		FastGameSpeedButton->OnClicked.AddUniqueDynamic(
+			this,
+			&ULobbyBoardWidget::HandleFastGameSpeedButtonClicked);
+	}
 }
 
 void ULobbyBoardWidget::UnbindBoardButtons()
@@ -520,6 +553,18 @@ void ULobbyBoardWidget::UnbindBoardButtons()
 	if (ShuffleSoloButton)
 	{
 		ShuffleSoloButton->OnClicked.RemoveAll(this);
+	}
+	if (SlowGameSpeedButton)
+	{
+		SlowGameSpeedButton->OnClicked.RemoveAll(this);
+	}
+	if (NormalGameSpeedButton)
+	{
+		NormalGameSpeedButton->OnClicked.RemoveAll(this);
+	}
+	if (FastGameSpeedButton)
+	{
+		FastGameSpeedButton->OnClicked.RemoveAll(this);
 	}
 }
 
@@ -671,6 +716,21 @@ void ULobbyBoardWidget::HandleShuffle4TeamsButtonClicked()
 void ULobbyBoardWidget::HandleShuffleSoloButtonClicked()
 {
 	SubmitShuffleSolo();
+}
+
+void ULobbyBoardWidget::HandleSlowGameSpeedButtonClicked()
+{
+	SubmitGameSpeed(ESnowRumbleGameSpeed::Slow);
+}
+
+void ULobbyBoardWidget::HandleNormalGameSpeedButtonClicked()
+{
+	SubmitGameSpeed(ESnowRumbleGameSpeed::Normal);
+}
+
+void ULobbyBoardWidget::HandleFastGameSpeedButtonClicked()
+{
+	SubmitGameSpeed(ESnowRumbleGameSpeed::Fast);
 }
 
 void ULobbyBoardWidget::SubmitBoardAction(ELobbyBoardAction BoardAction)
@@ -829,6 +889,27 @@ void ULobbyBoardWidget::SubmitMatchRoundLimit(int32 NewRoundLimit)
 		: nullptr)
 	{
 		LobbyGameState->SetMatchRoundLimitFromServer(NewRoundLimit);
+	}
+}
+
+void ULobbyBoardWidget::SubmitGameSpeed(ESnowRumbleGameSpeed NewGameSpeed)
+{
+	if (!IsRequestingPlayerHost())
+	{
+		ShowInvalidActionFeedback(
+			NSLOCTEXT(
+				"SnowRumble",
+				"LobbyBoardInvalidHostOnlyGameSpeed",
+				"게임 속도는 호스트만 변경할 수 있습니다."));
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (ASnowRumbleLobbyGameState* LobbyGameState = World
+		? World->GetGameState<ASnowRumbleLobbyGameState>()
+		: nullptr)
+	{
+		LobbyGameState->SetGameSpeedFromServer(NewGameSpeed);
 	}
 }
 

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "../Game/SnowRumbleMatchSubsystem_C.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "LobbyWidget.generated.h"
 
@@ -22,6 +23,10 @@ public:
 	/** 현재 대기방 플레이어 목록을 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI|Lobby")
 	TArray<ASnowRumblePlayerState*> GetLobbyPlayers() const;
+
+	/** 로비 이벤트 로그에 새 메시지를 추가한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby")
+	void AddEventLogMessage(const FText& Message);
 
 	/** 로컬 플레이어의 대기방 이름 변경을 요청한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby")
@@ -78,6 +83,14 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
 	TObjectPtr<UTextBlock> InvalidActionReasonText;
 
+	/** WBP에 같은 이름으로 만든 누적 이벤트 로그 TextBlock이다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UTextBlock> EventLogText;
+
+	/** 이벤트 로그 한 줄이 화면에 유지되는 시간이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Lobby", meta = (ClampMin = "0.0"))
+	float EventLogEntryVisibleSeconds = 5.0f;
+
 	/** 있으면 현재 방 코드를 자동 표시하는 텍스트다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
 	TObjectPtr<UTextBlock> RoomCodeTextBlock;
@@ -93,6 +106,10 @@ protected:
 	/** 있으면 로비에서 선택한 총 라운드 수를 자동 표시하는 텍스트다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
 	TObjectPtr<UTextBlock> MatchRoundLimitText;
+
+	/** 있으면 로비에서 선택한 게임 속도와 축소 주기를 자동 표시하는 텍스트다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UTextBlock> GameSpeedText;
 
 	/** 있으면 로컬 플레이어 이름을 자동 표시하는 텍스트다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
@@ -117,6 +134,7 @@ private:
 	void RefreshLobbyBindings();
 	void RefreshRoomCodeText();
 	void RefreshLobbyStatusTexts();
+	void RefreshEventLogText();
 	void UnbindLobbyBindings();
 
 	UFUNCTION()
@@ -127,6 +145,14 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<ASnowRumblePlayerState> IdentityAppliedPlayerState;
+
+	struct FEventLogEntry
+	{
+		FText Message;
+		double ExpireTimeSeconds = 0.0;
+	};
+
+	TArray<FEventLogEntry> EventLogEntries;
 
 	double LastIdentityApplyRequestTime = -1.0;
 };

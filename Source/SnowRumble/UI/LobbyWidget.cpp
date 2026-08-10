@@ -26,6 +26,20 @@ FText GetLobbyModeText(ESnowRumbleLobbyMode LobbyMode)
 	}
 }
 
+FText GetGameSpeedDisplayText(ESnowRumbleGameSpeed GameSpeed)
+{
+	switch (GameSpeed)
+	{
+	case ESnowRumbleGameSpeed::Slow:
+		return NSLOCTEXT("SnowRumble", "LobbyGameSpeedSlow", "느리게");
+	case ESnowRumbleGameSpeed::Fast:
+		return NSLOCTEXT("SnowRumble", "LobbyGameSpeedFast", "빠르게");
+	case ESnowRumbleGameSpeed::Normal:
+	default:
+		return NSLOCTEXT("SnowRumble", "LobbyGameSpeedNormal", "보통");
+	}
+}
+
 FText GetTeamText(ESnowRumbleTeam Team)
 {
 	switch (Team)
@@ -60,6 +74,7 @@ void ULobbyWidget::NativeConstruct()
 	ApplyLocalPlayerIdentity();
 	RefreshRoomCodeText();
 	RefreshLobbyStatusTexts();
+	RefreshEventLogText();
 	OnLobbyStateChanged();
 }
 
@@ -80,6 +95,7 @@ void ULobbyWidget::NativeTick(
 	ApplyLocalPlayerIdentity();
 	RefreshRoomCodeText();
 	RefreshLobbyStatusTexts();
+	RefreshEventLogText();
 }
 
 TArray<ASnowRumblePlayerState*> ULobbyWidget::GetLobbyPlayers() const
@@ -89,6 +105,23 @@ TArray<ASnowRumblePlayerState*> ULobbyWidget::GetLobbyPlayers() const
 		return LobbyGameState->GetLobbyPlayers();
 	}
 	return {};
+}
+
+void ULobbyWidget::AddEventLogMessage(const FText& Message)
+{
+	if (Message.IsEmpty())
+	{
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	FEventLogEntry NewEntry;
+	NewEntry.Message = Message;
+	NewEntry.ExpireTimeSeconds = World
+		? World->GetTimeSeconds() + EventLogEntryVisibleSeconds
+		: EventLogEntryVisibleSeconds;
+	EventLogEntries.Add(NewEntry);
+	RefreshEventLogText();
 }
 
 void ULobbyWidget::RequestSetLocalPlayerName(const FString& NewName)
@@ -295,6 +328,16 @@ void ULobbyWidget::RefreshLobbyStatusTexts()
 			: FText::FromString(TEXT("-")));
 	}
 
+	if (GameSpeedText)
+	{
+		const ESnowRumbleGameSpeed GameSpeed = LobbyGameState
+			? LobbyGameState->GetGameSpeed()
+			: ESnowRumbleGameSpeed::Normal;
+		GameSpeedText->SetText(LobbyGameState
+			? GetGameSpeedDisplayText(GameSpeed)
+			: FText::FromString(TEXT("-")));
+	}
+
 	if (LocalPlayerNameText)
 	{
 		LocalPlayerNameText->SetText(PlayerState
@@ -322,6 +365,42 @@ void ULobbyWidget::RefreshLobbyStatusTexts()
 			? PlayerState->GetLobbyTeamColor()
 			: FLinearColor::White);
 	}
+}
+
+void ULobbyWidget::RefreshEventLogText()
+{
+	if (!EventLogText)
+	{
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	const double CurrentTimeSeconds = World ? World->GetTimeSeconds() : 0.0;
+	EventLogEntries.RemoveAll(
+		[CurrentTimeSeconds](const FEventLogEntry& Entry)
+		{
+			return Entry.ExpireTimeSeconds <= CurrentTimeSeconds;
+		});
+
+	if (EventLogEntries.IsEmpty())
+	{
+		EventLogText->SetText(FText::GetEmpty());
+		EventLogText->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
+	FString CombinedLog;
+	for (const FEventLogEntry& Entry : EventLogEntries)
+	{
+		if (!CombinedLog.IsEmpty())
+		{
+			CombinedLog += LINE_TERMINATOR;
+		}
+		CombinedLog += Entry.Message.ToString();
+	}
+
+	EventLogText->SetText(FText::FromString(CombinedLog));
+	EventLogText->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 }
 
 void ULobbyWidget::ShowInvalidActionFeedback(const FText& ReasonText)

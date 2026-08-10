@@ -62,6 +62,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Main Menu")
 	TObjectPtr<UButton> FindButton;
 
+	/** 있으면 공통 옵션 메뉴를 여는 설정 버튼이다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Main Menu")
+	TObjectPtr<UButton> SettingsButton;
+
 	/** 있으면 참가하기 버튼을 눌렀을 때 표시되는 방 코드 입력 패널이다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Main Menu")
 	TObjectPtr<UWidget> RoomCodeJoinPanel;
@@ -122,6 +126,9 @@ private:
 
 	UFUNCTION()
 	void HandleFindButtonClicked();
+
+	UFUNCTION()
+	void HandleSettingsButtonClicked();
 
 	UFUNCTION()
 	void HandleConfirmRoomCodeJoinClicked();

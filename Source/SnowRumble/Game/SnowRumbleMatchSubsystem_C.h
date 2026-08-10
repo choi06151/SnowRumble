@@ -7,6 +7,14 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "SnowRumbleMatchSubsystem_C.generated.h"
 
+UENUM(BlueprintType)
+enum class ESnowRumbleGameSpeed : uint8
+{
+	Slow,
+	Normal,
+	Fast
+};
+
 UCLASS()
 class SNOWRUMBLE_API USnowRumbleMatchSubsystem : public UGameInstanceSubsystem
 {
@@ -16,6 +24,7 @@ public:
 	/** 로비에서 PvP 매치를 시작할 때 라운드 수와 후보 레벨을 저장한다. */
 	void BeginPvPMatch(
 		int32 InRoundLimit,
+		ESnowRumbleGameSpeed InGameSpeed,
 		const TArray<FString>& InPvPLevelPaths);
 
 	/** 현재 매치 상태를 지우고 다음 로비 설정을 기다린다. */
@@ -39,6 +48,12 @@ public:
 	/** 총 라운드 수를 반환한다. */
 	int32 GetRoundLimit() const;
 
+	/** 로비에서 선택한 게임 속도를 반환한다. */
+	ESnowRumbleGameSpeed GetGameSpeed() const;
+
+	/** 게임 속도에 대응하는 맵 축소 주기를 반환한다. */
+	static float GetMapShrinkIntervalSeconds(ESnowRumbleGameSpeed GameSpeed);
+
 	/** 해당 팀의 누적 라운드 승수를 반환한다. */
 	int32 GetTeamRoundWinCount(ESnowRumbleTeam Team) const;
 
@@ -56,6 +71,7 @@ private:
 	bool bMatchComplete = false;
 	int32 CurrentRoundNumber = 1;
 	int32 RoundLimit = 1;
+	ESnowRumbleGameSpeed GameSpeed = ESnowRumbleGameSpeed::Normal;
 	TArray<FString> PvPLevelPaths;
 	FString LastSelectedPvPLevelPath;
 	TMap<ESnowRumbleTeam, int32> TeamRoundWins;

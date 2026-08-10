@@ -74,6 +74,9 @@ void ASnowRumbleGameMode::InitGame(
 		: FMath::Max(0, FCString::Atoi(*ExpectedPlayersOption));
 	bLoadingScreensDismissed = false;
 	bStartCountdownStarted = false;
+	MapShrinkStage = 0;
+	GetWorldTimerManager().ClearTimer(MapShrinkTimerHandle);
+	GetWorldTimerManager().ClearTimer(MapShrinkCompletionTimerHandle);
 }
 
 void ASnowRumbleGameMode::PostLogin(APlayerController* NewPlayer)
@@ -149,6 +152,7 @@ void ASnowRumbleGameMode::StartMatchCountdownAfterLoading()
 				{
 					SnowRumbleGameState->StartMatchCountdownFromServer(
 						MatchStartCountdownSeconds);
+					ScheduleNextMapShrink();
 				}
 			},
 			MatchStartCountdownDelaySeconds,
@@ -161,6 +165,7 @@ void ASnowRumbleGameMode::StartMatchCountdownAfterLoading()
 	{
 		SnowRumbleGameState->StartMatchCountdownFromServer(
 			MatchStartCountdownSeconds);
+		ScheduleNextMapShrink();
 	}
 }
 
@@ -349,6 +354,84 @@ void ASnowRumbleGameMode::TravelToNextRoundIfNeeded()
 	}
 }
 
+void ASnowRumbleGameMode::ScheduleNextMapShrink()
+{
+	ASnowRumbleGameState* SnowRumbleGameState =
+		GetGameState<ASnowRumbleGameState>();
+	if (!HasAuthority()
+		|| !SnowRumbleGameState
+		|| SnowRumbleGameState->IsRoundEnded())
+	{
+		return;
+	}
+
+	const float DelaySeconds =
+		MatchStartCountdownSeconds
+		+ SnowRumbleGameState->GetMapShrinkIntervalSeconds();
+	GetWorldTimerManager().SetTimer(
+		MapShrinkTimerHandle,
+		this,
+		&ASnowRumbleGameMode::TriggerMapShrink,
+		DelaySeconds,
+		false);
+}
+
+void ASnowRumbleGameMode::TriggerMapShrink()
+{
+	ASnowRumbleGameState* SnowRumbleGameState =
+		GetGameState<ASnowRumbleGameState>();
+	if (!HasAuthority()
+		|| !SnowRumbleGameState
+		|| SnowRumbleGameState->IsRoundEnded()
+		|| SnowRumbleGameState->IsMapShrinkInProgress())
+	{
+		return;
+	}
+
+	++MapShrinkStage;
+	SnowRumbleGameState->StartMapShrinkFromServer(
+		TemporaryMapShrinkDurationSeconds);
+	OnMapShrinkRequested(
+		MapShrinkStage,
+		SnowRumbleGameState->GetRoundElapsedSeconds(),
+		TemporaryMapShrinkDurationSeconds);
+
+	GetWorldTimerManager().SetTimer(
+		MapShrinkCompletionTimerHandle,
+		this,
+		&ASnowRumbleGameMode::CompleteMapShrinkFromServer,
+		TemporaryMapShrinkDurationSeconds,
+		false);
+}
+
+void ASnowRumbleGameMode::CompleteMapShrinkFromBlueprint()
+{
+	CompleteMapShrinkFromServer();
+}
+
+void ASnowRumbleGameMode::CompleteMapShrinkFromServer()
+{
+	ASnowRumbleGameState* SnowRumbleGameState =
+		GetGameState<ASnowRumbleGameState>();
+	if (!HasAuthority()
+		|| !SnowRumbleGameState
+		|| SnowRumbleGameState->IsRoundEnded()
+		|| !SnowRumbleGameState->IsMapShrinkInProgress())
+	{
+		return;
+	}
+
+	GetWorldTimerManager().ClearTimer(MapShrinkCompletionTimerHandle);
+	SnowRumbleGameState->CompleteMapShrinkFromServer();
+
+	GetWorldTimerManager().SetTimer(
+		MapShrinkTimerHandle,
+		this,
+		&ASnowRumbleGameMode::TriggerMapShrink,
+		SnowRumbleGameState->GetMapShrinkIntervalSeconds(),
+		false);
+}
+
 void ASnowRumbleGameMode::ReturnToLobbyAfterMatchEnd()
 {
 	USnowRumbleMatchSubsystem* MatchSubsystem = GetMatchSubsystem();
@@ -375,6 +458,7 @@ void ASnowRumbleGameMode::ReturnToLobbyAfterMatchEnd()
 
 void ASnowRumbleGameMode::HandlePlayerLifeStateChanged(bool bUnused)
 {
+	RefreshPlayerLifeEventLogStates();
 	EvaluateRoundEndCondition();
 }
 
@@ -395,7 +479,100 @@ void ASnowRumbleGameMode::BindPawnLifeState(APawn* Pawn)
 		HealthComponent->OnDeathChanged.AddUniqueDynamic(
 			this,
 			&ASnowRumbleGameMode::HandlePlayerLifeStateChanged);
+
+		FTrackedLifeState& TrackedLifeState =
+			TrackedLifeStates.FindOrAdd(Character);
+		TrackedLifeState.bFrozen = HealthComponent->IsFrozen();
+		TrackedLifeState.bDead = HealthComponent->IsDead();
 	}
+}
+
+void ASnowRumbleGameMode::RefreshPlayerLifeEventLogStates()
+{
+	UWorld* World = GetWorld();
+	if (!HasAuthority() || !World)
+	{
+		return;
+	}
+
+	TSet<TWeakObjectPtr<ASnowRumbleCharacter>> ValidCharacters;
+	for (TActorIterator<ASnowRumbleCharacter> It(World); It; ++It)
+	{
+		ASnowRumbleCharacter* Character = *It;
+		if (!Character)
+		{
+			continue;
+		}
+
+		ValidCharacters.Add(Character);
+		FTrackedLifeState& TrackedLifeState =
+			TrackedLifeStates.FindOrAdd(Character);
+		const bool bWasFrozen = TrackedLifeState.bFrozen;
+		const bool bWasDead = TrackedLifeState.bDead;
+		const bool bIsFrozen = Character->IsFrozen();
+		const bool bIsDead = Character->IsDead();
+
+		if (!bWasFrozen && bIsFrozen)
+		{
+			BroadcastEventLogMessage(FText::Format(
+				NSLOCTEXT(
+					"SnowRumble",
+					"EventLogPlayerFrozen",
+					"{0}님이 얼었습니다"),
+				FText::FromString(GetEventLogPlayerName(Character))));
+		}
+		if (!bWasDead && bIsDead)
+		{
+			BroadcastEventLogMessage(FText::Format(
+				NSLOCTEXT(
+					"SnowRumble",
+					"EventLogPlayerDead",
+					"{0}님이 죽었습니다"),
+				FText::FromString(GetEventLogPlayerName(Character))));
+		}
+
+		TrackedLifeState.bFrozen = bIsFrozen;
+		TrackedLifeState.bDead = bIsDead;
+	}
+
+	for (auto It = TrackedLifeStates.CreateIterator(); It; ++It)
+	{
+		if (!It.Key().IsValid() || !ValidCharacters.Contains(It.Key()))
+		{
+			It.RemoveCurrent();
+		}
+	}
+}
+
+void ASnowRumbleGameMode::BroadcastEventLogMessage(const FText& Message) const
+{
+	UWorld* World = GetWorld();
+	if (!World || Message.IsEmpty())
+	{
+		return;
+	}
+
+	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
+		It;
+		++It)
+	{
+		if (ASnowRumblePlayerController* PlayerController =
+			Cast<ASnowRumblePlayerController>(It->Get()))
+		{
+			PlayerController->ClientReceiveEventLogMessage(Message);
+		}
+	}
+}
+
+FString ASnowRumbleGameMode::GetEventLogPlayerName(
+	const ASnowRumbleCharacter* Character) const
+{
+	const ASnowRumblePlayerState* SnowRumblePlayerState = Character
+		? Character->GetPlayerState<ASnowRumblePlayerState>()
+		: nullptr;
+	return SnowRumblePlayerState
+		? SnowRumblePlayerState->GetLobbyPlayerName()
+		: TEXT("Player");
 }
 
 bool ASnowRumbleGameMode::IsValidRoundTeam(ESnowRumbleTeam Team) const

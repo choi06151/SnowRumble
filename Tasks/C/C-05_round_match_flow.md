@@ -13,7 +13,10 @@
 - [x] 라운드 승리 팀의 매치 점수를 1점 올리고 팀별 점수를 복제한다.
 - [x] HUD WBP의 팀별 ScoreText 선택 바인딩을 제공한다.
 - [x] 현재 PvP에 참가 중인 팀의 점수만 표시한다.
-- [ ] 6분이 지나도 강제 종료하지 않고 맵 담당 환경 압박 로직이 사용할 경기 시간·단계 상태를 제공한다.
+- [x] 6분이 지나도 강제 종료하지 않고 맵 담당 환경 압박 로직이 사용할 경기 시간·단계 상태를 제공한다.
+- [x] 로비 게시판에서 선택한 게임 속도에 따라 맵 축소 주기를 느리게 90초, 보통 60초, 빠르게 30초로 확정한다.
+- [x] PvP HUD가 현재 경기 시간과 다음 맵 축소까지 남은 시간을 표시할 TextBlock 바인딩을 제공한다.
+- [x] 맵 축소 시점에 PvP GameMode Blueprint가 받을 이벤트를 호출하고, 임시로 5초 후 축소 완료를 가정해 다음 주기를 시작한다.
 - [x] 사망 또는 얼음 상태가 아닌 생존자가 한 팀 색에만 남으면 라운드를 종료하고 승리 팀을 확정한다.
 - [x] PvP 시작 전 로딩·카운트다운 입력 잠금 중에는 라운드 종료 판정을 실행하지 않는다.
 - [x] 라운드 종료 후 전체 플레이어 입력을 잠근다.
@@ -43,10 +46,15 @@
   - `ASnowRumbleGameState::GetMatchWinningTeam()`: 매치 1등 팀 색을 반환한다.
   - `ASnowRumbleGameState::OnRoundResultChanged`: 라운드 결과 복제 갱신을 UI/연출에 알린다.
   - `ASnowRumbleLobbyGameState::GetMatchRoundLimit()`: 로비에서 선택한 총 라운드 수를 반환한다.
+  - `ASnowRumbleLobbyGameState::GetGameSpeed()`: 로비에서 선택한 게임 속도 `Slow`, `Normal`, `Fast`를 반환한다.
   - `ASnowRumbleLobbyGameState::GetAssignedLobbyTeamCount()`: 현재 유효하게 선택된 팀 색 수를 반환한다.
   - `ASnowRumbleLobbyGameState::GetStartMatchInvalidReasonText()`: 시작 불가 사유를 UI 표시용 텍스트로 반환한다.
   - `ASnowRumbleLobbyGameState::SetMatchRoundLimitFromServer(int32 NewRoundLimit)`: 서버가 총 라운드 수를 1, 3, 5 중 하나로 변경한다.
+  - `ASnowRumbleLobbyGameState::SetGameSpeedFromServer(ESnowRumbleGameSpeed NewGameSpeed)`: 서버가 게임 속도를 변경한다.
+  - `USnowRumbleMatchSubsystem::GetGameSpeed()`: travel 사이 유지되는 현재 매치 게임 속도를 반환한다.
+  - `USnowRumbleMatchSubsystem::GetMapShrinkIntervalSeconds(ESnowRumbleGameSpeed GameSpeed)`: 속도별 맵 축소 주기를 반환한다. `Slow=90`, `Normal=60`, `Fast=30`초다.
   - `ULobbyWidget::MatchRoundLimitText`: `WBP_Lobby`에 같은 이름의 TextBlock이 있으면 로비에서 선택한 총 라운드 수를 표시한다.
+  - `ULobbyWidget::GameSpeedText`: `WBP_Lobby`에 같은 이름의 TextBlock이 있으면 현재 게임 속도를 `느리게`, `보통`, `빠르게` 중 하나로 표시한다.
   - `ULobbyWidget::InvalidActionAnimation`: `WBP_Lobby`에 같은 이름의 Widget Animation이 있으면 시작 불가 상태에서 시작 요청 시 재생한다.
   - `ULobbyWidget::InvalidActionReasonText`: `WBP_Lobby`에 같은 이름의 TextBlock이 있으면 시작 불가 사유를 C++가 표시한다.
   - `ULobbyWidget::OnInvalidActionFeedback(const FText& ReasonText)`: `WBP_Lobby`가 사유 텍스트를 받아 직접 패널 표시나 애니메이션 재생을 연결할 수 있다.
@@ -57,6 +65,7 @@
   - `ULobbyEscapeMenuWidget::ReturnToLobbyButton`: 기존 WBP 이름 호환용 메인메뉴 이동 Button이다.
   - `ULobbyEscapeMenuWidget::OnReturnToMainMenuRequested()`, `OnSettingsRequested()`, `OnInviteFriendsRequested()`: 로비 ESC 메뉴 버튼 클릭을 Blueprint가 필요하면 처리한다.
   - `ULobbyBoardWidget::Round1Button`, `Round3Button`, `Round5Button`: WBP에 같은 이름의 Button이 있으면 호스트가 총 라운드 수를 설정한다.
+  - `ULobbyBoardWidget::SlowGameSpeedButton`, `NormalGameSpeedButton`, `FastGameSpeedButton`: WBP에 같은 이름의 Button이 있으면 호스트가 게임 속도를 느리게, 보통, 빠르게로 설정한다.
   - `ULobbyBoardWidget::Shuffle2TeamsButton`, `Shuffle3TeamsButton`, `Shuffle4TeamsButton`: WBP에 같은 이름의 Button이 있으면 호스트가 현재 로비 인원을 2/3/4팀으로 무작위 균등 배정한다.
   - `ULobbyBoardWidget::ShuffleSoloButton`: WBP에 같은 이름의 Button이 있으면 호스트가 현재 로비 인원을 모두 서로 다른 팀 색으로 무작위 배정한다.
   - `ULobbyBoardWidget::MatchRoundLimitText`: WBP에 같은 이름의 TextBlock이 있으면 현재 총 라운드 수를 표시한다.
@@ -64,11 +73,18 @@
   - `ULobbyBoardWidget::InvalidActionReasonText`: 게시판 WBP에 같은 이름의 TextBlock이 있으면 예외행동 사유를 C++가 표시한다.
   - `ULobbyBoardWidget::OnInvalidActionFeedback(const FText& ReasonText)`: 게시판 WBP가 사유 텍스트를 받아 직접 패널 표시나 애니메이션 재생을 연결할 수 있다.
   - `UMainHUDWidget::CurrentRoundText`: `WBP_MainHUDWidget`에 같은 이름의 TextBlock이 있으면 현재 라운드를 `라운드 {현재} / {전체}` 형식으로 표시한다.
+  - `UMainHUDWidget::MatchElapsedTimeText`: `WBP_MainHUDWidget`에 같은 이름의 TextBlock이 있으면 PvP 시작 후 현재 경기 시간을 `경기 시간 0:00` 형식으로 표시한다.
+  - `UMainHUDWidget::MapShrinkCountdownText`: `WBP_MainHUDWidget`에 같은 이름의 TextBlock이 있으면 `{초}초 후 맵이 축소됩니다` 또는 `맵이 축소됩니다!`를 표시한다.
   - `UMainHUDWidget::EndRoundPanel`: HUD WBP에 같은 이름의 Panel이 있으면 라운드 종료 시 자동 표시한다.
   - `UMainHUDWidget::EndRoundResultText`: HUD WBP에 같은 이름의 TextBlock이 있으면 `{승리팀} 승리` 문구를 자동 표시한다.
   - `UMainHUDWidget::RedTeamScoreText`, `SkyTeamScoreText`, `GreenTeamScoreText`, `YellowTeamScoreText`, `PurpleTeamScoreText`, `PinkTeamScoreText`, `BlueTeamScoreText`, `WhiteTeamScoreText`: HUD WBP에 같은 이름의 TextBlock이 있으면 해당 팀의 라운드 승수를 자동 표시한다.
   - `UMainHUDWidget::RedTeamScoreRow`, `SkyTeamScoreRow`, `GreenTeamScoreRow`, `YellowTeamScoreRow`, `PurpleTeamScoreRow`, `PinkTeamScoreRow`, `BlueTeamScoreRow`, `WhiteTeamScoreRow`: HUD WBP에 같은 이름의 Row 위젯이 있으면 참가하지 않은 팀 Row를 숨긴다. Row가 없으면 팀별 ScoreText 자체를 숨김 대상으로 사용한다.
   - `ASnowRumbleGameMode::EvaluateRoundEndCondition()`: 서버가 팀별 생존자 상태를 다시 검사한다.
+  - `ASnowRumbleGameMode::OnMapShrinkRequested(int32 ShrinkStage, float RoundElapsedSeconds, float ShrinkDurationSeconds)`: 서버가 맵 축소 시점에 PvP GameMode Blueprint로 호출하는 이벤트다. 실제 맵 축소 로직은 J 또는 맵 담당 Blueprint가 구현한다.
+  - `ASnowRumbleGameMode::CompleteMapShrinkFromBlueprint()`: 맵 Blueprint가 실제 맵 축소 완료 시 호출할 수 있는 완료 신호다. 현재는 완료 신호가 없으므로 C++가 `TemporaryMapShrinkDurationSeconds` 기본 5초 후 자동 완료 처리한다.
+  - `ASnowRumbleGameState::GetRoundElapsedSeconds()`, `GetRoundElapsedTimeText()`: PvP 시작 카운트다운 종료 후 경과 시간을 반환한다.
+  - `ASnowRumbleGameState::GetSecondsUntilNextMapShrink()`, `GetMapShrinkCountdownText()`, `IsMapShrinkInProgress()`: HUD와 맵 표현이 다음 축소 상태를 읽는 계약이다.
+  - `ASnowRumbleGameState::GetGameSpeed()`, `GetMapShrinkIntervalSeconds()`: 현재 속도와 축소 주기를 읽는다.
   - `ASnowRumbleGameMode::LobbyReturnTravelUrl`: 모든 라운드가 끝난 뒤 복귀할 로비 맵 travel URL이다. 기본값은 `/Game/Maps/L_Lobby?listen`이다.
   - 라운드 시간·단계·금색 상자 시점은 C-05 후속 범위에서 제공한다.
 - 인계 대상: K-11, S-11, S-10, J-02, J-04, C-12
@@ -94,10 +110,12 @@
 - 팀별 승리 점수 표시가 필요하면 `WBP_MainHUDWidget`에 VerticalBox를 배치하고, 각 팀 TextBlock 이름을 `RedTeamScoreText`, `SkyTeamScoreText`, `GreenTeamScoreText`, `YellowTeamScoreText`, `PurpleTeamScoreText`, `PinkTeamScoreText`, `BlueTeamScoreText`, `WhiteTeamScoreText` 중 필요한 팀 이름으로 맞춘다.
 - 팀 이름과 점수를 한 줄로 묶어 표시하려면 각 줄의 루트 위젯 이름을 `RedTeamScoreRow`, `SkyTeamScoreRow`, `GreenTeamScoreRow`, `YellowTeamScoreRow`, `PurpleTeamScoreRow`, `PinkTeamScoreRow`, `BlueTeamScoreRow`, `WhiteTeamScoreRow`로 맞춘다. C++는 참가하지 않은 팀 Row만 숨기고 Row 순서는 바꾸지 않는다.
 - 로비 게시판 WBP에서 라운드 수 설정이 필요하면 Button 이름을 `Round1Button`, `Round3Button`, `Round5Button`으로 맞춘다.
+- 로비 게시판 WBP에서 게임 속도 설정이 필요하면 Button 이름을 `SlowGameSpeedButton`, `NormalGameSpeedButton`, `FastGameSpeedButton`으로 맞춘다.
 - 로비 게시판 WBP에서 팀 섞기 버튼이 필요하면 Button 이름을 `Shuffle2TeamsButton`, `Shuffle3TeamsButton`, `Shuffle4TeamsButton`으로 맞춘다.
 - 로비 게시판 WBP에서 개인전 섞기 버튼이 필요하면 Button 이름을 `ShuffleSoloButton`으로 맞춘다.
 - 로비 게시판 WBP에서 현재 라운드 수 표시가 필요하면 TextBlock 이름을 `MatchRoundLimitText`로 맞춘다.
 - 기존 `WBP_Lobby`에서 현재 라운드 수 표시가 필요하면 TextBlock 이름을 `MatchRoundLimitText`로 맞춘다.
+- 기존 `WBP_Lobby`에서 현재 게임 속도 표시가 필요하면 TextBlock 이름을 `GameSpeedText`로 맞춘다.
 - 기존 `WBP_Lobby`에서 시작 불가 피드백이 필요하면 Widget Animation 이름을 `InvalidActionAnimation`으로 맞춘다.
 - 기존 `WBP_Lobby`에서 시작 불가 사유 텍스트가 필요하면 TextBlock 이름을 `InvalidActionReasonText`로 맞춘다.
 - 이름 바인딩 대신 Blueprint에서 직접 처리하려면 `WBP_Lobby`의 `OnInvalidActionFeedback` 이벤트에서 사유 텍스트 표시와 애니메이션 재생을 연결한다.
@@ -108,6 +126,10 @@
 - 로비 게시판에서 발생한 예외행동도 로컬 `WBP_Lobby`의 `InvalidActionAnimation`과 `InvalidActionReasonText`로 전달된다.
 - 로비 게시판 WBP 자체에도 별도 피드백을 띄우고 싶으면 같은 이름의 `InvalidActionAnimation`, `InvalidActionReasonText`를 추가할 수 있다.
 - PvP HUD 중앙 상단에 현재 라운드를 표시하려면 `WBP_MainHUDWidget`에 TextBlock을 배치하고 이름을 `CurrentRoundText`로 맞춘다.
+- PvP HUD에 현재 경기 시간을 표시하려면 `WBP_MainHUDWidget`에 TextBlock을 배치하고 이름을 `MatchElapsedTimeText`로 맞춘다.
+- PvP HUD에 다음 맵 축소 안내를 표시하려면 `WBP_MainHUDWidget`에 TextBlock을 배치하고 이름을 `MapShrinkCountdownText`로 맞춘다.
+- PvP GameMode Blueprint 또는 맵별 GameMode Blueprint에서 `OnMapShrinkRequested` 이벤트를 구현하면 실제 맵 축소를 시작할 수 있다.
+- 실제 맵 축소가 완료되는 시점에 `CompleteMapShrinkFromBlueprint()`를 호출하면 5초 임시 완료 타이머 대신 완료 신호 기준으로 다음 축소 주기가 시작된다.
 
 ## 완료 조건
 ### 에이전트 확인
@@ -127,6 +149,9 @@
 - [x] 모든 라운드 종료 후 로비 복귀 제공
 - [x] 소비 파트 라운드 결과 계약 인계 완료
 - [x] 1/3/5 라운드 상태 전이 정적 점검 완료
+- [x] 게임 속도별 맵 축소 주기 계약 제공
+- [x] HUD 경기 시간·맵 축소 안내 TextBlock 바인딩 제공
+- [x] 맵 담당 Blueprint 축소 시작 이벤트와 완료 신호 계약 제공
 
 ### 검증 메모
 
@@ -144,6 +169,8 @@
 - 2026-08-10: 로비 게시판 개인전 섞기 버튼 계약을 추가했다. `ShuffleSoloButton`과 같은 이름의 Button이 있으면 호스트가 현재 로비 인원을 모두 서로 다른 팀 색으로 무작위 배정한다. 클라이언트가 누르면 기존 예외행동 피드백으로 호스트 전용 사유를 표시한다. `git diff --check`는 통과했고 C++ 컴파일도 통과했지만, 실행 중인 Unreal Editor가 `UnrealEditor-SnowRumble.dll`을 잡고 있어 최종 링크는 `LNK1104`로 실패했다.
 - 2026-08-10: 로비 전용 ESC 메뉴 계약을 추가했다. `ALobbyPlayerController`가 로비에서 ESC 입력을 받으면 `LobbyEscapeMenuWidgetClass` 위젯을 뷰포트 최상단에 띄우고, 메뉴가 열려 있는 동안 마우스 커서와 UI 전용 입력만 사용한다. PIE 디버깅용으로 F10도 같은 메뉴 토글에 연결했다. 메뉴가 열린 상태에서는 `ULobbyEscapeMenuWidget`이 ESC와 F10 키 입력을 직접 받아 다시 닫는다. `ReturnToMainMenuButton`은 `MainMenuTravelUrl` 기본값 `/Game/Maps/L_MainMenu`로 메인메뉴 이동을 실행한다. 기존 `ReturnToLobbyButton` 이름도 메인메뉴 이동 버튼으로 호환된다. `SettingsButton`, `InviteFriendsButton`, `BackButton`은 같은 이름의 WBP Button에 자동 연결된다. `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드를 통과했다.
 - 2026-08-10: Steam 출시는 최종 목표로 유지하되 현재 개발과 테스트는 LAN/NULL 세션으로 계속 진행하기로 결정했다. ESC 메뉴의 친구 부르기 버튼은 현재 `OnInviteFriendsRequested` 이벤트만 제공하고, 실제 Steam Overlay 초대와 초대 수락 처리는 C-18에서 통합한다.
+- 2026-08-10: 게임 속도별 맵 축소 호출 준비를 추가했다. 로비 게시판 WBP는 `SlowGameSpeedButton`, `NormalGameSpeedButton`, `FastGameSpeedButton`으로 느리게 90초, 보통 60초, 빠르게 30초 축소 주기를 설정하고, 기존 `WBP_Lobby`는 `GameSpeedText`로 현재 속도를 표시한다. PvP 시작 카운트다운 종료 후 `ASnowRumbleGameState`가 경기 경과 시간과 다음 축소까지 남은 시간을 서버 시간 기준으로 제공하고, `UMainHUDWidget`은 `MatchElapsedTimeText`, `MapShrinkCountdownText`로 표시한다. 0초가 되면 `ASnowRumbleGameMode::OnMapShrinkRequested` Blueprint 이벤트를 호출하고 `맵이 축소됩니다!` 상태를 복제한다. 현재는 실제 완료 신호가 없으므로 5초 후 자동 완료되며, J 또는 맵 담당 Blueprint가 실제 축소 완료 시 `CompleteMapShrinkFromBlueprint()`를 호출하면 그 시점부터 다음 주기를 시작할 수 있다. `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드를 통과했다.
+- 2026-08-10: `GameSpeedText` 표시를 축소 주기 포함 문구에서 `느리게`, `보통`, `빠르게` 속도명만 표시하도록 조정했다. `git diff --check`는 통과했고 `LobbyWidget.cpp` 컴파일도 통과했지만, 실행 중인 Unreal Editor가 `Binaries/Win64/UnrealEditor-SnowRumble.dll`을 잡고 있어 최종 링크는 `LNK1104`로 실패했다.
 
 ### 결과 확인
 
@@ -176,6 +203,14 @@
 - [ ] `InvalidActionReasonText`가 있으면 예외행동 사유 문구가 표시된다.
 - [ ] `WBP_Lobby`에 `MatchRoundLimitText`를 배치하면 로비에서 선택한 총 라운드 수가 표시된다.
 - [ ] `WBP_MainHUDWidget` 중앙 상단에 `CurrentRoundText`를 배치하면 PvP 중 현재 라운드가 표시된다.
+- [ ] 로비 게시판 WBP에 `SlowGameSpeedButton`, `NormalGameSpeedButton`, `FastGameSpeedButton`을 연결하면 호스트가 게임 속도를 바꿀 수 있다.
+- [ ] 클라이언트가 게임 속도 버튼을 누르면 속도가 바뀌지 않고 호스트 전용 사유가 표시된다.
+- [ ] 기존 `WBP_Lobby`에 `GameSpeedText`를 배치하면 현재 속도가 `느리게`, `보통`, `빠르게` 중 하나로 표시된다.
+- [ ] `WBP_MainHUDWidget`에 `MatchElapsedTimeText`를 배치하면 `시작!` 이후 현재 경기 시간이 증가한다.
+- [ ] `WBP_MainHUDWidget`에 `MapShrinkCountdownText`를 배치하면 설정된 속도에 따라 다음 맵 축소까지 남은 시간이 감소한다.
+- [ ] `MapShrinkCountdownText`가 0초에 도달하면 `맵이 축소됩니다!`로 바뀐다.
+- [ ] PvP GameMode Blueprint의 `OnMapShrinkRequested` 이벤트가 축소 시점마다 호출된다.
+- [ ] 현재 임시 완료 기준으로 `맵이 축소됩니다!` 표시 약 5초 후 다음 축소 카운트다운이 다시 시작된다.
 - [ ] 3라운드 또는 5라운드 설정에서 라운드 종료 후 남은 라운드가 있으면 로딩창이 다시 표시되고 다른 PvP 후보 맵으로 이동한다.
 - [ ] 마지막 라운드 종료 후 `IsMatchEnded()`가 true가 되고 `GetMatchWinningTeam()`이 최종 1등 팀을 반환한다.
 - [ ] 마지막 라운드 종료 후 약 `MatchEndLobbyReturnDelaySeconds` 뒤 로비로 복귀한다.

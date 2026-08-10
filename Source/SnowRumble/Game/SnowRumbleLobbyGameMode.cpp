@@ -291,6 +291,9 @@ FString ASnowRumbleLobbyGameMode::BuildMatchTravelUrl(
 			}
 			MatchSubsystem->BeginPvPMatch(
 				LobbyGameState ? LobbyGameState->GetMatchRoundLimit() : 1,
+				LobbyGameState
+					? LobbyGameState->GetGameSpeed()
+					: ESnowRumbleGameSpeed::Normal,
 				PvPLevelPaths);
 		}
 	}

@@ -188,6 +188,11 @@ int32 ASnowRumbleLobbyGameState::GetMatchRoundLimit() const
 	return MatchRoundLimit;
 }
 
+ESnowRumbleGameSpeed ASnowRumbleLobbyGameState::GetGameSpeed() const
+{
+	return GameSpeed;
+}
+
 void ASnowRumbleLobbyGameState::SetLobbyModeFromServer(
 	ESnowRumbleLobbyMode NewLobbyMode)
 {
@@ -213,6 +218,18 @@ void ASnowRumbleLobbyGameState::SetMatchRoundLimitFromServer(
 	NotifyLobbyStateChanged();
 }
 
+void ASnowRumbleLobbyGameState::SetGameSpeedFromServer(
+	ESnowRumbleGameSpeed NewGameSpeed)
+{
+	if (!HasAuthority() || GameSpeed == NewGameSpeed)
+	{
+		return;
+	}
+
+	GameSpeed = NewGameSpeed;
+	NotifyLobbyStateChanged();
+}
+
 void ASnowRumbleLobbyGameState::GetLifetimeReplicatedProps(
 	TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -220,6 +237,7 @@ void ASnowRumbleLobbyGameState::GetLifetimeReplicatedProps(
 
 	DOREPLIFETIME(ASnowRumbleLobbyGameState, LobbyMode);
 	DOREPLIFETIME(ASnowRumbleLobbyGameState, MatchRoundLimit);
+	DOREPLIFETIME(ASnowRumbleLobbyGameState, GameSpeed);
 }
 
 void ASnowRumbleLobbyGameState::NotifyLobbyStateChanged()
@@ -233,6 +251,11 @@ void ASnowRumbleLobbyGameState::OnRep_LobbyMode()
 }
 
 void ASnowRumbleLobbyGameState::OnRep_MatchRoundLimit()
+{
+	NotifyLobbyStateChanged();
+}
+
+void ASnowRumbleLobbyGameState::OnRep_GameSpeed()
 {
 	NotifyLobbyStateChanged();
 }

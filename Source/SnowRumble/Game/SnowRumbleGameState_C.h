@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "SnowRumbleMatchSubsystem_C.h"
 #include "SnowRumblePlayerState.h"
 #include "GameFramework/GameStateBase.h"
 #include "SnowRumbleGameState_C.generated.h"
@@ -17,6 +18,12 @@ class SNOWRUMBLE_API ASnowRumbleGameState : public AGameStateBase
 public:
 	/** 서버가 PvP 시작 카운트다운을 확정한다. */
 	void StartMatchCountdownFromServer(float CountdownSeconds);
+
+	/** 서버가 맵 축소 상태를 시작한다. */
+	void StartMapShrinkFromServer(float ShrinkDurationSeconds);
+
+	/** 서버가 맵 축소 완료 상태를 확정하고 다음 축소 시간을 잡는다. */
+	void CompleteMapShrinkFromServer();
 
 	/** 서버가 현재 라운드 승리 팀과 매치 누적 상태를 확정한다. */
 	void EndRoundFromServer(
@@ -67,6 +74,34 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Match")
 	FText GetStartCountdownText() const;
 
+	/** 현재 라운드의 실제 경기 경과 시간을 초 단위로 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Match")
+	float GetRoundElapsedSeconds() const;
+
+	/** HUD에 표시할 경기 경과 시간 텍스트를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Match")
+	FText GetRoundElapsedTimeText() const;
+
+	/** 다음 맵 축소까지 남은 시간을 초 단위로 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Match")
+	float GetSecondsUntilNextMapShrink() const;
+
+	/** HUD에 표시할 맵 축소 안내 텍스트를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Match")
+	FText GetMapShrinkCountdownText() const;
+
+	/** 현재 맵 축소가 진행 중인지 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Match")
+	bool IsMapShrinkInProgress() const;
+
+	/** 로비에서 선택한 게임 속도를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Match")
+	ESnowRumbleGameSpeed GetGameSpeed() const;
+
+	/** 현재 게임 속도의 맵 축소 주기를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Match")
+	float GetMapShrinkIntervalSeconds() const;
+
 	virtual void GetLifetimeReplicatedProps(
 		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
@@ -86,6 +121,24 @@ protected:
 
 	UPROPERTY(Replicated)
 	float MatchStartCountdownSeconds = 3.0f;
+
+	UPROPERTY(Replicated)
+	float RoundStartServerTime = 0.0f;
+
+	UPROPERTY(Replicated)
+	float NextMapShrinkServerTime = 0.0f;
+
+	UPROPERTY(Replicated)
+	float MapShrinkStartedServerTime = 0.0f;
+
+	UPROPERTY(Replicated)
+	float MapShrinkDurationSeconds = 5.0f;
+
+	UPROPERTY(Replicated)
+	bool bMapShrinkInProgress = false;
+
+	UPROPERTY(Replicated)
+	ESnowRumbleGameSpeed GameSpeed = ESnowRumbleGameSpeed::Normal;
 
 	UPROPERTY(ReplicatedUsing = OnRep_RoundResult)
 	bool bRoundEnded = false;
@@ -132,6 +185,9 @@ protected:
 private:
 	/** 서버 동기화 시간을 기준으로 시작까지 남은 시간을 반환한다. */
 	float GetSecondsUntilMatchStart() const;
+
+	/** 초 단위 시간을 0:00 형식으로 만든다. */
+	FText FormatSecondsAsClock(float Seconds) const;
 
 	/** 서버가 Subsystem의 누적 점수를 복제 변수에 복사한다. */
 	void CopyRoundWinsFromMatchSubsystem(

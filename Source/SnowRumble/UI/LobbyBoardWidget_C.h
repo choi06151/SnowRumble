@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "../Game/SnowRumbleMatchSubsystem_C.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "../Interaction/LobbyInteractionBoard_C.h"
 #include "LobbyBoardWidget_C.generated.h"
@@ -161,6 +162,18 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UButton> ShuffleSoloButton;
 
+	/** WBP에서 같은 이름으로 만든 느린 게임 속도 버튼에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UButton> SlowGameSpeedButton;
+
+	/** WBP에서 같은 이름으로 만든 보통 게임 속도 버튼에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UButton> NormalGameSpeedButton;
+
+	/** WBP에서 같은 이름으로 만든 빠른 게임 속도 버튼에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UButton> FastGameSpeedButton;
+
 	/** WBP에서 같은 이름으로 만든 현재 라운드 수 표시 텍스트에 자동 연결된다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> MatchRoundLimitText;
@@ -299,6 +312,15 @@ private:
 	UFUNCTION()
 	void HandleShuffleSoloButtonClicked();
 
+	UFUNCTION()
+	void HandleSlowGameSpeedButtonClicked();
+
+	UFUNCTION()
+	void HandleNormalGameSpeedButtonClicked();
+
+	UFUNCTION()
+	void HandleFastGameSpeedButtonClicked();
+
 	/** 버튼 클릭을 로컬 캐릭터의 서버 검증 요청으로 전달한다. */
 	void SubmitBoardAction(ELobbyBoardAction BoardAction);
 
@@ -319,6 +341,9 @@ private:
 
 	/** 호스트가 로비 라운드 수를 서버 값으로 변경한다. */
 	void SubmitMatchRoundLimit(int32 NewRoundLimit);
+
+	/** 호스트가 로비 게임 속도를 서버 값으로 변경한다. */
+	void SubmitGameSpeed(ESnowRumbleGameSpeed NewGameSpeed);
 
 	/** 호스트가 현재 로비 인원을 지정 팀 수로 무작위 균등 배정한다. */
 	void SubmitShuffleTeams(int32 TeamCount);

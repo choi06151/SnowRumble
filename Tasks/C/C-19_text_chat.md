@@ -14,9 +14,11 @@
 - [x] 로컬 플레이어가 Enter 키로 채팅 입력창을 열 수 있게 한다.
 - [x] 입력하지 않을 때도 채팅 로그 위젯은 기본 표시 상태로 둔다.
 - [x] 새 메시지가 들어올 때마다 채팅 목록에 메시지 TextBlock 행을 하나씩 추가한다.
+- [x] 마지막 채팅 갱신 후 5초가 지나면 채팅 위젯이 서서히 사라지고, Enter 입력 또는 새 메시지 수신 시 다시 보이게 한다.
 - [x] 채팅 입력이 열린 동안 마우스 휠로 현재 채팅 로그 위치를 스크롤할 수 있게 한다.
 - [x] 로비에서는 전체 채팅만 사용한다.
 - [x] PvP와 추후 모드에서는 채팅 입력 중 Tab 키로 전체 채팅과 팀 채팅을 전환한다.
+- [x] 팀 채팅 메시지는 전체 채팅과 구분되도록 기본 하늘색으로 표시한다.
 - [x] 전체 채팅은 현재 월드의 모든 SnowRumble PlayerController에 전달한다.
 - [x] 팀 채팅은 같은 팀 색 PlayerState를 가진 플레이어에게만 전달한다.
 - [x] 서버가 빈 메시지와 과도하게 긴 메시지를 정리한다.
@@ -48,6 +50,8 @@
   - `UChatWidget::ChatInputTextBox`: 같은 이름의 EditableTextBox가 있으면 Enter 입력 시 표시되고 메시지 입력을 받는다.
   - `UChatWidget::ChatChannelText`: 같은 이름의 TextBlock이 있으면 현재 채널을 `전체` 또는 `팀`으로 표시한다. 로비에서는 항상 `전체`다.
   - `UChatWidget::ChatMessageFont`: C++가 `ChatLogScrollBox`에 추가하는 메시지 TextBlock 행에 적용할 폰트다.
+  - `UChatWidget::AllChatMessageColor`: C++가 `ChatLogScrollBox`에 추가하는 전체 채팅 메시지 행 색이다. 기본값은 흰색이다.
+  - `UChatWidget::TeamChatMessageColor`: C++가 `ChatLogScrollBox`에 추가하는 팀 채팅 메시지 행 색이다. 기본값은 하늘색이다.
   - `UChatWidget::ChatChannelFont`: `ChatChannelText`에 적용할 폰트다.
   - `UChatWidget::OpenChatInput(ESnowRumbleChatChannel InitialChannel)`: 채팅 입력창을 열고 키보드 포커스를 준다.
   - `UChatWidget::CloseChatInput()`: 채팅 입력창을 닫고 입력값을 비운다.
@@ -83,6 +87,8 @@
 ## 변경 기록
 
 - 2026-08-10: 사용자가 로비, PvP, 추후 좀비맵에서 사용할 전체/팀 채팅을 요청해 C-19를 추가하고 구현했다.
+- 2026-08-10: 사용자가 Enter로 채팅 입력창을 다시 열 때마다 전체 채팅으로 초기화되는 문제를 보고해, Tab으로 바꾼 마지막 채널을 PvP/추후 팀 채팅 가능 모드에서 유지하도록 수정했다.
+- 2026-08-10: 사용자가 노란색은 시스템 알람용으로 남기고 팀 채팅은 하늘색으로 구분하길 원해, 팀 채팅 메시지 행 기본 색을 하늘색으로 추가했다.
 
 ## 수동 작업
 
@@ -94,7 +100,10 @@
 - 현재 채널 표시가 필요하면 TextBlock 이름을 `ChatChannelText`로 맞춘다.
 - `ChatChannelText`는 Enter로 채팅 입력창이 열린 동안에만 표시되고, 입력창이 닫히면 자동으로 숨겨진다.
 - 새 메시지 행 폰트를 바꾸려면 채팅 WBP 기본값에서 `ChatMessageFont`를 설정한다.
+- 전체 채팅 메시지 색을 바꾸려면 채팅 WBP 기본값에서 `AllChatMessageColor`를 설정한다.
+- 팀 채팅 메시지 색을 바꾸려면 채팅 WBP 기본값에서 `TeamChatMessageColor`를 설정한다. 기본값은 하늘색이다.
 - 채널 표시 폰트를 바꾸려면 채팅 WBP 기본값에서 `ChatChannelFont`를 설정한다.
+- 채팅 로그 표시 시간을 바꾸려면 채팅 WBP 기본값에서 `ChatVisibleDuration`과 `ChatFadeOutDuration`을 조정한다. 기본값은 마지막 갱신 후 5초 유지, 1.5초 fade-out이다.
 - 입력 중인 글자 폰트는 `ChatInputTextBox`의 Widget Style 폰트를 WBP에서 직접 설정한다.
 - 채팅 입력창이 열린 상태에서 `Tab`을 누르면 PvP와 추후 모드에서는 `전체`와 `팀` 채널이 전환된다.
 - 로비에서는 `Tab`을 눌러도 채널이 바뀌지 않고 전체 채팅으로 유지된다.
@@ -124,6 +133,10 @@
 - 2026-08-10: 메시지 입력 완료 Enter 또는 입력 취소 시 `UChatWidget::CloseChatInput()`만 호출하던 경로를 `ASnowRumblePlayerController::CloseChatInput()`으로 바꿨다. 입력창 닫기와 함께 `GameOnly` 입력 모드와 숨김 커서가 복구된다. `ChatWidget_C.cpp` 컴파일은 통과했고, 최종 링크는 실행 중인 Unreal Editor가 `Binaries/Win64/UnrealEditor-SnowRumble.dll`을 잡고 있어 `LNK1104`로 실패했다.
 - 2026-08-10: `ChatChannelText`를 `ChatInputTextBox`처럼 채팅 입력창이 열린 동안에만 표시되게 조정했다. C++가 생성하는 메시지 행은 `ChatMessageFont`, 채널 표시 텍스트는 `ChatChannelFont`를 적용할 수 있게 했다. 입력창 자체 폰트는 `UEditableTextBox`의 WBP Widget Style에서 설정한다. 해당 변경 후 `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드가 통과했다.
 - 2026-08-10: 채팅 입력이 닫혀 있는 동안 `ChatLogScrollBox`의 스크롤바를 숨기고, 선택 바인딩 `ChatLogBorder`가 있으면 테두리 브러시 알파만 0으로 바꾸게 했다. ScrollBox와 메시지 TextBlock은 계속 표시되므로 기존 채팅 내용은 입력 전에도 그대로 보인다. 해당 변경 후 `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드가 통과했다.
+- 2026-08-10: 마지막 채팅 갱신 또는 Enter 입력 후 `ChatVisibleDuration` 동안 채팅 위젯을 표시하고, 이후 `ChatFadeOutDuration` 동안 서서히 사라지게 했다. `Enter`로 입력창을 열거나 새 메시지를 받으면 즉시 다시 보이게 했다. 해당 변경 후 `git diff --check`가 통과했고 `ChatWidget_C.cpp` 컴파일도 통과했다. 최종 링크는 실행 중인 Unreal Editor가 `Binaries/Win64/UnrealEditor-SnowRumble.dll`을 잡고 있어 `LNK1104`로 실패했다.
+- 2026-08-10: PvP 채팅 입력창에 포커스가 있을 때 `Tab`이 TextBox에서 먼저 처리되어 채널 전환까지 도달하지 않는 문제를 수정했다. `UChatWidget::NativeOnPreviewKeyDown()`에서 입력창 포커스보다 먼저 `Tab`을 잡아 `ToggleChatChannel()`을 호출한다. 해당 변경 후 `git diff --check`가 통과했고 `ChatWidget_C.cpp` 컴파일도 통과했다. 최종 링크는 실행 중인 Unreal Editor가 `Binaries/Win64/UnrealEditor-SnowRumble.dll`을 잡고 있어 `LNK1104`로 실패했다.
+- 2026-08-10: Enter 입력 재오픈 시 `ASnowRumblePlayerController::HandleChatInputPressed()`가 항상 전체 채팅으로 열던 흐름을 수정했다. 팀 채팅 가능 모드에서는 기존 `UChatWidget::GetActiveChatChannel()` 값을 다시 사용하고, 로비처럼 팀 채팅이 불가능한 모드에서는 전체 채팅으로 고정한다. 해당 변경 후 `git diff --check -- Source/SnowRumble/UI/SnowRumblePlayerController.cpp Tasks/C/C-19_text_chat.md Tasks/C/PLAN_C.md`가 통과했고, `SnowRumblePlayerController.cpp` 컴파일도 통과했다. 최종 링크는 실행 중인 Unreal Editor가 `Binaries/Win64/UnrealEditor-SnowRumble.dll`을 잡고 있어 `LNK1104`로 실패했다.
+- 2026-08-10: `UChatWidget`에 `AllChatMessageColor`와 `TeamChatMessageColor`를 추가하고, `ChatLogScrollBox`에 추가되는 메시지 TextBlock 행 색상을 채널별로 적용했다. 팀 채팅 기본색은 하늘색 `FLinearColor(0.35, 0.85, 1.0, 1.0)`이다. 해당 변경 후 `git diff --check -- Source/SnowRumble/UI/ChatWidget_C.h Source/SnowRumble/UI/ChatWidget_C.cpp`와 `SnowRumbleEditor Win64 Development` 빌드가 통과했다.
 
 ### 결과 확인
 
@@ -147,3 +160,10 @@
 - [x] PvP에서 채팅 입력 중 Tab을 누르면 전체 채팅과 팀 채팅이 전환된다.
 - [x] PvP에서 팀 채팅이 같은 팀 색 플레이어에게만 표시된다.
 - [x] 로비 ESC 메뉴가 열린 상태에서는 Enter 채팅 입력이 열리지 않는다.
+- [ ] 마지막 채팅 갱신 후 5초가 지나면 채팅 위젯이 서서히 사라진다.
+- [ ] 채팅 위젯이 사라진 상태에서 Enter를 누르면 채팅 입력창과 로그가 즉시 다시 보인다.
+- [ ] 새 채팅 메시지를 받으면 사라졌던 채팅 로그가 즉시 다시 보이고, 다시 5초 뒤 fade-out된다.
+- [ ] PvP에서 Enter로 채팅 입력창을 연 뒤 Tab을 누르면 `ChatChannelText`가 `전체`와 `팀` 사이에서 전환된다.
+- [ ] PvP에서 Tab으로 `팀` 채널로 바꾼 뒤 Enter로 제출·닫기·다시 열기를 해도 `ChatChannelText`가 `팀`으로 유지된다.
+- [ ] PvP에서 Tab으로 `전체` 채널로 바꾼 뒤 Enter로 제출·닫기·다시 열기를 해도 `ChatChannelText`가 `전체`로 유지된다.
+- [ ] PvP에서 팀 채팅 메시지는 하늘색으로 표시되고, 전체 채팅 메시지와 색으로 구분된다.
