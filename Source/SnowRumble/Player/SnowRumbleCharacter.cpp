@@ -12,6 +12,7 @@
 #include "../Snowball/SnowballEquipmentComponent.h"
 #include "../Snowball/SnowballItem.h"
 #include "../UI/EmoteRadialMenuWidget.h"
+#include "../UI/CustomizationPlayerController_C.h"
 #include "../UI/MainHUDWidget.h"
 #include "../UI/OverheadNameplateWidget_C.h"
 #include "../UI/SnowRumblePlayerController.h"
@@ -27,6 +28,8 @@
 #include "EnhancedActionKeyMapping.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "Engine/Canvas.h"
+#include "Engine/CanvasRenderTarget2D.h"
 #include "EngineUtils.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -37,6 +40,7 @@
 #include "InputMappingContext.h"
 #include "InputCoreTypes.h"
 #include "Kismet/GameplayStatics.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Net/UnrealNetwork.h"
 #include "NiagaraComponent.h"
 #include "TimerManager.h"
@@ -546,7 +550,9 @@ void ASnowRumbleCharacter::BeginPlay()
 	}
 
 	BindOverheadNameToPlayerState();
+	BindCustomizationToPlayerState();
 	RefreshOverheadPlayerName();
+	RefreshCustomizationFromPlayerState();
 	RefreshPvpMatchInputLock();
 }
 
@@ -566,6 +572,284 @@ FLinearColor ASnowRumbleCharacter::GetOverheadTeamColor() const
 	return SnowRumblePlayerState
 		? SnowRumblePlayerState->GetLobbyTeamColor()
 		: FLinearColor::White;
+}
+
+void ASnowRumbleCharacter::ApplyCustomizationData(
+	const FSnowRumbleCustomizationData& NewCustomizationData)
+{
+	AppliedCustomizationData = NewCustomizationData;
+
+	if (CustomizationMaterialIndex >= 0
+		&& !CustomizationBodyColorParameterName.IsNone())
+	{
+		TArray<USkeletalMeshComponent*> MeshComponents;
+		GetComponents(MeshComponents);
+		for (USkeletalMeshComponent* MeshComponent : MeshComponents)
+		{
+			if (!MeshComponent
+				|| CustomizationMaterialIndex >= MeshComponent->GetNumMaterials())
+			{
+				continue;
+			}
+
+			UMaterialInstanceDynamic* DynamicMaterial =
+				Cast<UMaterialInstanceDynamic>(
+					MeshComponent->GetMaterial(CustomizationMaterialIndex));
+			if (!DynamicMaterial)
+			{
+				DynamicMaterial =
+					MeshComponent->CreateAndSetMaterialInstanceDynamic(
+						CustomizationMaterialIndex);
+			}
+			if (DynamicMaterial)
+			{
+				DynamicMaterial->SetVectorParameterValue(
+				CustomizationBodyColorParameterName,
+				AppliedCustomizationData.BodyColor);
+				if (MeshComponent == GetMesh())
+				{
+					CustomizationMaterialInstance = DynamicMaterial;
+				}
+			}
+		}
+	}
+
+	RedrawCustomizationPaintTexture();
+}
+
+void ASnowRumbleCharacter::RedrawCustomizationPaintTexture()
+{
+	if (CustomizationMaterialIndex < 0
+		|| CustomizationPaintTextureParameterName.IsNone())
+	{
+		return;
+	}
+
+	TArray<USkeletalMeshComponent*> MeshComponents;
+	GetComponents(MeshComponents);
+	for (USkeletalMeshComponent* MeshComponent : MeshComponents)
+	{
+		if (!MeshComponent)
+		{
+			continue;
+		}
+
+		const int32 MaterialCount = MeshComponent->GetNumMaterials();
+		for (int32 MaterialIndex = 0;
+			MaterialIndex < MaterialCount;
+			++MaterialIndex)
+		{
+			ActiveCustomizationPaintMeshComponentName = MeshComponent->GetFName();
+			ActiveCustomizationPaintMaterialIndex = MaterialIndex;
+			UCanvasRenderTarget2D* PaintRenderTarget =
+				EnsureCustomizationPaintRenderTarget(
+					ActiveCustomizationPaintMaterialIndex);
+			if (!PaintRenderTarget)
+			{
+				continue;
+			}
+
+			PaintRenderTarget->UpdateResource();
+			ApplyCustomizationPaintTextureToMesh(
+				MeshComponent,
+				MaterialIndex,
+				PaintRenderTarget);
+		}
+	}
+	ActiveCustomizationPaintMeshComponentName = NAME_None;
+	ActiveCustomizationPaintMaterialIndex = INDEX_NONE;
+}
+
+UCanvasRenderTarget2D*
+ASnowRumbleCharacter::EnsureCustomizationPaintRenderTarget(
+	int32 TargetMaterialIndex)
+{
+	if (TObjectPtr<UCanvasRenderTarget2D>* ExistingRenderTarget =
+		CustomizationPaintRenderTargets.Find(TargetMaterialIndex))
+	{
+		return ExistingRenderTarget->Get();
+	}
+
+	const int32 SafeRenderTargetSize = FMath::Clamp(
+		CustomizationPaintRenderTargetSize,
+		64,
+		4096);
+	UCanvasRenderTarget2D* NewRenderTarget =
+		UCanvasRenderTarget2D::CreateCanvasRenderTarget2D(
+			this,
+			UCanvasRenderTarget2D::StaticClass(),
+			SafeRenderTargetSize,
+			SafeRenderTargetSize);
+	if (!NewRenderTarget)
+	{
+		return nullptr;
+	}
+
+	NewRenderTarget->ClearColor = FLinearColor::Transparent;
+	NewRenderTarget->OnCanvasRenderTargetUpdate.AddUniqueDynamic(
+		this,
+		&ASnowRumbleCharacter::HandleCustomizationPaintCanvasUpdate);
+	CustomizationPaintRenderTargets.Add(
+		TargetMaterialIndex,
+		NewRenderTarget);
+	return NewRenderTarget;
+}
+
+void ASnowRumbleCharacter::ApplyCustomizationPaintTextureToMesh(
+	USkeletalMeshComponent* MeshComponent,
+	int32 TargetMaterialIndex,
+	UTexture* PaintTexture)
+{
+	if (!MeshComponent
+		|| TargetMaterialIndex < 0
+		|| TargetMaterialIndex >= MeshComponent->GetNumMaterials()
+		|| CustomizationPaintTextureParameterName.IsNone()
+		|| !PaintTexture)
+	{
+		return;
+	}
+
+	UMaterialInstanceDynamic* DynamicMaterial =
+		Cast<UMaterialInstanceDynamic>(
+			MeshComponent->GetMaterial(TargetMaterialIndex));
+	if (!DynamicMaterial)
+	{
+		DynamicMaterial =
+			MeshComponent->CreateAndSetMaterialInstanceDynamic(
+				TargetMaterialIndex);
+	}
+	if (DynamicMaterial)
+	{
+		DynamicMaterial->SetTextureParameterValue(
+			CustomizationPaintTextureParameterName,
+			PaintTexture);
+		if (MeshComponent == GetMesh())
+		{
+			CustomizationMaterialInstance = DynamicMaterial;
+		}
+	}
+}
+
+void ASnowRumbleCharacter::HandleCustomizationPaintCanvasUpdate(
+	UCanvas* Canvas,
+	int32 Width,
+	int32 Height)
+{
+	if (!Canvas)
+	{
+		return;
+	}
+
+	for (const FSnowRumblePaintStroke& Stroke
+		: AppliedCustomizationData.PaintStrokes)
+	{
+		if (!Stroke.MeshComponentName.IsNone()
+			&& Stroke.MeshComponentName
+				!= ActiveCustomizationPaintMeshComponentName)
+		{
+			continue;
+		}
+		if (Stroke.MaterialIndex != INDEX_NONE
+			&& Stroke.MaterialIndex
+				!= ActiveCustomizationPaintMaterialIndex)
+		{
+			continue;
+		}
+
+		DrawCustomizationPaintStrokeToCanvas(Canvas, Stroke, Width, Height);
+	}
+}
+
+void ASnowRumbleCharacter::DrawCustomizationPaintStrokeToCanvas(
+	UCanvas* Canvas,
+	const FSnowRumblePaintStroke& Stroke,
+	int32 Width,
+	int32 Height) const
+{
+	if (!Canvas || Stroke.Points.IsEmpty())
+	{
+		return;
+	}
+
+	auto ToCanvasPoint = [
+		Width,
+		Height,
+		bFlipY = AppliedCustomizationData.bFlipPaintUvY](const FVector2D& PaintUv)
+	{
+		const float PaintY = bFlipY ? PaintUv.Y : 1.0f - PaintUv.Y;
+		return FVector2D(
+			PaintUv.X * static_cast<float>(Width),
+			PaintY * static_cast<float>(Height));
+	};
+
+	if (Stroke.Points.Num() == 1)
+	{
+		const FVector2D Point = ToCanvasPoint(Stroke.Points[0]);
+		Canvas->K2_DrawLine(
+			Point - FVector2D(1.0f, 0.0f),
+			Point + FVector2D(1.0f, 0.0f),
+			CustomizationPaintStrokeThickness,
+			CustomizationPaintBrushColor);
+		return;
+	}
+
+	for (int32 PointIndex = 1;
+		PointIndex < Stroke.Points.Num();
+		++PointIndex)
+	{
+		Canvas->K2_DrawLine(
+			ToCanvasPoint(Stroke.Points[PointIndex - 1]),
+			ToCanvasPoint(Stroke.Points[PointIndex]),
+			CustomizationPaintStrokeThickness,
+			CustomizationPaintBrushColor);
+	}
+}
+
+FSnowRumbleCustomizationData
+ASnowRumbleCharacter::GetAppliedCustomizationData() const
+{
+	return AppliedCustomizationData;
+}
+
+void ASnowRumbleCharacter::SetCustomizationPaintTexture(UTexture* PaintTexture)
+{
+	if (CustomizationMaterialIndex < 0
+		|| CustomizationPaintTextureParameterName.IsNone()
+		|| !PaintTexture)
+	{
+		return;
+	}
+
+	TArray<USkeletalMeshComponent*> MeshComponents;
+	GetComponents(MeshComponents);
+	for (USkeletalMeshComponent* MeshComponent : MeshComponents)
+	{
+		if (!MeshComponent
+			|| CustomizationMaterialIndex >= MeshComponent->GetNumMaterials())
+		{
+			continue;
+		}
+
+		UMaterialInstanceDynamic* DynamicMaterial =
+			Cast<UMaterialInstanceDynamic>(
+				MeshComponent->GetMaterial(CustomizationMaterialIndex));
+		if (!DynamicMaterial)
+		{
+			DynamicMaterial =
+				MeshComponent->CreateAndSetMaterialInstanceDynamic(
+					CustomizationMaterialIndex);
+		}
+		if (DynamicMaterial)
+		{
+			DynamicMaterial->SetTextureParameterValue(
+			CustomizationPaintTextureParameterName,
+			PaintTexture);
+			if (MeshComponent == GetMesh())
+			{
+				CustomizationMaterialInstance = DynamicMaterial;
+			}
+		}
+	}
 }
 
 void ASnowRumbleCharacter::ClientFocusLobbyBoard_Implementation(
@@ -632,12 +916,24 @@ void ASnowRumbleCharacter::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ASnowRumbleCharacter, bIsPickingUpItem);
 }
 
+void ASnowRumbleCharacter::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+
+	BindOverheadNameToPlayerState();
+	BindCustomizationToPlayerState();
+	RefreshOverheadPlayerName();
+	RefreshCustomizationFromPlayerState();
+}
+
 void ASnowRumbleCharacter::OnRep_PlayerState()
 {
 	Super::OnRep_PlayerState();
 
 	BindOverheadNameToPlayerState();
+	BindCustomizationToPlayerState();
 	RefreshOverheadPlayerName();
+	RefreshCustomizationFromPlayerState();
 }
 
 void ASnowRumbleCharacter::PawnClientRestart()
@@ -659,6 +955,17 @@ void ASnowRumbleCharacter::BindOverheadNameToPlayerState()
 		SnowRumblePlayerState->OnLobbyPlayerChanged.AddUniqueDynamic(
 			this,
 			&ASnowRumbleCharacter::RefreshOverheadPlayerName);
+	}
+}
+
+void ASnowRumbleCharacter::BindCustomizationToPlayerState()
+{
+	if (ASnowRumblePlayerState* SnowRumblePlayerState =
+		GetPlayerState<ASnowRumblePlayerState>())
+	{
+		SnowRumblePlayerState->OnCustomizationChanged.AddUniqueDynamic(
+			this,
+			&ASnowRumbleCharacter::RefreshCustomizationFromPlayerState);
 	}
 }
 
@@ -719,6 +1026,18 @@ void ASnowRumbleCharacter::RefreshOverheadPlayerName()
 	{
 		NameplateWidget->SetObservedCharacter(this);
 	}
+}
+
+void ASnowRumbleCharacter::RefreshCustomizationFromPlayerState()
+{
+	const ASnowRumblePlayerState* SnowRumblePlayerState =
+		GetPlayerState<ASnowRumblePlayerState>();
+	if (!SnowRumblePlayerState)
+	{
+		return;
+	}
+
+	ApplyCustomizationData(SnowRumblePlayerState->GetCustomizationData());
 }
 
 void ASnowRumbleCharacter::ApplyCameraPitchLimits()
@@ -809,6 +1128,11 @@ void ASnowRumbleCharacter::EnsureMainHUDWidget()
 	if (!IsLocallyControlled()
 		|| MainHUDWidget
 		|| !MainHUDWidgetClass)
+	{
+		return;
+	}
+
+	if (Cast<ACustomizationPlayerController>(Controller))
 	{
 		return;
 	}
@@ -957,6 +1281,20 @@ void ASnowRumbleCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ASnowRumbleCharacter::StartJump);
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ASnowRumbleCharacter::StopJump);
 	}
+	if (MicrophonePushToTalkAction)
+	{
+		EnhancedInputComponent->BindAction(MicrophonePushToTalkAction, ETriggerEvent::Started, this, &ASnowRumbleCharacter::HandleMicrophonePushToTalkStarted);
+		EnhancedInputComponent->BindAction(MicrophonePushToTalkAction, ETriggerEvent::Completed, this, &ASnowRumbleCharacter::HandleMicrophonePushToTalkCompleted);
+		EnhancedInputComponent->BindAction(MicrophonePushToTalkAction, ETriggerEvent::Canceled, this, &ASnowRumbleCharacter::HandleMicrophonePushToTalkCompleted);
+	}
+	if (MicrophoneChannelToggleAction)
+	{
+		EnhancedInputComponent->BindAction(MicrophoneChannelToggleAction, ETriggerEvent::Started, this, &ASnowRumbleCharacter::HandleMicrophoneChannelToggle);
+	}
+	if (VoiceTargetMuteAction)
+	{
+		EnhancedInputComponent->BindAction(VoiceTargetMuteAction, ETriggerEvent::Started, this, &ASnowRumbleCharacter::HandleVoiceTargetMute);
+	}
 	if (SprintAction)
 	{
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &ASnowRumbleCharacter::HandleSprintStarted);
@@ -1027,14 +1365,23 @@ void ASnowRumbleCharacter::Look(const FInputActionValue& Value)
 	}
 
 	const FVector2D LookAxisVector = Value.Get<FVector2D>();
+	float MouseSensitivity = 1.0f;
+	if (const UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (const USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>())
+		{
+			MouseSensitivity = UserSettingsSubsystem->GetMouseSensitivity();
+		}
+	}
 
 	if (FMath::Abs(LookAxisVector.X) > KINDA_SMALL_NUMBER)
 	{
 		CameraShoulderSide = LookAxisVector.X < 0.0f ? 1.0f : -1.0f;
 	}
 
-	AddControllerYawInput(LookAxisVector.X);
-	AddControllerPitchInput(-LookAxisVector.Y);
+	AddControllerYawInput(LookAxisVector.X * MouseSensitivity);
+	AddControllerPitchInput(-LookAxisVector.Y * MouseSensitivity);
 }
 
 void ASnowRumbleCharacter::StartJump()
@@ -1050,6 +1397,42 @@ void ASnowRumbleCharacter::StartJump()
 void ASnowRumbleCharacter::StopJump()
 {
 	StopJumping();
+}
+
+void ASnowRumbleCharacter::HandleMicrophonePushToTalkStarted()
+{
+	if (ASnowRumblePlayerController* SnowRumbleController =
+		Cast<ASnowRumblePlayerController>(Controller))
+	{
+		SnowRumbleController->RequestMicrophonePushToTalkStarted();
+	}
+}
+
+void ASnowRumbleCharacter::HandleMicrophonePushToTalkCompleted()
+{
+	if (ASnowRumblePlayerController* SnowRumbleController =
+		Cast<ASnowRumblePlayerController>(Controller))
+	{
+		SnowRumbleController->RequestMicrophonePushToTalkCompleted();
+	}
+}
+
+void ASnowRumbleCharacter::HandleMicrophoneChannelToggle()
+{
+	if (ASnowRumblePlayerController* SnowRumbleController =
+		Cast<ASnowRumblePlayerController>(Controller))
+	{
+		SnowRumbleController->RequestVoiceChannelToggle();
+	}
+}
+
+void ASnowRumbleCharacter::HandleVoiceTargetMute()
+{
+	if (ASnowRumblePlayerController* SnowRumbleController =
+		Cast<ASnowRumblePlayerController>(Controller))
+	{
+		SnowRumbleController->RequestVoiceTargetMute();
+	}
 }
 
 void ASnowRumbleCharacter::HandleSprintStarted()
@@ -1406,6 +1789,8 @@ void ASnowRumbleCharacter::ApplyInputMappingContext()
 			this);
 		if (RuntimePlayerMappingContext)
 		{
+			const TArray<FEnhancedActionKeyMapping> OriginalMappings =
+				RuntimePlayerMappingContext->GetMappings();
 			const UGameInstance* GameInstance = GetGameInstance();
 			const USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem =
 				GameInstance
@@ -1414,6 +1799,7 @@ void ASnowRumbleCharacter::ApplyInputMappingContext()
 
 			auto ApplySavedKey = [
 				this,
+				&OriginalMappings,
 				UserSettingsSubsystem](
 				const UInputAction* Action,
 				FKey DefaultKey,
@@ -1429,18 +1815,20 @@ void ASnowRumbleCharacter::ApplyInputMappingContext()
 				const FKey SavedKey = UserSettingsSubsystem->GetKeyBinding(
 					BindingId,
 					DefaultKey);
-				const int32 MappingCount =
-					RuntimePlayerMappingContext->GetMappings().Num();
+				const int32 MappingCount = OriginalMappings.Num();
 				for (int32 MappingIndex = 0;
 					MappingIndex < MappingCount;
 					++MappingIndex)
 				{
+					if (OriginalMappings[MappingIndex].Action != Action
+						|| OriginalMappings[MappingIndex].Key != DefaultKey)
+					{
+						continue;
+					}
+
 					FEnhancedActionKeyMapping& Mapping =
 						RuntimePlayerMappingContext->GetMapping(MappingIndex);
-					if (Mapping.Action == Action && Mapping.Key == DefaultKey)
-					{
-						Mapping.Key = SavedKey;
-					}
+					Mapping.Key = SavedKey;
 				}
 			};
 
@@ -1455,6 +1843,18 @@ void ASnowRumbleCharacter::ApplyInputMappingContext()
 			ApplySavedKey(ActionAction, EKeys::LeftMouseButton, TEXT("Action"));
 			ApplySavedKey(DropEquipmentAction, EKeys::Q, TEXT("DropEquipment"));
 			ApplySavedKey(EmoteAction, EKeys::B, TEXT("Emote"));
+			ApplySavedKey(
+				MicrophonePushToTalkAction,
+				EKeys::K,
+				TEXT("MicrophonePushToTalk"));
+			ApplySavedKey(
+				MicrophoneChannelToggleAction,
+				EKeys::N,
+				TEXT("MicrophoneChannelToggle"));
+			ApplySavedKey(
+				VoiceTargetMuteAction,
+				EKeys::M,
+				TEXT("VoiceTargetMute"));
 		}
 
 		InputSubsystem->ClearAllMappings();

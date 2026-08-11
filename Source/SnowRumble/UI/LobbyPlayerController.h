@@ -41,6 +41,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby")
 	void RequestApplyLobbyTeam(ESnowRumbleTeam NewTeam);
 
+	/** 소유 클라이언트가 저장된 커스터마이징 데이터를 서버 PlayerState에 적용하도록 요청한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby")
+	void RequestApplyCustomizationData(
+		const FSnowRumbleCustomizationData& NewData);
+
 	/** 로비 UI에 예외행동 사유를 표시하고 피드백 애니메이션을 재생한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby")
 	void ShowLobbyInvalidActionFeedback(const FText& ReasonText);
@@ -105,6 +110,10 @@ private:
 
 	UFUNCTION(Server, Reliable)
 	void ServerApplyLobbyTeam(ESnowRumbleTeam NewTeam);
+
+	UFUNCTION(Server, Reliable)
+	void ServerApplyCustomizationData(
+		const FSnowRumbleCustomizationData& NewData);
 
 	/** 대기방 위젯 인스턴스가 없으면 생성한다. */
 	ULobbyWidget* EnsureLobbyWidget();

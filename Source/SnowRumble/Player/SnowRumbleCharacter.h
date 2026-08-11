@@ -15,6 +15,7 @@ class UInputMappingContext;
 class UAnimMontage;
 class UEmoteRadialMenuWidget;
 class UMainHUDWidget;
+class UMaterialInstanceDynamic;
 class UOverheadNameplateWidget;
 class UNiagaraComponent;
 class UOutlineComponent;
@@ -24,6 +25,9 @@ class USnowRumbleHealthComponent;
 class USnowballCreationComponent;
 class USnowballEquipmentComponent;
 class USpringArmComponent;
+class UCanvas;
+class UCanvasRenderTarget2D;
+class UTexture;
 class UWidgetInteractionComponent;
 class UWidgetComponent;
 class AController;
@@ -186,6 +190,19 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Identity")
 	FLinearColor GetOverheadTeamColor() const;
 
+	/** 캐릭터 외형 커스터마이징 데이터를 즉시 적용한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
+	void ApplyCustomizationData(
+		const FSnowRumbleCustomizationData& NewCustomizationData);
+
+	/** 현재 캐릭터에 마지막으로 적용된 커스터마이징 데이터를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization")
+	FSnowRumbleCustomizationData GetAppliedCustomizationData() const;
+
+	/** 커스터마이징 드로잉 RenderTarget을 캐릭터 머티리얼에 적용한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
+	void SetCustomizationPaintTexture(UTexture* PaintTexture);
+
 	/** 서버가 확정한 게시판 상호작용에 맞춰 소유 클라이언트 카메라를 게시판으로 돌린다. */
 	UFUNCTION(Client, Reliable)
 	void ClientFocusLobbyBoard(ALobbyInteractionBoard* Board);
@@ -204,6 +221,7 @@ protected:
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void PossessedBy(AController* NewController) override;
 	virtual void OnRep_PlayerState() override;
 	virtual void PawnClientRestart() override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
@@ -219,6 +237,18 @@ protected:
 
 	/** 점프 입력이 끝나면 점프 요청을 해제한다. */
 	void StopJump();
+
+	/** 눌러서 말하기 입력을 PlayerController 마이크 상태로 전달한다. */
+	void HandleMicrophonePushToTalkStarted();
+
+	/** 눌러서 말하기 입력 해제를 PlayerController 마이크 상태로 전달한다. */
+	void HandleMicrophonePushToTalkCompleted();
+
+	/** 마이크 전체/팀 채널 전환 입력을 PlayerController에 전달한다. */
+	void HandleMicrophoneChannelToggle();
+
+	/** 플레이어 지정 음소거 입력을 PlayerController에 전달한다. */
+	void HandleVoiceTargetMute();
 
 	/** 스프린트 입력이 시작되면 로컬 예측과 서버 요청을 시작한다. */
 	void HandleSprintStarted();
@@ -271,6 +301,9 @@ protected:
 	/** PlayerState 닉네임 변경 이벤트에 머리 위 이름표 갱신을 연결한다. */
 	void BindOverheadNameToPlayerState();
 
+	/** PlayerState 커스터마이징 변경 이벤트에 외형 갱신을 연결한다. */
+	void BindCustomizationToPlayerState();
+
 	/** 에디터와 런타임에서 이름표 컴포넌트 위치와 클래스를 현재 설정값으로 맞춘다. */
 	void RefreshOverheadNameplateComponentSettings();
 
@@ -310,6 +343,10 @@ protected:
 	/** 복제된 PlayerState 닉네임으로 머리 위 이름표를 갱신한다. */
 	UFUNCTION()
 	void RefreshOverheadPlayerName();
+
+	/** 복제된 PlayerState 커스터마이징 데이터로 캐릭터 외형을 갱신한다. */
+	UFUNCTION()
+	void RefreshCustomizationFromPlayerState();
 
 	/** 로컬 플레이어가 상호작용할 가장 가까운 로비 게시판을 찾는다. */
 	ALobbyInteractionBoard* FindClosestLobbyBoardCandidate() const;
@@ -440,6 +477,34 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Identity", meta = (ClampMin = "0.001"))
 	float OverheadNameplateWorldScale = 0.35f;
 
+	/** 커스터마이징 색을 적용할 Mesh 머티리얼 슬롯이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization", meta = (ClampMin = "0"))
+	int32 CustomizationMaterialIndex = 0;
+
+	/** 캐릭터 머티리얼에서 몸 색으로 사용할 Vector Parameter 이름이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization")
+	FName CustomizationBodyColorParameterName = TEXT("BodyColor");
+
+	/** 캐릭터 머티리얼에서 드로잉 텍스처로 사용할 Texture Parameter 이름이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization")
+	FName CustomizationPaintTextureParameterName = TEXT("PaintTexture");
+
+	/** 저장된 드로잉 stroke를 다시 그릴 RenderTarget 한 변의 픽셀 크기다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization", meta = (ClampMin = "64", ClampMax = "4096"))
+	int32 CustomizationPaintRenderTargetSize = 1024;
+
+	/** 저장된 드로잉 stroke를 다시 그릴 때 쓰는 선 두께다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization", meta = (ClampMin = "1.0", ClampMax = "256.0"))
+	float CustomizationPaintStrokeThickness = 12.0f;
+
+	/** 저장된 드로잉 stroke를 다시 그릴 때 쓰는 색이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization")
+	FLinearColor CustomizationPaintBrushColor = FLinearColor::Black;
+
+	/** 머티리얼 UV 방향에 맞춰 저장된 드로잉 RenderTarget Y축을 뒤집을지 정한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization")
+	bool bFlipCustomizationPaintUvY = false;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
 	TObjectPtr<UInputMappingContext> PlayerMappingContext;
 
@@ -472,6 +537,15 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
 	TObjectPtr<UInputAction> EmoteAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
+	TObjectPtr<UInputAction> MicrophonePushToTalkAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
+	TObjectPtr<UInputAction> MicrophoneChannelToggleAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
+	TObjectPtr<UInputAction> VoiceTargetMuteAction;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Movement", meta = (ClampMin = "0.0"))
 	float WalkSpeed = 500.0f;
@@ -563,4 +637,40 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<ALobbyInteractionBoard> FocusedLobbyBoard;
 
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> CustomizationMaterialInstance;
+
+	UPROPERTY(Transient)
+	TMap<int32, TObjectPtr<UCanvasRenderTarget2D>> CustomizationPaintRenderTargets;
+
+	FSnowRumbleCustomizationData AppliedCustomizationData;
+
+private:
+	/** 적용된 커스터마이징 데이터의 stroke 배열로 RenderTarget을 다시 그린다. */
+	void RedrawCustomizationPaintTexture();
+
+	/** 캐릭터 외형용 드로잉 RenderTarget이 없으면 생성한다. */
+	UCanvasRenderTarget2D* EnsureCustomizationPaintRenderTarget(
+		int32 TargetMaterialIndex);
+
+	/** 특정 MeshComponent에 드로잉 텍스처를 적용한다. */
+	void ApplyCustomizationPaintTextureToMesh(
+		USkeletalMeshComponent* MeshComponent,
+		int32 TargetMaterialIndex,
+		UTexture* PaintTexture);
+
+	UFUNCTION()
+	void HandleCustomizationPaintCanvasUpdate(
+		UCanvas* Canvas,
+		int32 Width,
+		int32 Height);
+
+	void DrawCustomizationPaintStrokeToCanvas(
+		UCanvas* Canvas,
+		const FSnowRumblePaintStroke& Stroke,
+		int32 Width,
+		int32 Height) const;
+
+	FName ActiveCustomizationPaintMeshComponentName;
+	int32 ActiveCustomizationPaintMaterialIndex = INDEX_NONE;
 };

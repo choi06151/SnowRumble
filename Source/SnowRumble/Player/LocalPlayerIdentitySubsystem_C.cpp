@@ -13,7 +13,19 @@ void ULocalPlayerIdentitySubsystem::Initialize(
 void ULocalPlayerIdentitySubsystem::SetDesiredPlayerName(
 	const FString& NewName)
 {
+	TrySetDesiredPlayerName(NewName);
+}
+
+bool ULocalPlayerIdentitySubsystem::TrySetDesiredPlayerName(
+	const FString& NewName)
+{
+	if (!IsPlayerNameAllowed(NewName))
+	{
+		return false;
+	}
+
 	DesiredPlayerName = SanitizePlayerName(NewName);
+	return true;
 }
 
 FString ULocalPlayerIdentitySubsystem::GetDesiredPlayerName() const
@@ -62,8 +74,32 @@ ULocalPlayerIdentitySubsystem::GetDefaultPlayerNameCandidates()
 	return Candidates;
 }
 
+bool ULocalPlayerIdentitySubsystem::IsPlayerNameAllowed(
+	const FString& NewName)
+{
+	FString SanitizedName = NewName.TrimStartAndEnd();
+	if (SanitizedName.IsEmpty())
+	{
+		return false;
+	}
+
+	const FString NormalizedName =
+		NormalizePlayerNameForFilter(SanitizedName);
+	for (const FString& DisallowedFragment :
+		GetDisallowedPlayerNameFragments())
+	{
+		if (!DisallowedFragment.IsEmpty()
+			&& NormalizedName.Contains(DisallowedFragment))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 FString ULocalPlayerIdentitySubsystem::SanitizePlayerName(
-	const FString& NewName) const
+	const FString& NewName)
 {
 	FString SanitizedName = NewName.TrimStartAndEnd();
 	constexpr int32 MaximumNameLength = 16;
@@ -73,4 +109,48 @@ FString ULocalPlayerIdentitySubsystem::SanitizePlayerName(
 	}
 
 	return SanitizedName;
+}
+
+FString ULocalPlayerIdentitySubsystem::NormalizePlayerNameForFilter(
+	const FString& NewName)
+{
+	FString NormalizedName;
+	for (const TCHAR Character : NewName.ToLower())
+	{
+		if (!FChar::IsWhitespace(Character)
+			&& Character != TEXT('_')
+			&& Character != TEXT('-')
+			&& Character != TEXT('.'))
+		{
+			NormalizedName.AppendChar(Character);
+		}
+	}
+	return NormalizedName;
+}
+
+const TArray<FString>&
+ULocalPlayerIdentitySubsystem::GetDisallowedPlayerNameFragments()
+{
+	static const TArray<FString> DisallowedFragments = {
+		TEXT("시발"),
+		TEXT("씨발"),
+		TEXT("ㅅㅂ"),
+		TEXT("ㅆㅂ"),
+		TEXT("병신"),
+		TEXT("ㅂㅅ"),
+		TEXT("개새"),
+		TEXT("좆"),
+		TEXT("존나"),
+		TEXT("꺼져"),
+		TEXT("죽어"),
+		TEXT("fuck"),
+		TEXT("shit"),
+		TEXT("bitch"),
+		TEXT("asshole"),
+		TEXT("cunt"),
+		TEXT("nigger"),
+		TEXT("nigga")
+	};
+
+	return DisallowedFragments;
 }

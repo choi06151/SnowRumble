@@ -7,12 +7,15 @@
 #include "MainHUDWidget.generated.h"
 
 class ASnowRumbleCharacter;
+class ASnowRumblePlayerState;
 class UHealthBarWidget;
+class UImage;
 class UOverheadTimedActionWidget;
 class UPanelWidget;
 class UProgressBar;
 class UTextBlock;
 class UWidget;
+class UWidgetAnimation;
 enum class ESnowRumbleTeam : uint8;
 
 UCLASS(Abstract, Blueprintable)
@@ -24,6 +27,10 @@ public:
 	/** HUD 이벤트 로그에 새 메시지를 추가한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Event Log")
 	void AddEventLogMessage(const FText& Message);
+
+	/** 로컬 플레이어에게만 보이는 짧은 상태 알림을 표시한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Personal Alarm")
+	void ShowPersonalTextAlarm(const FText& Message);
 
 protected:
 	/** HUD 생성 시 로컬 플레이어와 다른 플레이어 체력 바를 초기화한다. */
@@ -85,6 +92,26 @@ protected:
 	/** WBP에서 직접 배치한 누적 이벤트 로그 TextBlock에 자동 연결된다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> EventLogText;
+
+	/** WBP에서 직접 배치한 로컬 개인 알림 TextBlock에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> PersonalAlarmText;
+
+	/** WBP에 같은 이름으로 만든 로컬 개인 알림 애니메이션이다. */
+	UPROPERTY(Transient, meta = (BindWidgetAnimOptional))
+	TObjectPtr<UWidgetAnimation> PersonalAlarmAnimation;
+
+	/** WBP에서 직접 배치한 현재 음성 송출 중인 플레이어 이름 TextBlock에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> VoiceSpeakingNamesText;
+
+	/** WBP에서 직접 배치한 현재 음성 송출 아이콘 Image에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UImage> VoiceSpeakingIcon;
+
+	/** WBP에서 아이콘과 이름 텍스트를 함께 감싸는 위젯에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> VoiceSpeakingContainer;
 
 	/** 이벤트 로그 한 줄이 화면에 유지되는 시간이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Event Log", meta = (ClampMin = "0.0"))
@@ -178,6 +205,16 @@ private:
 
 	/** 만료된 이벤트 로그 줄을 제거하고 TextBlock을 갱신한다. */
 	void RefreshEventLogText();
+
+	/** 현재 음성 송출 중인 플레이어 이름 목록을 갱신한다. */
+	void RefreshVoiceSpeakingNamesText();
+
+	/** 음성 송출 표시 묶음과 하위 위젯의 표시 상태를 함께 갱신한다. */
+	void SetVoiceSpeakingPresentationVisible(bool bVisible);
+
+	/** 현재 로컬 플레이어가 송신자의 음성 표시를 볼 수 있는지 반환한다. */
+	bool ShouldShowVoiceSpeakingPlayer(
+		const ASnowRumblePlayerState* SenderPlayerState) const;
 
 	/** 선택 바인딩된 점수 TextBlock 하나를 해당 팀 승수로 갱신한다. */
 	void SetTeamScoreText(UTextBlock* ScoreText, ESnowRumbleTeam Team) const;

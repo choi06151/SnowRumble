@@ -55,11 +55,28 @@
 - [x] 키바인딩 패널 표시용 행 위젯 부모와 기본 조작 목록 계약을 제공한다.
 - [x] 키 변경 버튼 클릭 후 다음 키/마우스 버튼을 캡처해 UI 할당값을 갱신한다.
 - [x] 키 변경값을 로컬 사용자 설정에 저장하고 캐릭터 Enhanced Input 매핑에 실제 적용한다.
+- [x] 이동 키 변경 후 다른 이동 매핑이 연쇄 변경되어 캐릭터가 움직이지 않는 문제를 수정한다.
+- [x] 옵션 메뉴 종료 후 로비 게임 입력이 막힌 채 남는 문제를 수정한다.
+- [x] `ResetButton`이 현재 선택된 옵션 패널 항목만 초기화하게 한다.
+- [x] 키 설정 변경은 `ApplyButton`을 누르기 전까지 UI 임시값으로만 유지하고, 옵션을 닫으면 폐기되게 한다.
+- [x] 저장되지 않은 변경이 있을 때만 `ApplyButton`을 클릭할 수 있게 한다.
 - [ ] PvP와 눈사람 모드에서는 ESC 옵션 메뉴를 열지 않는 정책을 유지한다.
-- [ ] 감도 값을 로컬 저장하고 캐릭터 카메라 입력에 적용한다.
-- [ ] 마스터 사운드 볼륨 값을 로컬 저장하고 적용한다.
+- [x] 감도 값을 로컬 저장하고 캐릭터 카메라 입력에 적용한다.
+- [x] 감도 패널에 슬라이더와 퍼센트 텍스트 표시용 C++ 바인딩을 제공한다.
+- [x] 배경음악과 효과음 볼륨 값을 로컬 저장하고 적용한다.
+- [x] 소리 패널에 배경음악/효과음 슬라이더와 퍼센트 텍스트 표시용 C++ 바인딩을 제공한다.
 - [ ] 키 설정은 결정 필요 또는 후속 구현으로 분리한다.
-- [ ] 마이크 설정은 결정 필요 또는 후속 구현으로 분리한다.
+- [x] 마이크 음량 슬라이더와 퍼센트 텍스트 표시용 C++ 바인딩을 제공한다.
+- [x] 마이크 방식을 눌러서 말하기와 항상 말하기 중 하나로 선택하게 한다.
+- [x] 마이크 입력 기본 키를 `K`로 추가하고 키 설정에서 변경 가능하게 한다.
+- [x] 마이크 입력 상태를 엔진 네트워크 음성 송출 시작/중지로 연결한다.
+- [x] 캐릭터 Blueprint가 연결할 `MicrophonePushToTalkAction` Enhanced Input 슬롯을 제공한다.
+- [x] 마이크 송출 중인 플레이어 이름을 로비와 인게임 HUD TextBlock에 표시한다.
+- [x] `N` 키로 마이크 채널을 전체/팀 말하기로 전환하고 personal alarm으로 현재 상태를 표시한다.
+- [x] `M` 키를 누르면 플레이어 지정 음소거 WBP를 토글로 열 수 있게 한다.
+- [x] 현재 인게임 플레이어 목록 기준으로 음소거 대상 행을 동적 생성한다.
+- [x] 각 플레이어 행의 버튼으로 로컬 수동 음소거 상태를 토글한다.
+- [x] 옵션 메뉴의 카테고리와 마이크 방식 버튼은 현재 선택값이면 눌린 상태처럼 표시한다.
 
 ## 작업 배정
 
@@ -68,7 +85,7 @@
 - 계약 소유자: 최재원(C)
 - 자산 수정자: C++·문서 최재원(C), 옵션 WBP 배치와 스타일은 사용자 또는 S 인계
 - 생성 파일: `Source/SnowRumble/UI/OptionsWidget_C.h`, `Source/SnowRumble/UI/OptionsWidget_C.cpp`, `Tasks/C/C-21_options_menu.md`
-- 변경 파일: `Source/SnowRumble/UI/MainMenuWidget.*`, `Source/SnowRumble/UI/MainMenuPlayerController.*`, `Source/SnowRumble/UI/LobbyEscapeMenuWidget.*`, `Source/SnowRumble/UI/LobbyPlayerController.*`, `Source/SnowRumble/UI/SnowRumblePlayerController.*`, `Source/SnowRumble/UI/OptionsWidget_C.*`, `Source/SnowRumble/UI/OptionsKeyBindingRowWidget_C.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/Player/SnowRumbleUserSettingsSubsystem_C.*`, `Tasks/C/C-21_options_menu.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`
+- 변경 파일: `Config/DefaultEngine.ini`, `Config/DefaultGame.ini`, `Source/SnowRumble/Game/SnowRumblePlayerState.*`, `Source/SnowRumble/UI/MainMenuWidget.*`, `Source/SnowRumble/UI/MainMenuPlayerController.*`, `Source/SnowRumble/UI/LobbyEscapeMenuWidget.*`, `Source/SnowRumble/UI/LobbyPlayerController.*`, `Source/SnowRumble/UI/LobbyBoardWidget_C.*`, `Source/SnowRumble/UI/LobbyWidget.*`, `Source/SnowRumble/UI/MainHUDWidget.*`, `Source/SnowRumble/UI/SnowRumblePlayerController.*`, `Source/SnowRumble/UI/OptionsWidget_C.*`, `Source/SnowRumble/UI/OptionsKeyBindingRowWidget_C.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/Player/SnowRumbleUserSettingsSubsystem_C.*`, `Tasks/C/C-21_options_menu.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`
 - 변경 파일 후보: 없음
 - 공유 확인 대상: 사용자, S UI
 - 병합 순서: C++ 옵션 계약 선행, WBP 배치·스타일 후속
@@ -91,7 +108,43 @@
   - `UOptionsWidget::OnOptionsCloseRequested()`: Blueprint 또는 소유 메뉴가 닫기 흐름을 처리할 이벤트
   - `UOptionsWidget::OnOptionsApplyRequested()`: Blueprint가 적용 버튼 표시 흐름을 처리할 이벤트
   - `UOptionsWidget::OnOptionsResetRequested()`: Blueprint가 초기화 버튼 표시 흐름을 처리할 이벤트
-  - `UOptionsWidget::KeyBindingListBox`: 키 설정 행을 자동 생성할 VerticalBox
+  - `UOptionsWidget::OnOptionsCategoryResetRequested(...)`: 현재 선택된 카테고리 패널만 Blueprint에서 초기화할 이벤트
+  - `UOptionsWidget::SetHasPendingOptionChanges(...)`: WBP가 저장되지 않은 임시 변경 여부를 알려 `ApplyButton` 활성 상태를 갱신하는 함수
+  - `UOptionsWidget::DiscardPendingOptionChanges()`: 옵션 닫기 또는 ESC 복귀 시 적용하지 않은 임시 변경을 폐기하는 함수
+  - `UOptionsWidget::SensitivitySlider`: 감도 패널의 슬라이더 선택 바인딩
+  - `UOptionsWidget::SensitivityValueText`: 현재 감도를 퍼센트로 표시하는 TextBlock 선택 바인딩
+  - `UOptionsWidget::BgmVolumeSlider`: 배경음악 볼륨 슬라이더 선택 바인딩
+  - `UOptionsWidget::BgmVolumeValueText`: 배경음악 볼륨 퍼센트 TextBlock 선택 바인딩
+  - `UOptionsWidget::SfxVolumeSlider`: 효과음 볼륨 슬라이더 선택 바인딩
+  - `UOptionsWidget::SfxVolumeValueText`: 효과음 볼륨 퍼센트 TextBlock 선택 바인딩
+  - `UOptionsWidget::BgmSoundClass`: 적용 시 배경음악 볼륨을 반영할 선택 SoundClass
+  - `UOptionsWidget::SfxSoundClass`: 적용 시 효과음 볼륨을 반영할 선택 SoundClass
+  - `USnowRumbleUserSettingsSubsystem::SetMouseSensitivity(...)`: 로컬 감도 저장 함수
+  - `USnowRumbleUserSettingsSubsystem::GetMouseSensitivity()`: 캐릭터 카메라 입력이 읽는 로컬 감도 함수
+  - `USnowRumbleUserSettingsSubsystem::SetBgmVolume(...)`: 로컬 배경음악 볼륨 저장 함수
+  - `USnowRumbleUserSettingsSubsystem::SetSfxVolume(...)`: 로컬 효과음 볼륨 저장 함수
+  - `UOptionsWidget::MicrophoneVolumeSlider`: 마이크 음량 슬라이더 선택 바인딩
+  - `UOptionsWidget::MicrophoneVolumeValueText`: 마이크 음량 퍼센트 TextBlock 선택 바인딩
+  - `UOptionsWidget::MicrophonePushToTalkButton`: 눌러서 말하기 방식 선택 버튼
+  - `UOptionsWidget::MicrophoneAlwaysOnButton`: 항상 말하기 방식 선택 버튼
+  - `UOptionsWidget::OnMicrophoneModeChanged(...)`: WBP가 마이크 방식 선택 표시를 갱신할 이벤트
+  - `USnowRumbleUserSettingsSubsystem::SetMicrophoneVolume(...)`: 로컬 마이크 음량 저장 함수
+  - `USnowRumbleUserSettingsSubsystem::SetMicrophoneMode(...)`: 로컬 마이크 방식 저장 함수
+  - `ASnowRumblePlayerController::OnMicrophoneInputStateChanged(...)`: 실제 음성 시스템 또는 WBP가 마이크 입력 상태 변화에 반응할 이벤트
+  - `ASnowRumblePlayerController::OnMicrophoneSettingsApplied(...)`: 실제 음성 시스템 또는 WBP가 적용된 마이크 방식과 음량에 반응할 이벤트
+  - `ASnowRumblePlayerController::RequestVoiceChannelToggle()`: 기본 `N` 키 또는 캐릭터 Enhanced Input으로 전체/팀 말하기 채널을 전환하는 함수
+  - `ASnowRumblePlayerController::RequestVoiceTargetMute()`: 기본 `M` 키 또는 캐릭터 Enhanced Input으로 플레이어 지정 음소거 메뉴를 토글하는 함수
+  - `ASnowRumblePlayerController::OnVoiceTargetMuteRequested()`: 플레이어 지정 음소거 입력을 Blueprint가 받을 수 있는 이벤트
+  - `ASnowRumblePlayerController::VoiceMuteMenuWidgetClass`: `M` 키로 열 플레이어 지정 음소거 WBP 클래스
+  - `UVoiceMuteMenuWidget`: 플레이어 지정 음소거 메뉴 WBP 부모
+  - `UVoiceMuteMenuWidget::PlayerListBox`: 플레이어 행들이 동적으로 들어갈 Panel 바인딩
+  - `UVoiceMuteMenuWidget::CloseButton`: 선택 닫기 버튼 바인딩
+  - `UVoiceMuteMenuWidget::PlayerRowWidgetClass`: 플레이어 행 WBP 클래스
+  - `UVoiceMutePlayerRowWidget`: 플레이어 지정 음소거 행 WBP 부모
+  - `UVoiceMutePlayerRowWidget::PlayerNameText`: 플레이어 이름 TextBlock
+  - `UVoiceMutePlayerRowWidget::MuteButton`: 음소거 토글 Button
+  - `UVoiceMutePlayerRowWidget::MuteButtonText`: 버튼 라벨 TextBlock
+  - `UOptionsWidget::KeyBindingListBox`: 키 설정 행을 자동 생성할 ScrollBox 또는 VerticalBox
   - `UOptionsWidget::KeyBindingStatusText`: 키 변경 대기 상태를 표시할 선택 TextBlock
   - `UOptionsWidget::KeyBindingRowWidgetClass`: 키 설정 행 WBP 클래스
   - `UOptionsKeyBindingRowWidget`: 키 설정 행 WBP 부모
@@ -148,6 +201,20 @@
 - 2026-08-11: 키바인딩 행의 변경 버튼을 누르면 다음 키보드/마우스 버튼 입력을 캡처해 UI 할당값을 변경하고, `Esc` 입력으로 대기 상태를 취소하게 했다. 같은 키를 다른 행이 이미 쓰고 있으면 기존 행은 `미할당`으로 비운다.
 - 2026-08-11: `SnowRumbleEditor Win64 Development` 전체 빌드가 성공했다.
 - 2026-08-11: 키바인딩 변경값을 `USnowRumbleUserSettingsSubsystem`에 저장하고, 캐릭터는 원본 `IMC_Player`를 런타임 복제한 뒤 저장된 키로 교체해 실제 Enhanced Input 매핑에 적용하게 했다. 채팅 열기 키도 PlayerController 직접 키 바인딩을 로컬 설정 기준으로 재구성한다.
+- 2026-08-11: 이동 키 변경 후 플레이어가 움직이지 않는 문제를 수정했다. 런타임 입력 매핑을 수정할 때 이미 바뀐 키를 다시 기본 키로 오인하지 않도록 원본 매핑 스냅샷 기준으로만 저장 키를 적용했고, `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-11: 옵션 또는 로비 ESC 메뉴가 입력 차단을 중첩한 뒤 한 번만 해제해 게임 복귀 후 이동이 막히는 문제를 수정했다. 로비 메뉴 입력 차단은 열 때와 닫을 때 `ResetIgnoreMoveInput()`과 `ResetIgnoreLookInput()`으로 정리한다.
+- 2026-08-11: 하단 `ResetButton`은 현재 선택된 WidgetSwitcher 카테고리만 초기화하게 했다. 키 설정 카테고리에서는 모든 키 저장값을 기본값으로 되돌리고, 감도·사운드·마이크 카테고리는 `OnOptionsCategoryResetRequested(...)` 이벤트로 WBP가 해당 패널만 초기화할 수 있다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-11: 키 설정 변경은 `ApplyButton`을 누르기 전까지 UI 임시값으로만 유지하고, `ApplyButton`을 누를 때만 로컬 설정 저장과 실제 입력 매핑 적용이 실행되게 했다. 옵션 닫기 또는 ESC 복귀는 `DiscardPendingOptionChanges()`로 임시 변경을 폐기한다. 저장되지 않은 변경이 없으면 `ApplyButton`은 비활성화된다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-11: 감도 설정을 추가했다. 옵션 WBP는 `SensitivitySlider`와 `SensitivityValueText`를 배치하면 감도 임시값과 퍼센트 텍스트를 자동 갱신하고, `ApplyButton`을 누를 때만 `USnowRumbleUserSettingsSubsystem`에 저장한다. 캐릭터 `Look()` 입력은 저장된 `GetMouseSensitivity()` 값을 곱해 카메라 회전에 적용한다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-11: 배경음악과 효과음 볼륨 설정을 추가했다. 옵션 WBP는 `BgmVolumeSlider`/`BgmVolumeValueText`, `SfxVolumeSlider`/`SfxVolumeValueText`를 배치하면 임시값과 퍼센트 텍스트를 자동 갱신하고, `ApplyButton`을 누를 때만 로컬 설정에 저장한다. WBP에서 `BgmSoundClass`와 `SfxSoundClass`를 지정하면 적용 시 해당 SoundClass 볼륨에도 반영한다. C++ 컴파일은 통과했으나 실행 중인 에디터가 `UnrealEditor-SnowRumble.dll`을 잡고 있어 최종 링크가 `LNK1104`로 중단됐다.
+- 2026-08-11: 마이크 설정을 추가했다. 옵션 WBP는 `MicrophoneVolumeSlider`/`MicrophoneVolumeValueText`로 마이크 음량 임시값과 퍼센트 텍스트를 갱신하고, `MicrophonePushToTalkButton`/`MicrophoneAlwaysOnButton`으로 눌러서 말하기 또는 항상 말하기 방식을 선택한다. 키 설정 목록에는 기본 `K`인 `MicrophonePushToTalk` 행을 추가했고, `ASnowRumblePlayerController::OnMicrophoneInputStateChanged(...)`와 `OnMicrophoneSettingsApplied(...)` 이벤트로 WBP 표시나 후속 음성 UI가 반응할 수 있다. C++ 컴파일은 통과했으나 실행 중인 에디터가 `UnrealEditor-SnowRumble.dll`을 잡고 있어 최종 링크가 `LNK1104`로 중단됐다.
+- 2026-08-11: 옵션 메뉴의 선택형 버튼 표시를 보강했다. 현재 카테고리 버튼과 마이크 방식 버튼은 각 버튼의 기존 `Pressed` 스타일을 선택 상태의 `Normal`/`Hovered` 스타일로 재사용해, 선택된 항목이 계속 눌린 상태처럼 보인다. 같은 선택 표시 방식은 로비 게시판의 현재 팀 색, 모드, 라운드 수, 게임 속도, 비호스트 ready 버튼에도 적용했다.
+- 2026-08-11: 마이크 입력 상태를 실제 엔진 네트워크 음성 송출에 연결했다. 로비와 인게임에서 기본 `K` 또는 변경된 `MicrophonePushToTalk` 키를 누르면 `StartTalking()`, 키를 떼거나 설정이 꺼지면 `StopTalking()`을 호출한다. 항상 말하기 모드는 적용 즉시 송출 상태를 켠다. 캐릭터 Blueprint에는 `MicrophonePushToTalkAction` Enhanced Input 슬롯을 추가했으며, 프로젝트 설정에는 OnlineSubsystem NULL voice와 GameSession push-to-talk 설정을 명시했다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-11: 마이크 송출 중인 플레이어 이름 표시를 추가했다. `ASnowRumblePlayerState`는 음성 송출 중 여부를 복제하고, `ULobbyWidget`과 `UMainHUDWidget`은 `VoiceSpeakingContainer` 선택 바인딩 위젯 안의 `VoiceSpeakingIcon` Image와 `VoiceSpeakingNamesText` TextBlock으로 현재 말하는 플레이어를 표시한다. 말하는 플레이어가 없으면 표시 묶음을 숨긴다. C++ 컴파일은 통과했으나 실행 중인 에디터가 `UnrealEditor-SnowRumble.dll`을 잡고 있어 최종 링크가 `LNK1104`로 중단됐다.
+- 2026-08-11: 마이크 채널 전환을 추가했다. 키 설정 목록에는 기본 `M`인 `MicrophoneChannelToggle` 행을 추가했고, PlayerController는 `M` 입력마다 전체 말하기와 팀 말하기를 전환한다. 현재 채널은 PlayerState에 복제되며 팀 말하기 중인 플레이어는 같은 팀에게만 말하는 사람 표시가 보이고, 다른 팀 클라이언트에서는 gameplay mute 처리된다. 로컬 상태 변경은 `PersonalAlarmText`와 `PersonalAlarmAnimation` 선택 바인딩으로 "전체로 말하기"/"팀으로 말하기" 알림을 재생한다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-11: 마이크 채널 전환 기본 키를 `M`에서 `N`으로 옮기고, `M`은 플레이어 지정 음소거 입력으로 분리했다. 캐릭터 Blueprint에는 `MicrophoneChannelToggleAction`과 `VoiceTargetMuteAction` 슬롯을 추가했고, PlayerController에는 `RequestVoiceChannelToggle()`, `RequestVoiceTargetMute()`, `OnVoiceTargetMuteRequested()` 진입점을 추가했다.
+- 2026-08-11: `M` 플레이어 지정 음소거 메뉴를 추가했다. `UVoiceMuteMenuWidget`은 현재 `GameState->PlayerArray` 기준으로 로컬 플레이어를 제외한 플레이어 행을 만들고, `UVoiceMutePlayerRowWidget`의 `MuteButton`은 로컬 수동 음소거 목록과 `GameplayMutePlayer()`/`GameplayUnmutePlayer()`를 토글한다. `FUniqueNetIdRepl::ToString()` 링크 오류를 피하도록 로컬 수동 음소거 키를 PlayerId와 이름 기반으로 바꾸고, `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-11: 키 설정 목록이 길어져 `KeyBindingListBox` 바인딩 타입을 `UPanelWidget`으로 일반화했다. 기존 VerticalBox와 새 ScrollBox 모두 같은 이름으로 바인딩해 키 설정 행을 동적으로 추가할 수 있다.
 
 ## 수동 작업
 
@@ -159,24 +226,71 @@
 - 메인메뉴 WBP에 옵션 버튼이 있으면 이름을 `SettingsButton`으로 맞춘다.
 - 메인메뉴 PlayerController Blueprint의 `OptionsWidgetClass`에 `WBP_OptionWidget`을 지정한다.
 - 로비 PlayerController Blueprint의 `OptionsWidgetClass`에 같은 `WBP_OptionWidget`을 지정한다.
-- 키 설정 패널에 자동 행 목록을 쓰려면 VerticalBox 이름을 `KeyBindingListBox`로 맞춘다.
+- 키 설정 패널에 자동 행 목록을 쓰려면 ScrollBox 또는 VerticalBox 이름을 `KeyBindingListBox`로 맞춘다. 키 항목이 많아졌으므로 ScrollBox 사용을 우선한다.
 - 키 설정 패널 안내 텍스트가 필요하면 TextBlock 이름을 `KeyBindingStatusText`로 맞춘다.
 - 키 설정 행 WBP를 만들 때 부모를 `UOptionsKeyBindingRowWidget`으로 두고, `ActionNameText`, `CurrentKeyText`, `RebindButton`, `ResetButton` 이름을 맞춘다.
 - 옵션 WBP의 `KeyBindingRowWidgetClass`에 키 설정 행 WBP를 지정한다.
 - 감도, 사운드, 키 설정, 마이크 설정 UI는 C++에서 제공한 바인딩 이름과 함수 기준으로 배치한다.
+- 감도 패널에 Slider 이름을 `SensitivitySlider`로 배치한다.
+- 감도 패널에 TextBlock 이름을 `SensitivityValueText`로 배치한다.
+- 사운드 패널에 배경음악 Slider 이름을 `BgmVolumeSlider`로 배치한다.
+- 사운드 패널에 배경음악 TextBlock 이름을 `BgmVolumeValueText`로 배치한다.
+- 사운드 패널에 효과음 Slider 이름을 `SfxVolumeSlider`로 배치한다.
+- 사운드 패널에 효과음 TextBlock 이름을 `SfxVolumeValueText`로 배치한다.
+- 실제 소리 자산에 볼륨을 반영하려면 옵션 WBP 기본값에서 `BgmSoundClass`와 `SfxSoundClass`에 프로젝트 SoundClass 자산을 지정한다.
+- 마이크 패널에 Slider 이름을 `MicrophoneVolumeSlider`로 배치한다.
+- 마이크 패널에 TextBlock 이름을 `MicrophoneVolumeValueText`로 배치한다.
+- 마이크 패널에 버튼 두 개를 배치하고 이름을 `MicrophonePushToTalkButton`, `MicrophoneAlwaysOnButton`으로 맞춘다.
+- 마이크 방식 버튼은 C++ 부모가 현재 임시 선택값에 맞춰 눌린 표시를 갱신한다. WBP 추가 연출이 필요하면 `OnMicrophoneModeChanged(...)` 이벤트에서 보강한다.
+- 캐릭터 Blueprint의 `MicrophonePushToTalkAction` 슬롯에 마이크 입력 액션을 지정한다. Mapping Context에는 기본 `K` 매핑을 넣고, 옵션 키 설정 변경은 C++이 저장값 기준으로 런타임 매핑을 교체한다.
+- 캐릭터 Blueprint의 `MicrophoneChannelToggleAction` 슬롯에 마이크 채널 전환 입력 액션을 지정한다. Mapping Context에는 기본 `N` 매핑을 넣는다.
+- 캐릭터 Blueprint의 `VoiceTargetMuteAction` 슬롯에 플레이어 지정 음소거 입력 액션을 지정한다. Mapping Context에는 기본 `M` 매핑을 넣는다.
+- `UVoiceMuteMenuWidget`을 부모로 하는 mute 전용 WBP를 만든다.
+- mute 메뉴 WBP에 플레이어 행들이 들어갈 패널을 배치하고 이름을 `PlayerListBox`로 맞춘다.
+- mute 메뉴 WBP에 닫기 버튼이 필요하면 이름을 `CloseButton`으로 맞춘다.
+- `UVoiceMutePlayerRowWidget`을 부모로 하는 행 WBP를 만든다.
+- 행 WBP에는 HorizontalBox를 배치하고, 그 안에 플레이어 이름 TextBlock `PlayerNameText`와 Button `MuteButton`을 둔다.
+- `MuteButton` 안 라벨 TextBlock을 쓰면 이름을 `MuteButtonText`로 맞춘다.
+- mute 메뉴 WBP의 `PlayerRowWidgetClass`에 행 WBP 클래스를 지정한다.
+- PvP PlayerController Blueprint의 `VoiceMuteMenuWidgetClass`에 mute 메뉴 WBP 클래스를 지정한다.
+- 로비 WBP와 인게임 HUD WBP의 좌측 중단에 HorizontalBox 같은 컨테이너를 배치하고 이름을 `VoiceSpeakingContainer`로 맞춘다. 그 안에 스피커 아이콘 Image `VoiceSpeakingIcon`과 TextBlock `VoiceSpeakingNamesText`를 나란히 배치한다. 말하는 플레이어가 없으면 C++이 표시 묶음을 자동으로 숨긴다.
+- 로비 WBP와 인게임 HUD WBP에 로컬 상태 알림 TextBlock `PersonalAlarmText`를 배치한다. 알림 애니메이션을 쓰면 이름을 `PersonalAlarmAnimation`으로 맞춘다. 로비 WBP는 없을 경우 기존 `InvalidActionReasonText`와 `InvalidActionAnimation`을 fallback으로 사용한다.
 
 ## 완료 조건
 
 ### 에이전트 확인
 
-- [ ] 관련 코드 변경 완료
+- [x] 관련 코드 변경 완료
 - [x] `UOptionsWidget` 부모 틀 코드 변경 완료
 - [x] 메인메뉴/로비 옵션 진입 C++ 연결 완료
 - [x] 키바인딩 패널 표시 계약 코드 변경 완료
 - [x] 키바인딩 UI 입력 캡처 코드 변경 완료
 - [x] 키바인딩 로컬 저장과 실제 입력 매핑 적용 코드 변경 완료
+- [x] 키바인딩 변경 후 이동 매핑 연쇄 변경 오류 수정 완료
+- [x] 옵션 메뉴 복귀 후 로비 게임 입력 차단 잔류 오류 수정 완료
+- [x] 현재 선택 패널 기준 ResetButton 초기화 코드 변경 완료
+- [x] 적용 전 키 설정 임시 변경과 닫기 시 폐기 코드 변경 완료
+- [x] 변경사항 유무 기준 ApplyButton 활성화 코드 변경 완료
+- [x] 감도 슬라이더와 퍼센트 텍스트 바인딩 코드 변경 완료
+- [x] 감도 로컬 저장과 캐릭터 카메라 입력 적용 코드 변경 완료
+- [x] 배경음악/효과음 볼륨 슬라이더와 퍼센트 텍스트 바인딩 코드 변경 완료
+- [x] 배경음악/효과음 로컬 저장과 선택 SoundClass 볼륨 적용 코드 변경 완료
+- [x] 마이크 음량 슬라이더와 퍼센트 텍스트 바인딩 코드 변경 완료
+- [x] 마이크 방식 선택 버튼과 로컬 저장 코드 변경 완료
+- [x] 기본 `K` 마이크 입력 키바인딩과 PlayerController 상태 이벤트 코드 변경 완료
+- [x] 마이크 입력 상태와 엔진 네트워크 음성 송출 연결 완료
+- [x] 캐릭터 `MicrophonePushToTalkAction` Enhanced Input 슬롯 추가 완료
+- [x] 마이크 송출 중 플레이어 이름 TextBlock 표시 코드 변경 완료
+- [x] 마이크 송출 중 스피커 아이콘 Image 표시 코드 변경 완료
+- [x] 기본 `N` 마이크 채널 전환 키바인딩 코드 변경 완료
+- [x] 기본 `M` 플레이어 지정 음소거 키바인딩과 Blueprint 이벤트 진입점 코드 변경 완료
+- [x] 플레이어 지정 음소거 메뉴와 행 WBP 부모 코드 변경 완료
+- [x] 수동 음소거 목록과 gameplay mute 적용 코드 변경 완료
+- [x] 전체/팀 말하기 상태 복제와 팀 채널 gameplay mute 코드 변경 완료
+- [x] 마이크 채널 전환 personal alarm 코드 변경 완료
+- [x] 옵션 메뉴 선택형 버튼 눌림 유지 표시 코드 변경 완료
 - [x] `git diff --check` 공백 점검 통과
-- [x] `SnowRumbleEditor Win64 Development` 빌드 통과
+- [x] `SnowRumbleEditor Win64 Development` 최종 링크 통과
 - [ ] 역할·소유권·담당자 이니셜 규칙 위반 없음
 - [ ] 공용 계약과 캡슐화 규칙 위반 없음
 - [x] 현재 Task 문서가 기능 정의 기준으로 생성됨
@@ -187,5 +301,35 @@
 - [ ] 로비 ESC 메뉴에서 같은 옵션 메뉴가 열린다.
 - [ ] PvP와 눈사람 모드에서는 ESC 옵션 메뉴가 열리지 않는다.
 - [ ] 키바인딩 변경 후 캐릭터 입력과 채팅 열기 키가 변경된 키로 동작한다.
-- [ ] 감도 조절 값이 저장되고 카메라 입력에 적용된다.
-- [ ] 사운드 볼륨 값이 저장되고 적용된다.
+- [ ] 이동 키를 다른 키로 바꾼 뒤 앞으로/뒤로/좌/우 이동이 계속 동작한다.
+- [ ] 옵션 또는 로비 ESC 메뉴를 닫고 게임으로 복귀하면 이동과 시점 입력이 다시 동작한다.
+- [ ] 키 설정 패널에서 `ResetButton`을 누르면 키 설정만 기본값으로 복원된다.
+- [ ] 감도·사운드·마이크 패널에서 `ResetButton`을 누르면 해당 패널의 WBP 초기화 이벤트만 실행된다.
+- [ ] 키 설정을 바꿔도 `ApplyButton`을 누르기 전에는 실제 캐릭터 입력이 바뀌지 않는다.
+- [ ] 저장되지 않은 키 설정 변경 후 옵션을 닫으면 이전 저장 상태가 유지된다.
+- [ ] 저장되지 않은 변경이 없으면 `ApplyButton`이 비활성화되고, 변경이 생기면 활성화된다.
+- [ ] 감도 슬라이더를 움직이면 `SensitivityValueText`가 퍼센트로 갱신된다.
+- [ ] 감도 슬라이더를 움직여도 `ApplyButton`을 누르기 전에는 실제 카메라 감도가 바뀌지 않는다.
+- [ ] 감도 변경 후 `ApplyButton`을 누르면 카메라 회전 감도가 바뀐다.
+- [ ] 감도 변경 후 옵션을 닫으면 이전 저장 상태가 유지된다.
+- [ ] 감도 패널에서 `ResetButton`을 누르면 감도 임시값이 100%로 돌아간다.
+- [ ] 배경음악/효과음 슬라이더를 움직이면 각 퍼센트 텍스트가 갱신된다.
+- [ ] 배경음악/효과음 슬라이더를 움직여도 `ApplyButton`을 누르기 전에는 저장값과 실제 SoundClass 볼륨이 바뀌지 않는다.
+- [ ] 배경음악/효과음 변경 후 `ApplyButton`을 누르면 로컬 설정에 저장되고 지정된 SoundClass 볼륨에 반영된다.
+- [ ] 배경음악/효과음 변경 후 옵션을 닫으면 이전 저장 상태가 유지된다.
+- [ ] 소리 패널에서 `ResetButton`을 누르면 배경음악과 효과음 임시값이 100%로 돌아간다.
+- [ ] 마이크 음량 슬라이더를 움직이면 퍼센트 텍스트가 갱신된다.
+- [ ] 마이크 방식 버튼을 누르면 WBP 선택 표시 이벤트가 호출되고 `ApplyButton`이 활성화된다.
+- [ ] 마이크 설정 변경 후 `ApplyButton`을 누르면 로컬 설정에 저장된다.
+- [ ] 눌러서 말하기 방식에서는 기본 `K` 키를 누르는 동안 마이크 입력 상태 이벤트가 켜지고, 키를 떼면 꺼진다.
+- [ ] 항상 말하기 방식에서는 적용 후 마이크 입력 상태 이벤트가 켜진 상태로 유지된다.
+- [ ] 키 설정에서 `마이크 입력` 키를 바꾸면 변경된 키로 눌러서 말하기가 동작한다.
+- [ ] LAN 로비 또는 인게임에서 마이크 입력 상태가 켜진 플레이어의 음성이 다른 플레이어에게 들린다.
+- [ ] 마이크 입력 상태가 켜진 동안 로비와 인게임 HUD의 `VoiceSpeakingContainer` 안에서 `VoiceSpeakingIcon`과 `VoiceSpeakingNamesText`가 나란히 표시된다.
+- [ ] `N` 키를 누르면 `PersonalAlarmText`에 "전체로 말하기" 또는 "팀으로 말하기"가 표시되고 애니메이션이 재생된다.
+- [ ] `M` 키를 누르면 플레이어 지정 음소거 메뉴가 열리고, 다시 누르면 닫힌다.
+- [ ] 음소거 메뉴에는 로컬 플레이어를 제외한 현재 인게임 플레이어 수만큼 행이 생성된다.
+- [ ] 행의 `MuteButton`을 누르면 해당 플레이어 음성이 로컬에서 음소거되고 버튼 표시가 해제로 바뀐다.
+- [ ] 다시 같은 행의 버튼을 누르면 수동 음소거가 해제되고 팀 채널 규칙상 들을 수 있는 플레이어 음성이 다시 들린다.
+- [ ] 팀 말하기 상태에서 송출하면 같은 팀에게만 음성 표시가 보이고 다른 팀 클라이언트는 해당 플레이어 음성이 gameplay mute 처리된다.
+- [ ] 옵션 메뉴의 현재 카테고리와 마이크 방식 버튼이 선택 상태처럼 눌려 보이고, 다른 선택지는 원래 스타일로 돌아간다.

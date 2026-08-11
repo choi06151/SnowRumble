@@ -10,6 +10,7 @@
 #include "LobbyEscapeMenuWidget.h"
 #include "LobbyWidget.h"
 #include "OptionsWidget_C.h"
+#include "../Online/SnowRumbleSessionSubsystem.h"
 
 void ALobbyPlayerController::BeginPlay()
 {
@@ -147,6 +148,8 @@ void ALobbyPlayerController::ShowLobbyEscapeMenu()
 	Widget->SetKeyboardFocus();
 
 	bShowMouseCursor = true;
+	ResetIgnoreMoveInput();
+	ResetIgnoreLookInput();
 	SetIgnoreMoveInput(true);
 	SetIgnoreLookInput(true);
 
@@ -170,8 +173,8 @@ void ALobbyPlayerController::HideLobbyEscapeMenu()
 
 	if (IsLocalController())
 	{
-		SetIgnoreMoveInput(false);
-		SetIgnoreLookInput(false);
+		ResetIgnoreMoveInput();
+		ResetIgnoreLookInput();
 		EnableLobbyGameInput();
 	}
 }
@@ -196,6 +199,8 @@ void ALobbyPlayerController::ShowOptionsMenu()
 	Widget->SetKeyboardFocus();
 
 	bShowMouseCursor = true;
+	ResetIgnoreMoveInput();
+	ResetIgnoreLookInput();
 	SetIgnoreMoveInput(true);
 	SetIgnoreLookInput(true);
 
@@ -209,6 +214,7 @@ void ALobbyPlayerController::HideOptionsMenu()
 {
 	if (OptionsWidget)
 	{
+		OptionsWidget->DiscardPendingOptionChanges();
 		OptionsWidget->RemoveFromParent();
 	}
 
@@ -230,6 +236,15 @@ void ALobbyPlayerController::RequestReturnToMainMenu()
 	if (MainMenuTravelUrl.IsEmpty())
 	{
 		return;
+	}
+
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleSessionSubsystem* SessionSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleSessionSubsystem>())
+		{
+			SessionSubsystem->LeaveLanSession();
+		}
 	}
 
 	if (HasAuthority())
@@ -288,6 +303,19 @@ void ALobbyPlayerController::RequestApplyLobbyTeam(ESnowRumbleTeam NewTeam)
 	else
 	{
 		ServerApplyLobbyTeam(NewTeam);
+	}
+}
+
+void ALobbyPlayerController::RequestApplyCustomizationData(
+	const FSnowRumbleCustomizationData& NewData)
+{
+	if (HasAuthority())
+	{
+		ServerApplyCustomizationData_Implementation(NewData);
+	}
+	else
+	{
+		ServerApplyCustomizationData(NewData);
 	}
 }
 
@@ -388,6 +416,16 @@ void ALobbyPlayerController::ServerApplyLobbyTeam_Implementation(
 		GetPlayerState<ASnowRumblePlayerState>())
 	{
 		SnowRumblePlayerState->RequestSetLobbyTeam(NewTeam);
+	}
+}
+
+void ALobbyPlayerController::ServerApplyCustomizationData_Implementation(
+	const FSnowRumbleCustomizationData& NewData)
+{
+	if (ASnowRumblePlayerState* SnowRumblePlayerState =
+		GetPlayerState<ASnowRumblePlayerState>())
+	{
+		SnowRumblePlayerState->RequestSetCustomizationData(NewData);
 	}
 }
 

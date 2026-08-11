@@ -5,6 +5,7 @@
 #include "Blueprint/UserWidget.h"
 #include "MainMenuWidget.h"
 #include "OptionsWidget_C.h"
+#include "../Online/SnowRumbleSessionSubsystem.h"
 
 void AMainMenuPlayerController::BeginPlay()
 {
@@ -12,6 +13,15 @@ void AMainMenuPlayerController::BeginPlay()
 
 	if (IsLocalController())
 	{
+		if (UGameInstance* GameInstance = GetGameInstance())
+		{
+			if (USnowRumbleSessionSubsystem* SessionSubsystem =
+				GameInstance->GetSubsystem<USnowRumbleSessionSubsystem>())
+			{
+				SessionSubsystem->LeaveLanSession();
+			}
+		}
+
 		ShowMainMenu();
 	}
 }
@@ -99,6 +109,7 @@ void AMainMenuPlayerController::HideOptionsMenu()
 {
 	if (OptionsWidget)
 	{
+		OptionsWidget->DiscardPendingOptionChanges();
 		OptionsWidget->RemoveFromParent();
 	}
 
@@ -106,6 +117,16 @@ void AMainMenuPlayerController::HideOptionsMenu()
 	{
 		ShowMainMenu();
 	}
+}
+
+void AMainMenuPlayerController::TravelToCustomizationLevel()
+{
+	if (!IsLocalController() || CustomizationLevelUrl.IsEmpty())
+	{
+		return;
+	}
+
+	ClientTravel(CustomizationLevelUrl, TRAVEL_Absolute);
 }
 
 UMainMenuWidget* AMainMenuPlayerController::EnsureMainMenuWidget()

@@ -3,11 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/EngineBaseTypes.h"
 #include "Interfaces/OnlineSessionInterface.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "SnowRumbleSessionSubsystem.generated.h"
 
 class UWorld;
+class UNetDriver;
 
 UENUM(BlueprintType)
 enum class ESnowRumbleSessionOperation : uint8
@@ -102,6 +104,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Session")
 	void JoinLanSessionByRoomCode(const FString& RoomCode);
 
+	/** 현재 로컬 호스트 또는 참가 세션을 정리해 메인메뉴에서 다시 검색·참가할 수 있게 한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Session")
+	void LeaveLanSession();
+
+	/** 메인메뉴 진입 시 한 번 표시할 세션 종료 알림을 꺼낸다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Session")
+	FString ConsumePendingMainMenuAlarmMessage();
+
+	/** 메인메뉴에서 한 번 표시할 알림 메시지를 저장한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Session")
+	void SetPendingMainMenuAlarmMessage(const FString& Message);
+
 	/** 마지막으로 변환된 Blueprint용 검색 결과를 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Session")
 	const TArray<FSnowRumbleSessionInfo>& GetSearchResults() const;
@@ -162,6 +176,13 @@ private:
 		FName SessionName,
 		EOnJoinSessionCompleteResult::Type Result);
 
+	/** 호스트 연결 끊김 같은 네트워크 실패를 메인메뉴 알림으로 변환한다. */
+	void HandleNetworkFailure(
+		UWorld* World,
+		UNetDriver* NetDriver,
+		ENetworkFailure::Type FailureType,
+		const FString& ErrorString);
+
 	/** 등록된 세션 생성 완료 델리게이트를 해제한다. */
 	void ClearCreateSessionDelegate();
 
@@ -184,14 +205,17 @@ private:
 	FDelegateHandle FindSessionsCompleteHandle;
 	FDelegateHandle JoinSessionCompleteHandle;
 	FDelegateHandle PostLoadMapHandle;
+	FDelegateHandle NetworkFailureHandle;
 
 	FName LocalSessionName;
 	int32 PendingHostMaxPlayers = 8;
 	FString PendingHostRoomName;
 	FString PendingHostRoomCode;
 	FString PendingJoinRoomCode;
+	FString PendingMainMenuAlarmMessage;
 	FString CurrentRoomCode;
 	bool bHostTravelPending = false;
+	bool bWasInLanSession = false;
 	ESnowRumbleSessionOperation CurrentOperation = ESnowRumbleSessionOperation::None;
 	ESnowRumbleSessionState CurrentState = ESnowRumbleSessionState::Idle;
 };
