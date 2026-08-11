@@ -14,6 +14,8 @@ class UAnimationAsset;
 class UCanvas;
 class UCanvasRenderTarget2D;
 class UCustomizationWidget;
+class USizeBox;
+class UUserWidget;
 
 UCLASS(Blueprintable)
 class SNOWRUMBLE_API ACustomizationPlayerController : public APlayerController
@@ -32,6 +34,41 @@ public:
 	/** 프리뷰 캐릭터의 몸 색상을 즉시 변경한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
 	void SetPreviewBodyColor(FLinearColor NewBodyColor);
+
+	/** 언리얼 기본 컬러 피커를 열어 현재 페인트 브러시 색을 변경한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
+	void OpenPaintBrushColorPicker();
+
+	/** 지정한 화면 위치 왼쪽에 언리얼 기본 컬러 피커를 연다. */
+	void OpenPaintBrushColorPickerOnLeft(const FVector2D& AnchorScreenPosition);
+
+	/** 현재 페인트 브러시 색을 직접 지정한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
+	void SetPaintBrushColor(FLinearColor NewBrushColor);
+
+	/** 현재 페인트 브러시 색을 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization")
+	FLinearColor GetPaintBrushColor() const;
+
+	/** 현재 브러시 색으로 BodyColor를 채운다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
+	void FillPreviewBodyWithBrushColor();
+
+	/** 브러시 크기 버튼을 누른 상태를 시작한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
+	void StartAdjustPaintBrushSize();
+
+	/** 브러시 크기 버튼을 누른 상태를 끝낸다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
+	void StopAdjustPaintBrushSize();
+
+	/** 마우스 휠 값으로 브러시 크기를 작게 또는 크게 조정한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
+	void AdjustPaintBrushSizeFromWheel(float WheelDelta);
+
+	/** 현재 페인트 브러시 크기를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization")
+	float GetPaintBrushSize() const;
 
 	/** 현재 프리뷰 커스터마이징 데이터를 로컬 저장소에 적용한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
@@ -69,6 +106,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
 	void StopRotatePreview();
 
+	/** 색칠하기 페이지 진입 여부에 따라 마우스 커서를 전환한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization|Cursor")
+	void SetPaintCursorActive(bool bNewPaintCursorActive);
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -85,6 +126,26 @@ protected:
 	/** 돌아가기 버튼으로 이동할 메인메뉴 URL이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization")
 	FString MainMenuTravelUrl = TEXT("/Game/Maps/L_MainMenu");
+
+	/** 커스터마이징 화면에서 평소에 사용할 전역 기본 마우스 커서 위젯이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Cursor")
+	TSubclassOf<UUserWidget> DefaultMouseCursorWidgetClass;
+
+	/** 색칠하기 화면에서 사용할 원형 마우스 커서 위젯이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Cursor")
+	TSubclassOf<UUserWidget> PaintMouseCursorWidgetClass;
+
+	/** PaintMouseCursorWidget 안의 BrushCursorSizeBox 크기에 곱할 배율이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Cursor", meta = (ClampMin = "0.1", ClampMax = "10.0"))
+	float PaintCursorBrushSizeScale = 1.0f;
+
+	/** 원형 페인트 커서의 최소 지름이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Cursor", meta = (ClampMin = "1.0", ClampMax = "512.0"))
+	float MinPaintCursorDiameter = 8.0f;
+
+	/** 원형 페인트 커서의 최대 지름이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Cursor", meta = (ClampMin = "1.0", ClampMax = "1024.0"))
+	float MaxPaintCursorDiameter = 256.0f;
 
 	/** 커스터마이징 레벨에 배치한 프리뷰 캐릭터를 찾는 태그다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization")
@@ -118,9 +179,25 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "1.0", ClampMax = "256.0"))
 	float PaintStrokeThickness = 12.0f;
 
-	/** 임시 1차 브러쉬 색상이다. 이후 UI 색상 선택과 연결한다. */
+	/** 현재 브러쉬 색상이다. 컬러 피커와 전체 칠하기 버튼이 이 값을 사용한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint")
 	FLinearColor PaintBrushColor = FLinearColor::Black;
+
+	/** 브러시 색상 창을 버튼 왼쪽에 띄울 때 버튼과 창 사이에 둘 화면 픽셀 간격이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "0.0", ClampMax = "128.0"))
+	float PaintBrushColorPickerLeftPadding = 12.0f;
+
+	/** 브러시 크기 버튼을 누른 상태에서 휠 한 칸마다 바뀌는 크기다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "0.1", ClampMax = "128.0"))
+	float PaintBrushWheelStep = 2.0f;
+
+	/** 브러시 크기의 최소값이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "1.0", ClampMax = "256.0"))
+	float MinPaintBrushSize = 1.0f;
+
+	/** 브러시 크기의 최대값이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "1.0", ClampMax = "256.0"))
+	float MaxPaintBrushSize = 96.0f;
 
 	/** 머티리얼 UV 방향에 맞춰 드로잉 RenderTarget Y축을 뒤집을지 정한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint")
@@ -140,6 +217,17 @@ private:
 
 	/** 커스터마이징 위젯 인스턴스가 없으면 생성한다. */
 	UCustomizationWidget* EnsureCustomizationWidget();
+
+	/** BP에 지정된 기본/페인트 커서 위젯을 생성하고 소프트웨어 커서로 등록한다. */
+	void EnsureMouseCursorWidgets();
+
+	/** 현재 페이지와 커서 슬롯에 맞춰 표시할 소프트웨어 커서를 적용한다. */
+	void ApplyCurrentMouseCursorWidget();
+
+	/** 원형 페인트 커서 위젯의 표시 크기를 현재 브러시 크기에 맞춘다. */
+	void UpdatePaintMouseCursorSize();
+
+	USizeBox* FindPaintCursorSizeBox() const;
 
 	/** 현재 조종 중인 커마용 캐릭터를 반환한다. */
 	ASnowRumbleCharacter* GetPreviewCharacter() const;
@@ -183,6 +271,7 @@ private:
 		int32& OutMaterialIndex) const;
 
 	void ShowPaintDebugMessage(const FString& Message);
+	void HandlePaintBrushColorPicked(FLinearColor NewBrushColor);
 
 	/** 좌클릭 상태에 따라 Stroke 시작, 점 추가, 완료를 처리한다. */
 	void UpdatePaintInput();
@@ -222,6 +311,12 @@ private:
 	TObjectPtr<UCustomizationWidget> CustomizationWidget;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UUserWidget> DefaultMouseCursorWidget;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UUserWidget> PaintMouseCursorWidget;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UCanvasRenderTarget2D> PaintRenderTarget;
 
 	UPROPERTY(Transient)
@@ -234,6 +329,8 @@ private:
 
 	bool bIsPaintingStroke = false;
 	bool bWasPaintMouseDown = false;
+	bool bIsAdjustingPaintBrushSize = false;
+	bool bIsPaintCursorActive = false;
 	float PreviewRotationInput = 0.0f;
 	double LastPaintDebugMessageTime = -1.0;
 };

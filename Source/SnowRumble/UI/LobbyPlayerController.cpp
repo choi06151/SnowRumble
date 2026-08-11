@@ -95,6 +95,7 @@ void ALobbyPlayerController::EnableLobbyUiInput()
 	}
 
 	bShowMouseCursor = true;
+	ApplyDefaultMouseCursorWidget();
 
 	FInputModeGameAndUI InputMode;
 	InputMode.SetWidgetToFocus(Widget->TakeWidget());
@@ -148,6 +149,7 @@ void ALobbyPlayerController::ShowLobbyEscapeMenu()
 	Widget->SetKeyboardFocus();
 
 	bShowMouseCursor = true;
+	ApplyDefaultMouseCursorWidget();
 	ResetIgnoreMoveInput();
 	ResetIgnoreLookInput();
 	SetIgnoreMoveInput(true);
@@ -199,6 +201,7 @@ void ALobbyPlayerController::ShowOptionsMenu()
 	Widget->SetKeyboardFocus();
 
 	bShowMouseCursor = true;
+	ApplyDefaultMouseCursorWidget();
 	ResetIgnoreMoveInput();
 	ResetIgnoreLookInput();
 	SetIgnoreMoveInput(true);

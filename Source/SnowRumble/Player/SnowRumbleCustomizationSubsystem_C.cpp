@@ -62,6 +62,12 @@ USnowRumbleCustomizationSubsystem::SanitizeCustomizationData(
 
 	for (FSnowRumblePaintStroke& Stroke : SanitizedData.PaintStrokes)
 	{
+		Stroke.BrushColor.R = FMath::Clamp(Stroke.BrushColor.R, 0.0f, 1.0f);
+		Stroke.BrushColor.G = FMath::Clamp(Stroke.BrushColor.G, 0.0f, 1.0f);
+		Stroke.BrushColor.B = FMath::Clamp(Stroke.BrushColor.B, 0.0f, 1.0f);
+		Stroke.BrushColor.A = 1.0f;
+		Stroke.BrushThickness = FMath::Clamp(Stroke.BrushThickness, 1.0f, 256.0f);
+
 		if (Stroke.Points.Num() > MaxPaintPointCountPerStroke)
 		{
 			Stroke.Points.SetNum(MaxPaintPointCountPerStroke);

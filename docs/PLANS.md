@@ -132,3 +132,7 @@
 - 2026-08-11: C-11 메인메뉴 커스터마이징 진입 경로를 추가함. `CustomizationButton`은 메인메뉴 PlayerController의 `CustomizationLevelUrl`로 커스터마이징 레벨 이동을 수행함.
 - 2026-08-11: C-11 커스터마이징 레벨 전용 GameMode, PlayerController, WBP 부모를 추가함. 레벨 진입 시 커스터마이징 WBP를 표시하고 `CustomizationCamera` 태그 카메라를 ViewTarget으로 사용하며, WidgetSwitcher로 메인/시점변경/색칠하기 화면을 전환함.
 - 2026-08-11: C-11 몸 색상 커스터마이징 저장·복제·적용 경로를 추가함. `USnowRumbleCustomizationSubsystem`이 로컬 저장을 맡고, 로비 입장 시 `ASnowRumblePlayerState::CustomizationData`로 서버 제출·복제되며, 캐릭터는 `BodyColor` 머티리얼 파라미터로 색을 적용함. `SnowRumbleEditor Win64 Development` 빌드가 성공함.
+- 2026-08-11: C-11 색칠하기 화면 버튼 계약을 구체화함. `BrushColorButton`은 언리얼 기본 컬러 피커, `BrushSizeButton`은 press 중 휠 크기 조정, `FillBodyColorButton`은 현재 브러시 색 기반 `BodyColor` 전체 칠하기로 동작하며, stroke별 색과 두께를 저장·복제함.
+- 2026-08-11: C-11 커스터마이징 WBP 실제 구조에 맞춰 `PaintMode`가 `CustomizationContentSwitcher` 1번 인덱스의 색칠하기 `DrawPanel`을 열도록 조정함.
+- 2026-08-11: C-11 현재 브러시 색 표시 칸 계약을 추가함. `BrushColorPreviewBorder` 또는 `BrushColorPreviewImage`를 배치하면 현재 브러시 색을 자동 표시함.
+- 2026-08-11: C-11 마우스 커서 슬롯 계약을 게임 전체 기본 커서로 확장함. 메인메뉴, 로비/PvP 계열, 커스터마이징 PlayerController BP에 `DefaultMouseCursorWidgetClass`를 지정하면 각 UI 커서 표시 시 기본 커서가 적용되고, 커스터마이징 `PaintMouseCursorWidgetClass`는 색칠하기 원형 커서로 전환됨.

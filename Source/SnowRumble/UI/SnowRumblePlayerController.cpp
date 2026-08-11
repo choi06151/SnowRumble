@@ -63,6 +63,7 @@ void ASnowRumblePlayerController::EndPlay(
 		VoiceMuteMenuWidget->RemoveFromParent();
 		VoiceMuteMenuWidget = nullptr;
 	}
+	DefaultMouseCursorWidget = nullptr;
 
 	if (UGameInstance* GameInstance = GetGameInstance())
 	{
@@ -205,6 +206,7 @@ void ASnowRumblePlayerController::OpenChatInput(
 	}
 
 	bShowMouseCursor = true;
+	ApplyDefaultMouseCursorWidget();
 	FInputModeGameAndUI InputMode;
 	InputMode.SetWidgetToFocus(Widget->TakeWidget());
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
@@ -688,6 +690,7 @@ void ASnowRumblePlayerController::ShowVoiceMuteMenu()
 	VoiceMuteMenuWidget->RefreshPlayerList();
 
 	bShowMouseCursor = true;
+	ApplyDefaultMouseCursorWidget();
 	FInputModeGameAndUI InputMode;
 	InputMode.SetWidgetToFocus(VoiceMuteMenuWidget->TakeWidget());
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
@@ -863,6 +866,28 @@ UChatWidget* ASnowRumblePlayerController::EnsureChatWidget()
 		ChatWidget->SetChatPlayerController(this);
 	}
 	return ChatWidget;
+}
+
+void ASnowRumblePlayerController::ApplyDefaultMouseCursorWidget()
+{
+	if (!IsLocalController() || !DefaultMouseCursorWidgetClass)
+	{
+		return;
+	}
+
+	if (!DefaultMouseCursorWidget)
+	{
+		DefaultMouseCursorWidget =
+			CreateWidget<UUserWidget>(this, DefaultMouseCursorWidgetClass);
+	}
+	if (!DefaultMouseCursorWidget)
+	{
+		return;
+	}
+
+	SetMouseCursorWidget(EMouseCursor::Default, DefaultMouseCursorWidget);
+	DefaultMouseCursor = EMouseCursor::Default;
+	CurrentMouseCursor = EMouseCursor::Default;
 }
 
 bool ASnowRumblePlayerController::ShouldReceiveChatMessage(
