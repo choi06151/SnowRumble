@@ -47,5 +47,7 @@
 - [C-19 텍스트 채팅](C-19_text_chat.md)
 - [C-20 이벤트 로그 UI](C-20_event_log_ui.md)
 - [C-21 옵션 메뉴](C-21_options_menu.md)
+- [C-22 상호작용 안내 UI](C-22_interaction_prompt_ui.md)
+- [C-23 마우스 휠 카메라 줌](C-23_camera_wheel_zoom.md)
 
 역할 내부 상태와 우선순위는 `PLAN_C.md`, 파트 간 계약·선점과 통합 상태는 `docs/PLANS.md`를 기준으로 판단합니다.

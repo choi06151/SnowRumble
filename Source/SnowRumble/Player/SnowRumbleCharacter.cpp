@@ -13,6 +13,7 @@
 #include "../Snowball/SnowballItem.h"
 #include "../UI/EmoteRadialMenuWidget.h"
 #include "../UI/CustomizationPlayerController_C.h"
+#include "../UI/InteractionPromptWidget_C.h"
 #include "../UI/MainHUDWidget.h"
 #include "../UI/OverheadNameplateWidget_C.h"
 #include "../UI/SnowRumblePlayerController.h"
@@ -133,6 +134,8 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 
 	if (IsLocallyControlled() && CameraBoom)
 	{
+		UpdateCameraZoomInput();
+
 		FVector TargetCameraOffset = DefaultCameraSocketOffset;
 		const float ShoulderOffset =
 			bUseAimCameraPresentation
@@ -149,7 +152,7 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 			CameraBoom->TargetArmLength,
 			bUseAimCameraPresentation
 				? AimCameraArmLength
-				: DefaultCameraArmLength,
+				: DesiredCameraArmLength,
 			DeltaSeconds,
 			CameraPositionInterpSpeed);
 	}
@@ -188,6 +191,7 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 		OutlineComponent->SetOutlinedActor(OutlinedActor);
 	}
 
+	RefreshInteractionPromptWidget();
 	DrawRollingSnowballCollisionDebug();
 	RefreshOverheadNameplateFacing();
 	RefreshPvpMatchInputLock();
@@ -527,6 +531,14 @@ void ASnowRumbleCharacter::BeginPlay()
 		CameraBoom->TargetOffset.Z = CameraPivotHeight;
 		DefaultCameraSocketOffset = CameraBoom->SocketOffset;
 		DefaultCameraArmLength = CameraBoom->TargetArmLength;
+		const float SafeMinimumCameraArmLength =
+			FMath::Max(0.0f, MinimumCameraArmLength);
+		const float SafeMaximumCameraArmLength =
+			FMath::Max(SafeMinimumCameraArmLength, MaximumCameraArmLength);
+		DesiredCameraArmLength = FMath::Clamp(
+			DefaultCameraArmLength,
+			SafeMinimumCameraArmLength,
+			SafeMaximumCameraArmLength);
 	}
 
 	RefreshLocalSnowEffect();
@@ -554,6 +566,18 @@ void ASnowRumbleCharacter::BeginPlay()
 	RefreshOverheadPlayerName();
 	RefreshCustomizationFromPlayerState();
 	RefreshPvpMatchInputLock();
+}
+
+void ASnowRumbleCharacter::EndPlay(
+	const EEndPlayReason::Type EndPlayReason)
+{
+	if (InteractionPromptWidget)
+	{
+		InteractionPromptWidget->RemoveFromParent();
+		InteractionPromptWidget = nullptr;
+	}
+
+	Super::EndPlay(EndPlayReason);
 }
 
 FString ASnowRumbleCharacter::GetOverheadPlayerName() const
@@ -1159,6 +1183,132 @@ void ASnowRumbleCharacter::EnsureMainHUDWidget()
 	}
 }
 
+void ASnowRumbleCharacter::EnsureInteractionPromptWidget()
+{
+	if (!IsLocallyControlled()
+		|| InteractionPromptWidget
+		|| !InteractionPromptWidgetClass)
+	{
+		return;
+	}
+
+	APlayerController* PlayerController = Cast<APlayerController>(Controller);
+	if (!PlayerController)
+	{
+		return;
+	}
+
+	InteractionPromptWidget =
+		CreateWidget<UInteractionPromptWidget>(
+			PlayerController,
+			InteractionPromptWidgetClass);
+	if (InteractionPromptWidget)
+	{
+		InteractionPromptWidget->AddToViewport(50);
+		InteractionPromptWidget->ClearPrompt();
+	}
+}
+
+void ASnowRumbleCharacter::RefreshInteractionPromptWidget()
+{
+	if (!IsLocallyControlled())
+	{
+		return;
+	}
+
+	EnsureInteractionPromptWidget();
+	if (!InteractionPromptWidget)
+	{
+		return;
+	}
+
+	FText PromptText;
+	AActor* PromptActor = nullptr;
+	if (!GetCurrentInteractionPromptData(PromptText, PromptActor))
+	{
+		InteractionPromptWidget->ClearPrompt();
+		return;
+	}
+
+	APlayerController* PlayerController = Cast<APlayerController>(Controller);
+	if (!PlayerController || !PromptActor)
+	{
+		InteractionPromptWidget->ClearPrompt();
+		return;
+	}
+
+	FVector PromptOrigin;
+	FVector PromptExtent;
+	PromptActor->GetActorBounds(true, PromptOrigin, PromptExtent);
+	const FVector PromptWorldLocation =
+		PromptOrigin
+		+ FVector(
+			0.0f,
+			0.0f,
+			PromptExtent.Z + InteractionPromptWorldHeightOffset);
+
+	FVector2D PromptScreenPosition;
+	if (!PlayerController->ProjectWorldLocationToScreen(
+		PromptWorldLocation,
+		PromptScreenPosition,
+		true))
+	{
+		InteractionPromptWidget->ClearPrompt();
+		return;
+	}
+
+	InteractionPromptWidget->SetPositionInViewport(
+		PromptScreenPosition + InteractionPromptScreenOffset,
+		true);
+	InteractionPromptWidget->SetPromptText(PromptText);
+}
+
+bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
+	FText& OutPromptText,
+	AActor*& OutPromptActor) const
+{
+	OutPromptText = FText::GetEmpty();
+	OutPromptActor = nullptr;
+
+	if (!IsLocallyControlled()
+		|| !CanPerformGameplayAction()
+		|| FocusedLobbyBoard)
+	{
+		return false;
+	}
+
+	if (ALobbyInteractionBoard* Board = FindClosestLobbyBoardCandidate())
+	{
+		OutPromptText = NSLOCTEXT(
+			"SnowRumble",
+			"InteractPromptBoard",
+			"E - 게시판");
+		OutPromptActor = Board;
+		return true;
+	}
+
+	if (!SnowballEquipmentComponent
+		|| SnowballEquipmentComponent->HasHeldSnowball())
+	{
+		return false;
+	}
+
+	ASnowballItem* Snowball = SnowballEquipmentComponent->IsRollingSnowball()
+		? SnowballEquipmentComponent->GetRollingSnowball()
+		: SnowballEquipmentComponent->FindClosestPickupCandidate();
+	if (!Snowball)
+	{
+		return false;
+	}
+
+	OutPromptText = NSLOCTEXT(
+		"SnowRumble",
+		"InteractPromptSnowball",
+		"E - 눈덩이");
+	OutPromptActor = Snowball;
+	return true;
+}
+
 void ASnowRumbleCharacter::OpenEmoteRadialMenu()
 {
 	if (!IsLocallyControlled())
@@ -1382,6 +1532,47 @@ void ASnowRumbleCharacter::Look(const FInputActionValue& Value)
 
 	AddControllerYawInput(LookAxisVector.X * MouseSensitivity);
 	AddControllerPitchInput(-LookAxisVector.Y * MouseSensitivity);
+}
+
+void ASnowRumbleCharacter::UpdateCameraZoomInput()
+{
+	if (!IsLocallyControlled()
+		|| !Controller
+		|| FocusedLobbyBoard
+		|| bIsEmoteRadialMenuOpen)
+	{
+		return;
+	}
+
+	const APlayerController* PlayerController =
+		Cast<APlayerController>(Controller);
+	if (!PlayerController)
+	{
+		return;
+	}
+
+	float ZoomDirection = 0.0f;
+	if (PlayerController->WasInputKeyJustPressed(EKeys::MouseScrollUp))
+	{
+		ZoomDirection -= 1.0f;
+	}
+	if (PlayerController->WasInputKeyJustPressed(EKeys::MouseScrollDown))
+	{
+		ZoomDirection += 1.0f;
+	}
+	if (FMath::IsNearlyZero(ZoomDirection))
+	{
+		return;
+	}
+
+	const float SafeMinimumCameraArmLength =
+		FMath::Max(0.0f, MinimumCameraArmLength);
+	const float SafeMaximumCameraArmLength =
+		FMath::Max(SafeMinimumCameraArmLength, MaximumCameraArmLength);
+	DesiredCameraArmLength = FMath::Clamp(
+		DesiredCameraArmLength + ZoomDirection * CameraZoomStep,
+		SafeMinimumCameraArmLength,
+		SafeMaximumCameraArmLength);
 }
 
 void ASnowRumbleCharacter::StartJump()
@@ -2026,6 +2217,14 @@ void ASnowRumbleCharacter::TryInteractWithLobbyBoard()
 void ASnowRumbleCharacter::CloseLobbyBoardFocus()
 {
 	ClearLobbyBoardFocus();
+}
+
+FText ASnowRumbleCharacter::GetCurrentInteractionPromptText() const
+{
+	FText PromptText;
+	AActor* PromptActor = nullptr;
+	GetCurrentInteractionPromptData(PromptText, PromptActor);
+	return PromptText;
 }
 
 void ASnowRumbleCharacter::RequestLobbyBoardAction(
