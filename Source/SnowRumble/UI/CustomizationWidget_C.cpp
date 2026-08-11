@@ -3,6 +3,8 @@
 #include "CustomizationWidget_C.h"
 
 #include "Components/Button.h"
+#include "Components/Border.h"
+#include "Components/Image.h"
 #include "Components/WidgetSwitcher.h"
 #include "CustomizationPlayerController_C.h"
 #include "InputCoreTypes.h"
@@ -28,6 +30,11 @@ void UCustomizationWidget::SetCustomizationPage(
 	}
 
 	OnCustomizationPageChanged(NewPage);
+	if (CustomizationPlayerController)
+	{
+		CustomizationPlayerController->SetPaintCursorActive(
+			NewPage == ESnowRumbleCustomizationPage::PaintMode);
+	}
 }
 
 ESnowRumbleCustomizationPage
@@ -52,6 +59,20 @@ UCustomizationWidget::GetPreviewCustomizationData() const
 		: FSnowRumbleCustomizationData();
 }
 
+FLinearColor UCustomizationWidget::GetPaintBrushColor() const
+{
+	return CustomizationPlayerController
+		? CustomizationPlayerController->GetPaintBrushColor()
+		: FLinearColor::Black;
+}
+
+float UCustomizationWidget::GetPaintBrushSize() const
+{
+	return CustomizationPlayerController
+		? CustomizationPlayerController->GetPaintBrushSize()
+		: 0.0f;
+}
+
 void UCustomizationWidget::RequestUndoLastPaintStroke()
 {
 	if (CurrentCustomizationPage == ESnowRumbleCustomizationPage::PaintMode
@@ -68,6 +89,7 @@ void UCustomizationWidget::NativeConstruct()
 	SetIsFocusable(true);
 	BindCustomizationButtons();
 	SetCustomizationPage(CurrentCustomizationPage);
+	RefreshPaintBrushPreview();
 }
 
 void UCustomizationWidget::NativeDestruct()
@@ -75,6 +97,15 @@ void UCustomizationWidget::NativeDestruct()
 	UnbindCustomizationButtons();
 
 	Super::NativeDestruct();
+}
+
+void UCustomizationWidget::NativeTick(
+	const FGeometry& MyGeometry,
+	float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	RefreshPaintBrushPreview();
 }
 
 FReply UCustomizationWidget::NativeOnKeyDown(
@@ -92,9 +123,69 @@ FReply UCustomizationWidget::NativeOnKeyDown(
 	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 }
 
+FReply UCustomizationWidget::NativeOnMouseWheel(
+	const FGeometry& InGeometry,
+	const FPointerEvent& InMouseEvent)
+{
+	if (CurrentCustomizationPage == ESnowRumbleCustomizationPage::PaintMode
+		&& bIsBrushSizeButtonPressed
+		&& CustomizationPlayerController)
+	{
+		CustomizationPlayerController->AdjustPaintBrushSizeFromWheel(
+			InMouseEvent.GetWheelDelta());
+		return FReply::Handled();
+	}
+
+	return Super::NativeOnMouseWheel(InGeometry, InMouseEvent);
+}
+
 void UCustomizationWidget::HandlePaintModeButtonClicked()
 {
 	SetCustomizationPage(ESnowRumbleCustomizationPage::PaintMode);
+}
+
+void UCustomizationWidget::HandleBrushColorButtonClicked()
+{
+	if (CustomizationPlayerController)
+	{
+		if (BrushColorButton)
+		{
+			CustomizationPlayerController->OpenPaintBrushColorPickerOnLeft(
+				BrushColorButton->GetCachedGeometry().GetAbsolutePosition());
+		}
+		else
+		{
+			CustomizationPlayerController->OpenPaintBrushColorPicker();
+		}
+		RefreshPaintBrushPreview();
+	}
+}
+
+void UCustomizationWidget::HandleBrushSizeButtonPressed()
+{
+	bIsBrushSizeButtonPressed = true;
+	if (CustomizationPlayerController)
+	{
+		CustomizationPlayerController->StartAdjustPaintBrushSize();
+	}
+}
+
+void UCustomizationWidget::HandleBrushSizeButtonReleased()
+{
+	bIsBrushSizeButtonPressed = false;
+	if (CustomizationPlayerController)
+	{
+		CustomizationPlayerController->StopAdjustPaintBrushSize();
+	}
+}
+
+void UCustomizationWidget::HandleFillBodyColorButtonClicked()
+{
+	if (CustomizationPlayerController)
+	{
+		CustomizationPlayerController->FillPreviewBodyWithBrushColor();
+		RefreshPaintBrushPreview();
+	}
 }
 
 void UCustomizationWidget::HandleRotateLeftButtonPressed()
@@ -175,6 +266,27 @@ void UCustomizationWidget::BindCustomizationButtons()
 			this,
 			&UCustomizationWidget::HandlePaintModeButtonClicked);
 	}
+	if (BrushColorButton)
+	{
+		BrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleBrushColorButtonClicked);
+	}
+	if (BrushSizeButton)
+	{
+		BrushSizeButton->OnPressed.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleBrushSizeButtonPressed);
+		BrushSizeButton->OnReleased.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleBrushSizeButtonReleased);
+	}
+	if (FillBodyColorButton)
+	{
+		FillBodyColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleFillBodyColorButtonClicked);
+	}
 	if (ReturnToLobbyButton)
 	{
 		ReturnToLobbyButton->OnClicked.AddUniqueDynamic(
@@ -225,6 +337,19 @@ void UCustomizationWidget::UnbindCustomizationButtons()
 	{
 		PaintModeButton->OnClicked.RemoveAll(this);
 	}
+	if (BrushColorButton)
+	{
+		BrushColorButton->OnClicked.RemoveAll(this);
+	}
+	if (BrushSizeButton)
+	{
+		BrushSizeButton->OnPressed.RemoveAll(this);
+		BrushSizeButton->OnReleased.RemoveAll(this);
+	}
+	if (FillBodyColorButton)
+	{
+		FillBodyColorButton->OnClicked.RemoveAll(this);
+	}
 	if (ReturnToLobbyButton)
 	{
 		ReturnToLobbyButton->OnClicked.RemoveAll(this);
@@ -253,15 +378,33 @@ void UCustomizationWidget::UnbindCustomizationButtons()
 	}
 }
 
+void UCustomizationWidget::RefreshPaintBrushPreview()
+{
+	if (!BrushColorPreviewBorder && !BrushColorPreviewImage)
+	{
+		return;
+	}
+
+	const FLinearColor CurrentBrushColor = GetPaintBrushColor();
+	if (BrushColorPreviewBorder)
+	{
+		BrushColorPreviewBorder->SetBrushColor(CurrentBrushColor);
+	}
+	if (BrushColorPreviewImage)
+	{
+		BrushColorPreviewImage->SetColorAndOpacity(CurrentBrushColor);
+	}
+}
+
 int32 UCustomizationWidget::GetSwitcherIndexForPage(
 	ESnowRumbleCustomizationPage Page) const
 {
 	switch (Page)
 	{
 	case ESnowRumbleCustomizationPage::ViewMode:
-		return 1;
+		return 0;
 	case ESnowRumbleCustomizationPage::PaintMode:
-		return 2;
+		return 1;
 	case ESnowRumbleCustomizationPage::Main:
 	default:
 		return 0;

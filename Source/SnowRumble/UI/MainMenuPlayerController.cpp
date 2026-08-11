@@ -33,6 +33,7 @@ void AMainMenuPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason
 		OptionsWidget->RemoveFromParent();
 		OptionsWidget = nullptr;
 	}
+	DefaultMouseCursorWidget = nullptr;
 	HideMainMenu();
 
 	Super::EndPlay(EndPlayReason);
@@ -57,6 +58,7 @@ void AMainMenuPlayerController::ShowMainMenu()
 	}
 
 	bShowMouseCursor = true;
+	ApplyDefaultMouseCursorWidget();
 
 	FInputModeUIOnly InputMode;
 	InputMode.SetWidgetToFocus(Widget->TakeWidget());
@@ -98,6 +100,7 @@ void AMainMenuPlayerController::ShowOptionsMenu()
 	Widget->SetKeyboardFocus();
 
 	bShowMouseCursor = true;
+	ApplyDefaultMouseCursorWidget();
 
 	FInputModeUIOnly InputMode;
 	InputMode.SetWidgetToFocus(Widget->TakeWidget());
@@ -165,4 +168,26 @@ UOptionsWidget* AMainMenuPlayerController::EnsureOptionsWidget()
 			&AMainMenuPlayerController::HideOptionsMenu);
 	}
 	return OptionsWidget;
+}
+
+void AMainMenuPlayerController::ApplyDefaultMouseCursorWidget()
+{
+	if (!IsLocalController() || !DefaultMouseCursorWidgetClass)
+	{
+		return;
+	}
+
+	if (!DefaultMouseCursorWidget)
+	{
+		DefaultMouseCursorWidget =
+			CreateWidget<UUserWidget>(this, DefaultMouseCursorWidgetClass);
+	}
+	if (!DefaultMouseCursorWidget)
+	{
+		return;
+	}
+
+	SetMouseCursorWidget(EMouseCursor::Default, DefaultMouseCursorWidget);
+	DefaultMouseCursor = EMouseCursor::Default;
+	CurrentMouseCursor = EMouseCursor::Default;
 }

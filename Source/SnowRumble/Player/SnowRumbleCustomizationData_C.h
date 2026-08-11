@@ -17,12 +17,20 @@ struct SNOWRUMBLE_API FSnowRumblePaintStroke
 	int32 MaterialIndex = INDEX_NONE;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SnowRumble|Customization")
+	FLinearColor BrushColor = FLinearColor::Black;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SnowRumble|Customization")
+	float BrushThickness = 12.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SnowRumble|Customization")
 	TArray<FVector2D> Points;
 
 	bool operator==(const FSnowRumblePaintStroke& Other) const
 	{
 		return MeshComponentName == Other.MeshComponentName
 			&& MaterialIndex == Other.MaterialIndex
+			&& BrushColor == Other.BrushColor
+			&& BrushThickness == Other.BrushThickness
 			&& Points == Other.Points;
 	}
 

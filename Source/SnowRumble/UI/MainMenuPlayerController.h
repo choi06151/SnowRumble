@@ -8,6 +8,7 @@
 
 class UMainMenuWidget;
 class UOptionsWidget;
+class UUserWidget;
 
 UCLASS(Blueprintable)
 class SNOWRUMBLE_API AMainMenuPlayerController : public APlayerController
@@ -51,6 +52,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization")
 	FString CustomizationLevelUrl = TEXT("/Game/Maps/L_Customization");
 
+	/** 메인메뉴와 메인메뉴 옵션에서 사용할 기본 마우스 커서 위젯이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Cursor")
+	TSubclassOf<UUserWidget> DefaultMouseCursorWidgetClass;
+
 private:
 	/** 시작화면 위젯 인스턴스가 없으면 생성한다. */
 	UMainMenuWidget* EnsureMainMenuWidget();
@@ -58,9 +63,15 @@ private:
 	/** 옵션 위젯 인스턴스가 없으면 생성한다. */
 	UOptionsWidget* EnsureOptionsWidget();
 
+	/** 기본 마우스 커서 위젯 슬롯을 소프트웨어 커서로 적용한다. */
+	void ApplyDefaultMouseCursorWidget();
+
 	UPROPERTY(Transient)
 	TObjectPtr<UMainMenuWidget> MainMenuWidget;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UOptionsWidget> OptionsWidget;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UUserWidget> DefaultMouseCursorWidget;
 };

@@ -5,6 +5,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/SizeBox.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/WidgetComponent.h"
 #include "CustomizationWidget_C.h"
@@ -19,6 +20,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "Rendering/SkeletalMeshRenderData.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Widgets/Colors/SColorPicker.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "../Player/SnowRumbleCustomizationSubsystem_C.h"
 
@@ -46,6 +49,8 @@ void ACustomizationPlayerController::EndPlay(
 		CustomizationWidget->RemoveFromParent();
 		CustomizationWidget = nullptr;
 	}
+	DefaultMouseCursorWidget = nullptr;
+	PaintMouseCursorWidget = nullptr;
 
 	Super::EndPlay(EndPlayReason);
 }
@@ -59,6 +64,7 @@ void ACustomizationPlayerController::PlayerTick(float DeltaTime)
 		UpdatePreviewRotation(DeltaTime);
 		UpdatePaintUndoInput();
 		UpdatePaintInput();
+		UpdatePaintMouseCursorSize();
 	}
 }
 
@@ -82,6 +88,8 @@ void ACustomizationPlayerController::ShowCustomizationMenu()
 	Widget->SetKeyboardFocus();
 
 	bShowMouseCursor = true;
+	EnsureMouseCursorWidgets();
+	ApplyCurrentMouseCursorWidget();
 	FInputModeGameAndUI InputMode;
 	InputMode.SetWidgetToFocus(Widget->TakeWidget());
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
@@ -107,6 +115,106 @@ void ACustomizationPlayerController::SetPreviewBodyColor(
 	PreviewCustomizationData =
 		USnowRumbleCustomizationSubsystem::SanitizeCustomizationData(NewData);
 	ApplyPreviewDataToCharacter();
+}
+
+void ACustomizationPlayerController::OpenPaintBrushColorPicker()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	FColorPickerArgs PickerArgs;
+	PickerArgs.DisplayGamma =
+		TAttribute<float>::Create(TAttribute<float>::FGetter::CreateUObject(
+			GEngine,
+			&UEngine::GetDisplayGamma));
+	PickerArgs.InitialColor = PaintBrushColor;
+	PickerArgs.bUseAlpha = false;
+	PickerArgs.bOnlyRefreshOnMouseUp = false;
+	PickerArgs.bOnlyRefreshOnOk = false;
+	PickerArgs.bClampValue = true;
+	PickerArgs.OnColorCommitted =
+		FOnLinearColorValueChanged::CreateUObject(
+			this,
+			&ACustomizationPlayerController::HandlePaintBrushColorPicked);
+	OpenColorPicker(PickerArgs);
+}
+
+void ACustomizationPlayerController::OpenPaintBrushColorPickerOnLeft(
+	const FVector2D& AnchorScreenPosition)
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	FSlateApplication& SlateApplication = FSlateApplication::Get();
+	const FVector2D OriginalCursorPosition = SlateApplication.GetCursorPos();
+	const FVector2D ColorPickerWindowSizeEstimate =
+		SColorPicker::DEFAULT_WINDOW_SIZE + FVector2D(0.0f, 130.0f);
+	const FVector2D PickerAnchorPosition(
+		AnchorScreenPosition.X
+			- ColorPickerWindowSizeEstimate.X
+			- PaintBrushColorPickerLeftPadding,
+		AnchorScreenPosition.Y);
+
+	SlateApplication.SetCursorPos(PickerAnchorPosition);
+	OpenPaintBrushColorPicker();
+	SlateApplication.SetCursorPos(OriginalCursorPosition);
+}
+
+void ACustomizationPlayerController::SetPaintBrushColor(
+	FLinearColor NewBrushColor)
+{
+	NewBrushColor.R = FMath::Clamp(NewBrushColor.R, 0.0f, 1.0f);
+	NewBrushColor.G = FMath::Clamp(NewBrushColor.G, 0.0f, 1.0f);
+	NewBrushColor.B = FMath::Clamp(NewBrushColor.B, 0.0f, 1.0f);
+	NewBrushColor.A = 1.0f;
+	PaintBrushColor = NewBrushColor;
+}
+
+FLinearColor ACustomizationPlayerController::GetPaintBrushColor() const
+{
+	return PaintBrushColor;
+}
+
+void ACustomizationPlayerController::FillPreviewBodyWithBrushColor()
+{
+	SetPreviewBodyColor(PaintBrushColor);
+	SavePreviewCustomizationData();
+}
+
+void ACustomizationPlayerController::StartAdjustPaintBrushSize()
+{
+	bIsAdjustingPaintBrushSize = true;
+}
+
+void ACustomizationPlayerController::StopAdjustPaintBrushSize()
+{
+	bIsAdjustingPaintBrushSize = false;
+}
+
+void ACustomizationPlayerController::AdjustPaintBrushSizeFromWheel(
+	float WheelDelta)
+{
+	if (!bIsAdjustingPaintBrushSize || FMath::IsNearlyZero(WheelDelta))
+	{
+		return;
+	}
+
+	const float SafeMinSize = FMath::Max(1.0f, MinPaintBrushSize);
+	const float SafeMaxSize = FMath::Max(SafeMinSize, MaxPaintBrushSize);
+	PaintStrokeThickness = FMath::Clamp(
+		PaintStrokeThickness + WheelDelta * PaintBrushWheelStep,
+		SafeMinSize,
+		SafeMaxSize);
+	UpdatePaintMouseCursorSize();
+}
+
+float ACustomizationPlayerController::GetPaintBrushSize() const
+{
+	return PaintStrokeThickness;
 }
 
 void ACustomizationPlayerController::ApplyPreviewCustomization()
@@ -206,6 +314,18 @@ void ACustomizationPlayerController::StartRotatePreviewRight()
 void ACustomizationPlayerController::StopRotatePreview()
 {
 	PreviewRotationInput = 0.0f;
+}
+
+void ACustomizationPlayerController::SetPaintCursorActive(
+	bool bNewPaintCursorActive)
+{
+	if (bIsPaintCursorActive == bNewPaintCursorActive)
+	{
+		return;
+	}
+
+	bIsPaintCursorActive = bNewPaintCursorActive;
+	ApplyCurrentMouseCursorWidget();
 }
 
 void ACustomizationPlayerController::ApplyCustomizationCameraView()
@@ -770,6 +890,12 @@ void ACustomizationPlayerController::ShowPaintDebugMessage(
 	}
 }
 
+void ACustomizationPlayerController::HandlePaintBrushColorPicked(
+	FLinearColor NewBrushColor)
+{
+	SetPaintBrushColor(NewBrushColor);
+}
+
 void ACustomizationPlayerController::UpdatePaintInput()
 {
 	if (!CustomizationWidget
@@ -856,6 +982,8 @@ void ACustomizationPlayerController::BeginPaintStroke(
 	ActivePaintStroke.Points.Reset();
 	ActivePaintStroke.MeshComponentName = MeshComponentName;
 	ActivePaintStroke.MaterialIndex = MaterialIndex;
+	ActivePaintStroke.BrushColor = PaintBrushColor;
+	ActivePaintStroke.BrushThickness = PaintStrokeThickness;
 	bIsPaintingStroke = true;
 	AddPaintPoint(PaintUv, MeshComponentName, MaterialIndex);
 }
@@ -1002,8 +1130,8 @@ void ACustomizationPlayerController::DrawStrokeToCanvas(
 		Canvas->K2_DrawLine(
 			Point - FVector2D(1.0f, 0.0f),
 			Point + FVector2D(1.0f, 0.0f),
-			PaintStrokeThickness,
-			PaintBrushColor);
+			Stroke.BrushThickness,
+			Stroke.BrushColor);
 		return;
 	}
 
@@ -1014,8 +1142,8 @@ void ACustomizationPlayerController::DrawStrokeToCanvas(
 		Canvas->K2_DrawLine(
 			ToCanvasPoint(Stroke.Points[PointIndex - 1]),
 			ToCanvasPoint(Stroke.Points[PointIndex]),
-			PaintStrokeThickness,
-			PaintBrushColor);
+			Stroke.BrushThickness,
+			Stroke.BrushColor);
 	}
 }
 
@@ -1039,4 +1167,78 @@ ACustomizationPlayerController::EnsureCustomizationWidget()
 		CustomizationWidget->SetCustomizationPlayerController(this);
 	}
 	return CustomizationWidget;
+}
+
+void ACustomizationPlayerController::EnsureMouseCursorWidgets()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (!DefaultMouseCursorWidget && DefaultMouseCursorWidgetClass)
+	{
+		DefaultMouseCursorWidget =
+			CreateWidget<UUserWidget>(this, DefaultMouseCursorWidgetClass);
+	}
+	if (!PaintMouseCursorWidget && PaintMouseCursorWidgetClass)
+	{
+		PaintMouseCursorWidget =
+			CreateWidget<UUserWidget>(this, PaintMouseCursorWidgetClass);
+	}
+}
+
+void ACustomizationPlayerController::ApplyCurrentMouseCursorWidget()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	EnsureMouseCursorWidgets();
+	UUserWidget* TargetCursorWidget = bIsPaintCursorActive
+		? PaintMouseCursorWidget
+		: DefaultMouseCursorWidget;
+	if (!TargetCursorWidget)
+	{
+		return;
+	}
+
+	SetMouseCursorWidget(EMouseCursor::Default, TargetCursorWidget);
+	DefaultMouseCursor = EMouseCursor::Default;
+	CurrentMouseCursor = EMouseCursor::Default;
+	UpdatePaintMouseCursorSize();
+}
+
+void ACustomizationPlayerController::UpdatePaintMouseCursorSize()
+{
+	if (!bIsPaintCursorActive || !PaintMouseCursorWidget)
+	{
+		return;
+	}
+
+	USizeBox* BrushCursorSizeBox = FindPaintCursorSizeBox();
+	if (!BrushCursorSizeBox)
+	{
+		return;
+	}
+
+	const float SafeMinDiameter = FMath::Max(1.0f, MinPaintCursorDiameter);
+	const float SafeMaxDiameter =
+		FMath::Max(SafeMinDiameter, MaxPaintCursorDiameter);
+	const float CursorDiameter = FMath::Clamp(
+		PaintStrokeThickness * PaintCursorBrushSizeScale,
+		SafeMinDiameter,
+		SafeMaxDiameter);
+	BrushCursorSizeBox->SetWidthOverride(CursorDiameter);
+	BrushCursorSizeBox->SetHeightOverride(CursorDiameter);
+}
+
+USizeBox* ACustomizationPlayerController::FindPaintCursorSizeBox() const
+{
+	return PaintMouseCursorWidget
+		? Cast<USizeBox>(
+			PaintMouseCursorWidget->GetWidgetFromName(
+				TEXT("BrushCursorSizeBox")))
+		: nullptr;
 }

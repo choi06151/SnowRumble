@@ -171,3 +171,8 @@
 - 2026-08-11: 메인메뉴 알림 표시를 세션 델리게이트 타이밍에만 의존하지 않도록 보강했다. 세션 실패 메시지를 `USnowRumbleSessionSubsystem` pending 알림에 저장하고 `UMainMenuWidget::NativeTick`에서 소비해 `OnMainMenuAlarmRequested`를 호출한다.
 - 2026-08-11: 메인메뉴 세션 요청 진행 중 안내를 추가했다. 방 만들기는 `방 생성중...`, 방 찾기는 `방 찾는중...`, 빠른참여/참가는 `방 참가중...`을 `ShowMainMenuAlarm()` 경로로 표시한다.
 - 2026-08-11: 닉네임 부적합어 필터를 추가했다. 메인메뉴는 닉네임 입력 확정 시 `적합하지 않은 이름입니다.` 알람을 표시하고 기존 저장 이름으로 입력창을 되돌린다. 로비와 서버 PlayerState도 같은 필터를 사용해 부적합 이름 반영을 차단한다.
+- 2026-08-11: C-11 색칠하기 화면 버튼 계약을 구체화했다. `BrushColorButton`은 언리얼 기본 컬러 피커, `BrushSizeButton`은 press 중 휠 크기 조정, `FillBodyColorButton`은 현재 브러시 색 기반 `BodyColor` 전체 칠하기로 동작하며, stroke별 색과 두께를 저장·복제한다.
+- 2026-08-11: C-11 커스터마이징 WBP 실제 구조에 맞춰 `PaintMode`가 `CustomizationContentSwitcher` 1번 인덱스의 색칠하기 `DrawPanel`을 열도록 조정했다.
+- 2026-08-11: C-11 현재 브러시 색 표시 칸 계약을 추가했다. `BrushColorPreviewBorder` 또는 `BrushColorPreviewImage`를 배치하면 현재 브러시 색을 자동 표시한다.
+- 2026-08-11: C-11 마우스 커서 슬롯 계약을 게임 전체 기본 커서로 확장했다. 메인메뉴, 로비/PvP 계열, 커스터마이징 PlayerController BP에 `DefaultMouseCursorWidgetClass`를 지정하면 각 UI 커서 표시 시 기본 커서가 적용되고, 커스터마이징 `PaintMouseCursorWidgetClass`는 색칠하기 원형 커서로 전환된다.
+- 2026-08-11: C-11 브러시 색 버튼으로 여는 언리얼 기본 컬러 피커가 버튼 왼쪽에 뜨도록 위치 계산 경로를 추가했다.

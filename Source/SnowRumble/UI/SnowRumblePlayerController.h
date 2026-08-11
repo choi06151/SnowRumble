@@ -11,6 +11,7 @@
 
 class UChatWidget;
 class ULoadingScreenWidget;
+class UUserWidget;
 class UVoiceMuteMenuWidget;
 
 UCLASS(Blueprintable)
@@ -143,6 +144,13 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Voice Mute")
 	TSubclassOf<UVoiceMuteMenuWidget> VoiceMuteMenuWidgetClass;
 
+	/** 로비, PvP, 채팅, ESC 메뉴 등 인게임 UI에서 공통으로 사용할 기본 마우스 커서 위젯이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Cursor")
+	TSubclassOf<UUserWidget> DefaultMouseCursorWidgetClass;
+
+	/** 기본 마우스 커서 위젯 슬롯을 소프트웨어 커서로 적용한다. */
+	void ApplyDefaultMouseCursorWidget();
+
 private:
 	/** 로컬 옵션 설정 기준으로 채팅 직접 키 바인딩을 다시 묶는다. */
 	void RebindConfiguredInputKeys();
@@ -244,6 +252,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UVoiceMuteMenuWidget> VoiceMuteMenuWidget;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UUserWidget> DefaultMouseCursorWidget;
 
 	FKey BoundChatInputKey = EKeys::Invalid;
 	FKey BoundChatChannelToggleKey = EKeys::Invalid;

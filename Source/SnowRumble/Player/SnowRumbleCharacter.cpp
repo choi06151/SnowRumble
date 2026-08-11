@@ -788,8 +788,8 @@ void ASnowRumbleCharacter::DrawCustomizationPaintStrokeToCanvas(
 		Canvas->K2_DrawLine(
 			Point - FVector2D(1.0f, 0.0f),
 			Point + FVector2D(1.0f, 0.0f),
-			CustomizationPaintStrokeThickness,
-			CustomizationPaintBrushColor);
+			Stroke.BrushThickness,
+			Stroke.BrushColor);
 		return;
 	}
 
@@ -800,8 +800,8 @@ void ASnowRumbleCharacter::DrawCustomizationPaintStrokeToCanvas(
 		Canvas->K2_DrawLine(
 			ToCanvasPoint(Stroke.Points[PointIndex - 1]),
 			ToCanvasPoint(Stroke.Points[PointIndex]),
-			CustomizationPaintStrokeThickness,
-			CustomizationPaintBrushColor);
+			Stroke.BrushThickness,
+			Stroke.BrushColor);
 	}
 }
 
