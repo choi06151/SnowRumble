@@ -84,6 +84,7 @@ void ULobbyBoardWidget::NativeConstruct()
 	RefreshTeamCountTexts();
 	RefreshReadyStartButtonText();
 	RefreshMatchRoundLimitText();
+	RefreshSelectedButtonVisuals();
 }
 
 void ULobbyBoardWidget::NativeDestruct()
@@ -102,6 +103,7 @@ void ULobbyBoardWidget::NativeTick(
 	RefreshTeamCountTexts();
 	RefreshReadyStartButtonText();
 	RefreshMatchRoundLimitText();
+	RefreshSelectedButtonVisuals();
 }
 
 void ULobbyBoardWidget::ResolveBoardButtons()
@@ -869,6 +871,109 @@ void ULobbyBoardWidget::RefreshMatchRoundLimitText()
 	MatchRoundLimitText->SetText(FText::Format(
 		NSLOCTEXT("SnowRumble", "LobbyMatchRoundLimitFormat", "{0} 라운드"),
 		FText::AsNumber(MatchRoundLimit)));
+}
+
+void ULobbyBoardWidget::RefreshSelectedButtonVisuals()
+{
+	const UWorld* World = GetWorld();
+	const ASnowRumbleLobbyGameState* LobbyGameState = World
+		? World->GetGameState<ASnowRumbleLobbyGameState>()
+		: nullptr;
+	const ASnowRumblePlayerState* PlayerState = GetRequestingPlayerState();
+
+	const ESnowRumbleTeam SelectedTeam = PlayerState
+		? PlayerState->GetLobbyTeam()
+		: ESnowRumbleTeam::None;
+	SetButtonSelectedVisual(
+		RedTeamButton,
+		SelectedTeam == ESnowRumbleTeam::Red);
+	SetButtonSelectedVisual(
+		SkyTeamButton,
+		SelectedTeam == ESnowRumbleTeam::Sky);
+	SetButtonSelectedVisual(
+		GreenTeamButton,
+		SelectedTeam == ESnowRumbleTeam::Green);
+	SetButtonSelectedVisual(
+		YellowTeamButton,
+		SelectedTeam == ESnowRumbleTeam::Yellow);
+	SetButtonSelectedVisual(
+		PurpleTeamButton,
+		SelectedTeam == ESnowRumbleTeam::Purple);
+	SetButtonSelectedVisual(
+		PinkTeamButton,
+		SelectedTeam == ESnowRumbleTeam::Pink);
+	SetButtonSelectedVisual(
+		BlueTeamButton,
+		SelectedTeam == ESnowRumbleTeam::Blue);
+	SetButtonSelectedVisual(
+		WhiteTeamButton,
+		SelectedTeam == ESnowRumbleTeam::White);
+
+	const ESnowRumbleLobbyMode LobbyMode = LobbyGameState
+		? LobbyGameState->GetLobbyMode()
+		: ESnowRumbleLobbyMode::Pvp;
+	SetButtonSelectedVisual(
+		PvpModeButton,
+		LobbyMode == ESnowRumbleLobbyMode::Pvp);
+	SetButtonSelectedVisual(
+		SnowmanModeButton,
+		LobbyMode == ESnowRumbleLobbyMode::Snowman);
+
+	const bool bReady = PlayerState && PlayerState->IsLobbyReady();
+	SetButtonSelectedVisual(
+		ReadyStartButton,
+		!IsRequestingPlayerHost() && bReady);
+
+	const int32 MatchRoundLimit = LobbyGameState
+		? LobbyGameState->GetMatchRoundLimit()
+		: 1;
+	SetButtonSelectedVisual(Round1Button, MatchRoundLimit == 1);
+	SetButtonSelectedVisual(Round3Button, MatchRoundLimit == 3);
+	SetButtonSelectedVisual(Round5Button, MatchRoundLimit == 5);
+
+	const ESnowRumbleGameSpeed GameSpeed = LobbyGameState
+		? LobbyGameState->GetGameSpeed()
+		: ESnowRumbleGameSpeed::Normal;
+	SetButtonSelectedVisual(
+		SlowGameSpeedButton,
+		GameSpeed == ESnowRumbleGameSpeed::Slow);
+	SetButtonSelectedVisual(
+		NormalGameSpeedButton,
+		GameSpeed == ESnowRumbleGameSpeed::Normal);
+	SetButtonSelectedVisual(
+		FastGameSpeedButton,
+		GameSpeed == ESnowRumbleGameSpeed::Fast);
+}
+
+void ULobbyBoardWidget::SetButtonSelectedVisual(UButton* Button, bool bSelected)
+{
+	if (!Button)
+	{
+		return;
+	}
+
+	FButtonStyle* CachedStyle = DefaultButtonStyles.Find(Button);
+	if (!CachedStyle)
+	{
+		DefaultButtonStyles.Add(Button, Button->GetStyle());
+		CachedStyle = DefaultButtonStyles.Find(Button);
+	}
+	if (!CachedStyle)
+	{
+		return;
+	}
+
+	if (!bSelected)
+	{
+		Button->SetStyle(*CachedStyle);
+		return;
+	}
+
+	FButtonStyle SelectedStyle = *CachedStyle;
+	SelectedStyle.SetNormal(CachedStyle->Pressed);
+	SelectedStyle.SetHovered(CachedStyle->Pressed);
+	SelectedStyle.SetPressed(CachedStyle->Pressed);
+	Button->SetStyle(SelectedStyle);
 }
 
 void ULobbyBoardWidget::SubmitMatchRoundLimit(int32 NewRoundLimit)

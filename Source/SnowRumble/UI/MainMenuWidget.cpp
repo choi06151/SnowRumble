@@ -20,6 +20,17 @@ void UMainMenuWidget::NativeConstruct()
 	SetRoomCodeJoinPanelVisible(false);
 	InitializePlayerNameInput();
 	SetStatusMessage(TEXT("Ready"));
+	if (MainMenuAlarmText)
+	{
+		MainMenuAlarmText->SetText(FText::GetEmpty());
+		MainMenuAlarmText->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	if (AlarmText)
+	{
+		AlarmText->SetText(FText::GetEmpty());
+		AlarmText->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	ConsumePendingMainMenuAlarm();
 	RefreshJoinButtonEnabled();
 
 	if (USnowRumbleSessionSubsystem* SessionSubsystem = GetSessionSubsystem())
@@ -46,9 +57,17 @@ void UMainMenuWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
+void UMainMenuWidget::NativeTick(
+	const FGeometry& MyGeometry,
+	float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	ConsumePendingMainMenuAlarm();
+}
+
 void UMainMenuWidget::HostLanGame(int32 MaxPlayers, const FString& RoomName)
 {
-	SavePlayerNameInput();
 	if (USnowRumbleSessionSubsystem* SessionSubsystem = GetSessionSubsystem())
 	{
 		SessionSubsystem->HostLanSession(MaxPlayers, RoomName);
@@ -65,7 +84,6 @@ void UMainMenuWidget::FindLanGames()
 
 void UMainMenuWidget::QuickJoinLanGame()
 {
-	SavePlayerNameInput();
 	if (USnowRumbleSessionSubsystem* SessionSubsystem = GetSessionSubsystem())
 	{
 		SessionSubsystem->QuickJoinLanSession();
@@ -74,7 +92,6 @@ void UMainMenuWidget::QuickJoinLanGame()
 
 void UMainMenuWidget::JoinLanGame(int32 ResultIndex)
 {
-	SavePlayerNameInput();
 	if (USnowRumbleSessionSubsystem* SessionSubsystem = GetSessionSubsystem())
 	{
 		SessionSubsystem->JoinLanSession(ResultIndex);
@@ -83,7 +100,6 @@ void UMainMenuWidget::JoinLanGame(int32 ResultIndex)
 
 void UMainMenuWidget::JoinLanGameByRoomCode(const FString& RoomCode)
 {
-	SavePlayerNameInput();
 	if (USnowRumbleSessionSubsystem* SessionSubsystem = GetSessionSubsystem())
 	{
 		SessionSubsystem->JoinLanSessionByRoomCode(RoomCode);
@@ -123,6 +139,38 @@ void UMainMenuWidget::HandleSessionStateChanged(
 	const FString& Message)
 {
 	SetStatusMessage(Message.IsEmpty() ? TEXT("Session state changed") : Message);
+	if (State == ESnowRumbleSessionState::InProgress)
+	{
+		const FText ProgressText = GetSessionProgressAlarmText(Operation);
+		if (!ProgressText.IsEmpty())
+		{
+			ShowMainMenuAlarm(ProgressText);
+		}
+	}
+	if (State == ESnowRumbleSessionState::Failed)
+	{
+		switch (Operation)
+		{
+		case ESnowRumbleSessionOperation::QuickJoin:
+		case ESnowRumbleSessionOperation::Join:
+		case ESnowRumbleSessionOperation::JoinByCode:
+			ShowMainMenuAlarm(FText::FromString(
+				Message.IsEmpty()
+					? FString(TEXT("방이 존재하지 않습니다."))
+					: Message));
+			if (USnowRumbleSessionSubsystem* SessionSubsystem =
+				GetSessionSubsystem())
+			{
+				SessionSubsystem->SetPendingMainMenuAlarmMessage(
+					Message.IsEmpty()
+						? FString(TEXT("방이 존재하지 않습니다."))
+						: Message);
+			}
+			break;
+		default:
+			break;
+		}
+	}
 	if (Operation == ESnowRumbleSessionOperation::JoinByCode
 		&& State == ESnowRumbleSessionState::Succeeded)
 	{
@@ -136,6 +184,17 @@ void UMainMenuWidget::HandleSearchCompleted(
 	const TArray<FSnowRumbleSessionInfo>& Results)
 {
 	SetStatusMessage(FString::Printf(TEXT("Found %d LAN session(s)"), Results.Num()));
+	if (Results.IsEmpty())
+	{
+		if (USnowRumbleSessionSubsystem* SessionSubsystem =
+			GetSessionSubsystem())
+		{
+			SessionSubsystem->SetPendingMainMenuAlarmMessage(
+				TEXT("방이 존재하지 않습니다."));
+		}
+		ShowMainMenuAlarm(
+			NSLOCTEXT("SnowRumble", "MainMenuNoSessionFound", "방이 존재하지 않습니다."));
+	}
 	RefreshJoinButtonEnabled();
 	OnMainMenuSearchCompleted(Results);
 }
@@ -162,6 +221,15 @@ void UMainMenuWidget::HandleSettingsButtonClicked()
 		Cast<AMainMenuPlayerController>(GetOwningPlayer()))
 	{
 		MainMenuPlayerController->ShowOptionsMenu();
+	}
+}
+
+void UMainMenuWidget::HandleCustomizationButtonClicked()
+{
+	if (AMainMenuPlayerController* MainMenuPlayerController =
+		Cast<AMainMenuPlayerController>(GetOwningPlayer()))
+	{
+		MainMenuPlayerController->TravelToCustomizationLevel();
 	}
 }
 
@@ -208,6 +276,13 @@ void UMainMenuWidget::BindMenuButtons()
 			&UMainMenuWidget::HandleSettingsButtonClicked);
 	}
 
+	if (CustomizationButton)
+	{
+		CustomizationButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UMainMenuWidget::HandleCustomizationButtonClicked);
+	}
+
 	if (ConfirmRoomCodeJoinButton)
 	{
 		ConfirmRoomCodeJoinButton->OnClicked.AddUniqueDynamic(
@@ -220,6 +295,13 @@ void UMainMenuWidget::BindMenuButtons()
 		CancelRoomCodeJoinButton->OnClicked.AddUniqueDynamic(
 			this,
 			&UMainMenuWidget::HandleCancelRoomCodeJoinClicked);
+	}
+
+	if (PlayerNameTextBox)
+	{
+		PlayerNameTextBox->OnTextCommitted.AddUniqueDynamic(
+			this,
+			&UMainMenuWidget::HandlePlayerNameTextCommitted);
 	}
 }
 
@@ -245,6 +327,11 @@ void UMainMenuWidget::UnbindMenuButtons()
 		SettingsButton->OnClicked.RemoveAll(this);
 	}
 
+	if (CustomizationButton)
+	{
+		CustomizationButton->OnClicked.RemoveAll(this);
+	}
+
 	if (ConfirmRoomCodeJoinButton)
 	{
 		ConfirmRoomCodeJoinButton->OnClicked.RemoveAll(this);
@@ -253,6 +340,11 @@ void UMainMenuWidget::UnbindMenuButtons()
 	if (CancelRoomCodeJoinButton)
 	{
 		CancelRoomCodeJoinButton->OnClicked.RemoveAll(this);
+	}
+
+	if (PlayerNameTextBox)
+	{
+		PlayerNameTextBox->OnTextCommitted.RemoveAll(this);
 	}
 }
 
@@ -271,6 +363,19 @@ void UMainMenuWidget::SetRoomCodeJoinPanelVisible(bool bVisible)
 	}
 }
 
+void UMainMenuWidget::HandlePlayerNameTextCommitted(
+	const FText& Text,
+	ETextCommit::Type CommitMethod)
+{
+	if (CommitMethod == ETextCommit::OnCleared)
+	{
+		RestorePlayerNameInput();
+		return;
+	}
+
+	ValidateAndSavePlayerNameInput();
+}
+
 void UMainMenuWidget::SavePlayerNameInput()
 {
 	if (!PlayerNameTextBox)
@@ -286,6 +391,56 @@ void UMainMenuWidget::SavePlayerNameInput()
 	{
 		IdentitySubsystem->SetDesiredPlayerName(
 			PlayerNameTextBox->GetText().ToString());
+	}
+}
+
+bool UMainMenuWidget::ValidateAndSavePlayerNameInput()
+{
+	if (!PlayerNameTextBox)
+	{
+		return true;
+	}
+
+	UGameInstance* GameInstance = GetGameInstance();
+	ULocalPlayerIdentitySubsystem* IdentitySubsystem = GameInstance
+		? GameInstance->GetSubsystem<ULocalPlayerIdentitySubsystem>()
+		: nullptr;
+	if (!IdentitySubsystem)
+	{
+		return true;
+	}
+
+	if (!IdentitySubsystem->TrySetDesiredPlayerName(
+		PlayerNameTextBox->GetText().ToString()))
+	{
+		ShowMainMenuAlarm(NSLOCTEXT(
+			"SnowRumble",
+			"MainMenuInvalidPlayerName",
+			"적합하지 않은 이름입니다."));
+		RestorePlayerNameInput();
+		return false;
+	}
+
+	PlayerNameTextBox->SetText(
+		FText::FromString(IdentitySubsystem->GetDesiredPlayerName()));
+	return true;
+}
+
+void UMainMenuWidget::RestorePlayerNameInput()
+{
+	if (!PlayerNameTextBox)
+	{
+		return;
+	}
+
+	UGameInstance* GameInstance = GetGameInstance();
+	const ULocalPlayerIdentitySubsystem* IdentitySubsystem = GameInstance
+		? GameInstance->GetSubsystem<ULocalPlayerIdentitySubsystem>()
+		: nullptr;
+	if (IdentitySubsystem && IdentitySubsystem->HasDesiredPlayerName())
+	{
+		PlayerNameTextBox->SetText(
+			FText::FromString(IdentitySubsystem->GetDesiredPlayerName()));
 	}
 }
 
@@ -312,6 +467,64 @@ void UMainMenuWidget::SetStatusMessage(const FString& Message)
 	if (StatusTextBlock)
 	{
 		StatusTextBlock->SetText(FText::FromString(Message));
+	}
+}
+
+void UMainMenuWidget::ConsumePendingMainMenuAlarm()
+{
+	if (USnowRumbleSessionSubsystem* SessionSubsystem = GetSessionSubsystem())
+	{
+		const FString AlarmMessage =
+			SessionSubsystem->ConsumePendingMainMenuAlarmMessage();
+		if (!AlarmMessage.IsEmpty())
+		{
+			ShowMainMenuAlarm(FText::FromString(AlarmMessage));
+			return;
+		}
+	}
+}
+
+void UMainMenuWidget::ShowMainMenuAlarm(const FText& Message)
+{
+	OnMainMenuAlarmRequested(Message);
+
+	if (MainMenuAlarmText)
+	{
+		MainMenuAlarmText->SetText(Message);
+		MainMenuAlarmText->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	}
+	if (AlarmText)
+	{
+		AlarmText->SetText(Message);
+		AlarmText->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	}
+
+	if (MainMenuAlarmAnimation)
+	{
+		PlayAnimation(MainMenuAlarmAnimation);
+	}
+	else if (AlarmAnimation)
+	{
+		PlayAnimation(AlarmAnimation);
+	}
+}
+
+FText UMainMenuWidget::GetSessionProgressAlarmText(
+	ESnowRumbleSessionOperation Operation) const
+{
+	switch (Operation)
+	{
+	case ESnowRumbleSessionOperation::Host:
+		return NSLOCTEXT("SnowRumble", "MainMenuHostInProgress", "방 생성중...");
+	case ESnowRumbleSessionOperation::Search:
+		return NSLOCTEXT("SnowRumble", "MainMenuSearchInProgress", "방 찾는중...");
+	case ESnowRumbleSessionOperation::QuickJoin:
+	case ESnowRumbleSessionOperation::Join:
+	case ESnowRumbleSessionOperation::JoinByCode:
+		return NSLOCTEXT("SnowRumble", "MainMenuJoinInProgress", "방 참가중...");
+	case ESnowRumbleSessionOperation::None:
+	default:
+		return FText::GetEmpty();
 	}
 }
 

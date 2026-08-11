@@ -5,8 +5,10 @@
 #include "../Game/SnowRumbleLobbyGameState.h"
 #include "../Online/SnowRumbleSessionSubsystem.h"
 #include "../Player/LocalPlayerIdentitySubsystem_C.h"
+#include "../Player/SnowRumbleCustomizationSubsystem_C.h"
 #include "LobbyPlayerController.h"
 #include "Components/Border.h"
+#include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/PlayerController.h"
@@ -70,11 +72,14 @@ void ULobbyWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	SetVoiceSpeakingPresentationVisible(false);
 	RefreshLobbyBindings();
 	ApplyLocalPlayerIdentity();
+	ApplyLocalPlayerCustomization();
 	RefreshRoomCodeText();
 	RefreshLobbyStatusTexts();
 	RefreshEventLogText();
+	RefreshVoiceSpeakingNamesText();
 	OnLobbyStateChanged();
 }
 
@@ -93,9 +98,11 @@ void ULobbyWidget::NativeTick(
 
 	RefreshLobbyBindings();
 	ApplyLocalPlayerIdentity();
+	ApplyLocalPlayerCustomization();
 	RefreshRoomCodeText();
 	RefreshLobbyStatusTexts();
 	RefreshEventLogText();
+	RefreshVoiceSpeakingNamesText();
 }
 
 TArray<ASnowRumblePlayerState*> ULobbyWidget::GetLobbyPlayers() const
@@ -126,6 +133,15 @@ void ULobbyWidget::AddEventLogMessage(const FText& Message)
 
 void ULobbyWidget::RequestSetLocalPlayerName(const FString& NewName)
 {
+	if (!ULocalPlayerIdentitySubsystem::IsPlayerNameAllowed(NewName))
+	{
+		ShowInvalidActionFeedback(NSLOCTEXT(
+			"SnowRumble",
+			"LobbyInvalidPlayerName",
+			"적합하지 않은 이름입니다."));
+		return;
+	}
+
 	if (ASnowRumblePlayerState* PlayerState =
 		GetLocalSnowRumblePlayerState())
 	{
@@ -266,6 +282,55 @@ void ULobbyWidget::ApplyLocalPlayerIdentity()
 	LastIdentityApplyRequestTime = CurrentTime;
 }
 
+void ULobbyWidget::ApplyLocalPlayerCustomization()
+{
+	ASnowRumblePlayerState* PlayerState = GetLocalSnowRumblePlayerState();
+	if (!PlayerState)
+	{
+		return;
+	}
+
+	UGameInstance* GameInstance = GetGameInstance();
+	const USnowRumbleCustomizationSubsystem* CustomizationSubsystem = GameInstance
+		? GameInstance->GetSubsystem<USnowRumbleCustomizationSubsystem>()
+		: nullptr;
+	if (!CustomizationSubsystem)
+	{
+		return;
+	}
+
+	const FSnowRumbleCustomizationData DesiredCustomizationData =
+		CustomizationSubsystem->GetCustomizationData();
+	if (PlayerState->GetCustomizationData() == DesiredCustomizationData)
+	{
+		CustomizationAppliedPlayerState = PlayerState;
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	const double CurrentTime = World ? World->GetTimeSeconds() : 0.0;
+	constexpr double RetryIntervalSeconds = 0.5;
+	if (CustomizationAppliedPlayerState == PlayerState
+		&& CurrentTime - LastCustomizationApplyRequestTime
+			< RetryIntervalSeconds)
+	{
+		return;
+	}
+
+	if (ALobbyPlayerController* LobbyPlayerController =
+		Cast<ALobbyPlayerController>(GetOwningPlayer()))
+	{
+		LobbyPlayerController->RequestApplyCustomizationData(
+			DesiredCustomizationData);
+	}
+	else
+	{
+		PlayerState->RequestSetCustomizationData(DesiredCustomizationData);
+	}
+	CustomizationAppliedPlayerState = PlayerState;
+	LastCustomizationApplyRequestTime = CurrentTime;
+}
+
 void ULobbyWidget::RefreshLobbyBindings()
 {
 	ASnowRumbleLobbyGameState* CurrentGameState = GetLobbyGameState();
@@ -403,6 +468,85 @@ void ULobbyWidget::RefreshEventLogText()
 	EventLogText->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 }
 
+void ULobbyWidget::RefreshVoiceSpeakingNamesText()
+{
+	if (!VoiceSpeakingNamesText && !VoiceSpeakingIcon
+		&& !VoiceSpeakingContainer)
+	{
+		return;
+	}
+
+	FString SpeakingNames;
+	for (const ASnowRumblePlayerState* PlayerState : GetLobbyPlayers())
+	{
+		if (!ShouldShowVoiceSpeakingPlayer(PlayerState))
+		{
+			continue;
+		}
+
+		if (!SpeakingNames.IsEmpty())
+		{
+			SpeakingNames += LINE_TERMINATOR;
+		}
+		SpeakingNames += PlayerState->GetLobbyPlayerName();
+	}
+
+	if (SpeakingNames.IsEmpty())
+	{
+		if (VoiceSpeakingNamesText)
+		{
+			VoiceSpeakingNamesText->SetText(FText::GetEmpty());
+		}
+		SetVoiceSpeakingPresentationVisible(false);
+		return;
+	}
+
+	if (VoiceSpeakingNamesText)
+	{
+		VoiceSpeakingNamesText->SetText(FText::FromString(SpeakingNames));
+	}
+	SetVoiceSpeakingPresentationVisible(true);
+}
+
+void ULobbyWidget::SetVoiceSpeakingPresentationVisible(bool bVisible)
+{
+	const ESlateVisibility TargetVisibility = bVisible
+		? ESlateVisibility::SelfHitTestInvisible
+		: ESlateVisibility::Collapsed;
+	if (VoiceSpeakingContainer)
+	{
+		VoiceSpeakingContainer->SetVisibility(TargetVisibility);
+	}
+	if (VoiceSpeakingNamesText)
+	{
+		VoiceSpeakingNamesText->SetVisibility(TargetVisibility);
+	}
+	if (VoiceSpeakingIcon)
+	{
+		VoiceSpeakingIcon->SetVisibility(TargetVisibility);
+	}
+}
+
+bool ULobbyWidget::ShouldShowVoiceSpeakingPlayer(
+	const ASnowRumblePlayerState* SenderPlayerState) const
+{
+	if (!SenderPlayerState || !SenderPlayerState->IsVoiceSpeaking())
+	{
+		return false;
+	}
+	if (SenderPlayerState->GetVoiceChannel() == ESnowRumbleVoiceChannel::All)
+	{
+		return true;
+	}
+
+	const ASnowRumblePlayerState* LocalPlayerState =
+		GetLocalSnowRumblePlayerState();
+	return LocalPlayerState
+		&& SenderPlayerState->GetLobbyTeam() != ESnowRumbleTeam::None
+		&& SenderPlayerState->GetLobbyTeam()
+			== LocalPlayerState->GetLobbyTeam();
+}
+
 void ULobbyWidget::ShowInvalidActionFeedback(const FText& ReasonText)
 {
 	if (InvalidActionReasonText)
@@ -416,6 +560,31 @@ void ULobbyWidget::ShowInvalidActionFeedback(const FText& ReasonText)
 		PlayAnimation(InvalidActionAnimation);
 	}
 	OnInvalidActionFeedback(ReasonText);
+}
+
+void ULobbyWidget::ShowPersonalTextAlarm(const FText& Message)
+{
+	if (Message.IsEmpty())
+	{
+		return;
+	}
+
+	UTextBlock* TargetAlarmText = PersonalAlarmText
+		? PersonalAlarmText.Get()
+		: InvalidActionReasonText.Get();
+	UWidgetAnimation* TargetAnimation = PersonalAlarmAnimation
+		? PersonalAlarmAnimation.Get()
+		: InvalidActionAnimation.Get();
+
+	if (TargetAlarmText)
+	{
+		TargetAlarmText->SetText(Message);
+		TargetAlarmText->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	}
+	if (TargetAnimation)
+	{
+		PlayAnimation(TargetAnimation);
+	}
 }
 
 void ULobbyWidget::UnbindLobbyBindings()

@@ -11,6 +11,7 @@ class UButton;
 class UEditableTextBox;
 class UTextBlock;
 class UWidget;
+class UWidgetAnimation;
 
 UCLASS(Abstract, Blueprintable)
 class SNOWRUMBLE_API UMainMenuWidget : public UUserWidget
@@ -49,6 +50,9 @@ public:
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+	virtual void NativeTick(
+		const FGeometry& MyGeometry,
+		float InDeltaTime) override;
 
 	/** 있으면 자동으로 HostLanGame(8)에 연결되는 버튼이다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Main Menu")
@@ -65,6 +69,10 @@ protected:
 	/** 있으면 공통 옵션 메뉴를 여는 설정 버튼이다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Main Menu")
 	TObjectPtr<UButton> SettingsButton;
+
+	/** 있으면 커스터마이징 레벨로 이동하는 버튼이다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Main Menu")
+	TObjectPtr<UButton> CustomizationButton;
 
 	/** 있으면 참가하기 버튼을 눌렀을 때 표시되는 방 코드 입력 패널이다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Main Menu")
@@ -90,6 +98,22 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Main Menu")
 	TObjectPtr<UTextBlock> StatusTextBlock;
 
+	/** 있으면 메인메뉴 진입 알림을 자동 표시하는 전용 TextBlock이다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Main Menu")
+	TObjectPtr<UTextBlock> MainMenuAlarmText;
+
+	/** MainMenuAlarmText 대신 AlarmText 이름을 쓴 WBP용 호환 바인딩이다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Main Menu")
+	TObjectPtr<UTextBlock> AlarmText;
+
+	/** WBP에 같은 이름으로 만든 메인메뉴 진입 알림 애니메이션이다. */
+	UPROPERTY(Transient, meta = (BindWidgetAnimOptional))
+	TObjectPtr<UWidgetAnimation> MainMenuAlarmAnimation;
+
+	/** MainMenuAlarmAnimation 대신 AlarmAnimation 이름을 쓴 WBP용 호환 바인딩이다. */
+	UPROPERTY(Transient, meta = (BindWidgetAnimOptional))
+	TObjectPtr<UWidgetAnimation> AlarmAnimation;
+
 	/** 세션 작업 상태 변경을 Blueprint UI에 전달한다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Main Menu")
 	void OnMainMenuSessionStateChanged(
@@ -105,6 +129,10 @@ protected:
 	/** 방 코드 입력 패널이 열렸을 때 WBP가 추가 연출을 연결할 수 있다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Main Menu")
 	void OnRoomCodeJoinPromptRequested();
+
+	/** 메인메뉴 진입 알림이 표시될 때 WBP가 추가 연출을 연결할 수 있다. */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Main Menu")
+	void OnMainMenuAlarmRequested(const FText& Message);
 
 private:
 	USnowRumbleSessionSubsystem* GetSessionSubsystem() const;
@@ -131,17 +159,31 @@ private:
 	void HandleSettingsButtonClicked();
 
 	UFUNCTION()
+	void HandleCustomizationButtonClicked();
+
+	UFUNCTION()
 	void HandleConfirmRoomCodeJoinClicked();
 
 	UFUNCTION()
 	void HandleCancelRoomCodeJoinClicked();
+
+	UFUNCTION()
+	void HandlePlayerNameTextCommitted(
+		const FText& Text,
+		ETextCommit::Type CommitMethod);
 
 	void BindMenuButtons();
 	void UnbindMenuButtons();
 	void SetRoomCodeJoinPanelVisible(bool bVisible);
 	void InitializePlayerNameInput();
 	void SavePlayerNameInput();
+	bool ValidateAndSavePlayerNameInput();
+	void RestorePlayerNameInput();
 	void SetStatusMessage(const FString& Message);
+	void ConsumePendingMainMenuAlarm();
+	void ShowMainMenuAlarm(const FText& Message);
+	FText GetSessionProgressAlarmText(
+		ESnowRumbleSessionOperation Operation) const;
 	void RefreshJoinButtonEnabled();
 
 	static const TArray<FSnowRumbleSessionInfo> EmptyResults;

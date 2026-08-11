@@ -11,7 +11,9 @@
 class ASnowRumbleLobbyGameState;
 class ASnowRumblePlayerState;
 class UBorder;
+class UImage;
 class UTextBlock;
+class UWidget;
 class UWidgetAnimation;
 
 UCLASS(Abstract, Blueprintable)
@@ -60,6 +62,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby")
 	void ShowInvalidActionFeedback(const FText& ReasonText);
 
+	/** 로컬 플레이어에게만 보이는 짧은 상태 알림을 표시한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Personal Alarm")
+	void ShowPersonalTextAlarm(const FText& Message);
+
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
@@ -83,9 +89,29 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
 	TObjectPtr<UTextBlock> InvalidActionReasonText;
 
+	/** WBP에 같은 이름으로 만든 로컬 개인 알림 TextBlock이다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UTextBlock> PersonalAlarmText;
+
+	/** WBP에 같은 이름으로 만든 로컬 개인 알림 애니메이션이다. */
+	UPROPERTY(Transient, meta = (BindWidgetAnimOptional))
+	TObjectPtr<UWidgetAnimation> PersonalAlarmAnimation;
+
 	/** WBP에 같은 이름으로 만든 누적 이벤트 로그 TextBlock이다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
 	TObjectPtr<UTextBlock> EventLogText;
+
+	/** WBP에 같은 이름으로 만든 현재 음성 송출 중인 플레이어 이름 TextBlock이다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UTextBlock> VoiceSpeakingNamesText;
+
+	/** WBP에 같은 이름으로 만든 현재 음성 송출 아이콘 Image다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UImage> VoiceSpeakingIcon;
+
+	/** WBP에서 아이콘과 이름 텍스트를 함께 감싸는 위젯이다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UWidget> VoiceSpeakingContainer;
 
 	/** 이벤트 로그 한 줄이 화면에 유지되는 시간이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Lobby", meta = (ClampMin = "0.0"))
@@ -131,10 +157,15 @@ private:
 	ASnowRumblePlayerState* GetLocalSnowRumblePlayerState() const;
 	ASnowRumbleLobbyGameState* GetLobbyGameState() const;
 	void ApplyLocalPlayerIdentity();
+	void ApplyLocalPlayerCustomization();
 	void RefreshLobbyBindings();
 	void RefreshRoomCodeText();
 	void RefreshLobbyStatusTexts();
 	void RefreshEventLogText();
+	void RefreshVoiceSpeakingNamesText();
+	void SetVoiceSpeakingPresentationVisible(bool bVisible);
+	bool ShouldShowVoiceSpeakingPlayer(
+		const ASnowRumblePlayerState* SenderPlayerState) const;
 	void UnbindLobbyBindings();
 
 	UFUNCTION()
@@ -146,6 +177,9 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<ASnowRumblePlayerState> IdentityAppliedPlayerState;
 
+	UPROPERTY(Transient)
+	TObjectPtr<ASnowRumblePlayerState> CustomizationAppliedPlayerState;
+
 	struct FEventLogEntry
 	{
 		FText Message;
@@ -155,4 +189,5 @@ private:
 	TArray<FEventLogEntry> EventLogEntries;
 
 	double LastIdentityApplyRequestTime = -1.0;
+	double LastCustomizationApplyRequestTime = -1.0;
 };

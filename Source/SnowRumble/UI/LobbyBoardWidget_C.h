@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Styling/SlateTypes.h"
 #include "../Game/SnowRumbleMatchSubsystem_C.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "../Interaction/LobbyInteractionBoard_C.h"
@@ -339,6 +340,12 @@ private:
 	/** 현재 로비 라운드 수 설정 표시를 갱신한다. */
 	void RefreshMatchRoundLimitText();
 
+	/** 현재 선택된 게시판 옵션 버튼의 눌림 표시를 갱신한다. */
+	void RefreshSelectedButtonVisuals();
+
+	/** 버튼 기본 스타일을 보관한 뒤 선택 상태에서는 Pressed 스타일을 유지한다. */
+	void SetButtonSelectedVisual(UButton* Button, bool bSelected);
+
 	/** 호스트가 로비 라운드 수를 서버 값으로 변경한다. */
 	void SubmitMatchRoundLimit(int32 NewRoundLimit);
 
@@ -374,4 +381,6 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<ALobbyPlayerController> FocusedPlayerController;
+
+	TMap<UButton*, FButtonStyle> DefaultButtonStyles;
 };

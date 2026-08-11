@@ -7,9 +7,11 @@
 #include "../Player/SnowRumbleCharacter.h"
 #include "Components/PanelWidget.h"
 #include "Components/ProgressBar.h"
+#include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "EngineUtils.h"
+#include "GameFramework/GameStateBase.h"
 #include "HealthBarWidget.h"
 #include "Blueprint/WidgetTree.h"
 
@@ -36,6 +38,7 @@ void UMainHUDWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	SetVoiceSpeakingPresentationVisible(false);
 	RefreshHealthBars();
 	RefreshCombatHudPresentation();
 	RefreshStartCountdownPresentation();
@@ -44,6 +47,7 @@ void UMainHUDWidget::NativeConstruct()
 	RefreshEndRoundPresentation();
 	RefreshTeamScorePresentation();
 	RefreshEventLogText();
+	RefreshVoiceSpeakingNamesText();
 }
 
 void UMainHUDWidget::NativeTick(
@@ -60,6 +64,7 @@ void UMainHUDWidget::NativeTick(
 	RefreshEndRoundPresentation();
 	RefreshTeamScorePresentation();
 	RefreshEventLogText();
+	RefreshVoiceSpeakingNamesText();
 }
 
 void UMainHUDWidget::AddEventLogMessage(const FText& Message)
@@ -77,6 +82,24 @@ void UMainHUDWidget::AddEventLogMessage(const FText& Message)
 		: EventLogEntryVisibleSeconds;
 	EventLogEntries.Add(NewEntry);
 	RefreshEventLogText();
+}
+
+void UMainHUDWidget::ShowPersonalTextAlarm(const FText& Message)
+{
+	if (Message.IsEmpty())
+	{
+		return;
+	}
+
+	if (PersonalAlarmText)
+	{
+		PersonalAlarmText->SetText(Message);
+		PersonalAlarmText->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	}
+	if (PersonalAlarmAnimation)
+	{
+		PlayAnimation(PersonalAlarmAnimation);
+	}
 }
 
 void UMainHUDWidget::RefreshHealthBars()
@@ -412,6 +435,98 @@ void UMainHUDWidget::RefreshEventLogText()
 
 	EventLogText->SetText(FText::FromString(CombinedLog));
 	EventLogText->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+}
+
+void UMainHUDWidget::RefreshVoiceSpeakingNamesText()
+{
+	if (!VoiceSpeakingNamesText && !VoiceSpeakingIcon
+		&& !VoiceSpeakingContainer)
+	{
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	const AGameStateBase* GameState = World ? World->GetGameState() : nullptr;
+	if (!GameState)
+	{
+		SetVoiceSpeakingPresentationVisible(false);
+		return;
+	}
+
+	FString SpeakingNames;
+	for (APlayerState* PlayerState : GameState->PlayerArray)
+	{
+		const ASnowRumblePlayerState* SnowRumblePlayerState =
+			Cast<ASnowRumblePlayerState>(PlayerState);
+		if (!SnowRumblePlayerState
+			|| !ShouldShowVoiceSpeakingPlayer(SnowRumblePlayerState))
+		{
+			continue;
+		}
+
+		if (!SpeakingNames.IsEmpty())
+		{
+			SpeakingNames += LINE_TERMINATOR;
+		}
+		SpeakingNames += SnowRumblePlayerState->GetLobbyPlayerName();
+	}
+
+	if (SpeakingNames.IsEmpty())
+	{
+		if (VoiceSpeakingNamesText)
+		{
+			VoiceSpeakingNamesText->SetText(FText::GetEmpty());
+		}
+		SetVoiceSpeakingPresentationVisible(false);
+		return;
+	}
+
+	if (VoiceSpeakingNamesText)
+	{
+		VoiceSpeakingNamesText->SetText(FText::FromString(SpeakingNames));
+	}
+	SetVoiceSpeakingPresentationVisible(true);
+}
+
+void UMainHUDWidget::SetVoiceSpeakingPresentationVisible(bool bVisible)
+{
+	const ESlateVisibility TargetVisibility = bVisible
+		? ESlateVisibility::SelfHitTestInvisible
+		: ESlateVisibility::Collapsed;
+	if (VoiceSpeakingContainer)
+	{
+		VoiceSpeakingContainer->SetVisibility(TargetVisibility);
+	}
+	if (VoiceSpeakingNamesText)
+	{
+		VoiceSpeakingNamesText->SetVisibility(TargetVisibility);
+	}
+	if (VoiceSpeakingIcon)
+	{
+		VoiceSpeakingIcon->SetVisibility(TargetVisibility);
+	}
+}
+
+bool UMainHUDWidget::ShouldShowVoiceSpeakingPlayer(
+	const ASnowRumblePlayerState* SenderPlayerState) const
+{
+	if (!SenderPlayerState || !SenderPlayerState->IsVoiceSpeaking())
+	{
+		return false;
+	}
+	if (SenderPlayerState->GetVoiceChannel() == ESnowRumbleVoiceChannel::All)
+	{
+		return true;
+	}
+
+	const APlayerController* OwningPlayerController = GetOwningPlayer();
+	const ASnowRumblePlayerState* LocalPlayerState = OwningPlayerController
+		? OwningPlayerController->GetPlayerState<ASnowRumblePlayerState>()
+		: nullptr;
+	return LocalPlayerState
+		&& SenderPlayerState->GetLobbyTeam() != ESnowRumbleTeam::None
+		&& SenderPlayerState->GetLobbyTeam()
+			== LocalPlayerState->GetLobbyTeam();
 }
 
 void UMainHUDWidget::SetTeamScoreText(

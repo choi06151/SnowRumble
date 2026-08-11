@@ -6,6 +6,8 @@
 #include "Net/UnrealNetwork.h"
 #include "SnowRumbleLobbyGameMode.h"
 #include "SnowRumbleLobbyGameState.h"
+#include "../Player/SnowRumbleCustomizationSubsystem_C.h"
+#include "../Player/LocalPlayerIdentitySubsystem_C.h"
 #include "../UI/SnowRumblePlayerController.h"
 
 namespace
@@ -76,6 +78,22 @@ bool ASnowRumblePlayerState::IsLobbyHost() const
 	return bLobbyHost;
 }
 
+bool ASnowRumblePlayerState::IsVoiceSpeaking() const
+{
+	return bVoiceSpeaking;
+}
+
+ESnowRumbleVoiceChannel ASnowRumblePlayerState::GetVoiceChannel() const
+{
+	return VoiceChannel;
+}
+
+FSnowRumbleCustomizationData
+ASnowRumblePlayerState::GetCustomizationData() const
+{
+	return CustomizationData;
+}
+
 void ASnowRumblePlayerState::AssignLobbyTeamFromServer(ESnowRumbleTeam NewTeam)
 {
 	if (!HasAuthority())
@@ -99,6 +117,28 @@ void ASnowRumblePlayerState::AssignLobbyHostFromServer(bool bNewLobbyHost)
 
 	bLobbyHost = bNewLobbyHost;
 	BroadcastLobbyPlayerChanged();
+}
+
+void ASnowRumblePlayerState::SetVoiceSpeakingFromServer(
+	bool bNewVoiceSpeaking)
+{
+	if (!HasAuthority() || bVoiceSpeaking == bNewVoiceSpeaking)
+	{
+		return;
+	}
+
+	bVoiceSpeaking = bNewVoiceSpeaking;
+}
+
+void ASnowRumblePlayerState::SetVoiceChannelFromServer(
+	ESnowRumbleVoiceChannel NewVoiceChannel)
+{
+	if (!HasAuthority() || VoiceChannel == NewVoiceChannel)
+	{
+		return;
+	}
+
+	VoiceChannel = NewVoiceChannel;
 }
 
 void ASnowRumblePlayerState::RequestSetLobbyPlayerName(
@@ -150,6 +190,19 @@ void ASnowRumblePlayerState::RequestStartLobbyMatch()
 	}
 }
 
+void ASnowRumblePlayerState::RequestSetCustomizationData(
+	const FSnowRumbleCustomizationData& NewData)
+{
+	if (HasAuthority())
+	{
+		ServerSetCustomizationData_Implementation(NewData);
+	}
+	else
+	{
+		ServerSetCustomizationData(NewData);
+	}
+}
+
 void ASnowRumblePlayerState::CopyProperties(APlayerState* PlayerState)
 {
 	Super::CopyProperties(PlayerState);
@@ -165,6 +218,9 @@ void ASnowRumblePlayerState::CopyProperties(APlayerState* PlayerState)
 	TargetPlayerState->LobbyTeam = LobbyTeam;
 	TargetPlayerState->bLobbyReady = bLobbyReady;
 	TargetPlayerState->bLobbyHost = bLobbyHost;
+	TargetPlayerState->bVoiceSpeaking = false;
+	TargetPlayerState->VoiceChannel = VoiceChannel;
+	TargetPlayerState->CustomizationData = CustomizationData;
 	TargetPlayerState->SetPlayerName(GetLobbyPlayerName());
 }
 
@@ -183,8 +239,12 @@ void ASnowRumblePlayerState::OverrideWith(APlayerState* PlayerState)
 	LobbyTeam = SourcePlayerState->LobbyTeam;
 	bLobbyReady = SourcePlayerState->bLobbyReady;
 	bLobbyHost = SourcePlayerState->bLobbyHost;
+	bVoiceSpeaking = false;
+	VoiceChannel = SourcePlayerState->VoiceChannel;
+	CustomizationData = SourcePlayerState->CustomizationData;
 	SetPlayerName(GetLobbyPlayerName());
 	BroadcastLobbyPlayerChanged();
+	OnCustomizationChanged.Broadcast();
 }
 
 void ASnowRumblePlayerState::GetLifetimeReplicatedProps(
@@ -196,6 +256,9 @@ void ASnowRumblePlayerState::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ASnowRumblePlayerState, LobbyTeam);
 	DOREPLIFETIME(ASnowRumblePlayerState, bLobbyReady);
 	DOREPLIFETIME(ASnowRumblePlayerState, bLobbyHost);
+	DOREPLIFETIME(ASnowRumblePlayerState, bVoiceSpeaking);
+	DOREPLIFETIME(ASnowRumblePlayerState, VoiceChannel);
+	DOREPLIFETIME(ASnowRumblePlayerState, CustomizationData);
 }
 
 void ASnowRumblePlayerState::OnRep_LobbyPlayerName()
@@ -218,9 +281,27 @@ void ASnowRumblePlayerState::OnRep_LobbyHost()
 	BroadcastLobbyPlayerChanged();
 }
 
+void ASnowRumblePlayerState::OnRep_VoiceSpeaking()
+{
+}
+
+void ASnowRumblePlayerState::OnRep_VoiceChannel()
+{
+}
+
+void ASnowRumblePlayerState::OnRep_CustomizationData()
+{
+	OnCustomizationChanged.Broadcast();
+}
+
 void ASnowRumblePlayerState::ServerSetLobbyPlayerName_Implementation(
 	const FString& NewName)
 {
+	if (!ULocalPlayerIdentitySubsystem::IsPlayerNameAllowed(NewName))
+	{
+		return;
+	}
+
 	LobbyPlayerName = SanitizeLobbyPlayerName(NewName);
 	SetPlayerName(LobbyPlayerName);
 	BroadcastLobbyPlayerChanged();
@@ -284,6 +365,21 @@ void ASnowRumblePlayerState::ServerRequestStartLobbyMatch_Implementation()
 	}
 }
 
+void ASnowRumblePlayerState::ServerSetCustomizationData_Implementation(
+	const FSnowRumbleCustomizationData& NewData)
+{
+	const FSnowRumbleCustomizationData SanitizedData =
+		SanitizeCustomizationData(NewData);
+	if (CustomizationData == SanitizedData)
+	{
+		return;
+	}
+
+	CustomizationData = SanitizedData;
+	OnCustomizationChanged.Broadcast();
+	ForceNetUpdate();
+}
+
 void ASnowRumblePlayerState::BroadcastLobbyPlayerChanged()
 {
 	OnLobbyPlayerChanged.Broadcast();
@@ -322,14 +418,16 @@ void ASnowRumblePlayerState::BroadcastLobbyEventLogMessage(
 FString ASnowRumblePlayerState::SanitizeLobbyPlayerName(
 	const FString& NewName) const
 {
-	FString SanitizedName = NewName.TrimStartAndEnd();
-	constexpr int32 MaximumNameLength = 16;
-	if (SanitizedName.Len() > MaximumNameLength)
-	{
-		SanitizedName.LeftInline(MaximumNameLength);
-	}
-
+	FString SanitizedName =
+		ULocalPlayerIdentitySubsystem::SanitizePlayerName(NewName);
 	return SanitizedName.IsEmpty()
 		? GetPlayerName()
 		: SanitizedName;
+}
+
+FSnowRumbleCustomizationData
+ASnowRumblePlayerState::SanitizeCustomizationData(
+	const FSnowRumbleCustomizationData& NewData) const
+{
+	return USnowRumbleCustomizationSubsystem::SanitizeCustomizationData(NewData);
 }

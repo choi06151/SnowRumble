@@ -3,6 +3,7 @@
 #include "SnowRumbleSessionSubsystem.h"
 
 #include "Engine/GameInstance.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Online/OnlineSessionNames.h"
@@ -39,6 +40,13 @@ void USnowRumbleSessionSubsystem::Initialize(FSubsystemCollectionBase& Collectio
 	PostLoadMapHandle = FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(
 		this,
 		&USnowRumbleSessionSubsystem::HandlePostLoadMap);
+
+	if (GEngine)
+	{
+		NetworkFailureHandle = GEngine->OnNetworkFailure().AddUObject(
+			this,
+			&USnowRumbleSessionSubsystem::HandleNetworkFailure);
+	}
 }
 
 void USnowRumbleSessionSubsystem::Deinitialize()
@@ -47,6 +55,11 @@ void USnowRumbleSessionSubsystem::Deinitialize()
 	{
 		FCoreUObjectDelegates::PostLoadMapWithWorld.Remove(PostLoadMapHandle);
 		PostLoadMapHandle.Reset();
+	}
+	if (GEngine && NetworkFailureHandle.IsValid())
+	{
+		GEngine->OnNetworkFailure().Remove(NetworkFailureHandle);
+		NetworkFailureHandle.Reset();
 	}
 
 	ClearCreateSessionDelegate();
@@ -282,6 +295,52 @@ void USnowRumbleSessionSubsystem::JoinLanSessionByRoomCode(
 		TEXT("방 코드와 일치하는 LAN 세션을 찾고 있습니다."));
 }
 
+void USnowRumbleSessionSubsystem::LeaveLanSession()
+{
+	ClearCreateSessionDelegate();
+	ClearFindSessionsDelegate();
+	ClearJoinSessionDelegate();
+	ActiveSessionSearch.Reset();
+	SearchResults.Reset();
+	PendingJoinRoomCode.Empty();
+	PendingHostRoomName.Empty();
+	PendingHostRoomCode.Empty();
+	CurrentRoomCode.Empty();
+	bHostTravelPending = false;
+	bWasInLanSession = false;
+
+	if (IOnlineSessionPtr SessionInterface = GetSessionInterface();
+		SessionInterface.IsValid()
+		&& SessionInterface->GetNamedSession(LocalSessionName))
+	{
+		UE_LOG(
+			LogSnowRumbleSession,
+			Log,
+			TEXT("Leaving LAN session. SessionName=%s"),
+			*LocalSessionName.ToString());
+		SessionInterface->DestroySession(LocalSessionName);
+	}
+
+	SetOperationState(
+		ESnowRumbleSessionOperation::None,
+		ESnowRumbleSessionState::Idle,
+		TEXT("LAN 세션을 정리했습니다."));
+	OnSessionSearchCompleted.Broadcast(SearchResults);
+}
+
+FString USnowRumbleSessionSubsystem::ConsumePendingMainMenuAlarmMessage()
+{
+	FString Message = PendingMainMenuAlarmMessage;
+	PendingMainMenuAlarmMessage.Empty();
+	return Message;
+}
+
+void USnowRumbleSessionSubsystem::SetPendingMainMenuAlarmMessage(
+	const FString& Message)
+{
+	PendingMainMenuAlarmMessage = Message;
+}
+
 void USnowRumbleSessionSubsystem::BeginFindLanSessions(
 	ESnowRumbleSessionOperation Operation,
 	const FString& Message)
@@ -500,6 +559,7 @@ void USnowRumbleSessionSubsystem::HandleCreateSessionComplete(
 		return;
 	}
 
+	bWasInLanSession = true;
 	SetOperationState(
 		ESnowRumbleSessionOperation::Host,
 		ESnowRumbleSessionState::Succeeded,
@@ -585,6 +645,7 @@ void USnowRumbleSessionSubsystem::HandleFindSessionsComplete(bool bWasSuccessful
 			ESnowRumbleSessionOperation::QuickJoin,
 			ESnowRumbleSessionState::Failed,
 			TEXT("참가 가능한 LAN 세션이 없습니다."));
+		SetPendingMainMenuAlarmMessage(TEXT("방이 존재하지 않습니다."));
 		return;
 	}
 
@@ -614,6 +675,7 @@ void USnowRumbleSessionSubsystem::HandleFindSessionsComplete(bool bWasSuccessful
 			ESnowRumbleSessionOperation::JoinByCode,
 			ESnowRumbleSessionState::Failed,
 			TEXT("입력한 방 코드와 일치하는 LAN 세션이 없습니다."));
+		SetPendingMainMenuAlarmMessage(TEXT("방이 존재하지 않습니다."));
 		return;
 	}
 
@@ -696,7 +758,62 @@ void USnowRumbleSessionSubsystem::HandleJoinSessionComplete(
 		JoinOperation,
 		ESnowRumbleSessionState::Succeeded,
 		TEXT("LAN 세션 참가에 성공했습니다."));
+	bWasInLanSession = true;
 	PlayerController->ClientTravel(ConnectString, TRAVEL_Absolute);
+}
+
+void USnowRumbleSessionSubsystem::HandleNetworkFailure(
+	UWorld* World,
+	UNetDriver* NetDriver,
+	ENetworkFailure::Type FailureType,
+	const FString& ErrorString)
+{
+	if (!World
+		|| World->GetGameInstance() != GetGameInstance()
+		|| World->GetNetMode() != NM_Client)
+	{
+		return;
+	}
+
+	switch (FailureType)
+	{
+	case ENetworkFailure::ConnectionLost:
+	case ENetworkFailure::ConnectionTimeout:
+	case ENetworkFailure::FailureReceived:
+		break;
+	default:
+		return;
+	}
+
+	const IOnlineSessionPtr SessionInterface = GetSessionInterface();
+	const bool bHasNamedSession =
+		SessionInterface.IsValid()
+		&& SessionInterface->GetNamedSession(LocalSessionName);
+	if (!bWasInLanSession && !bHasNamedSession)
+	{
+		return;
+	}
+
+	UE_LOG(
+		LogSnowRumbleSession,
+		Warning,
+		TEXT("Network failure detected. FailureType=%s Error='%s'"),
+		ENetworkFailure::ToString(FailureType),
+		*ErrorString);
+
+	PendingMainMenuAlarmMessage =
+		TEXT("방장이 나가 방이 종료되었습니다.");
+	LeaveLanSession();
+
+	if (APlayerController* PlayerController =
+		GetGameInstance()
+			? GetGameInstance()->GetFirstLocalPlayerController()
+			: nullptr)
+	{
+		PlayerController->ClientTravel(
+			TEXT("/Game/Maps/L_MainMenu"),
+			TRAVEL_Absolute);
+	}
 }
 
 FString USnowRumbleSessionSubsystem::NormalizeRoomCode(

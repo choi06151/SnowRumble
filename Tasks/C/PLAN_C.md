@@ -34,7 +34,7 @@
 | 9 | [C-09](C-09_snow_combat_completion.md) | 눈 전투 완성 | C-01, C-07 | 예정 |
 | 10 | [C-05](C-05_round_match_flow.md) | 3판 2선승 경기 흐름 | C-04, C-06 | 진행중 |
 | 11 | [C-10](C-10_emote_revalidation.md) | 이모션 재검증 | C-01, C-06, C-08 | 예정 |
-| 12 | [C-11](C-11_customization_contract.md) | 커스터마이징 데이터 계약 | C-02·기획 결정 | 예정 |
+| 12 | [C-11](C-11_customization_contract.md) | 커스터마이징 데이터 계약 | C-02·기획 결정 | 진행중 |
 | 13 | [C-13](C-13_revive_contract.md) | 핫팩 부활 계약 | C-06, C-07 | 예정 |
 | 14 | [C-14](C-14_spawn_intro_flow.md) | 팀 스폰과 시작 연출 | C-03, C-04 | 예정 |
 | 15 | [C-12](C-12_mvp_integration.md) | MVP 최종 통합 | 모든 파트 통합 Task | 예정 |
@@ -136,3 +136,38 @@
 - 2026-08-11: C-21 옵션 WBP 포커스 경고를 막기 위해 `UOptionsWidget` 기본 포커스를 생성자와 런타임 구성 단계에서 활성화하고, 키바인딩 패널용 `UOptionsKeyBindingRowWidget` 부모와 기본 조작 표시 목록을 추가했다.
 - 2026-08-11: C-21 키바인딩 행의 변경 버튼을 누르면 다음 키보드/마우스 버튼 입력을 캡처해 UI 할당값을 변경하고, `Esc` 입력으로 대기 상태를 취소하게 했다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
 - 2026-08-11: C-21 키바인딩 변경값을 로컬 사용자 설정에 저장하고, 캐릭터는 원본 `IMC_Player`를 런타임 복제해 저장된 키를 실제 Enhanced Input 매핑에 적용하게 했다. 채팅 열기 키도 PlayerController 직접 바인딩을 로컬 설정 기준으로 재구성한다.
+- 2026-08-11: C-21 이동 키 변경 후 플레이어가 움직이지 않는 문제를 수정했다. 캐릭터 런타임 입력 매핑 적용을 원본 매핑 스냅샷 기준으로 처리해 저장 키 치환이 다른 이동 매핑에 연쇄 적용되지 않게 했다.
+- 2026-08-11: C-21 옵션 또는 로비 ESC 메뉴 복귀 후 입력 차단이 남는 문제를 수정하고, 하단 `ResetButton`이 현재 선택된 WidgetSwitcher 카테고리만 초기화하도록 연결했다.
+- 2026-08-11: C-21 키 설정 변경을 적용 전 UI 임시값으로만 유지하고, `ApplyButton`을 누를 때만 저장·입력 매핑 반영을 실행하게 했다. 변경사항이 없으면 `ApplyButton`은 비활성화되고, 옵션 닫기 또는 ESC 복귀 시 임시 변경은 폐기된다.
+- 2026-08-11: C-21 감도 설정을 추가했다. 옵션 WBP는 `SensitivitySlider`와 `SensitivityValueText`로 감도 임시값과 퍼센트 텍스트를 갱신하고, 적용 시 로컬 설정에 저장하며 캐릭터 카메라 입력은 저장된 감도 값을 곱한다.
+- 2026-08-11: C-21 배경음악/효과음 볼륨 설정을 추가했다. 옵션 WBP는 `BgmVolumeSlider`/`BgmVolumeValueText`, `SfxVolumeSlider`/`SfxVolumeValueText`로 소리 임시값과 퍼센트 텍스트를 갱신하고, 적용 시 로컬 설정과 선택 SoundClass 볼륨에 반영한다. C++ 컴파일은 통과했으나 에디터 DLL 잠금으로 최종 링크는 보류됐다.
+- 2026-08-11: C-21 마이크 설정을 추가했다. 옵션 WBP는 `MicrophoneVolumeSlider`/`MicrophoneVolumeValueText`와 `MicrophonePushToTalkButton`/`MicrophoneAlwaysOnButton`을 사용하고, 기본 `K`인 `MicrophonePushToTalk` 키바인딩과 PlayerController 마이크 상태 이벤트를 제공한다. C++ 컴파일은 통과했으나 에디터 DLL 잠금으로 최종 링크는 보류됐다.
+- 2026-08-11: C-21 선택형 버튼 표시를 보강했다. 옵션 메뉴의 현재 카테고리와 마이크 방식, 로비 게시판의 현재 팀 색·모드·라운드 수·게임 속도·ready 상태는 기존 Pressed 스타일을 유지해 선택된 버튼처럼 보인다.
+- 2026-08-11: C-21 마이크 입력 상태를 엔진 네트워크 음성 송출에 연결했다. PlayerController는 눌러서 말하기 또는 항상 말하기 상태에 맞춰 `StartTalking()`/`StopTalking()`을 호출하고, 캐릭터 Blueprint용 `MicrophonePushToTalkAction` Enhanced Input 슬롯을 제공한다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-11: C-21 마이크 송출 중 플레이어 이름 표시를 추가했다. PlayerState가 음성 송출 중 여부를 복제하고, 로비/HUD WBP는 `VoiceSpeakingContainer` 안의 `VoiceSpeakingIcon` Image와 `VoiceSpeakingNamesText` TextBlock으로 현재 말하는 플레이어를 표시한다. C++ 컴파일은 통과했으나 에디터 DLL 잠금으로 최종 링크는 보류됐다.
+- 2026-08-11: C-21 마이크 채널 전환을 추가했다. 기본 `M` 키로 전체/팀 말하기를 전환하고, PlayerState 복제 채널과 gameplay mute로 팀 말하기 수신 범위를 제한하며, `PersonalAlarmText`/`PersonalAlarmAnimation`으로 로컬 상태 알림을 표시한다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-11: C-21 마이크 채널 전환 기본 키를 `N`으로 옮기고, `M`은 플레이어 지정 음소거 입력으로 분리했다. 캐릭터 Blueprint 슬롯은 `MicrophoneChannelToggleAction`과 `VoiceTargetMuteAction`을 제공한다.
+- 2026-08-11: C-21 `M` 플레이어 지정 음소거 메뉴를 추가했다. `UVoiceMuteMenuWidget`/`UVoiceMutePlayerRowWidget` 부모는 현재 인게임 플레이어 목록으로 행을 동적 생성하고, 각 행의 버튼으로 로컬 수동 음소거를 토글한다.
+- 2026-08-11: C-11 첫 하위 범위로 메인메뉴 커스터마이징 진입 버튼을 추가했다. `CustomizationButton`은 메인메뉴 PlayerController의 `CustomizationLevelUrl`로 커스터마이징 레벨 이동을 수행한다.
+- 2026-08-11: C-11 커스터마이징 레벨 전용 GameMode, PlayerController, WBP 부모를 추가했다. 레벨 진입 시 커스터마이징 WBP를 표시하고 `CustomizationCamera` 태그 카메라를 ViewTarget으로 사용하며, WidgetSwitcher로 메인/시점변경/색칠하기 화면을 전환한다.
+- 2026-08-11: C-11 몸 색상 커스터마이징 첫 세로 슬라이스를 구현했다. 로컬 `USnowRumbleCustomizationSubsystem`, 복제 `ASnowRumblePlayerState::CustomizationData`, 캐릭터 `BodyColor` 머티리얼 적용, 로비 입장 시 저장 커마 제출 경로를 추가했고 `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-11: C-11 커스터마이징 방 프리뷰 캐릭터 애니메이션 설정을 추가했다. `PreviewAnimationAsset`과 `PreviewAnimationPositionSeconds`로 커마 전용 포즈를 지정하고, 기본적으로 `bPausePreviewAnimation`으로 정지 상태를 유지한다.
+- 2026-08-11: C-11 페인트 trace 좌표에 UI DPI viewport scale을 반영해 커서보다 왼쪽에서 그려지는 현상을 보정했다. C++ 컴파일은 통과했으나 에디터 DLL 잠금으로 최종 링크는 보류됐다.
+- 2026-08-11: C-11 `PaintCursorScreenOffset`을 추가해 커스터마이징 PlayerController BP에서 페인트 trace X/Y 보정값을 직접 조정할 수 있게 했다.
+- 2026-08-11: C-11 커스터마이징 드로잉 stroke를 `FSnowRumbleCustomizationData::PaintStrokes`로 즉시 저장·복제하고, 로비/PvP 캐릭터가 복제 데이터에서 RenderTarget을 재생성해 `PaintTexture` 머티리얼 파라미터에 적용하게 했다.
+- 2026-08-11: C-11 stroke 저장값에 대상 SkeletalMeshComponent 이름을 포함하고 로비/PvP 캐릭터에서 컴포넌트별 RenderTarget을 적용해 머리에 그린 선이 몸에 나타나는 문제를 수정했다.
+- 2026-08-11: C-11 커스터마이징 방의 UV Y축 flip 기준을 저장 데이터에 포함해 로비/PvP 캐릭터가 같은 기준으로 stroke RenderTarget을 재생성하게 했다.
+- 2026-08-11: C-11 페인트 화면에서 `Ctrl+Z`를 누르면 `BackButton`과 같은 누적 undo 스택으로 마지막 완료 stroke를 하나씩 제거하게 했다.
+- 2026-08-11: C-11 페인트 입력을 `PaintMode` 페이지에서만 처리하게 막아 색칠하기 화면 진입 전 좌클릭으로 선이 생기던 문제를 수정했다.
+- 2026-08-11: C-11 시점변경 화면을 프리뷰 캐릭터 회전으로 구현했다. `RotateLeftButton`/`RotateRightButton`은 press 중 `PreviewRotationSpeedDegrees` 기준으로 캐릭터 yaw를 계속 회전한다.
+- 2026-08-11: C-11 별도 시점변경 화면 없이 `RotateLeftButton`/`RotateRightButton`을 누르면 현재 페이지에서 바로 프리뷰 캐릭터가 좌우 회전하게 했다.
+- 2026-08-11: C-11 회전 버튼 좌우 방향을 실제 화면 기준에 맞게 뒤집고, 커스터마이징 레벨 프리뷰 캐릭터의 오버헤드 이름표 위젯을 숨기게 했다.
+- 2026-08-11: C-21 `AlwaysOn` 마이크 입력 활성 상태가 곧바로 speaking 표시로 복제되어 좌측 음성 송출 표시가 항상 뜨던 문제를 수정했다. speaking 표시는 `PushToTalk` 입력 중에만 입력 상태를 그대로 반영하고, 로비/HUD 생성 시 기본 숨김으로 초기화한다.
+- 2026-08-11: 로비에서 메인메뉴로 돌아온 뒤 LAN 세션 검색·빠른 참가·방 코드 참가가 다시 동작하지 않는 문제를 수정했다. `USnowRumbleSessionSubsystem::LeaveLanSession()`으로 로컬 named session, 검색 결과, 진행 상태를 정리하고 로비 복귀 및 메인메뉴 진입 시 호출한다.
+- 2026-08-11: Listen Server 호스트 연결이 끊기면 클라이언트가 세션을 정리하고 메인메뉴로 이동하며, `MainMenuAlarmText`/`MainMenuAlarmAnimation`으로 "방장이 나가 방이 종료되었습니다." 알림을 한 번 표시하게 했다.
+- 2026-08-11: 메인메뉴 호스트 이탈 알림 WBP 바인딩에 `AlarmText`/`AlarmAnimation` 호환 이름을 추가했다. 기존 `MainMenuAlarmText`/`MainMenuAlarmAnimation`도 그대로 지원한다.
+- 2026-08-11: 호스트 연결 끊김 알림 판정을 named session 존재 여부 대신 실제 LAN 세션 참가/호스트 성공 플래그 기준으로 보강했다. `OnMainMenuAlarmRequested` 이벤트도 추가해 WBP가 알림 애니메이션을 직접 재생할 수 있게 했다.
+- 2026-08-11: 빠른참여, 검색, 방 코드 참가, 직접 Join 실패 시 메인메뉴 알림 전용 경로로 실패 메시지를 표시하게 했다. 검색 결과가 0개면 `방이 존재하지 않습니다.`를 `MainMenuAlarmText`/`MainMenuAlarmAnimation` 또는 `OnMainMenuAlarmRequested`로 전달한다.
+- 2026-08-11: 메인메뉴 알림 표시를 세션 델리게이트 타이밍에만 의존하지 않도록 보강했다. 세션 실패 메시지를 `USnowRumbleSessionSubsystem` pending 알림에 저장하고 `UMainMenuWidget::NativeTick`에서 소비해 `OnMainMenuAlarmRequested`를 호출한다.
+- 2026-08-11: 메인메뉴 세션 요청 진행 중 안내를 추가했다. 방 만들기는 `방 생성중...`, 방 찾기는 `방 찾는중...`, 빠른참여/참가는 `방 참가중...`을 `ShowMainMenuAlarm()` 경로로 표시한다.
+- 2026-08-11: 닉네임 부적합어 필터를 추가했다. 메인메뉴는 닉네임 입력 확정 시 `적합하지 않은 이름입니다.` 알람을 표시하고 기존 저장 이름으로 입력창을 되돌린다. 로비와 서버 PlayerState도 같은 필터를 사용해 부적합 이름 반영을 차단한다.
