@@ -14,6 +14,8 @@ class UAnimationAsset;
 class UCanvas;
 class UCanvasRenderTarget2D;
 class UCustomizationWidget;
+class UBorder;
+class UImage;
 class USizeBox;
 class UUserWidget;
 
@@ -224,10 +226,12 @@ private:
 	/** 현재 페이지와 커서 슬롯에 맞춰 표시할 소프트웨어 커서를 적용한다. */
 	void ApplyCurrentMouseCursorWidget();
 
-	/** 원형 페인트 커서 위젯의 표시 크기를 현재 브러시 크기에 맞춘다. */
-	void UpdatePaintMouseCursorSize();
+	/** 원형 페인트 커서 위젯의 표시 크기와 색을 현재 브러시에 맞춘다. */
+	void UpdatePaintMouseCursorPresentation();
 
 	USizeBox* FindPaintCursorSizeBox() const;
+	UBorder* FindPaintCursorColorBorder() const;
+	UImage* FindPaintCursorColorImage() const;
 
 	/** 현재 조종 중인 커마용 캐릭터를 반환한다. */
 	ASnowRumbleCharacter* GetPreviewCharacter() const;

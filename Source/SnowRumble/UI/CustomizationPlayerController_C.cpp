@@ -4,7 +4,9 @@
 
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
+#include "Components/Border.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/Image.h"
 #include "Components/SizeBox.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/WidgetComponent.h"
@@ -64,7 +66,7 @@ void ACustomizationPlayerController::PlayerTick(float DeltaTime)
 		UpdatePreviewRotation(DeltaTime);
 		UpdatePaintUndoInput();
 		UpdatePaintInput();
-		UpdatePaintMouseCursorSize();
+		UpdatePaintMouseCursorPresentation();
 	}
 }
 
@@ -172,6 +174,7 @@ void ACustomizationPlayerController::SetPaintBrushColor(
 	NewBrushColor.B = FMath::Clamp(NewBrushColor.B, 0.0f, 1.0f);
 	NewBrushColor.A = 1.0f;
 	PaintBrushColor = NewBrushColor;
+	UpdatePaintMouseCursorPresentation();
 }
 
 FLinearColor ACustomizationPlayerController::GetPaintBrushColor() const
@@ -209,7 +212,7 @@ void ACustomizationPlayerController::AdjustPaintBrushSizeFromWheel(
 		PaintStrokeThickness + WheelDelta * PaintBrushWheelStep,
 		SafeMinSize,
 		SafeMaxSize);
-	UpdatePaintMouseCursorSize();
+	UpdatePaintMouseCursorPresentation();
 }
 
 float ACustomizationPlayerController::GetPaintBrushSize() const
@@ -1207,10 +1210,10 @@ void ACustomizationPlayerController::ApplyCurrentMouseCursorWidget()
 	SetMouseCursorWidget(EMouseCursor::Default, TargetCursorWidget);
 	DefaultMouseCursor = EMouseCursor::Default;
 	CurrentMouseCursor = EMouseCursor::Default;
-	UpdatePaintMouseCursorSize();
+	UpdatePaintMouseCursorPresentation();
 }
 
-void ACustomizationPlayerController::UpdatePaintMouseCursorSize()
+void ACustomizationPlayerController::UpdatePaintMouseCursorPresentation()
 {
 	if (!bIsPaintCursorActive || !PaintMouseCursorWidget)
 	{
@@ -1218,20 +1221,27 @@ void ACustomizationPlayerController::UpdatePaintMouseCursorSize()
 	}
 
 	USizeBox* BrushCursorSizeBox = FindPaintCursorSizeBox();
-	if (!BrushCursorSizeBox)
+	if (BrushCursorSizeBox)
 	{
-		return;
+		const float SafeMinDiameter = FMath::Max(1.0f, MinPaintCursorDiameter);
+		const float SafeMaxDiameter =
+			FMath::Max(SafeMinDiameter, MaxPaintCursorDiameter);
+		const float CursorDiameter = FMath::Clamp(
+			PaintStrokeThickness * PaintCursorBrushSizeScale,
+			SafeMinDiameter,
+			SafeMaxDiameter);
+		BrushCursorSizeBox->SetWidthOverride(CursorDiameter);
+		BrushCursorSizeBox->SetHeightOverride(CursorDiameter);
 	}
 
-	const float SafeMinDiameter = FMath::Max(1.0f, MinPaintCursorDiameter);
-	const float SafeMaxDiameter =
-		FMath::Max(SafeMinDiameter, MaxPaintCursorDiameter);
-	const float CursorDiameter = FMath::Clamp(
-		PaintStrokeThickness * PaintCursorBrushSizeScale,
-		SafeMinDiameter,
-		SafeMaxDiameter);
-	BrushCursorSizeBox->SetWidthOverride(CursorDiameter);
-	BrushCursorSizeBox->SetHeightOverride(CursorDiameter);
+	if (UBorder* BrushCursorColorBorder = FindPaintCursorColorBorder())
+	{
+		BrushCursorColorBorder->SetBrushColor(PaintBrushColor);
+	}
+	if (UImage* BrushCursorColorImage = FindPaintCursorColorImage())
+	{
+		BrushCursorColorImage->SetColorAndOpacity(PaintBrushColor);
+	}
 }
 
 USizeBox* ACustomizationPlayerController::FindPaintCursorSizeBox() const
@@ -1240,5 +1250,23 @@ USizeBox* ACustomizationPlayerController::FindPaintCursorSizeBox() const
 		? Cast<USizeBox>(
 			PaintMouseCursorWidget->GetWidgetFromName(
 				TEXT("BrushCursorSizeBox")))
+		: nullptr;
+}
+
+UBorder* ACustomizationPlayerController::FindPaintCursorColorBorder() const
+{
+	return PaintMouseCursorWidget
+		? Cast<UBorder>(
+			PaintMouseCursorWidget->GetWidgetFromName(
+				TEXT("BrushCursorColorBorder")))
+		: nullptr;
+}
+
+UImage* ACustomizationPlayerController::FindPaintCursorColorImage() const
+{
+	return PaintMouseCursorWidget
+		? Cast<UImage>(
+			PaintMouseCursorWidget->GetWidgetFromName(
+				TEXT("BrushCursorColorImage")))
 		: nullptr;
 }

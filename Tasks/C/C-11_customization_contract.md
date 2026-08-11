@@ -24,6 +24,7 @@
 - 브러시 색 버튼으로 열린 컬러 피커는 버튼의 왼쪽에 뜨도록 배치한다.
 - 브러시 크기 버튼은 버튼을 누른 상태에서 마우스 휠로 선 두께를 작게 또는 크게 조정한다.
 - 게임 전체에서 기본 커서 BP 슬롯을 사용하고, 커스터마이징 색칠하기 화면에서는 BP 슬롯에 지정한 원형 커서 위젯으로 마우스 커서를 바꾼다.
+- 색칠하기 원형 커서 위젯은 현재 브러시 색으로 표시 색을 갱신할 수 있다.
 - 전체 칠하기 버튼은 현재 브러시 색을 `BodyColor`에 적용한다.
 - 드로잉, 얼굴 표정, 장비 외형 분리는 후속 범위에서 결정 후 구현한다.
 
@@ -57,6 +58,7 @@
 - [x] 커스터마이징 PlayerController BP 슬롯에 색칠하기 커서 위젯을 지정할 수 있게 한다.
 - [x] 색칠하기 페이지 진입 시 원형 페인트 커서로 전환하고, 메인 페이지에서는 기본 커서로 되돌린다.
 - [x] 페인트 커서 위젯의 `BrushCursorSizeBox`가 현재 브러시 크기를 반영하게 한다.
+- [x] 페인트 커서 위젯의 `BrushCursorColorBorder` 또는 `BrushCursorColorImage`가 현재 브러시 색을 반영하게 한다.
 - [ ] 로컬 플레이어의 얼굴 표정 선택 결과를 저장·불러온다.
 - [ ] 로비 외형과 경기 장비 외형 데이터를 분리한다.
 - [ ] S가 제작한 드로잉·얼굴 표정 자산에 결과를 연결할 공개 지점을 제공한다.
@@ -91,6 +93,8 @@
   - `ACustomizationPlayerController::MinPaintCursorDiameter`: 원형 페인트 커서 최소 지름
   - `ACustomizationPlayerController::MaxPaintCursorDiameter`: 원형 페인트 커서 최대 지름
   - `ACustomizationPlayerController::SetPaintCursorActive(bool)`: 색칠하기 페이지 여부에 따라 기본/페인트 커서를 전환한다.
+  - `ACustomizationPlayerController::PaintMouseCursorWidgetClass` 내부 `BrushCursorColorBorder`: 현재 브러시 색을 표시할 선택 Border
+  - `ACustomizationPlayerController::PaintMouseCursorWidgetClass` 내부 `BrushCursorColorImage`: 현재 브러시 색을 표시할 선택 Image. Border 대신 사용할 수 있다.
   - `UCustomizationWidget`: 커스터마이징 WBP 부모
   - `UCustomizationWidget::CustomizationContentSwitcher`: 0 메인, 1 색칠하기 화면을 담는 WidgetSwitcher
   - `UCustomizationWidget::PaintModeButton`: 메인 화면에서 색칠하기 화면으로 이동
@@ -178,6 +182,7 @@
 - 2026-08-11: 현재 브러시 색 표시 칸 계약을 추가했다. WBP에 `BrushColorPreviewBorder` 또는 `BrushColorPreviewImage`를 배치하면 컬러 피커에서 고른 현재 브러시 색을 자동 표시한다.
 - 2026-08-11: 마우스 커서 슬롯 계약을 추가했다. 메인메뉴, 로비/PvP 계열, 커스터마이징 PlayerController BP의 `DefaultMouseCursorWidgetClass`는 게임 전체 기본 커서로 적용되고, 커스터마이징 `PaintMouseCursorWidgetClass`는 색칠하기 원형 커서로 자동 전환된다. 페인트 커서 내부 `BrushCursorSizeBox`는 현재 브러시 크기에 맞춰 지름을 갱신한다.
 - 2026-08-11: 브러시 색 버튼으로 여는 언리얼 기본 컬러 피커가 버튼 오른쪽이 아니라 왼쪽에 뜨도록 `OpenPaintBrushColorPickerOnLeft(FVector2D)` 경로를 추가했다.
+- 2026-08-11: 페인트 커서 색상 계약을 추가했다. 원형 커서 WBP에 `BrushCursorColorBorder` 또는 `BrushCursorColorImage`를 배치하면 현재 브러시 색 변경 시 커서 표시 색도 같은 색으로 갱신된다.
 
 ## 수동 작업
 
@@ -191,6 +196,7 @@
 - 메인메뉴 PlayerController BP, 로비/PvP PlayerController BP, 커스터마이징 PlayerController BP의 `DefaultMouseCursorWidgetClass`에 게임 전체에서 평소 사용할 커서 WBP를 지정한다.
 - 커스터마이징 PlayerController BP의 `PaintMouseCursorWidgetClass`에 색칠하기 모드에서 사용할 원형 커서 WBP를 지정한다.
 - 원형 커서 WBP 안에 `SizeBox`를 만들고 이름을 `BrushCursorSizeBox`로 맞추면 브러시 크기에 따라 커서 지름이 자동 조정된다.
+- 원형 커서 WBP 안에 현재 색을 입힐 Border 또는 Image를 만들고 이름을 `BrushCursorColorBorder` 또는 `BrushCursorColorImage`로 맞추면 브러시 색에 따라 커서 색이 자동 조정된다.
 - 원형 커서 지름이 너무 작거나 크면 커스터마이징 PlayerController BP의 `PaintCursorBrushSizeScale`, `MinPaintCursorDiameter`, `MaxPaintCursorDiameter`를 조정한다.
 - 페인트 위치가 커서와 어긋나면 커스터마이징 PlayerController BP의 `PaintCursorScreenOffset`을 조정한다. X 양수는 오른쪽, Y 양수는 아래쪽으로 trace를 옮긴다.
 - 커스터마이징 PlayerController BP의 `PreviewAnimationAsset`에 커마 방에서 보여줄 포즈/애니메이션 에셋을 지정한다. 비워두면 기존 애니메이션 상태를 멈춘다.
@@ -227,7 +233,7 @@
 - [x] 드로잉 stroke 저장·복제·로비/PvP 캐릭터 재적용 경로 완료
 - [x] 색칠하기 화면 브러시 색·크기·전체 칠하기 버튼 계약 완료
 - [x] Stroke별 브러시 색·두께 저장과 로비/PvP 재적용 경로 완료
-- [x] 게임 전체 기본 마우스 커서 슬롯, 색칠하기 마우스 커서 슬롯, 페인트 커서 크기 갱신 계약 완료
+- [x] 게임 전체 기본 마우스 커서 슬롯, 색칠하기 마우스 커서 슬롯, 페인트 커서 크기·색상 갱신 계약 완료
 - [ ] 장비 외형 데이터와 분리 확인
 - [ ] S 인계 완료
 ### 결과 확인
@@ -245,6 +251,7 @@
 - [ ] `PaintModeButton`을 누르면 마우스 커서가 `PaintMouseCursorWidgetClass` 원형 커서로 바뀐다.
 - [ ] `BackButton`으로 메인 화면에 돌아오면 마우스 커서가 `DefaultMouseCursorWidgetClass` 기본 커서로 돌아온다.
 - [ ] 원형 커서 WBP의 `BrushCursorSizeBox`가 브러시 크기에 맞춰 커지거나 작아진다.
+- [ ] 컬러 피커에서 색을 바꾸면 원형 커서 WBP의 `BrushCursorColorBorder` 또는 `BrushCursorColorImage` 표시 색이 같은 색으로 바뀐다.
 - [ ] 색칠하기 화면의 `BrushColorButton`을 누르면 언리얼 기본 컬러 피커가 열린다.
 - [ ] 색칠하기 화면의 `BrushColorButton`을 누르면 컬러 피커가 버튼 왼쪽에 뜬다.
 - [ ] 컬러 피커에서 색을 바꾸면 `BrushColorPreviewBorder` 또는 `BrushColorPreviewImage` 표시 색이 같은 색으로 바뀐다.

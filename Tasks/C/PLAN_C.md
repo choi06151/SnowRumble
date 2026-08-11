@@ -44,6 +44,8 @@
 | 19 | [C-19](C-19_text_chat.md) | 텍스트 채팅 | C-03 팀 색·공용 PlayerController | 진행중 |
 | 20 | [C-20](C-20_event_log_ui.md) | 이벤트 로그 UI | C-03, C-06, 공용 PlayerController | 진행중 |
 | 21 | [C-21](C-21_options_menu.md) | 옵션 메뉴 | 메인메뉴·로비 ESC 메뉴 | 진행중 |
+| 22 | [C-22](C-22_interaction_prompt_ui.md) | 상호작용 안내 UI | C-15·기존 눈덩이 획득 | 진행중 |
+| 23 | [C-23](C-23_camera_wheel_zoom.md) | 마우스 휠 카메라 줌 | 기존 플레이어 카메라 | 진행중 |
 
 ## 통합 변경 요청
 
@@ -176,3 +178,8 @@
 - 2026-08-11: C-11 현재 브러시 색 표시 칸 계약을 추가했다. `BrushColorPreviewBorder` 또는 `BrushColorPreviewImage`를 배치하면 현재 브러시 색을 자동 표시한다.
 - 2026-08-11: C-11 마우스 커서 슬롯 계약을 게임 전체 기본 커서로 확장했다. 메인메뉴, 로비/PvP 계열, 커스터마이징 PlayerController BP에 `DefaultMouseCursorWidgetClass`를 지정하면 각 UI 커서 표시 시 기본 커서가 적용되고, 커스터마이징 `PaintMouseCursorWidgetClass`는 색칠하기 원형 커서로 전환된다.
 - 2026-08-11: C-11 브러시 색 버튼으로 여는 언리얼 기본 컬러 피커가 버튼 왼쪽에 뜨도록 위치 계산 경로를 추가했다.
+- 2026-08-11: C-11 페인트 커서 색상 갱신을 추가했다. 원형 커서 WBP에 `BrushCursorColorBorder` 또는 `BrushCursorColorImage`를 배치하면 현재 브러시 색 변경 시 커서 표시 색도 같은 색으로 바뀐다.
+- 2026-08-11: 사용자가 상호작용 가능한 물건 옆에 `E - 게시판` 형식의 안내 위젯 표시를 요청해 C-22를 추가하고 진행중으로 전환했다.
+- 2026-08-11: C-22 상호작용 안내 WBP 부모와 캐릭터 로컬 표시 경로를 구현했다. 게시판 후보를 눈덩이보다 우선 표시하고, 대상 bounds 화면 좌표 옆에 `E - 게시판`/`E - 눈덩이` 문구를 띄운다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-11: 사용자가 로비와 인게임에서 마우스 휠 업/다운으로 카메라 SpringArm 길이를 조절하는 기능을 요청해 C-23을 추가하고 진행중으로 전환했다.
+- 2026-08-11: C-23 마우스 휠 카메라 줌을 구현했다. 로컬 Tick에서 `MouseScrollUp`/`MouseScrollDown`으로 기본 카메라 SpringArm 목표 길이를 최소·최대 범위 안에서 조정한다. C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됐다.

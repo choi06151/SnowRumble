@@ -14,6 +14,7 @@ class UInputAction;
 class UInputMappingContext;
 class UAnimMontage;
 class UEmoteRadialMenuWidget;
+class UInteractionPromptWidget;
 class UMainHUDWidget;
 class UMaterialInstanceDynamic;
 class UOverheadNameplateWidget;
@@ -211,6 +212,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Lobby|Board")
 	void CloseLobbyBoardFocus();
 
+	/** 현재 로컬 상호작용 후보 기준 안내 문구를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Interaction")
+	FText GetCurrentInteractionPromptText() const;
+
 	/** 포커스 중인 게시판 UI 버튼 액션을 서버 검증 요청으로 전달한다. */
 	void RequestLobbyBoardAction(ELobbyBoardAction BoardAction);
 
@@ -220,6 +225,7 @@ public:
 protected:
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void OnRep_PlayerState() override;
@@ -231,6 +237,9 @@ protected:
 
 	/** 마우스 입력을 로컬 플레이어의 카메라 회전에 적용한다. */
 	void Look(const FInputActionValue& Value);
+
+	/** 마우스 휠 입력으로 로컬 카메라 줌 목표 거리를 조정한다. */
+	void UpdateCameraZoomInput();
 
 	/** 점프 입력이 시작되면 캐릭터 점프를 요청한다. */
 	void StartJump();
@@ -321,6 +330,17 @@ protected:
 
 	/** 로컬 플레이어용 메인 HUD 위젯을 필요할 때 생성한다. */
 	void EnsureMainHUDWidget();
+
+	/** 로컬 플레이어용 상호작용 안내 위젯을 필요할 때 생성한다. */
+	void EnsureInteractionPromptWidget();
+
+	/** 현재 상호작용 후보에 맞춰 로컬 안내 위젯을 표시하거나 숨긴다. */
+	void RefreshInteractionPromptWidget();
+
+	/** 현재 상호작용 후보의 안내 문구와 대상 액터를 반환한다. */
+	bool GetCurrentInteractionPromptData(
+		FText& OutPromptText,
+		AActor*& OutPromptActor) const;
 
 	/** 로컬 플레이어 화면에서 이모션 원형 메뉴를 연다. */
 	void OpenEmoteRadialMenu();
@@ -574,6 +594,18 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera", meta = (ClampMin = "0.0"))
 	float AimCameraArmLength = 340.0f;
 
+	/** 마우스 휠 한 칸당 카메라 SpringArm 길이 변화량이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Zoom", meta = (ClampMin = "1.0"))
+	float CameraZoomStep = 60.0f;
+
+	/** 마우스 휠 줌으로 허용하는 최소 SpringArm 길이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Zoom", meta = (ClampMin = "0.0"))
+	float MinimumCameraArmLength = 250.0f;
+
+	/** 마우스 휠 줌으로 허용하는 최대 SpringArm 길이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Zoom", meta = (ClampMin = "0.0"))
+	float MaximumCameraArmLength = 650.0f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera", meta = (ClampMin = "0.0"))
 	float CameraPositionInterpSpeed = 1.0f;
 
@@ -612,6 +644,22 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UMainHUDWidget> MainHUDWidget;
 
+	/** 로컬 플레이어 화면에 생성할 상호작용 안내 위젯 클래스다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Interaction|UI")
+	TSubclassOf<UInteractionPromptWidget> InteractionPromptWidgetClass;
+
+	/** 상호작용 대상 화면 좌표에서 안내 위젯을 얼마나 옮겨 표시할지 정한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Interaction|UI")
+	FVector2D InteractionPromptScreenOffset = FVector2D(32.0f, -24.0f);
+
+	/** 상호작용 대상 월드 위치에서 안내 기준점을 얼마나 위로 올릴지 정한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Interaction|UI")
+	float InteractionPromptWorldHeightOffset = 70.0f;
+
+	/** 로컬 플레이어가 소유한 상호작용 안내 위젯 인스턴스다. */
+	UPROPERTY(Transient)
+	TObjectPtr<UInteractionPromptWidget> InteractionPromptWidget;
+
 	bool bIsEmoteRadialMenuOpen = false;
 	bool bPvpMatchInputIgnoreApplied = false;
 
@@ -624,6 +672,7 @@ protected:
 	float DefaultFieldOfView = 90.0f;
 	FVector DefaultCameraSocketOffset = FVector::ZeroVector;
 	float DefaultCameraArmLength = 400.0f;
+	float DesiredCameraArmLength = 400.0f;
 	float CameraShoulderSide = 1.0f;
 	double PostThrowAimCameraEndTime = -1.0;
 
