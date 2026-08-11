@@ -42,6 +42,7 @@
 | I-15 맵 환경 압박 | C-05, S-10, J-02, J-04 | C-12 | C-05 게임 속도별 축소 주기·경기 시간·축소 호출 계약, 레벨 담당 맵별 수위·자기장·눈 폭 서버 로직과 배치 | 진행중 |
 | I-16 로비 게시판 상호작용 | C-15 | S-03, 사용자 | 게시판 outline, E 입력, 서버 검증 상호작용 이벤트, 카메라 컴포넌트 기반 포커스, 월드 UI 버튼 액션, 팀 색 선택, 매치 시작 로딩창 | 진행중 |
 | I-17 Steam 세션 전환 | C-18 | C-02, S-02, 사용자 | LAN fallback을 유지하면서 Steam 세션·Overlay 친구 초대·초대 수락·세션 정리 통합 | 예정 |
+| I-18 캐릭터 모델·ABP | C-24 | S-01, S-05, S-08, 사용자 | 새 캐릭터 모델용 ABP 부모, 애니메이션 슬롯 이름, 캐릭터 상태 변수 | 진행중 |
 
 ## 세션 개발 정책
 
@@ -91,6 +92,7 @@
 | C-11 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 커스터마이징 레벨과 WBP 버튼·머티리얼 파라미터: 사용자/S 인계 | `Tasks/C/C-11_customization_contract.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/UI/MainMenuWidget.*`, `Source/SnowRumble/UI/MainMenuPlayerController.*`, `Source/SnowRumble/Game/SnowRumblePlayerState.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/Player/SnowRumbleCustomizationData_C.h`, `Source/SnowRumble/Player/SnowRumbleCustomizationSubsystem_C.*`, `Source/SnowRumble/UI/CustomizationPlayerController_C.*`, `Source/SnowRumble/UI/CustomizationWidget_C.*`, `Source/SnowRumble/UI/LobbyWidget.*` | 진행중 |
 | C-22 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 안내 WBP 배치·스타일: 사용자/S 인계 | `Tasks/C/C-22_interaction_prompt_ui.md`, `Tasks/C/ROLE_C.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/UI/InteractionPromptWidget_C.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/Snowball/SnowballEquipmentComponent.*`, `Source/SnowRumble/Interaction/LobbyInteractionBoard_C.*` | 진행중 |
 | C-23 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 캐릭터 BP 조정값 확인: 사용자/S 인계 | `Tasks/C/C-23_camera_wheel_zoom.md`, `Tasks/C/ROLE_C.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Player/SnowRumbleCharacter.*` | 진행중 |
+| C-24 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 새 SkeletalMesh·Skeleton·ABP·캐릭터 BP 연결: 사용자/S 인계 | `Tasks/C/C-24_character_model_anim_contract.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Player/SnowRumbleCharacterAnimInstance_C.*` | 진행중 |
 
 ## 상태 범례
 
@@ -141,3 +143,6 @@
 - 2026-08-11: C-11 페인트 커서 색상 갱신 계약을 추가함. 원형 커서 WBP에 `BrushCursorColorBorder` 또는 `BrushCursorColorImage`를 배치하면 현재 브러시 색 변경 시 커서 표시 색도 같은 색으로 갱신됨.
 - 2026-08-11: C-22 상호작용 안내 UI를 구현함. 로컬 상호작용 후보가 있으면 대상 옆 화면 위치에 `E - 게시판`, `E - 눈덩이` 안내 WBP를 표시하고, 실제 WBP 스타일은 사용자/S에 인계함. `SnowRumbleEditor Win64 Development` 빌드가 성공함.
 - 2026-08-11: C-23 마우스 휠 카메라 줌을 구현함. 로비와 PvP에서 로컬 플레이어 카메라 SpringArm 길이를 휠 업/다운으로 조절하며, C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됨.
+- 2026-08-11: C-24 캐릭터 모델·ABP 계약을 추가함. 새 ABP는 `USnowRumbleCharacterAnimInstance`를 부모로 사용하고, 캐릭터 상태 변수와 `IdleAnimation` 등 슬롯 프로퍼티에 새 Skeleton용 애니메이션을 장착할 수 있음. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor PID 41016의 DLL 잠금으로 최종 링크는 보류됨.
+- 2026-08-12: C-11 페인트 trace를 기본 몸 머티리얼 slot 0 전용으로 제한함. `PaintAllowedMaterialIndex`는 기본 0, -1이면 모든 slot 허용이며, `bShowPaintHitDebug`로 hit 컴포넌트·slot·UV를 확인할 수 있음. `SnowRumbleEditor Win64 Development` 빌드가 성공함.
+- 2026-08-12: C-11 페인트 trace에 원형 커서 중심 자동 보정을 추가함. `bUsePaintCursorCenterTraceOffset`이 켜져 있으면 현재 브러시 커서 지름의 절반만큼 trace 위치를 보정하고, `PaintCursorScreenOffset`은 마지막 미세 조정값으로 유지함. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor PID 46944의 DLL 잠금으로 최종 링크는 보류됨.

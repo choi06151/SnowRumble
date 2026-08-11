@@ -19,6 +19,8 @@
 - 커스터마이징 레벨의 프리뷰 캐릭터는 커마 방 전용 애니메이션 에셋을 지정하거나 현재 애니메이션을 정지 상태로 둘 수 있다.
 - 첫 외형 데이터는 몸 색상 `BodyColor`로 제한해 로컬 저장, 서버 복제, 캐릭터 머티리얼 적용 경로를 제공한다.
 - 메쉬 직접 드로잉 1차 범위는 커스터마이징 레벨 프리뷰에서 현재 브러시 색과 크기로 그리고, Stroke 단위 이전과 전체 초기화를 지원한다.
+- 페인트 trace는 기본적으로 몸 머티리얼 slot 0만 허용하고, 다른 slot 또는 알 수 없는 slot은 stroke 생성을 막는다.
+- 페인트 trace는 소프트웨어 커서의 좌상단 기준 표시를 보정해 원형 커서 중심에서 나가도록 자동 보정한다.
 - 색칠하기 화면은 현재 브러시 색 버튼, 브러시 크기 조정 버튼, 전체 칠하기 버튼을 제공한다.
 - 브러시 색 버튼은 언리얼 기본 컬러 피커를 열고, 선택 색은 이후 Stroke와 전체 칠하기에 사용한다.
 - 브러시 색 버튼으로 열린 컬러 피커는 버튼의 왼쪽에 뜨도록 배치한다.
@@ -45,6 +47,8 @@
 - [x] 드로잉 Stroke 단위 이전과 전체 초기화를 제공한다.
 - [x] 페인트 trace 마우스 좌표에 UI DPI 스케일을 반영해 커서보다 왼쪽에 그려지는 현상을 보정한다.
 - [x] 페인트 trace X/Y 보정값을 PlayerController BP에서 픽셀 단위로 지정할 수 있게 한다.
+- [x] 페인트 trace가 허용 머티리얼 slot만 stroke로 받게 한다.
+- [x] 페인트 trace가 원형 커서 중심에서 나가도록 브러시 크기 기준 자동 보정을 적용한다.
 - [x] 로컬 플레이어의 드로잉 결과를 저장·복제한다.
 - [x] 페인트 화면에서 `BackButton`과 `Ctrl+Z`가 마지막 완료 stroke를 하나씩 누적 undo하게 한다.
 - [x] 색칠하기 화면이 아닐 때 좌클릭으로 페인트 stroke가 생성되지 않게 한다.
@@ -142,6 +146,9 @@
   - `UCustomizationWidget::GetPaintBrushColor()`: WBP가 현재 브러시 색 표시를 바인딩할 수 있는 조회 함수
   - `UCustomizationWidget::GetPaintBrushSize()`: WBP가 현재 브러시 크기 표시를 바인딩할 수 있는 조회 함수
   - `ACustomizationPlayerController::PaintCursorScreenOffset`: 페인트 trace 화면 좌표에 더하는 픽셀 단위 X/Y 보정값. X 양수는 오른쪽, Y 양수는 아래쪽으로 trace를 옮긴다.
+  - `ACustomizationPlayerController::bUsePaintCursorCenterTraceOffset`: 소프트웨어 페인트 커서가 좌상단 기준으로 표시될 때 원 중심에서 trace가 나가도록 커서 반지름만큼 자동 보정할지 정한다.
+  - `ACustomizationPlayerController::PaintAllowedMaterialIndex`: 페인트를 허용할 머티리얼 슬롯. 기본값은 몸 slot 0이며, -1이면 모든 슬롯을 허용한다.
+  - `ACustomizationPlayerController::bShowPaintHitDebug`: 페인트 hit 컴포넌트, 머티리얼 슬롯, UV를 화면 디버그로 표시할지 정한다.
   - `ACustomizationPlayerController::PaintBrushWheelStep`: 휠 한 칸당 브러시 크기 변화량
   - `ACustomizationPlayerController::PaintBrushColorPickerLeftPadding`: 브러시 색상 창을 버튼 왼쪽에 띄울 때 버튼과 창 사이에 둘 화면 픽셀 간격
   - `ACustomizationPlayerController::MinPaintBrushSize`: 브러시 크기 최소값
@@ -183,6 +190,8 @@
 - 2026-08-11: 마우스 커서 슬롯 계약을 추가했다. 메인메뉴, 로비/PvP 계열, 커스터마이징 PlayerController BP의 `DefaultMouseCursorWidgetClass`는 게임 전체 기본 커서로 적용되고, 커스터마이징 `PaintMouseCursorWidgetClass`는 색칠하기 원형 커서로 자동 전환된다. 페인트 커서 내부 `BrushCursorSizeBox`는 현재 브러시 크기에 맞춰 지름을 갱신한다.
 - 2026-08-11: 브러시 색 버튼으로 여는 언리얼 기본 컬러 피커가 버튼 오른쪽이 아니라 왼쪽에 뜨도록 `OpenPaintBrushColorPickerOnLeft(FVector2D)` 경로를 추가했다.
 - 2026-08-11: 페인트 커서 색상 계약을 추가했다. 원형 커서 WBP에 `BrushCursorColorBorder` 또는 `BrushCursorColorImage`를 배치하면 현재 브러시 색 변경 시 커서 표시 색도 같은 색으로 갱신된다.
+- 2026-08-12: 페인트 trace를 기본 몸 머티리얼 slot 0 전용으로 제한하는 `PaintAllowedMaterialIndex`를 추가했다. `PaintCursorScreenOffset`은 부위별 위치 보정이 아니라 커서 hotspot 보정용으로만 사용한다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-12: 페인트 trace에 `bUsePaintCursorCenterTraceOffset` 자동 중심 보정을 추가했다. 원형 커서 위젯이 좌상단 기준으로 표시되는 경우 현재 브러시 커서 지름의 절반만큼 trace 위치를 보정한다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor PID 46944의 DLL 잠금으로 최종 링크는 보류됐다.
 
 ## 수동 작업
 
@@ -198,7 +207,10 @@
 - 원형 커서 WBP 안에 `SizeBox`를 만들고 이름을 `BrushCursorSizeBox`로 맞추면 브러시 크기에 따라 커서 지름이 자동 조정된다.
 - 원형 커서 WBP 안에 현재 색을 입힐 Border 또는 Image를 만들고 이름을 `BrushCursorColorBorder` 또는 `BrushCursorColorImage`로 맞추면 브러시 색에 따라 커서 색이 자동 조정된다.
 - 원형 커서 지름이 너무 작거나 크면 커스터마이징 PlayerController BP의 `PaintCursorBrushSizeScale`, `MinPaintCursorDiameter`, `MaxPaintCursorDiameter`를 조정한다.
-- 페인트 위치가 커서와 어긋나면 커스터마이징 PlayerController BP의 `PaintCursorScreenOffset`을 조정한다. X 양수는 오른쪽, Y 양수는 아래쪽으로 trace를 옮긴다.
+- 페인트 trace가 원형 커서 중심에서 나가야 하면 커스터마이징 PlayerController BP의 `bUsePaintCursorCenterTraceOffset`을 켠다. 기본값은 켜짐이다.
+- 자동 중심 보정 뒤에도 페인트 위치가 커서 이미지의 중심과 전체적으로 조금 어긋나면 커스터마이징 PlayerController BP의 `PaintCursorScreenOffset`을 작게 조정한다. X 양수는 오른쪽, Y 양수는 아래쪽으로 trace를 옮긴다. 이 값은 부위별·회전별 UV 오차 보정용이 아니라 마지막 hotspot 미세 보정용이다.
+- 몸만 칠하려면 커스터마이징 PlayerController BP의 `PaintAllowedMaterialIndex`를 기본값 0으로 둔다. 모든 머티리얼 slot을 칠해야 하는 테스트에서는 -1로 바꾼다.
+- hit된 컴포넌트, 머티리얼 slot, UV를 확인해야 하면 커스터마이징 PlayerController BP의 `bShowPaintHitDebug`를 켠다.
 - 커스터마이징 PlayerController BP의 `PreviewAnimationAsset`에 커마 방에서 보여줄 포즈/애니메이션 에셋을 지정한다. 비워두면 기존 애니메이션 상태를 멈춘다.
 - 프리뷰를 완전히 고정하려면 `bPausePreviewAnimation`을 켜고, 특정 프레임 포즈를 쓰려면 `PreviewAnimationPositionSeconds`를 조정한다.
 - 레벨에 캐릭터와 카메라를 배치하고, 카메라 액터 태그에 `CustomizationCamera`를 추가한다.
@@ -268,6 +280,9 @@
 - [ ] PvP 이동 뒤에도 같은 `BodyColor`가 캐릭터에 적용된다.
 - [ ] 색칠하기 화면에서 캐릭터 Mesh를 좌클릭 드래그하면 현재 브러시 색과 크기로 선이 그려진다.
 - [ ] 색칠하기 화면에서 커서 위치와 검정 선 시작점이 좌우로 어긋나지 않는다.
+- [ ] 브러시 크기를 바꿔도 색칠 trace가 원형 커서 중심 근처에서 시작된다.
+- [ ] 몸 material slot 0이 아닌 부위를 클릭하거나 slot을 알 수 없는 hit가 나오면 새 stroke가 생기지 않는다.
+- [ ] `bShowPaintHitDebug`를 켜면 색칠 hit의 컴포넌트, material slot, UV가 화면에 표시된다.
 - [ ] 색칠하기 화면에서 선을 그린 뒤 Apply 없이 메인메뉴로 돌아갔다가 다시 커스터마이징에 들어와도 선이 유지된다.
 - [ ] 선을 그린 뒤 로비에 들어가면 로컬 캐릭터와 다른 화면의 해당 캐릭터에 같은 선이 보인다.
 - [ ] PvP 이동 뒤에도 같은 선이 캐릭터에 적용된다.

@@ -9,7 +9,7 @@
 
 ## 현재 집중 Task
 
-- [C-05](C-05_round_match_flow.md) 1/3/5 라운드 매치 흐름
+- [C-24](C-24_character_model_anim_contract.md) 캐릭터 모델과 ABP 애니메이션 계약
 
 ## 개발 스타일
 
@@ -46,6 +46,7 @@
 | 21 | [C-21](C-21_options_menu.md) | 옵션 메뉴 | 메인메뉴·로비 ESC 메뉴 | 진행중 |
 | 22 | [C-22](C-22_interaction_prompt_ui.md) | 상호작용 안내 UI | C-15·기존 눈덩이 획득 | 진행중 |
 | 23 | [C-23](C-23_camera_wheel_zoom.md) | 마우스 휠 카메라 줌 | 기존 플레이어 카메라 | 진행중 |
+| 24 | [C-24](C-24_character_model_anim_contract.md) | 캐릭터 모델과 ABP 애니메이션 계약 | C-01, C-08, C-11 | 진행중 |
 
 ## 통합 변경 요청
 
@@ -183,3 +184,7 @@
 - 2026-08-11: C-22 상호작용 안내 WBP 부모와 캐릭터 로컬 표시 경로를 구현했다. 게시판 후보를 눈덩이보다 우선 표시하고, 대상 bounds 화면 좌표 옆에 `E - 게시판`/`E - 눈덩이` 문구를 띄운다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
 - 2026-08-11: 사용자가 로비와 인게임에서 마우스 휠 업/다운으로 카메라 SpringArm 길이를 조절하는 기능을 요청해 C-23을 추가하고 진행중으로 전환했다.
 - 2026-08-11: C-23 마우스 휠 카메라 줌을 구현했다. 로컬 Tick에서 `MouseScrollUp`/`MouseScrollDown`으로 기본 카메라 SpringArm 목표 길이를 최소·최대 범위 안에서 조정한다. C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됐다.
+- 2026-08-11: 사용자가 새 캐릭터 모델 교체와 ABP 애니메이션 슬롯 관리를 Codex에게 위임하길 원해 C-24를 추가하고 진행중으로 전환했다.
+- 2026-08-11: C-24 ABP 부모 `USnowRumbleCharacterAnimInstance`를 추가했다. ABP는 캐릭터 상태 변수와 `IdleAnimation` 등 슬롯 프로퍼티를 읽어 새 모델 Skeleton용 애니메이션을 장착할 수 있다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor PID 41016의 DLL 잠금으로 최종 링크는 보류됐다.
+- 2026-08-12: C-11 페인트 trace를 기본 몸 머티리얼 slot 0 전용으로 제한했다. `PaintAllowedMaterialIndex`는 기본 0, -1이면 모든 slot 허용이며, `bShowPaintHitDebug`로 hit 컴포넌트·slot·UV를 확인할 수 있다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-12: C-11 페인트 trace에 원형 커서 중심 자동 보정을 추가했다. `bUsePaintCursorCenterTraceOffset`이 켜져 있으면 현재 브러시 커서 지름의 절반만큼 trace 위치를 보정하고, `PaintCursorScreenOffset`은 마지막 미세 조정값으로 남긴다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor PID 46944의 DLL 잠금으로 최종 링크는 보류됐다.

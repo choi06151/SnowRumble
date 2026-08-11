@@ -668,7 +668,24 @@ bool ACustomizationPlayerController::GetPaintUvUnderCursor(
 			OutPaintUv,
 			OutMaterialIndex))
 		{
+			if (!IsPaintMaterialIndexAllowed(OutMaterialIndex))
+			{
+				ShowPaintDebugMessage(FString::Printf(
+					TEXT("Paint skipped: material slot %d is not allowed"),
+					OutMaterialIndex));
+				return false;
+			}
+
 			OutMeshComponentName = MeshComponent->GetFName();
+			if (bShowPaintHitDebug)
+			{
+				ShowPaintDebugMessage(FString::Printf(
+					TEXT("Paint hit: %s, material %d, UV %.3f %.3f"),
+					*OutMeshComponentName.ToString(),
+					OutMaterialIndex,
+					OutPaintUv.X,
+					OutPaintUv.Y));
+			}
 			return true;
 		}
 
@@ -684,6 +701,20 @@ bool ACustomizationPlayerController::GetPaintUvUnderCursor(
 		OutPaintUv.Y = FMath::Clamp(OutPaintUv.Y, 0.0f, 1.0f);
 		OutMeshComponentName = MeshComponent->GetFName();
 		OutMaterialIndex = INDEX_NONE;
+		if (!IsPaintMaterialIndexAllowed(OutMaterialIndex))
+		{
+			ShowPaintDebugMessage(
+				TEXT("Paint skipped: material slot is unknown"));
+			return false;
+		}
+		if (bShowPaintHitDebug)
+		{
+			ShowPaintDebugMessage(FString::Printf(
+				TEXT("Paint hit: %s, material unknown, UV %.3f %.3f"),
+				*OutMeshComponentName.ToString(),
+				OutPaintUv.X,
+				OutPaintUv.Y));
+		}
 		return true;
 	}
 
@@ -704,7 +735,24 @@ bool ACustomizationPlayerController::GetPaintUvUnderCursor(
 					OutPaintUv,
 					OutMaterialIndex))
 			{
+				if (!IsPaintMaterialIndexAllowed(OutMaterialIndex))
+				{
+					ShowPaintDebugMessage(FString::Printf(
+						TEXT("Paint skipped: material slot %d is not allowed"),
+						OutMaterialIndex));
+					return false;
+				}
+
 				OutMeshComponentName = MeshComponent->GetFName();
+				if (bShowPaintHitDebug)
+				{
+					ShowPaintDebugMessage(FString::Printf(
+						TEXT("Paint hit: %s, material %d, UV %.3f %.3f"),
+						*OutMeshComponentName.ToString(),
+						OutMaterialIndex,
+						OutPaintUv.X,
+						OutPaintUv.Y));
+				}
 				return true;
 			}
 		}
@@ -732,9 +780,27 @@ bool ACustomizationPlayerController::GetPaintCursorScreenPosition(
 		OutMouseY = SlateMousePosition.Y * ViewportScale;
 	}
 
+	if (bUsePaintCursorCenterTraceOffset)
+	{
+		const float CursorRadius = GetPaintCursorDiameter() * 0.5f;
+		OutMouseX += CursorRadius * ViewportScale;
+		OutMouseY += CursorRadius * ViewportScale;
+	}
+
 	OutMouseX += PaintCursorScreenOffset.X;
 	OutMouseY += PaintCursorScreenOffset.Y;
 	return true;
+}
+
+float ACustomizationPlayerController::GetPaintCursorDiameter() const
+{
+	const float SafeMinDiameter = FMath::Max(1.0f, MinPaintCursorDiameter);
+	const float SafeMaxDiameter =
+		FMath::Max(SafeMinDiameter, MaxPaintCursorDiameter);
+	return FMath::Clamp(
+		PaintStrokeThickness * PaintCursorBrushSizeScale,
+		SafeMinDiameter,
+		SafeMaxDiameter);
 }
 
 bool ACustomizationPlayerController::FindPaintUvOnSkinnedRenderData(
@@ -870,6 +936,13 @@ bool ACustomizationPlayerController::FindPaintUvOnSkinnedRenderData(
 	OutPaintUv.Y = FMath::Clamp(ClosestUv.Y, 0.0f, 1.0f);
 	OutMaterialIndex = ClosestMaterialIndex;
 	return true;
+}
+
+bool ACustomizationPlayerController::IsPaintMaterialIndexAllowed(
+	int32 MaterialIndex) const
+{
+	return PaintAllowedMaterialIndex < 0
+		|| MaterialIndex == PaintAllowedMaterialIndex;
 }
 
 void ACustomizationPlayerController::ShowPaintDebugMessage(
@@ -1223,13 +1296,7 @@ void ACustomizationPlayerController::UpdatePaintMouseCursorPresentation()
 	USizeBox* BrushCursorSizeBox = FindPaintCursorSizeBox();
 	if (BrushCursorSizeBox)
 	{
-		const float SafeMinDiameter = FMath::Max(1.0f, MinPaintCursorDiameter);
-		const float SafeMaxDiameter =
-			FMath::Max(SafeMinDiameter, MaxPaintCursorDiameter);
-		const float CursorDiameter = FMath::Clamp(
-			PaintStrokeThickness * PaintCursorBrushSizeScale,
-			SafeMinDiameter,
-			SafeMaxDiameter);
+		const float CursorDiameter = GetPaintCursorDiameter();
 		BrushCursorSizeBox->SetWidthOverride(CursorDiameter);
 		BrushCursorSizeBox->SetHeightOverride(CursorDiameter);
 	}

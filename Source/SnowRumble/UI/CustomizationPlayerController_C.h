@@ -209,6 +209,18 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint")
 	FVector2D PaintCursorScreenOffset = FVector2D::ZeroVector;
 
+	/** 소프트웨어 페인트 커서의 좌상단 기준 표시를 원 중심 trace로 보정할지 정한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint")
+	bool bUsePaintCursorCenterTraceOffset = true;
+
+	/** 페인트를 허용할 머티리얼 슬롯이다. -1이면 모든 슬롯을 허용한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint")
+	int32 PaintAllowedMaterialIndex = 0;
+
+	/** 페인트 hit 컴포넌트, 머티리얼 슬롯, UV를 화면 디버그로 표시할지 정한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint")
+	bool bShowPaintHitDebug = false;
+
 	/** 회전 버튼을 누르고 있을 때 프리뷰 캐릭터가 초당 회전하는 각도다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|View", meta = (ClampMin = "1.0", ClampMax = "720.0"))
 	float PreviewRotationSpeedDegrees = 90.0f;
@@ -266,6 +278,9 @@ private:
 	/** UI DPI 스케일을 반영해 페인트 trace에 사용할 뷰포트 픽셀 좌표를 구한다. */
 	bool GetPaintCursorScreenPosition(float& OutMouseX, float& OutMouseY);
 
+	/** 현재 브러시 크기 기준으로 원형 커서 지름을 계산한다. */
+	float GetPaintCursorDiameter() const;
+
 	/** 충돌 UV를 쓸 수 없을 때 렌더 삼각형을 직접 검사해 UV를 계산한다. */
 	bool FindPaintUvOnSkinnedRenderData(
 		const USkeletalMeshComponent* MeshComponent,
@@ -274,6 +289,7 @@ private:
 		FVector2D& OutPaintUv,
 		int32& OutMaterialIndex) const;
 
+	bool IsPaintMaterialIndexAllowed(int32 MaterialIndex) const;
 	void ShowPaintDebugMessage(const FString& Message);
 	void HandlePaintBrushColorPicked(FLinearColor NewBrushColor);
 
