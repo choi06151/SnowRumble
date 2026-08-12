@@ -77,7 +77,14 @@ bool USnowballCreationComponent::IsCreatingSnowball() const
 
 float USnowballCreationComponent::GetCreationProgress() const
 {
-	if (!bIsCreating || CreationDuration <= 0.0f)
+	const ASnowRumbleCharacter* Character =
+		Cast<ASnowRumbleCharacter>(GetOwner());
+	const float EffectiveCreationDuration =
+		CreationDuration
+		* (Character
+			? Character->GetSnowballCreationDurationMultiplier()
+			: 1.0f);
+	if (!bIsCreating || EffectiveCreationDuration <= 0.0f)
 	{
 		return 0.0f;
 	}
@@ -92,7 +99,8 @@ float USnowballCreationComponent::GetCreationProgress() const
 				: CreationStartServerTime;
 
 	return FMath::Clamp(
-		(CurrentServerTime - CreationStartServerTime) / CreationDuration,
+		(CurrentServerTime - CreationStartServerTime)
+			/ EffectiveCreationDuration,
 		0.0f,
 		1.0f);
 }
@@ -150,11 +158,14 @@ void USnowballCreationComponent::ServerStartCreatingSnowball_Implementation(
 
 	CreationStartServerTime = World->GetTimeSeconds();
 	SetCreatingState(true);
+	const float EffectiveCreationDuration =
+		CreationDuration
+		* Character->GetSnowballCreationDurationMultiplier();
 	World->GetTimerManager().SetTimer(
 		CreationTimerHandle,
 		this,
 		&USnowballCreationComponent::CompleteCreation,
-		CreationDuration,
+		FMath::Max(0.01f, EffectiveCreationDuration),
 		false);
 	Character->ForceNetUpdate();
 }

@@ -158,19 +158,70 @@ void UCustomizationWidget::HandleHatModeButtonClicked()
 
 void UCustomizationWidget::HandleBrushColorButtonClicked()
 {
-	if (CustomizationPlayerController)
-	{
-		if (BrushColorButton)
-		{
-			CustomizationPlayerController->OpenPaintBrushColorPickerOnLeft(
-				BrushColorButton->GetCachedGeometry().GetAbsolutePosition());
-		}
-		else
-		{
-			CustomizationPlayerController->OpenPaintBrushColorPicker();
-		}
-		RefreshPaintBrushPreview();
-	}
+	RefreshPaintBrushPreview();
+}
+
+void UCustomizationWidget::HandleRedBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		RedBrushColorButton,
+		FLinearColor::Red);
+}
+
+void UCustomizationWidget::HandleOrangeBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		OrangeBrushColorButton,
+		FLinearColor(1.0f, 0.45f, 0.0f, 1.0f));
+}
+
+void UCustomizationWidget::HandleYellowBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		YellowBrushColorButton,
+		FLinearColor::Yellow);
+}
+
+void UCustomizationWidget::HandleGreenBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		GreenBrushColorButton,
+		FLinearColor::Green);
+}
+
+void UCustomizationWidget::HandleBlueBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		BlueBrushColorButton,
+		FLinearColor::Blue);
+}
+
+void UCustomizationWidget::HandleIndigoBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		IndigoBrushColorButton,
+		FLinearColor(0.25f, 0.0f, 0.55f, 1.0f));
+}
+
+void UCustomizationWidget::HandlePurpleBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		PurpleBrushColorButton,
+		FLinearColor(0.55f, 0.0f, 1.0f, 1.0f));
+}
+
+void UCustomizationWidget::HandleBlackBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		BlackBrushColorButton,
+		FLinearColor::Black);
+}
+
+void UCustomizationWidget::HandleWhiteBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		WhiteBrushColorButton,
+		FLinearColor::White);
 }
 
 void UCustomizationWidget::HandleBrushSizeButtonPressed()
@@ -306,6 +357,60 @@ void UCustomizationWidget::BindCustomizationButtons()
 			this,
 			&UCustomizationWidget::HandleBrushColorButtonClicked);
 	}
+	if (RedBrushColorButton)
+	{
+		RedBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleRedBrushColorButtonClicked);
+	}
+	if (OrangeBrushColorButton)
+	{
+		OrangeBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleOrangeBrushColorButtonClicked);
+	}
+	if (YellowBrushColorButton)
+	{
+		YellowBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleYellowBrushColorButtonClicked);
+	}
+	if (GreenBrushColorButton)
+	{
+		GreenBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleGreenBrushColorButtonClicked);
+	}
+	if (BlueBrushColorButton)
+	{
+		BlueBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleBlueBrushColorButtonClicked);
+	}
+	if (IndigoBrushColorButton)
+	{
+		IndigoBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleIndigoBrushColorButtonClicked);
+	}
+	if (PurpleBrushColorButton)
+	{
+		PurpleBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandlePurpleBrushColorButtonClicked);
+	}
+	if (BlackBrushColorButton)
+	{
+		BlackBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleBlackBrushColorButtonClicked);
+	}
+	if (WhiteBrushColorButton)
+	{
+		WhiteBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleWhiteBrushColorButtonClicked);
+	}
 	if (BrushSizeButton)
 	{
 		BrushSizeButton->OnPressed.AddUniqueDynamic(
@@ -391,6 +496,15 @@ void UCustomizationWidget::UnbindCustomizationButtons()
 	{
 		BrushColorButton->OnClicked.RemoveAll(this);
 	}
+	UnbindPaletteColorButton(RedBrushColorButton);
+	UnbindPaletteColorButton(OrangeBrushColorButton);
+	UnbindPaletteColorButton(YellowBrushColorButton);
+	UnbindPaletteColorButton(GreenBrushColorButton);
+	UnbindPaletteColorButton(BlueBrushColorButton);
+	UnbindPaletteColorButton(IndigoBrushColorButton);
+	UnbindPaletteColorButton(PurpleBrushColorButton);
+	UnbindPaletteColorButton(BlackBrushColorButton);
+	UnbindPaletteColorButton(WhiteBrushColorButton);
 	if (BrushSizeButton)
 	{
 		BrushSizeButton->OnPressed.RemoveAll(this);
@@ -438,11 +552,6 @@ void UCustomizationWidget::UnbindCustomizationButtons()
 
 void UCustomizationWidget::RefreshPaintBrushPreview()
 {
-	if (!BrushColorPreviewBorder && !BrushColorPreviewImage)
-	{
-		return;
-	}
-
 	const FLinearColor CurrentBrushColor = GetPaintBrushColor();
 	if (BrushColorPreviewBorder)
 	{
@@ -452,6 +561,162 @@ void UCustomizationWidget::RefreshPaintBrushPreview()
 	{
 		BrushColorPreviewImage->SetColorAndOpacity(CurrentBrushColor);
 	}
+	RefreshPaletteButtonSelection();
+}
+
+void UCustomizationWidget::SetPaintBrushColorFromPalette(
+	FLinearColor NewBrushColor)
+{
+	if (CustomizationPlayerController)
+	{
+		CustomizationPlayerController->SetPaintBrushColor(NewBrushColor);
+	}
+
+	RefreshPaintBrushPreview();
+}
+
+void UCustomizationWidget::SetPaintBrushColorFromPaletteButton(
+	UButton* Button,
+	FLinearColor FallbackColor)
+{
+	SetPaintBrushColorFromPalette(
+		GetPaletteButtonBrushColor(Button, FallbackColor));
+}
+
+FLinearColor UCustomizationWidget::GetPaletteButtonBrushColor(
+	UButton* Button,
+	FLinearColor FallbackColor)
+{
+	if (!Button)
+	{
+		return FallbackColor;
+	}
+
+	FButtonStyle* CachedStyle = DefaultPaletteButtonStyles.Find(Button);
+	if (!CachedStyle)
+	{
+		DefaultPaletteButtonStyles.Add(Button, Button->GetStyle());
+		CachedStyle = DefaultPaletteButtonStyles.Find(Button);
+	}
+	if (!CachedStyle)
+	{
+		return FallbackColor;
+	}
+
+	FLinearColor BrushColor = CachedStyle->Normal.TintColor.GetSpecifiedColor();
+	BrushColor *= Button->GetBackgroundColor();
+	if (BrushColor.A <= 0.0f)
+	{
+		BrushColor.A = FallbackColor.A;
+	}
+	return BrushColor;
+}
+
+void UCustomizationWidget::UnbindPaletteColorButton(UButton* Button)
+{
+	if (Button)
+	{
+		Button->OnClicked.RemoveAll(this);
+	}
+}
+
+void UCustomizationWidget::RefreshPaletteButtonSelection()
+{
+	const FLinearColor CurrentBrushColor = GetPaintBrushColor();
+
+	auto IsSameColor = [&CurrentBrushColor](const FLinearColor& PaletteColor)
+	{
+		return FMath::IsNearlyEqual(CurrentBrushColor.R, PaletteColor.R, 0.01f)
+			&& FMath::IsNearlyEqual(CurrentBrushColor.G, PaletteColor.G, 0.01f)
+			&& FMath::IsNearlyEqual(CurrentBrushColor.B, PaletteColor.B, 0.01f)
+			&& FMath::IsNearlyEqual(CurrentBrushColor.A, PaletteColor.A, 0.01f);
+	};
+
+	SetButtonPressedVisual(
+		RedBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(RedBrushColorButton, FLinearColor::Red)));
+	SetButtonPressedVisual(
+		OrangeBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				OrangeBrushColorButton,
+				FLinearColor(1.0f, 0.45f, 0.0f, 1.0f))));
+	SetButtonPressedVisual(
+		YellowBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				YellowBrushColorButton,
+				FLinearColor::Yellow)));
+	SetButtonPressedVisual(
+		GreenBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				GreenBrushColorButton,
+				FLinearColor::Green)));
+	SetButtonPressedVisual(
+		BlueBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				BlueBrushColorButton,
+				FLinearColor::Blue)));
+	SetButtonPressedVisual(
+		IndigoBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				IndigoBrushColorButton,
+				FLinearColor(0.25f, 0.0f, 0.55f, 1.0f))));
+	SetButtonPressedVisual(
+		PurpleBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				PurpleBrushColorButton,
+				FLinearColor(0.55f, 0.0f, 1.0f, 1.0f))));
+	SetButtonPressedVisual(
+		BlackBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				BlackBrushColorButton,
+				FLinearColor::Black)));
+	SetButtonPressedVisual(
+		WhiteBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				WhiteBrushColorButton,
+				FLinearColor::White)));
+}
+
+void UCustomizationWidget::SetButtonPressedVisual(
+	UButton* Button,
+	bool bSelected)
+{
+	if (!Button)
+	{
+		return;
+	}
+
+	FButtonStyle* CachedStyle = DefaultPaletteButtonStyles.Find(Button);
+	if (!CachedStyle)
+	{
+		DefaultPaletteButtonStyles.Add(Button, Button->GetStyle());
+		CachedStyle = DefaultPaletteButtonStyles.Find(Button);
+	}
+	if (!CachedStyle)
+	{
+		return;
+	}
+
+	if (!bSelected)
+	{
+		Button->SetStyle(*CachedStyle);
+		return;
+	}
+
+	FButtonStyle SelectedStyle = *CachedStyle;
+	SelectedStyle.SetNormal(CachedStyle->Pressed);
+	SelectedStyle.SetHovered(CachedStyle->Pressed);
+	SelectedStyle.SetPressed(CachedStyle->Pressed);
+	Button->SetStyle(SelectedStyle);
 }
 
 int32 UCustomizationWidget::GetSwitcherIndexForPage(
