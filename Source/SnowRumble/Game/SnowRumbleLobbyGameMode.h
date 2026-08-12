@@ -7,6 +7,9 @@
 #include "SnowRumbleLobbyGameMode.generated.h"
 
 class APlayerController;
+class ASnowRumblePlayerState;
+class UWorld;
+enum class ESnowRumbleTeam : uint8;
 
 UCLASS()
 class SNOWRUMBLE_API ASnowRumbleLobbyGameMode : public AGameModeBase
@@ -19,11 +22,49 @@ public:
 	/** 호스트 요청과 준비 상태를 검사한 뒤 게임방으로 이동한다. */
 	void RequestStartMatch(APlayerController* RequestingController);
 
+	/** 서버가 현재 로비 인원을 지정한 팀 수로 무작위 균등 배정한다. */
+	void ShuffleLobbyTeamsFromServer(int32 TeamCount);
+
+	/** 서버가 현재 로비 인원을 모두 서로 다른 팀 색으로 무작위 배정한다. */
+	void ShuffleLobbyPlayersIndividuallyFromServer();
+
 protected:
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 	virtual void Logout(AController* Exiting) override;
 
-	/** 대기방에서 시작 시 이동할 게임방 맵 경로다. */
+	/** 새 참가자를 서버 기준 랜덤 팀 배정 규칙으로 배치한다. */
+	void AssignLobbyTeam(APlayerController* NewPlayer);
+
+	/** 현재 로비에서 팀 섞기에 사용할 수 있는 플레이어 목록을 반환한다. */
+	TArray<ASnowRumblePlayerState*> GetShuffleableLobbyPlayers() const;
+
+	/** 현재 대기방에서 해당 팀에 배정된 인원을 센다. */
+	int32 CountLobbyTeamPlayers(ESnowRumbleTeam Team) const;
+
+	/** 현재 참가 인원과 서버가 고른 PvP 후보 레벨을 URL 옵션에 포함한다. */
+	FString BuildMatchTravelUrl(int32 ExpectedPlayerCount);
+
+	/** 등록된 후보 중 PvP 진입에 사용할 레벨 경로를 서버에서 고른다. */
+	FString SelectPvPLevelPath() const;
+
+	/** 등록된 PvP 후보 레벨 경로 목록을 반환한다. */
+	TArray<FString> GetPvPLevelCandidatePaths() const;
+
+	/** 현재 연결된 모든 클라이언트에 매치 로딩창 표시를 요청한다. */
+	void ShowMatchLoadingScreens();
+
+	/** 로딩창 표시 RPC가 나간 다음 틱에 실제 PvP 맵 이동을 실행한다. */
+	void StartPendingMatchTravel();
+
+	/** 대기방에서 PvP 시작 시 이동할 게임방 맵 경로다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Lobby")
-	FString MatchTravelUrl = TEXT("/Game/Maps/L_Prototype?listen");
+	FString MatchTravelUrl =
+		TEXT("/Game/LowpolyStyle/WinterEnvironment/Maps/DemoMap?listen");
+
+	/** 대기방에서 PvP 시작 시 서버가 무작위로 고를 후보 레벨이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Lobby")
+	TArray<TSoftObjectPtr<UWorld>> PvPLevelCandidates;
+
+	FString PendingMatchTravelUrl;
+	bool bMatchTravelPending = false;
 };

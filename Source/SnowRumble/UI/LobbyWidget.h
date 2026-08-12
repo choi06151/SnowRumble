@@ -4,11 +4,17 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "../Game/SnowRumbleMatchSubsystem_C.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "LobbyWidget.generated.h"
 
 class ASnowRumbleLobbyGameState;
 class ASnowRumblePlayerState;
+class UBorder;
+class UImage;
+class UTextBlock;
+class UWidget;
+class UWidgetAnimation;
 
 UCLASS(Abstract, Blueprintable)
 class SNOWRUMBLE_API ULobbyWidget : public UUserWidget
@@ -19,6 +25,10 @@ public:
 	/** 현재 대기방 플레이어 목록을 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI|Lobby")
 	TArray<ASnowRumblePlayerState*> GetLobbyPlayers() const;
+
+	/** 로비 이벤트 로그에 새 메시지를 추가한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby")
+	void AddEventLogMessage(const FText& Message);
 
 	/** 로컬 플레이어의 대기방 이름 변경을 요청한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby")
@@ -44,6 +54,18 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI|Lobby")
 	bool CanStartMatch() const;
 
+	/** 현재 방의 방 코드를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI|Lobby")
+	FString GetCurrentRoomCode() const;
+
+	/** 예외행동 사유를 표시하고 피드백 애니메이션을 재생한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby")
+	void ShowInvalidActionFeedback(const FText& ReasonText);
+
+	/** 로컬 플레이어에게만 보이는 짧은 상태 알림을 표시한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Personal Alarm")
+	void ShowPersonalTextAlarm(const FText& Message);
+
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
@@ -55,10 +77,95 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Lobby")
 	void OnLobbyStateChanged();
 
+	/** 예외행동 피드백을 Blueprint가 직접 표시하거나 애니메이션으로 처리한다. */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Lobby")
+	void OnInvalidActionFeedback(const FText& ReasonText);
+
+	/** WBP에 같은 이름으로 만든 예외행동 피드백 애니메이션이다. */
+	UPROPERTY(Transient, meta = (BindWidgetAnimOptional))
+	TObjectPtr<UWidgetAnimation> InvalidActionAnimation;
+
+	/** WBP에 같은 이름으로 만든 예외행동 사유 표시 TextBlock이다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UTextBlock> InvalidActionReasonText;
+
+	/** WBP에 같은 이름으로 만든 로컬 개인 알림 TextBlock이다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UTextBlock> PersonalAlarmText;
+
+	/** WBP에 같은 이름으로 만든 로컬 개인 알림 애니메이션이다. */
+	UPROPERTY(Transient, meta = (BindWidgetAnimOptional))
+	TObjectPtr<UWidgetAnimation> PersonalAlarmAnimation;
+
+	/** WBP에 같은 이름으로 만든 누적 이벤트 로그 TextBlock이다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UTextBlock> EventLogText;
+
+	/** WBP에 같은 이름으로 만든 현재 음성 송출 중인 플레이어 이름 TextBlock이다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UTextBlock> VoiceSpeakingNamesText;
+
+	/** WBP에 같은 이름으로 만든 현재 음성 송출 아이콘 Image다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UImage> VoiceSpeakingIcon;
+
+	/** WBP에서 아이콘과 이름 텍스트를 함께 감싸는 위젯이다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UWidget> VoiceSpeakingContainer;
+
+	/** 이벤트 로그 한 줄이 화면에 유지되는 시간이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Lobby", meta = (ClampMin = "0.0"))
+	float EventLogEntryVisibleSeconds = 5.0f;
+
+	/** 있으면 현재 방 코드를 자동 표시하는 텍스트다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UTextBlock> RoomCodeTextBlock;
+
+	/** 있으면 준비 완료한 인원 수와 전체 인원 수를 자동 표시하는 텍스트다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UTextBlock> ReadyPlayerCountText;
+
+	/** 있으면 현재 선택된 로비 게임 모드를 자동 표시하는 텍스트다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UTextBlock> CurrentGameModeText;
+
+	/** 있으면 로비에서 선택한 총 라운드 수를 자동 표시하는 텍스트다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UTextBlock> MatchRoundLimitText;
+
+	/** 있으면 로비에서 선택한 게임 속도와 축소 주기를 자동 표시하는 텍스트다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UTextBlock> GameSpeedText;
+
+	/** 있으면 로컬 플레이어 이름을 자동 표시하는 텍스트다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UTextBlock> LocalPlayerNameText;
+
+	/** 있으면 로컬 플레이어 팀 색 이름을 자동 표시하는 텍스트다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UTextBlock> LocalTeamColorText;
+
+	/** 있으면 로컬 플레이어 준비 상태를 자동 표시하는 텍스트다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UTextBlock> LocalReadyStateText;
+
+	/** 있으면 로컬 플레이어 팀 색을 배경 swatch로 자동 표시한다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Lobby")
+	TObjectPtr<UBorder> LocalTeamColorBorder;
+
 private:
 	ASnowRumblePlayerState* GetLocalSnowRumblePlayerState() const;
 	ASnowRumbleLobbyGameState* GetLobbyGameState() const;
+	void ApplyLocalPlayerIdentity();
+	void ApplyLocalPlayerCustomization();
 	void RefreshLobbyBindings();
+	void RefreshRoomCodeText();
+	void RefreshLobbyStatusTexts();
+	void RefreshEventLogText();
+	void RefreshVoiceSpeakingNamesText();
+	void SetVoiceSpeakingPresentationVisible(bool bVisible);
+	bool ShouldShowVoiceSpeakingPlayer(
+		const ASnowRumblePlayerState* SenderPlayerState) const;
 	void UnbindLobbyBindings();
 
 	UFUNCTION()
@@ -66,4 +173,21 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<ASnowRumbleLobbyGameState> BoundLobbyGameState;
+
+	UPROPERTY(Transient)
+	TObjectPtr<ASnowRumblePlayerState> IdentityAppliedPlayerState;
+
+	UPROPERTY(Transient)
+	TObjectPtr<ASnowRumblePlayerState> CustomizationAppliedPlayerState;
+
+	struct FEventLogEntry
+	{
+		FText Message;
+		double ExpireTimeSeconds = 0.0;
+	};
+
+	TArray<FEventLogEntry> EventLogEntries;
+
+	double LastIdentityApplyRequestTime = -1.0;
+	double LastCustomizationApplyRequestTime = -1.0;
 };

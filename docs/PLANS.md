@@ -25,27 +25,38 @@
 
 | 계약 | 제공 Task | 소비 Task·파트 | 필요한 결과 | 상태 |
 | --- | --- | --- | --- | --- |
-| I-01 기존 기반 | C-01 | 모든 역할 | 재사용 파일·자산과 공용 소유권 | 예정 |
-| I-02 세션·방 | C-02 | C-03, S-02 | 방 설정·검색·참가 상태와 요청 | 예정 |
-| I-03 팀·대기방 | C-03 | C-04, C-08, C-14, S-03 | 랜덤 팀·준비·동수 시작 상태 | 예정 |
-| I-04 랜덤 맵·로딩 | C-04 | C-05, S-04, S-10, J | 선택 맵·로딩 인원·시작 결과 | 예정 |
+| I-01 기존 기반 | C-01 | 모든 역할 | 재사용 파일·자산과 공용 소유권 | 완료 |
+| I-02 세션·방 | C-02 | C-03, S-02 | 방 설정·검색·참가 상태와 요청 | 진행중 |
+| I-03 팀·대기방 | C-03 | C-04, C-08, C-14, S-03 | 팀 색 선택·준비·다색 팀 시작 상태 | 진행중 |
+| I-04 랜덤 맵·로딩 | C-04 | C-05, S-04, S-10, J | 선택 맵·로딩 인원·시작 결과 | 진행중 |
 | I-05 얼음·사망 | C-06 | C-05, C-07, C-13, K-07, S-07 | 얼음 잔여시간·사망·관전·전멸 결과 | 예정 |
 | I-06 플레이어 효과 | C-07 | K-01, K-03~K-06, K-08, S-09, S-10, J-02, J-04 | 피해·회복·무적·능력 보정 요청 | 예정 |
-| I-07 팀 식별 | C-08 | S-05 | 닉네임·팀 색·이름표용 상태 | 예정 |
+| I-07 팀 식별 | C-08 | S-05 | 닉네임·팀 색·이름표용 상태 | 진행중 |
 | I-08 눈 전투 | C-09 | K-05, K-06, K-08, S-06 | 눈 제작·조준·충전·피격과 큰 눈 광역 결과 | 예정 |
-| I-09 경기 흐름 | C-05 | K-11, S-11, 맵 담당 | 라운드 시간·승수·결과·금색 상자 시점 | 예정 |
-| I-10 커스터마이징 | C-11 | S-01, S-02, S-08 | 외형 저장·복제·적용 상태 | 예정 |
+| I-09 경기 흐름 | C-05 | K-11, S-11, 맵 담당 | 라운드 시간·승수·결과·금색 상자 시점 | 진행중 |
+| I-10 커스터마이징 | C-11 | S-01, S-02, S-08 | 외형 저장·복제·적용 상태 | 진행중 |
 | I-11 아이템 | K-01~K-11 | C-12, S-08, S-09, S-10, J | 아이템 상태·모델 요구·배치·UI 계약 | 예정 |
 | I-12 레벨·비주얼 | S-12, J-05 | C-12 | 세 맵과 UI·모델·표현 자산 | 예정 |
 | I-13 부활 계약 | C-13 | K-07, S-07, C-05 | 핫팩 부활 진행·취소·완료와 무적 결과 | 예정 |
 | I-14 팀 등장 | C-14 | S-10, J-02, J-04 | 팀 스폰·시작 제한·팀 소개 상태 | 예정 |
-| I-15 맵 환경 압박 | S-10, J-02, J-04 | C-05, C-12 | 레벨 담당 맵별 수위·자기장·눈 폭 서버 로직과 배치 | 예정 |
+| I-15 맵 환경 압박 | C-05, S-10, J-02, J-04 | C-12 | C-05 게임 속도별 축소 주기·경기 시간·축소 호출 계약, 레벨 담당 맵별 수위·자기장·눈 폭 서버 로직과 배치 | 진행중 |
+| I-16 로비 게시판 상호작용 | C-15 | S-03, 사용자 | 게시판 outline, E 입력, 서버 검증 상호작용 이벤트, 카메라 컴포넌트 기반 포커스, 월드 UI 버튼 액션, 팀 색 선택, 매치 시작 로딩창 | 진행중 |
+| I-17 Steam 세션 전환 | C-18 | C-02, S-02, 사용자 | LAN fallback을 유지하면서 Steam 세션·Overlay 친구 초대·초대 수락·세션 정리 통합 | 예정 |
+| I-18 캐릭터 모델·ABP | C-24 | S-01, S-05, S-08, 사용자 | 새 캐릭터 모델용 ABP 부모, 애니메이션 슬롯 이름, 캐릭터 상태 변수 | 진행중 |
+
+## 세션 개발 정책
+
+- 현재 MVP 구현과 빠른 로컬 검증은 `OnlineSubsystem NULL` 기반 LAN 세션으로 계속 진행한다.
+- Steam 출시는 최종 목표로 유지하며 Steam 세션 통합은 C-18에서 별도 최종 Task로 처리한다.
+- 앞으로 메인메뉴, 로비, PvP, ESC 메뉴, 친구 초대 UI는 `USnowRumbleSessionSubsystem` 등 공개 세션 계약만 호출하고 LAN/Steam 구현 세부사항에 직접 의존하지 않는다.
+- 친구 부르기 버튼은 현재 Blueprint 이벤트와 UI 계약만 유지하고, 실제 Steam Overlay 초대 연결은 C-18에서 처리한다.
+- 새 기능이 세션 생성·검색·참가·초대·퇴장·복귀에 영향을 주면 C-18 Steam 전환 영향 여부를 함께 기록한다.
 
 ## 통합 관문
 
 | 관문 | 완료 조건 | 상태 |
 | --- | --- | --- |
-| G-01 기반 인수 | C-01 완료와 기존 진행중 선점 재정리 | 예정 |
+| G-01 기반 인수 | C-01 완료와 기존 진행중 선점 재정리 | 완료 |
 | G-02 공용 계약 | C-02~C-09, C-11, C-13, C-14 중 소비 파트에 필요한 계약 완료 | 예정 |
 | G-03 파트 통합 | K-10, S-12, J-05 완료 | 예정 |
 | G-04 MVP 통합 | C-12 결과 확인 완료 | 예정 |
@@ -64,7 +75,24 @@
 
 | Task | 담당자 | 기능 소유자 | 계약 소유자 | 자산 수정자 | 선점 파일·자산 | 상태 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 없음 | - | - | - | - | - | - |
+| C-01 | C | 최재원(C) | 최재원(C) | 문서: 최재원(C), 코드·자산: 구현 승인 전 확정 | `Tasks/C/C-01_existing_foundation_migration.md`, `Tasks/C/PLAN_C.md`, 기존 코드·자산 조사 대상은 승인 전 확정 | 완료 |
+| C-02 | C | 최재원(C) | 최재원(C) | 문서·C++: 최재원(C), UI 자산: S-02 인계 | `Tasks/C/C-02_session_room_flow.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Online/SnowRumbleSessionSubsystem.*`, `Source/SnowRumble/UI/MainMenuWidget.*`, `Source/SnowRumble/UI/LobbyWidget.*` | 진행중 |
+| C-03 | C | 최재원(C) | 최재원(C) | 문서·C++: 최재원(C), 로비 맵 PlayerStart 배치: 사용자/S·J 인계 | `Tasks/C/C-03_random_team_lobby.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Game/SnowRumbleLobbyGameMode.*`, `Source/SnowRumble/Game/SnowRumbleLobbyGameState.*`, `Source/SnowRumble/Game/SnowRumblePlayerState.*`, `Source/SnowRumble/UI/LobbyPlayerController.*` | 진행중 |
+| C-04 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), PvP 후보 레벨 자산 지정: 사용자/S/J 인계 | `Tasks/C/C-04_random_map_loading.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Game/SnowRumbleLobbyGameMode.*`, `Source/SnowRumble/Game/SnowRumbleMatchSubsystem_C.*` | 진행중 |
+| C-06 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 얼음/사망 표현 UI·VFX: 사용자/S 인계 | `Tasks/C/C-06_freeze_death_spectate.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Player/SnowRumbleHealthComponent.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*` | 진행중 |
+| C-05 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 결과 UI/연출: 사용자/S 인계 | `Tasks/C/C-05_round_match_flow.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Game/SnowRumbleGameMode.*`, `Source/SnowRumble/Game/SnowRumbleGameState_C.*`, `Source/SnowRumble/Game/SnowRumbleLobbyGameState.*`, `Source/SnowRumble/Game/SnowRumbleMatchSubsystem_C.*`, `Source/SnowRumble/UI/LobbyBoardWidget_C.*`, `Source/SnowRumble/UI/MainHUDWidget.cpp`, `Source/SnowRumble/Player/SnowRumbleHealthComponent.cpp` | 진행중 |
+| C-08 | C | 최재원(C) | 최재원(C) | C++: 최재원(C), 이름표 WBP·그래픽: S-05 인계 | `Tasks/C/C-08_spawn_intro_identity.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/UI/OverheadNameplateWidget_C.*` | 진행중 |
+| C-15 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 게시판 Blueprint·맵 배치·로딩 WBP: 사용자/S 인계 | `Tasks/C/C-15_lobby_board_interaction.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Interaction/LobbyInteractionBoard_C.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/UI/*LoadingScreen*`, `Source/SnowRumble/UI/SnowRumblePlayerController.*`, `Source/SnowRumble/Game/SnowRumbleGameMode.*` | 진행중 |
+| C-16 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), HUD WBP 배치: 사용자/S 인계 | `Tasks/C/C-16_teammate_health_hud.md`, `Tasks/C/PLAN_C.md`, `Tasks/C/ROLE_C.md`, `docs/PLANS.md`, `Source/SnowRumble/UI/MainHUDWidget.*` | 완료 |
+| C-17 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 카운트다운 WBP 표시 배치: 사용자/S 인계 | `Tasks/C/C-17_pvp_start_countdown.md`, `Tasks/C/PLAN_C.md`, `Tasks/C/ROLE_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Game/SnowRumbleGameState_C.*`, `Source/SnowRumble/Game/SnowRumbleGameMode.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/UI/MainHUDWidget.*` | 진행중 |
+| C-18 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), Steam App ID·테스트 계정·빌드 환경: 사용자 확인 | `Tasks/C/C-18_steam_session_integration.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Config/DefaultEngine.ini`, `Source/SnowRumble/Online/SnowRumbleSessionSubsystem.*`, `Source/SnowRumble/UI/LobbyEscapeMenuWidget.*`, `Source/SnowRumble/UI/MainMenuWidget.*`, `Source/SnowRumble/UI/LobbyPlayerController.*` | 예정 |
+| C-19 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 채팅 WBP 배치·스타일: 사용자/S 인계 | `Tasks/C/C-19_text_chat.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/UI/ChatWidget_C.*`, `Source/SnowRumble/UI/SnowRumblePlayerController.*`, `Source/SnowRumble/UI/LobbyPlayerController.*` | 진행중 |
+| C-20 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 로비/HUD 로그 WBP 배치·스타일: 사용자/S 인계 | `Tasks/C/C-20_event_log_ui.md`, `Tasks/C/ROLE_C.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/UI/SnowRumblePlayerController.*`, `Source/SnowRumble/UI/LobbyWidget.*`, `Source/SnowRumble/UI/MainHUDWidget.*`, `Source/SnowRumble/Game/SnowRumblePlayerState.*`, `Source/SnowRumble/Game/SnowRumbleGameMode.*` | 진행중 |
+| C-21 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 옵션 WBP 배치·스타일: 사용자/S 인계 | `Tasks/C/C-21_options_menu.md`, `Tasks/C/ROLE_C.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/UI/OptionsWidget_C.*`, `Source/SnowRumble/UI/OptionsKeyBindingRowWidget_C.*`, `Source/SnowRumble/UI/MainMenuWidget.*`, `Source/SnowRumble/UI/MainMenuPlayerController.*`, `Source/SnowRumble/UI/LobbyEscapeMenuWidget.*`, `Source/SnowRumble/UI/LobbyPlayerController.*`, `Source/SnowRumble/UI/SnowRumblePlayerController.*`, `Source/SnowRumble/Player/SnowRumbleUserSettingsSubsystem_C.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*` | 진행중 |
+| C-11 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 커스터마이징 레벨과 WBP 버튼·머티리얼 파라미터: 사용자/S 인계 | `Tasks/C/C-11_customization_contract.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/UI/MainMenuWidget.*`, `Source/SnowRumble/UI/MainMenuPlayerController.*`, `Source/SnowRumble/Game/SnowRumblePlayerState.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/Player/SnowRumbleCustomizationData_C.h`, `Source/SnowRumble/Player/SnowRumbleCustomizationSubsystem_C.*`, `Source/SnowRumble/UI/CustomizationPlayerController_C.*`, `Source/SnowRumble/UI/CustomizationWidget_C.*`, `Source/SnowRumble/UI/LobbyWidget.*` | 진행중 |
+| C-22 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 안내 WBP 배치·스타일: 사용자/S 인계 | `Tasks/C/C-22_interaction_prompt_ui.md`, `Tasks/C/ROLE_C.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/UI/InteractionPromptWidget_C.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/Snowball/SnowballEquipmentComponent.*`, `Source/SnowRumble/Interaction/LobbyInteractionBoard_C.*` | 진행중 |
+| C-23 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 캐릭터 BP 조정값 확인: 사용자/S 인계 | `Tasks/C/C-23_camera_wheel_zoom.md`, `Tasks/C/ROLE_C.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Player/SnowRumbleCharacter.*` | 진행중 |
+| C-24 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 새 SkeletalMesh·Skeleton·ABP·캐릭터 BP 연결: 사용자/S 인계 | `Tasks/C/C-24_character_model_anim_contract.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Player/SnowRumbleCharacterAnimInstance_C.*` | 진행중 |
 
 ## 상태 범례
 
@@ -76,14 +104,45 @@
 
 ## 최근 통합 로그
 
-- 2026-08-07: `Content/Models/`의 기존 모델·머티리얼·텍스처 `.uasset` 46개를 S 소유 공용 표현 자산 기준선으로 등록하고 Git LFS를 통해 모든 역할 브랜치에 배포함.
-- 2026-08-07: 사용자가 작업 완료와 push를 요청하면 담당 Codex가 소유 변경만 역할 브랜치에 commit·push하고, 검증·계약·충돌 조건을 통과한 경우 `master` 병합·push와 역할 브랜치 재동기화까지 수행하도록 확정함.
-- 2026-08-07: 세션·Task 시작과 담당자 변경 시 Codex가 원격을 fetch하고 담당 브랜치로 전환한 뒤 안전한 경우 `pull --ff-only`까지 자동 수행하도록 공용 실행 절차를 추가함.
-- 2026-08-07: `master`를 검증된 통합 기준으로 두고 담당자별 영구 브랜치 `C`, `K`, `S`, `J`를 같은 기준 커밋에서 운영하도록 확정함.
-- 2026-08-07: 공용 `$snowrumble-run-task` Skill을 추가하고 네 역할 진입 문서에 연결해 Task 실행·순서 변경·오류 대응·인계·충돌 흐름을 동일하게 적용함.
-- 2026-08-07: 역할 내부 순서와 상태를 `PLAN_C/K/S/J.md`로 분리하고 중앙 `PLANS.md`는 파트 간 계약·선점·통합 상태만 관리하도록 변경함.
-- 2026-08-07: 새 GDD와 4인 구조에 맞춰 기존 Task를 마이그레이션 장부로 보존하고 C·K·S·J 역할별 Task 구조를 작성함.
-- 2026-08-05: Task 03-2 대기방 팀 선택·준비 C++ 기본틀을 추가해 `PlayerState` 이름·팀·준비 복제, 대기방 시작 조건, 시작화면·대기방 UI 부모 위젯과 Host의 `L_Lobby` 이동 흐름을 구현함.
-- 2026-08-05: Task 03-2 시작화면과 대기방 UI를 Level Blueprint가 아니라 `MainMenuPlayerController`, `LobbyPlayerController`에서 자동 생성하도록 변경함.
-- 2026-08-05: Task 03-2 메인 메뉴 전용 `SnowRumbleMainMenuGameMode`를 추가해 시작화면 맵도 GameMode/PlayerController 구조로 통일함.
-- 2026-08-05: Task 03-2 Host 요청 시 항상 `L_Lobby`로 이동한 뒤 세션을 생성하도록 변경함.
+- 2026-08-10: C-05 팀 점수 HUD를 참가 팀만 표시하도록 정리함. 팀별 Row 또는 ScoreText는 현재 참가 팀 기준으로 표시·숨김만 처리하고 WBP 배치 순서는 유지함.
+- 2026-08-10: C-08 머리 위 이름표를 Screen space에서 World space로 전환함. 이름표가 로컬 카메라를 향하고 거리감에 따라 자연스럽게 크기가 달라지도록 함.
+- 2026-08-10: C-04 PvP 후보 레벨 랜덤 진입 첫 범위를 구현함. `ASnowRumbleLobbyGameMode`는 `PvPLevelCandidates` 후보 배열에서 서버가 레벨을 선택하고 `?listen?ExpectedPlayers=` travel URL을 생성함.
+- 2026-08-10: C-05 로비 설정 기반 1/3/5 라운드 매치 흐름을 추가함. `USnowRumbleMatchSubsystem`이 travel 사이 누적 점수와 라운드 번호를 유지하고, 남은 라운드가 있으면 다음 PvP 후보 맵으로 이동하며, 마지막 라운드 후 `ASnowRumbleGameState`가 매치 1등 팀을 복제함.
+- 2026-08-10: C-05 모든 라운드 종료 후 임시 로비 복귀를 추가함. 매치 결과를 짧게 보여준 뒤 `/Game/Maps/L_Lobby?listen`으로 이동하고, 복귀 직전 `USnowRumbleMatchSubsystem` 누적 상태를 초기화함.
+- 2026-08-10: Steam 출시는 최종 목표로 유지하되 현재 개발과 테스트는 LAN/NULL 세션으로 계속 진행하기로 결정함. Steam 세션, Overlay 친구 초대, 초대 수락과 세션 정리는 C-18 최종 통합 Task로 분리하고, 앞으로 세션 관련 새 기능은 공개 세션 계약을 통해 개발해 LAN/Steam 세부 구현이 UI·PvP 코드로 새지 않게 함.
+- 2026-08-10: C-05 게임 속도별 맵 축소 호출 계약을 추가함. 로비 게시판은 90/60/30초 축소 주기 설정을 제공하고, PvP HUD는 경기 시간과 다음 축소 안내를 표시하며, 실제 맵 축소는 `ASnowRumbleGameMode::OnMapShrinkRequested`와 `CompleteMapShrinkFromBlueprint()`로 J/S 맵 담당에게 인계함.
+- 2026-08-10: C-19 전체/팀 텍스트 채팅 계약을 추가함. `ASnowRumblePlayerController`가 Enter 입력, 서버 검증, 전체/팀 라우팅을 맡고 `UChatWidget` WBP 부모를 로비·PvP·추후 모드에서 재사용하게 함.
+- 2026-08-10: C-19 채팅 채널 정책을 조정함. 로비는 전체 채팅만 허용하고, PvP와 추후 모드는 채팅 입력 중 Tab으로 전체/팀 채팅을 전환하게 함.
+- 2026-08-10: C-19 채팅 입력 UX를 완료함. Enter 입력 시 TextBox 포커스, Enter 제출 후 GameOnly 복귀, 입력 중 스크롤, 채널 표시, 로그 스크롤바와 테두리 표시 정책을 정리하고 빌드 통과 후 완료 처리함.
+- 2026-08-10: C-19 채팅 로그 표시 수명주기를 추가함. 마지막 채팅 갱신 또는 Enter 입력 후 5초 동안 표시하고 이후 서서히 사라지며, Enter 입력이나 새 메시지 수신 시 즉시 다시 표시함.
+- 2026-08-10: C-20 이벤트 로그 UI 계약을 추가함. 로비/HUD WBP는 `EventLogText` 선택 바인딩을 통해 누적 로그를 표시하고, 서버 이벤트는 `ASnowRumblePlayerController::ClientReceiveEventLogMessage()`로 각 클라이언트에 전달함.
+- 2026-08-10: C-21 옵션 메뉴 기능 정의를 추가함. 옵션은 메인메뉴와 로비에서 같은 WBP로 열고, PvP와 눈사람 모드에서는 ESC 옵션 메뉴를 열지 않는 정책으로 정리함.
+- 2026-08-10: C-21 옵션 WBP 부모 `UOptionsWidget`을 추가함. 상단 카테고리 버튼 4개와 하단 `OptionsContentSwitcher` 인덱스 0 감도, 1 사운드, 2 키 설정, 3 마이크 구조를 제공함.
+- 2026-08-11: C-21 메인메뉴와 로비 옵션 진입 연결을 추가함. 메인메뉴 `SettingsButton`과 로비 ESC 메뉴 `SettingsButton`은 각 PlayerController의 `OptionsWidgetClass`로 같은 옵션 WBP를 열 수 있음.
+- 2026-08-11: C-21 옵션 WBP 포커스 경고를 막기 위해 `UOptionsWidget` 기본 포커스를 생성자와 런타임 구성 단계에서 활성화하고, 키바인딩 패널 표시용 `UOptionsKeyBindingRowWidget` 부모와 기본 조작 목록 계약을 추가함.
+- 2026-08-11: C-21 키바인딩 행의 변경 버튼을 누르면 다음 키보드/마우스 버튼 입력을 캡처해 UI 할당값을 변경하고, `Esc` 입력으로 대기 상태를 취소하게 함.
+- 2026-08-11: C-21 키바인딩 변경값을 로컬 사용자 설정에 저장하고, 캐릭터 Enhanced Input 매핑과 채팅 열기 직접 키 바인딩에 실제 적용하게 함.
+- 2026-08-11: C-21 옵션 메뉴 복귀 후 로비 입력 차단이 남는 문제를 수정하고, `ResetButton`이 현재 선택된 WidgetSwitcher 카테고리만 초기화하도록 `OnOptionsCategoryResetRequested(...)` WBP 이벤트를 추가함.
+- 2026-08-11: C-21 키 설정 변경은 적용 전까지 옵션 WBP 임시값으로만 유지하고, `ApplyButton`에서 저장·입력 반영을 실행하게 함. WBP용 `SetHasPendingOptionChanges(...)`와 닫기 시 임시 변경 폐기 경로를 추가함.
+- 2026-08-11: C-21 감도 설정 계약을 추가함. 옵션 WBP는 `SensitivitySlider`와 `SensitivityValueText`를 배치하면 슬라이더와 퍼센트 표시를 자동 갱신하고, 적용 후 캐릭터 카메라 입력에 로컬 저장 감도가 반영됨.
+- 2026-08-11: C-21 배경음악/효과음 볼륨 설정 계약을 추가함. 옵션 WBP는 `BgmVolumeSlider`/`BgmVolumeValueText`, `SfxVolumeSlider`/`SfxVolumeValueText`를 배치하면 슬라이더와 퍼센트 표시를 자동 갱신하고, 적용 후 로컬 저장값과 선택 SoundClass 볼륨에 반영됨.
+- 2026-08-11: C-21 마이크 설정 계약을 추가함. 옵션 WBP는 `MicrophoneVolumeSlider`/`MicrophoneVolumeValueText`, `MicrophonePushToTalkButton`, `MicrophoneAlwaysOnButton`을 배치하고, 기본 `K` 마이크 입력 키바인딩과 PlayerController 마이크 상태 이벤트를 사용할 수 있음.
+- 2026-08-11: C-21 선택형 버튼 눌림 표시를 추가함. 옵션 메뉴의 현재 카테고리·마이크 방식과 로비 게시판의 현재 팀 색·모드·라운드 수·게임 속도·ready 상태 버튼은 기존 Pressed 스타일을 유지해 선택 상태를 표시함.
+- 2026-08-11: C-21 마이크 입력 상태를 엔진 네트워크 음성 송출에 연결함. PlayerController가 `StartTalking()`/`StopTalking()`을 호출하고, 캐릭터 Blueprint에는 `MicrophonePushToTalkAction` Enhanced Input 슬롯을 제공함. `SnowRumbleEditor Win64 Development` 빌드가 성공함.
+- 2026-08-11: C-21 마이크 송출 중 플레이어 이름 표시를 추가함. PlayerState가 음성 송출 중 여부를 복제하고, 로비/HUD WBP는 `VoiceSpeakingContainer` 안의 `VoiceSpeakingIcon` Image와 `VoiceSpeakingNamesText` TextBlock으로 현재 말하는 플레이어를 표시함. C++ 컴파일은 통과했으나 에디터 DLL 잠금으로 최종 링크는 보류됨.
+- 2026-08-11: C-21 마이크 채널 전환을 추가함. 기본 `M` 키로 전체/팀 말하기를 전환하고, PlayerState 복제 채널과 gameplay mute로 팀 말하기 수신 범위를 제한하며, `PersonalAlarmText`/`PersonalAlarmAnimation`으로 로컬 상태 알림을 표시함. `SnowRumbleEditor Win64 Development` 빌드가 성공함.
+- 2026-08-11: C-21 마이크 채널 전환 기본 키를 `N`으로 옮기고 `M`은 플레이어 지정 음소거 입력으로 분리함. 캐릭터 Blueprint 슬롯 `MicrophoneChannelToggleAction`/`VoiceTargetMuteAction`과 PlayerController 이벤트 `OnVoiceTargetMuteRequested()`를 제공함.
+- 2026-08-11: C-21 `M` 플레이어 지정 음소거 메뉴를 추가함. `UVoiceMuteMenuWidget`/`UVoiceMutePlayerRowWidget` 부모는 현재 인게임 플레이어 목록으로 행을 동적 생성하고, 각 행 버튼으로 로컬 수동 음소거를 토글함.
+- 2026-08-11: C-11 메인메뉴 커스터마이징 진입 경로를 추가함. `CustomizationButton`은 메인메뉴 PlayerController의 `CustomizationLevelUrl`로 커스터마이징 레벨 이동을 수행함.
+- 2026-08-11: C-11 커스터마이징 레벨 전용 GameMode, PlayerController, WBP 부모를 추가함. 레벨 진입 시 커스터마이징 WBP를 표시하고 `CustomizationCamera` 태그 카메라를 ViewTarget으로 사용하며, WidgetSwitcher로 메인/시점변경/색칠하기 화면을 전환함.
+- 2026-08-11: C-11 몸 색상 커스터마이징 저장·복제·적용 경로를 추가함. `USnowRumbleCustomizationSubsystem`이 로컬 저장을 맡고, 로비 입장 시 `ASnowRumblePlayerState::CustomizationData`로 서버 제출·복제되며, 캐릭터는 `BodyColor` 머티리얼 파라미터로 색을 적용함. `SnowRumbleEditor Win64 Development` 빌드가 성공함.
+- 2026-08-11: C-11 색칠하기 화면 버튼 계약을 구체화함. `BrushColorButton`은 언리얼 기본 컬러 피커, `BrushSizeButton`은 press 중 휠 크기 조정, `FillBodyColorButton`은 현재 브러시 색 기반 `BodyColor` 전체 칠하기로 동작하며, stroke별 색과 두께를 저장·복제함.
+- 2026-08-11: C-11 커스터마이징 WBP 실제 구조에 맞춰 `PaintMode`가 `CustomizationContentSwitcher` 1번 인덱스의 색칠하기 `DrawPanel`을 열도록 조정함.
+- 2026-08-11: C-11 현재 브러시 색 표시 칸 계약을 추가함. `BrushColorPreviewBorder` 또는 `BrushColorPreviewImage`를 배치하면 현재 브러시 색을 자동 표시함.
+- 2026-08-11: C-11 마우스 커서 슬롯 계약을 게임 전체 기본 커서로 확장함. 메인메뉴, 로비/PvP 계열, 커스터마이징 PlayerController BP에 `DefaultMouseCursorWidgetClass`를 지정하면 각 UI 커서 표시 시 기본 커서가 적용되고, 커스터마이징 `PaintMouseCursorWidgetClass`는 색칠하기 원형 커서로 전환됨.
+- 2026-08-11: C-11 페인트 커서 색상 갱신 계약을 추가함. 원형 커서 WBP에 `BrushCursorColorBorder` 또는 `BrushCursorColorImage`를 배치하면 현재 브러시 색 변경 시 커서 표시 색도 같은 색으로 갱신됨.
+- 2026-08-11: C-22 상호작용 안내 UI를 구현함. 로컬 상호작용 후보가 있으면 대상 옆 화면 위치에 `E - 게시판`, `E - 눈덩이` 안내 WBP를 표시하고, 실제 WBP 스타일은 사용자/S에 인계함. `SnowRumbleEditor Win64 Development` 빌드가 성공함.
+- 2026-08-11: C-23 마우스 휠 카메라 줌을 구현함. 로비와 PvP에서 로컬 플레이어 카메라 SpringArm 길이를 휠 업/다운으로 조절하며, C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됨.
+- 2026-08-11: C-24 캐릭터 모델·ABP 계약을 추가함. 새 ABP는 `USnowRumbleCharacterAnimInstance`를 부모로 사용하고, 캐릭터 상태 변수와 `IdleAnimation` 등 슬롯 프로퍼티에 새 Skeleton용 애니메이션을 장착할 수 있음. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor PID 41016의 DLL 잠금으로 최종 링크는 보류됨.
+- 2026-08-12: C-11 페인트 trace를 기본 몸 머티리얼 slot 0 전용으로 제한함. `PaintAllowedMaterialIndex`는 기본 0, -1이면 모든 slot 허용이며, `bShowPaintHitDebug`로 hit 컴포넌트·slot·UV를 확인할 수 있음. `SnowRumbleEditor Win64 Development` 빌드가 성공함.
+- 2026-08-12: C-11 페인트 trace에 원형 커서 중심 자동 보정을 추가함. `bUsePaintCursorCenterTraceOffset`이 켜져 있으면 현재 브러시 커서 지름의 절반만큼 trace 위치를 보정하고, `PaintCursorScreenOffset`은 마지막 미세 조정값으로 유지함. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor PID 46944의 DLL 잠금으로 최종 링크는 보류됨.
