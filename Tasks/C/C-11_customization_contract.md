@@ -22,6 +22,8 @@
 - 페인트 trace는 기본적으로 몸 머티리얼 slot 0만 허용하고, 다른 slot 또는 알 수 없는 slot은 stroke 생성을 막는다.
 - 페인트 trace는 소프트웨어 커서의 좌상단 기준 표시를 보정해 원형 커서 중심에서 나가도록 자동 보정한다.
 - 색칠하기 화면은 현재 브러시 색 버튼, 브러시 크기 조정 버튼, 전체 칠하기 버튼을 제공한다.
+- 모자 선택 화면은 색칠하기 버튼 옆의 모자 버튼으로 열고, 위/아래 버튼으로 현재 캐릭터 BP에 등록된 모자 StaticMesh 후보를 하나씩 순환한다.
+- 모자 선택 결과는 StaticMesh 자산 직접 참조가 아니라 `HatMeshIndex`로 저장·복제하고, 각 캐릭터 BP의 후보 배열에서 같은 인덱스를 장착한다.
 - 브러시 색 버튼은 언리얼 기본 컬러 피커를 열고, 선택 색은 이후 Stroke와 전체 칠하기에 사용한다.
 - 브러시 색 버튼으로 열린 컬러 피커는 버튼의 왼쪽에 뜨도록 배치한다.
 - 브러시 크기 버튼은 버튼을 누른 상태에서 마우스 휠로 선 두께를 작게 또는 크게 조정한다.
@@ -57,6 +59,9 @@
 - [x] `BrushColorButton`으로 열린 컬러 피커가 버튼 왼쪽에 뜨게 한다.
 - [x] `BrushSizeButton`을 누른 상태에서 마우스 휠로 브러시 크기를 조정하게 한다.
 - [x] `FillBodyColorButton`이 현재 브러시 색을 `BodyColor`에 적용하게 한다.
+- [x] 캐릭터에 빈 모자 StaticMesh 슬롯을 만들고 커스터마이징 데이터의 선택 인덱스로 Mesh를 장착하게 한다.
+- [x] 모자 선택 화면과 위/아래 버튼 자동 바인딩 계약을 제공한다.
+- [x] 모자 선택 결과를 로컬 저장, PlayerState 복제, 로비/PvP 캐릭터 적용 경로에 포함한다.
 - [x] Stroke별 브러시 색과 두께를 저장·복제 데이터에 포함한다.
 - [x] 메인메뉴, 로비/PvP 계열, 커스터마이징 PlayerController BP 슬롯에 기본 커서 위젯을 지정할 수 있게 한다.
 - [x] 커스터마이징 PlayerController BP 슬롯에 색칠하기 커서 위젯을 지정할 수 있게 한다.
@@ -113,6 +118,7 @@
   - `FSnowRumbleCustomizationData`: 로비와 PvP 캐릭터에 공유할 커스터마이징 데이터. 현재 `BodyColor`만 포함
   - `FSnowRumbleCustomizationData::PaintStrokes`: 커스터마이징 드로잉 UV stroke 배열. 각 stroke는 맞은 SkeletalMeshComponent 이름, 머티리얼 인덱스, 브러시 색, 브러시 두께를 함께 저장하며, 커스터마이징 방에서 그리는 즉시 로컬 저장소에 반영되고 로비 PlayerState를 통해 복제된다.
   - `FSnowRumbleCustomizationData::bFlipPaintUvY`: 커스터마이징 방에서 RenderTarget에 그릴 때 사용한 UV Y축 flip 기준. 로비/PvP 캐릭터가 같은 기준으로 stroke를 재생성한다.
+  - `FSnowRumbleCustomizationData::HatMeshIndex`: 선택한 모자 후보 인덱스. `INDEX_NONE`이면 모자를 장착하지 않는다.
   - `USnowRumbleCustomizationSubsystem`: 로컬 GameInstance에 커스터마이징 데이터를 저장·조회·초기화
   - `ASnowRumblePlayerState::RequestSetCustomizationData(...)`: 소유 클라이언트가 저장된 커마 데이터를 서버 PlayerState에 제출
   - `ASnowRumblePlayerState::GetCustomizationData()`: 복제된 커마 데이터 조회
@@ -125,6 +131,12 @@
   - `ASnowRumbleCharacter::CustomizationMaterialIndex`: 커마 색을 적용할 Mesh 머티리얼 슬롯
   - `ASnowRumbleCharacter::CustomizationBodyColorParameterName`: 몸 색 Vector Parameter 이름. 기본값은 `BodyColor`
   - `ASnowRumbleCharacter::CustomizationPaintTextureParameterName`: 드로잉 Texture Parameter 이름. 기본값은 `PaintTexture`
+  - `ASnowRumbleCharacter::HatMeshComponent`: 모자 표시용 빈 StaticMeshComponent 슬롯
+  - `ASnowRumbleCharacter::CustomizationHatMeshes`: 캐릭터 BP에서 지정하는 모자 StaticMesh 후보 배열
+  - `ASnowRumbleCharacter::CustomizationHatAttachSocketName`: 모자를 붙일 Skeletal Mesh 소켓 이름. 기본값은 `HatSocket`
+  - `ASnowRumbleCharacter::CustomizationHatRelativeLocation`, `CustomizationHatRelativeRotation`, `CustomizationHatRelativeScale`: 소켓 기준 모자 위치·회전·스케일 보정값
+  - `ASnowRumbleCharacter::GetCustomizationHatOptionCount()`: 현재 캐릭터 BP에 등록된 모자 후보 수를 반환한다.
+  - `ASnowRumbleCharacter::NormalizeCustomizationHatMeshIndex(int32)`: 후보 배열 기준으로 유효한 모자 인덱스인지 정리하고, 유효하지 않으면 `INDEX_NONE`을 반환한다.
   - `ACustomizationPlayerController::UndoLastPaintStroke()`: 마지막 완료 Stroke 제거
   - `ACustomizationPlayerController::Ctrl+Z`: 페인트 화면에서 `UndoLastPaintStroke()`와 같은 누적 undo 단축키로 동작
   - `ACustomizationPlayerController::ResetPaintStrokes()`: 모든 Stroke 제거
@@ -143,6 +155,14 @@
   - `UCustomizationWidget::BrushColorPreviewImage`: 현재 브러시 색을 보여주는 선택 Image. Border 대신 사용할 수 있다.
   - `UCustomizationWidget::BrushSizeButton`: 누른 상태에서 마우스 휠로 브러시 크기를 조정하는 선택 버튼
   - `UCustomizationWidget::FillBodyColorButton`: 현재 브러시 색을 `BodyColor`에 적용하는 전체 칠하기 버튼
+  - `UCustomizationWidget::HatModeButton`: 메인 화면에서 모자 선택 화면으로 이동하는 선택 버튼
+  - `UCustomizationWidget::HatPreviousButton`: 현재 모자 후보를 이전 후보로 순환하는 선택 버튼
+  - `UCustomizationWidget::HatNextButton`: 현재 모자 후보를 다음 후보로 순환하는 선택 버튼
+  - `UCustomizationWidget::GetPreviewHatMeshIndex()`: WBP가 현재 선택된 모자 인덱스를 표시할 때 사용할 수 있는 조회 함수
+  - `ACustomizationPlayerController::SetPreviewHatMeshIndex(int32)`: 프리뷰 모자 인덱스를 직접 지정하고 로컬 저장 데이터에 반영한다.
+  - `ACustomizationPlayerController::SelectPreviousPreviewHat()`: 모자 후보 배열에서 이전 후보로 순환한다.
+  - `ACustomizationPlayerController::SelectNextPreviewHat()`: 모자 후보 배열에서 다음 후보로 순환한다.
+  - `ACustomizationPlayerController::GetPreviewHatMeshIndex()`: 현재 프리뷰 모자 인덱스를 반환한다.
   - `UCustomizationWidget::GetPaintBrushColor()`: WBP가 현재 브러시 색 표시를 바인딩할 수 있는 조회 함수
   - `UCustomizationWidget::GetPaintBrushSize()`: WBP가 현재 브러시 크기 표시를 바인딩할 수 있는 조회 함수
   - `ACustomizationPlayerController::PaintCursorScreenOffset`: 페인트 trace 화면 좌표에 더하는 픽셀 단위 X/Y 보정값. X 양수는 오른쪽, Y 양수는 아래쪽으로 trace를 옮긴다.
@@ -192,6 +212,7 @@
 - 2026-08-11: 페인트 커서 색상 계약을 추가했다. 원형 커서 WBP에 `BrushCursorColorBorder` 또는 `BrushCursorColorImage`를 배치하면 현재 브러시 색 변경 시 커서 표시 색도 같은 색으로 갱신된다.
 - 2026-08-12: 페인트 trace를 기본 몸 머티리얼 slot 0 전용으로 제한하는 `PaintAllowedMaterialIndex`를 추가했다. `PaintCursorScreenOffset`은 부위별 위치 보정이 아니라 커서 hotspot 보정용으로만 사용한다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
 - 2026-08-12: 페인트 trace에 `bUsePaintCursorCenterTraceOffset` 자동 중심 보정을 추가했다. 원형 커서 위젯이 좌상단 기준으로 표시되는 경우 현재 브러시 커서 지름의 절반만큼 trace 위치를 보정한다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor PID 46944의 DLL 잠금으로 최종 링크는 보류됐다.
+- 2026-08-12: 모자 커스터마이징 첫 범위를 추가했다. `HatMeshComponent` 빈 슬롯, `CustomizationHatMeshes` 후보 배열, `HatMeshIndex` 저장·복제 데이터, `HatModeButton`/`HatPreviousButton`/`HatNextButton` UI 계약을 제공한다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됐다.
 
 ## 수동 작업
 
@@ -225,6 +246,13 @@
 - 색칠하기 화면에 브러시 크기 버튼을 배치하고 이름을 `BrushSizeButton`으로 맞춘다. 이 버튼을 누른 상태에서 마우스 휠을 위/아래로 움직이면 브러시 크기가 커지거나 작아진다.
 - 색칠하기 화면에 전체 칠하기 버튼을 배치하고 이름을 `FillBodyColorButton`으로 맞춘다. 이 버튼은 현재 브러시 색을 캐릭터 `BodyColor`에 적용한다.
 - 현재 브러시 색 또는 크기를 UI에 표시하려면 WBP에서 `GetPaintBrushColor()`와 `GetPaintBrushSize()`를 바인딩한다.
+- 메인 화면에서 색칠하기 버튼 옆에 모자 버튼을 배치하고 이름을 `HatModeButton`으로 맞춘다.
+- `CustomizationContentSwitcher`의 2번 인덱스에 모자 선택 패널을 배치한다.
+- 모자 선택 패널에 위/아래 버튼을 배치하고 이름을 `HatPreviousButton`, `HatNextButton`으로 맞춘다.
+- 캐릭터 BP의 `CustomizationHatMeshes` 배열에 선택 가능한 모자 StaticMesh를 순서대로 넣는다. 배열 순서가 저장·복제되는 `HatMeshIndex`의 기준이다.
+- 캐릭터 Skeleton 또는 Mesh에 `HatSocket` 소켓을 만들거나, 캐릭터 BP의 `CustomizationHatAttachSocketName`을 실제 머리 소켓 이름으로 바꾼다.
+- 모자 위치가 어긋나면 캐릭터 BP의 `CustomizationHatRelativeLocation`, `CustomizationHatRelativeRotation`, `CustomizationHatRelativeScale`을 조정한다.
+- 모자 없음 상태도 순환에 포함된다. `HatMeshIndex`가 `INDEX_NONE`이면 `HatMeshComponent`는 비어 있고 숨겨진다.
 - 캐릭터 머티리얼에 Vector Parameter `BodyColor`를 만들거나, BP 캐릭터의 `CustomizationBodyColorParameterName`을 실제 파라미터명으로 바꾼다.
 - 캐릭터 머티리얼에 Texture Parameter `PaintTexture`를 만들고, 투명한 부분은 기존 색/텍스처를 보이고 검정 알파가 있는 부분은 그려지도록 머티리얼 그래프를 연결한다.
 - 색을 적용할 Mesh 슬롯이 0번이 아니면 BP 캐릭터의 `CustomizationMaterialIndex`를 실제 슬롯 번호로 바꾼다.
@@ -246,6 +274,8 @@
 - [x] 색칠하기 화면 브러시 색·크기·전체 칠하기 버튼 계약 완료
 - [x] Stroke별 브러시 색·두께 저장과 로비/PvP 재적용 경로 완료
 - [x] 게임 전체 기본 마우스 커서 슬롯, 색칠하기 마우스 커서 슬롯, 페인트 커서 크기·색상 갱신 계약 완료
+- [x] 모자 StaticMesh 슬롯, 후보 배열, 선택 인덱스 저장·복제·적용 계약 완료
+- [x] 모자 선택 화면 버튼 자동 바인딩 계약 완료
 - [ ] 장비 외형 데이터와 분리 확인
 - [ ] S 인계 완료
 ### 결과 확인
@@ -260,6 +290,12 @@
 - [ ] 좌/우 회전 버튼에서 손을 떼면 프리뷰 캐릭터 회전이 멈춘다.
 - [ ] 커스터마이징 레벨 프리뷰 캐릭터 머리 위 이름표가 보이지 않는다.
 - [ ] `PaintModeButton`을 누르면 색칠하기 화면으로 전환된다.
+- [ ] `HatModeButton`을 누르면 모자 선택 패널로 전환된다.
+- [ ] `HatNextButton`을 누르면 다음 모자 후보가 프리뷰 캐릭터 머리에 장착된다.
+- [ ] `HatPreviousButton`을 누르면 이전 모자 후보가 프리뷰 캐릭터 머리에 장착된다.
+- [ ] 모자 후보 순환 중 모자 없음 상태에서는 프리뷰 캐릭터의 `HatMeshComponent`가 숨겨진다.
+- [ ] `ApplyButton`을 누른 뒤 로비에 들어가면 로컬 캐릭터와 다른 화면의 해당 캐릭터에 같은 모자가 보인다.
+- [ ] PvP 이동 뒤에도 같은 모자가 캐릭터에 적용된다.
 - [ ] `PaintModeButton`을 누르면 마우스 커서가 `PaintMouseCursorWidgetClass` 원형 커서로 바뀐다.
 - [ ] `BackButton`으로 메인 화면에 돌아오면 마우스 커서가 `DefaultMouseCursorWidgetClass` 기본 커서로 돌아온다.
 - [ ] 원형 커서 WBP의 `BrushCursorSizeBox`가 브러시 크기에 맞춰 커지거나 작아진다.

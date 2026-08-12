@@ -9,7 +9,7 @@
 
 ## 현재 집중 Task
 
-- [C-24](C-24_character_model_anim_contract.md) 캐릭터 모델과 ABP 애니메이션 계약
+- [C-11](C-11_customization_contract.md) 커스터마이징 데이터 계약
 
 ## 개발 스타일
 
@@ -188,3 +188,4 @@
 - 2026-08-11: C-24 ABP 부모 `USnowRumbleCharacterAnimInstance`를 추가했다. ABP는 캐릭터 상태 변수와 `IdleAnimation` 등 슬롯 프로퍼티를 읽어 새 모델 Skeleton용 애니메이션을 장착할 수 있다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor PID 41016의 DLL 잠금으로 최종 링크는 보류됐다.
 - 2026-08-12: C-11 페인트 trace를 기본 몸 머티리얼 slot 0 전용으로 제한했다. `PaintAllowedMaterialIndex`는 기본 0, -1이면 모든 slot 허용이며, `bShowPaintHitDebug`로 hit 컴포넌트·slot·UV를 확인할 수 있다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
 - 2026-08-12: C-11 페인트 trace에 원형 커서 중심 자동 보정을 추가했다. `bUsePaintCursorCenterTraceOffset`이 켜져 있으면 현재 브러시 커서 지름의 절반만큼 trace 위치를 보정하고, `PaintCursorScreenOffset`은 마지막 미세 조정값으로 남긴다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor PID 46944의 DLL 잠금으로 최종 링크는 보류됐다.
+- 2026-08-12: C-11 모자 커스터마이징 첫 범위를 추가했다. 캐릭터 `HatMeshComponent` 빈 슬롯과 `CustomizationHatMeshes` 후보 배열을 제공하고, 커스터마이징 UI의 `HatModeButton`/`HatPreviousButton`/`HatNextButton`으로 `HatMeshIndex`를 순환·저장·복제하게 했다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됐다.

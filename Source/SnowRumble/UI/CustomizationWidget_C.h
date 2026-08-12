@@ -18,7 +18,8 @@ enum class ESnowRumbleCustomizationPage : uint8
 {
 	Main,
 	ViewMode,
-	PaintMode
+	PaintMode,
+	HatMode
 };
 
 UCLASS(Abstract, Blueprintable)
@@ -55,6 +56,9 @@ public:
 	/** 현재 선택된 페인트 브러시 크기를 반환한다. WBP 크기 표시 바인딩에서 사용할 수 있다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization")
 	float GetPaintBrushSize() const;
+
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization|Hat")
+	int32 GetPreviewHatMeshIndex() const;
 
 	/** 페인트 화면의 마지막 완료 Stroke를 하나 제거한다. 버튼이나 WBP 입력에서 직접 호출할 수 있다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
@@ -93,6 +97,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
 	TObjectPtr<UButton> PaintModeButton;
 
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> HatModeButton;
+
 	/** 색칠하기 페이지에서 언리얼 기본 컬러 피커를 여는 버튼이다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
 	TObjectPtr<UButton> BrushColorButton;
@@ -112,6 +119,12 @@ protected:
 	/** 현재 브러시 색을 BodyColor에 적용하는 전체 칠하기 버튼이다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
 	TObjectPtr<UButton> FillBodyColorButton;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> HatPreviousButton;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> HatNextButton;
 
 	/** 누르고 있는 동안 프리뷰 캐릭터를 왼쪽으로 회전하는 버튼이다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
@@ -142,6 +155,9 @@ private:
 	void HandlePaintModeButtonClicked();
 
 	UFUNCTION()
+	void HandleHatModeButtonClicked();
+
+	UFUNCTION()
 	void HandleBrushColorButtonClicked();
 
 	UFUNCTION()
@@ -152,6 +168,12 @@ private:
 
 	UFUNCTION()
 	void HandleFillBodyColorButtonClicked();
+
+	UFUNCTION()
+	void HandleHatPreviousButtonClicked();
+
+	UFUNCTION()
+	void HandleHatNextButtonClicked();
 
 	UFUNCTION()
 	void HandleRotateLeftButtonPressed();

@@ -30,6 +30,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization")
 	FLinearColor GetBodyColor() const;
 
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
+	void SetHatMeshIndex(int32 NewHatMeshIndex);
+
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization")
+	int32 GetHatMeshIndex() const;
+
 	/** 커스터마이징 데이터를 기본값으로 되돌린다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
 	void ResetCustomizationData();
