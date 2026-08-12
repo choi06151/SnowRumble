@@ -7,6 +7,7 @@
 #include "SnowRumbleLobbyGameMode.generated.h"
 
 class APlayerController;
+class AGameModeBase;
 class ASnowRumblePlayerState;
 class UWorld;
 enum class ESnowRumbleTeam : uint8;
@@ -44,6 +45,9 @@ protected:
 	/** 현재 참가 인원과 서버가 고른 PvP 후보 레벨을 URL 옵션에 포함한다. */
 	FString BuildMatchTravelUrl(int32 ExpectedPlayerCount);
 
+	/** 현재 참가 인원과 서버가 고른 PvP 후보 레벨을 눈사람 모드 URL 옵션에 포함한다. */
+	FString BuildSnowmanModeTravelUrl(int32 ExpectedPlayerCount);
+
 	/** 등록된 후보 중 PvP 진입에 사용할 레벨 경로를 서버에서 고른다. */
 	FString SelectPvPLevelPath() const;
 
@@ -64,6 +68,10 @@ protected:
 	/** 대기방에서 PvP 시작 시 서버가 무작위로 고를 후보 레벨이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Lobby")
 	TArray<TSoftObjectPtr<UWorld>> PvPLevelCandidates;
+
+	/** 대기방에서 눈사람 모드 시작 시 사용할 GameMode 클래스다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Lobby")
+	TSubclassOf<AGameModeBase> SnowmanModeGameModeClass;
 
 	FString PendingMatchTravelUrl;
 	bool bMatchTravelPending = false;
