@@ -9,8 +9,10 @@
 class APlayerController;
 class AActor;
 class APawn;
+class AGiftBox;
 class ASnowRumbleCharacter;
 enum class ESnowRumbleTeam : uint8;
+enum class ESnowRumbleGiftBoxGrade : uint8;
 
 UCLASS()
 class SNOWRUMBLE_API ASnowRumbleGameMode : public AGameModeBase
@@ -101,8 +103,14 @@ private:
 	/** 다음 맵 축소 타이머를 예약한다. */
 	void ScheduleNextMapShrink();
 
+	/** 다음 선물상자 스폰 타이머를 예약한다. */
+	void ScheduleNextGiftBoxSpawn(float DelaySeconds);
+
 	/** 서버가 맵 축소를 시작하고 Blueprint 이벤트를 호출한다. */
 	void TriggerMapShrink();
+
+	/** 서버가 TargetPoint 후보 중 하나에 선물상자를 공중 스폰한다. */
+	void SpawnGiftBox();
 
 	/** 맵 축소 완료 상태를 확정하고 다음 축소를 예약한다. */
 	void CompleteMapShrinkFromServer();
@@ -119,8 +127,20 @@ private:
 	/** 모든 클라이언트의 이벤트 로그 UI에 메시지를 보낸다. */
 	void BroadcastEventLogMessage(const FText& Message) const;
 
+	/** 모든 클라이언트의 개인 알림 UI에 메시지를 보낸다. */
+	void BroadcastPersonalTextAlarm(const FText& Message) const;
+
 	/** 이벤트 로그에 표시할 플레이어 이름을 반환한다. */
 	FString GetEventLogPlayerName(const ASnowRumbleCharacter* Character) const;
+
+	/** 맵에 배치된 선물상자 스폰용 TargetPoint 후보를 수집한다. */
+	void GetGiftBoxSpawnPointCandidates(TArray<AActor*>& OutCandidates) const;
+
+	/** 설정된 선물상자 클래스가 없으면 기본 BP 경로를 시도해 반환한다. */
+	TSubclassOf<AGiftBox> ResolveGiftBoxClass() const;
+
+	/** 이번 스폰에서 사용할 선물상자 등급을 서버가 결정한다. */
+	ESnowRumbleGiftBoxGrade ChooseGiftBoxGrade() const;
 
 	/** 현재 팀이 라운드 참가 팀으로 유효한지 확인한다. */
 	bool IsValidRoundTeam(ESnowRumbleTeam Team) const;
@@ -151,6 +171,36 @@ private:
 
 	FTimerHandle MapShrinkTimerHandle;
 	FTimerHandle MapShrinkCompletionTimerHandle;
+	FTimerHandle GiftBoxSpawnTimerHandle;
+
+	/** 서버가 스폰할 선물상자 Blueprint 클래스다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box")
+	TSubclassOf<AGiftBox> GiftBoxClass;
+
+	/** GiftBoxClass가 비어 있을 때 임시로 로드할 기본 Blueprint 경로다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box")
+	FSoftClassPath DefaultGiftBoxClassPath =
+		FSoftClassPath(TEXT("/Game/Blueprints/BP_GiftBox.BP_GiftBox_C"));
+
+	/** 첫 선물상자가 라운드 시작 후 떨어지기까지의 시간이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box", meta = (ClampMin = "0.0"))
+	float FirstGiftBoxSpawnDelaySeconds = 30.0f;
+
+	/** 첫 상자 이후 선물상자가 반복 생성되는 간격이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box", meta = (ClampMin = "0.1"))
+	float GiftBoxSpawnIntervalSeconds = 60.0f;
+
+	/** TargetPoint 위치보다 얼마나 위에서 선물상자를 떨어뜨릴지 정한다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box", meta = (ClampMin = "0.0"))
+	float GiftBoxSpawnHeightOffset = 800.0f;
+
+	/** 이 태그가 붙은 TargetPoint만 우선 사용한다. 없으면 맵의 모든 TargetPoint를 사용한다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box")
+	FName GiftBoxSpawnPointTag = TEXT("GiftBoxSpawn");
+
+	/** 일반 반복 스폰에서 황금 상자가 나올 확률이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float GoldGiftBoxSpawnChance = 0.15f;
 
 	/** PlayerStart 주변에서 실제 Pawn 생성 위치를 넓게 분산할 반경이다. */
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Spawn", meta = (ClampMin = "0.0"))

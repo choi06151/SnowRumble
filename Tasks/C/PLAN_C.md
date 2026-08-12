@@ -9,7 +9,7 @@
 
 ## 현재 집중 Task
 
-- [C-11](C-11_customization_contract.md) 커스터마이징 데이터 계약
+- [C-25](C-25_pvp_gift_box_item_foundation.md) PvP 선물상자와 아이템 기본 계약
 
 ## 개발 스타일
 
@@ -47,6 +47,7 @@
 | 22 | [C-22](C-22_interaction_prompt_ui.md) | 상호작용 안내 UI | C-15·기존 눈덩이 획득 | 진행중 |
 | 23 | [C-23](C-23_camera_wheel_zoom.md) | 마우스 휠 카메라 줌 | 기존 플레이어 카메라 | 진행중 |
 | 24 | [C-24](C-24_character_model_anim_contract.md) | 캐릭터 모델과 ABP 애니메이션 계약 | C-01, C-08, C-11 | 진행중 |
+| 25 | [C-25](C-25_pvp_gift_box_item_foundation.md) | PvP 선물상자와 아이템 기본 계약 | C-01, C-05, C-22 | 진행중 |
 
 ## 통합 변경 요청
 
@@ -189,3 +190,9 @@
 - 2026-08-12: C-11 페인트 trace를 기본 몸 머티리얼 slot 0 전용으로 제한했다. `PaintAllowedMaterialIndex`는 기본 0, -1이면 모든 slot 허용이며, `bShowPaintHitDebug`로 hit 컴포넌트·slot·UV를 확인할 수 있다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
 - 2026-08-12: C-11 페인트 trace에 원형 커서 중심 자동 보정을 추가했다. `bUsePaintCursorCenterTraceOffset`이 켜져 있으면 현재 브러시 커서 지름의 절반만큼 trace 위치를 보정하고, `PaintCursorScreenOffset`은 마지막 미세 조정값으로 남긴다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor PID 46944의 DLL 잠금으로 최종 링크는 보류됐다.
 - 2026-08-12: C-11 모자 커스터마이징 첫 범위를 추가했다. 캐릭터 `HatMeshComponent` 빈 슬롯과 `CustomizationHatMeshes` 후보 배열을 제공하고, 커스터마이징 UI의 `HatModeButton`/`HatPreviousButton`/`HatNextButton`으로 `HatMeshIndex`를 순환·저장·복제하게 했다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됐다.
+- 2026-08-12: 사용자가 PvP 내부 아이템 기능의 첫 단계로 선물상자를 요청해 C-25를 추가하고 현재 집중 Task로 전환했다. 첫 범위는 TargetPoint 후보 기반 서버 스폰, 공중 낙하, 전체 알림, `E` 개봉, 랜덤 아이템 이름 확정과 로그/알림 계약까지로 제한한다.
+- 2026-08-12: C-25 선물상자 C++ 기반을 구현했다. `AGiftBox`는 빨간색/황금색 등급과 등급별 보상 후보, 낙하·착지·개봉 Blueprint 이벤트를 제공하고, PvP GameMode는 레벨 담당자가 배치한 `TargetPoint` 후보에서 상자를 공중 스폰한다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-12: C-25 선물상자 보상 흐름을 즉시 장착에서 아이템 Pickup 스폰 후 `E` 획득으로 변경했다. `AGiftBoxItemPickup`을 추가하고, 선물상자 `TakeDamage()`로 눈덩이 피격 개봉을 지원한다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됐다.
+- 2026-08-12: C-25 아이템 Pickup이 살짝 둥둥 떠다니도록 `FloatAmplitude`와 `FloatSpeed` 조정값을 추가했다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됐다.
+- 2026-08-12: C-25 아이템 Pickup 기본 `FloatSpeed`를 5로 변경하고, 선물상자 BP에서 같은 StaticMesh에 등급별 머티리얼을 입힐 수 있도록 `GradeMaterialIndex`, `RedGiftBoxMaterial`, `GoldGiftBoxMaterial`을 추가했다. 상자 개봉/사라짐 이펙트용 `OpenedEffect` Niagara 슬롯도 추가했다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됐다.
+- 2026-08-12: C-25 아이템 BP 내부 연결용 `ESnowRumbleGiftItemType` enum 계약을 추가했다. `FSnowRumbleGiftBoxReward::ItemType`이 `AGiftBoxItemPickup`에 복제되고, Pickup BP는 `GetItemType()` 또는 `OnItemDataChanged()`에서 기능·외형을 분기할 수 있다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
