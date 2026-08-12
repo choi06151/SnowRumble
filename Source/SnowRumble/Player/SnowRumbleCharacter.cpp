@@ -23,6 +23,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/SphereComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Components/WidgetInteractionComponent.h"
 #include "Components/WidgetComponent.h"
 #include "DrawDebugHelpers.h"
@@ -120,6 +121,13 @@ ASnowRumbleCharacter::ASnowRumbleCharacter()
 	OverheadNameplateComponent->SetWidgetSpace(EWidgetSpace::World);
 	OverheadNameplateComponent->SetDrawAtDesiredSize(true);
 	OverheadNameplateComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	HatMeshComponent =
+		CreateDefaultSubobject<UStaticMeshComponent>(TEXT("HatMeshComponent"));
+	HatMeshComponent->SetupAttachment(GetMesh(), TEXT("HatSocket"));
+	HatMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	HatMeshComponent->SetGenerateOverlapEvents(false);
+	HatMeshComponent->SetVisibility(false);
 }
 
 void ASnowRumbleCharacter::Tick(float DeltaSeconds)
@@ -638,7 +646,58 @@ void ASnowRumbleCharacter::ApplyCustomizationData(
 		}
 	}
 
+	RefreshCustomizationHatMesh();
 	RedrawCustomizationPaintTexture();
+}
+
+int32 ASnowRumbleCharacter::GetCustomizationHatOptionCount() const
+{
+	return CustomizationHatMeshes.Num();
+}
+
+int32 ASnowRumbleCharacter::NormalizeCustomizationHatMeshIndex(
+	int32 HatMeshIndex) const
+{
+	if (HatMeshIndex < 0 || CustomizationHatMeshes.IsEmpty())
+	{
+		return INDEX_NONE;
+	}
+
+	return CustomizationHatMeshes.IsValidIndex(HatMeshIndex)
+		? HatMeshIndex
+		: INDEX_NONE;
+}
+
+void ASnowRumbleCharacter::RefreshCustomizationHatMesh()
+{
+	if (!HatMeshComponent)
+	{
+		return;
+	}
+
+	if (USkeletalMeshComponent* CharacterMesh = GetMesh())
+	{
+		const FName AttachSocketName = CustomizationHatAttachSocketName.IsNone()
+			? NAME_None
+			: CustomizationHatAttachSocketName;
+		HatMeshComponent->AttachToComponent(
+			CharacterMesh,
+			FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+			AttachSocketName);
+	}
+
+	HatMeshComponent->SetRelativeLocation(CustomizationHatRelativeLocation);
+	HatMeshComponent->SetRelativeRotation(CustomizationHatRelativeRotation);
+	HatMeshComponent->SetRelativeScale3D(CustomizationHatRelativeScale);
+
+	const int32 HatMeshIndex = NormalizeCustomizationHatMeshIndex(
+		AppliedCustomizationData.HatMeshIndex);
+	UStaticMesh* HatMesh = HatMeshIndex != INDEX_NONE
+		? CustomizationHatMeshes[HatMeshIndex]
+		: nullptr;
+
+	HatMeshComponent->SetStaticMesh(HatMesh);
+	HatMeshComponent->SetVisibility(HatMesh != nullptr, true);
 }
 
 void ASnowRumbleCharacter::RedrawCustomizationPaintTexture()

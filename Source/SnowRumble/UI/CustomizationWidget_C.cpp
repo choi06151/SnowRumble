@@ -73,6 +73,13 @@ float UCustomizationWidget::GetPaintBrushSize() const
 		: 0.0f;
 }
 
+int32 UCustomizationWidget::GetPreviewHatMeshIndex() const
+{
+	return CustomizationPlayerController
+		? CustomizationPlayerController->GetPreviewHatMeshIndex()
+		: INDEX_NONE;
+}
+
 void UCustomizationWidget::RequestUndoLastPaintStroke()
 {
 	if (CurrentCustomizationPage == ESnowRumbleCustomizationPage::PaintMode
@@ -144,6 +151,11 @@ void UCustomizationWidget::HandlePaintModeButtonClicked()
 	SetCustomizationPage(ESnowRumbleCustomizationPage::PaintMode);
 }
 
+void UCustomizationWidget::HandleHatModeButtonClicked()
+{
+	SetCustomizationPage(ESnowRumbleCustomizationPage::HatMode);
+}
+
 void UCustomizationWidget::HandleBrushColorButtonClicked()
 {
 	if (CustomizationPlayerController)
@@ -185,6 +197,22 @@ void UCustomizationWidget::HandleFillBodyColorButtonClicked()
 	{
 		CustomizationPlayerController->FillPreviewBodyWithBrushColor();
 		RefreshPaintBrushPreview();
+	}
+}
+
+void UCustomizationWidget::HandleHatPreviousButtonClicked()
+{
+	if (CustomizationPlayerController)
+	{
+		CustomizationPlayerController->SelectPreviousPreviewHat();
+	}
+}
+
+void UCustomizationWidget::HandleHatNextButtonClicked()
+{
+	if (CustomizationPlayerController)
+	{
+		CustomizationPlayerController->SelectNextPreviewHat();
 	}
 }
 
@@ -266,6 +294,12 @@ void UCustomizationWidget::BindCustomizationButtons()
 			this,
 			&UCustomizationWidget::HandlePaintModeButtonClicked);
 	}
+	if (HatModeButton)
+	{
+		HatModeButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleHatModeButtonClicked);
+	}
 	if (BrushColorButton)
 	{
 		BrushColorButton->OnClicked.AddUniqueDynamic(
@@ -286,6 +320,18 @@ void UCustomizationWidget::BindCustomizationButtons()
 		FillBodyColorButton->OnClicked.AddUniqueDynamic(
 			this,
 			&UCustomizationWidget::HandleFillBodyColorButtonClicked);
+	}
+	if (HatPreviousButton)
+	{
+		HatPreviousButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleHatPreviousButtonClicked);
+	}
+	if (HatNextButton)
+	{
+		HatNextButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleHatNextButtonClicked);
 	}
 	if (ReturnToLobbyButton)
 	{
@@ -337,6 +383,10 @@ void UCustomizationWidget::UnbindCustomizationButtons()
 	{
 		PaintModeButton->OnClicked.RemoveAll(this);
 	}
+	if (HatModeButton)
+	{
+		HatModeButton->OnClicked.RemoveAll(this);
+	}
 	if (BrushColorButton)
 	{
 		BrushColorButton->OnClicked.RemoveAll(this);
@@ -349,6 +399,14 @@ void UCustomizationWidget::UnbindCustomizationButtons()
 	if (FillBodyColorButton)
 	{
 		FillBodyColorButton->OnClicked.RemoveAll(this);
+	}
+	if (HatPreviousButton)
+	{
+		HatPreviousButton->OnClicked.RemoveAll(this);
+	}
+	if (HatNextButton)
+	{
+		HatNextButton->OnClicked.RemoveAll(this);
 	}
 	if (ReturnToLobbyButton)
 	{
@@ -405,6 +463,8 @@ int32 UCustomizationWidget::GetSwitcherIndexForPage(
 		return 0;
 	case ESnowRumbleCustomizationPage::PaintMode:
 		return 1;
+	case ESnowRumbleCustomizationPage::HatMode:
+		return 2;
 	case ESnowRumbleCustomizationPage::Main:
 	default:
 		return 0;

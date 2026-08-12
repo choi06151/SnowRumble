@@ -22,6 +22,8 @@ class UNiagaraComponent;
 class UOutlineComponent;
 class USceneComponent;
 class USphereComponent;
+class UStaticMesh;
+class UStaticMeshComponent;
 class USnowRumbleHealthComponent;
 class USnowballCreationComponent;
 class USnowballEquipmentComponent;
@@ -204,6 +206,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
 	void SetCustomizationPaintTexture(UTexture* PaintTexture);
 
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization|Hat")
+	int32 GetCustomizationHatOptionCount() const;
+
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization|Hat")
+	int32 NormalizeCustomizationHatMeshIndex(int32 HatMeshIndex) const;
+
 	/** 서버가 확정한 게시판 상호작용에 맞춰 소유 클라이언트 카메라를 게시판으로 돌린다. */
 	UFUNCTION(Client, Reliable)
 	void ClientFocusLobbyBoard(ALobbyInteractionBoard* Board);
@@ -368,6 +376,8 @@ protected:
 	UFUNCTION()
 	void RefreshCustomizationFromPlayerState();
 
+	void RefreshCustomizationHatMesh();
+
 	/** 로컬 플레이어가 상호작용할 가장 가까운 로비 게시판을 찾는다. */
 	ALobbyInteractionBoard* FindClosestLobbyBoardCandidate() const;
 
@@ -524,6 +534,24 @@ protected:
 	/** 머티리얼 UV 방향에 맞춰 저장된 드로잉 RenderTarget Y축을 뒤집을지 정한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization")
 	bool bFlipCustomizationPaintUvY = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Customization|Hat")
+	TObjectPtr<UStaticMeshComponent> HatMeshComponent;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Hat")
+	TArray<TObjectPtr<UStaticMesh>> CustomizationHatMeshes;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Hat")
+	FName CustomizationHatAttachSocketName = TEXT("HatSocket");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Hat")
+	FVector CustomizationHatRelativeLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Hat")
+	FRotator CustomizationHatRelativeRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Hat")
+	FVector CustomizationHatRelativeScale = FVector::OneVector;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
 	TObjectPtr<UInputMappingContext> PlayerMappingContext;
