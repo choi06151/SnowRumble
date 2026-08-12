@@ -3,11 +3,13 @@
 #include "SnowRumbleGameMode.h"
 
 #include "Engine/GameInstance.h"
+#include "../Item/GiftBox_C.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "../Player/SnowRumbleHealthComponent.h"
 #include "../UI/SnowRumblePlayerController.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerStart.h"
+#include "Engine/TargetPoint.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "SnowRumbleGameState_C.h"
@@ -77,6 +79,7 @@ void ASnowRumbleGameMode::InitGame(
 	MapShrinkStage = 0;
 	GetWorldTimerManager().ClearTimer(MapShrinkTimerHandle);
 	GetWorldTimerManager().ClearTimer(MapShrinkCompletionTimerHandle);
+	GetWorldTimerManager().ClearTimer(GiftBoxSpawnTimerHandle);
 }
 
 void ASnowRumbleGameMode::PostLogin(APlayerController* NewPlayer)
@@ -153,6 +156,9 @@ void ASnowRumbleGameMode::StartMatchCountdownAfterLoading()
 					SnowRumbleGameState->StartMatchCountdownFromServer(
 						MatchStartCountdownSeconds);
 					ScheduleNextMapShrink();
+					ScheduleNextGiftBoxSpawn(
+						MatchStartCountdownSeconds
+						+ FirstGiftBoxSpawnDelaySeconds);
 				}
 			},
 			MatchStartCountdownDelaySeconds,
@@ -166,6 +172,9 @@ void ASnowRumbleGameMode::StartMatchCountdownAfterLoading()
 		SnowRumbleGameState->StartMatchCountdownFromServer(
 			MatchStartCountdownSeconds);
 		ScheduleNextMapShrink();
+		ScheduleNextGiftBoxSpawn(
+			MatchStartCountdownSeconds
+			+ FirstGiftBoxSpawnDelaySeconds);
 	}
 }
 
@@ -376,6 +385,25 @@ void ASnowRumbleGameMode::ScheduleNextMapShrink()
 		false);
 }
 
+void ASnowRumbleGameMode::ScheduleNextGiftBoxSpawn(float DelaySeconds)
+{
+	ASnowRumbleGameState* SnowRumbleGameState =
+		GetGameState<ASnowRumbleGameState>();
+	if (!HasAuthority()
+		|| !SnowRumbleGameState
+		|| SnowRumbleGameState->IsRoundEnded())
+	{
+		return;
+	}
+
+	GetWorldTimerManager().SetTimer(
+		GiftBoxSpawnTimerHandle,
+		this,
+		&ASnowRumbleGameMode::SpawnGiftBox,
+		FMath::Max(0.0f, DelaySeconds),
+		false);
+}
+
 void ASnowRumbleGameMode::TriggerMapShrink()
 {
 	ASnowRumbleGameState* SnowRumbleGameState =
@@ -402,6 +430,78 @@ void ASnowRumbleGameMode::TriggerMapShrink()
 		&ASnowRumbleGameMode::CompleteMapShrinkFromServer,
 		TemporaryMapShrinkDurationSeconds,
 		false);
+}
+
+void ASnowRumbleGameMode::SpawnGiftBox()
+{
+	ASnowRumbleGameState* SnowRumbleGameState =
+		GetGameState<ASnowRumbleGameState>();
+	UWorld* World = GetWorld();
+	const TSubclassOf<AGiftBox> SpawnGiftBoxClass = ResolveGiftBoxClass();
+	if (!HasAuthority()
+		|| !World
+		|| !SnowRumbleGameState
+		|| SnowRumbleGameState->IsRoundEnded()
+		|| !SpawnGiftBoxClass)
+	{
+		if (!SpawnGiftBoxClass)
+		{
+			BroadcastPersonalTextAlarm(NSLOCTEXT(
+				"SnowRumble",
+				"GiftBoxClassMissing",
+				"선물상자 클래스가 설정되지 않았습니다"));
+		}
+		return;
+	}
+
+	TArray<AActor*> SpawnPointCandidates;
+	GetGiftBoxSpawnPointCandidates(SpawnPointCandidates);
+	if (SpawnPointCandidates.IsEmpty())
+	{
+		BroadcastPersonalTextAlarm(NSLOCTEXT(
+			"SnowRumble",
+			"GiftBoxTargetPointMissing",
+			"선물상자 TargetPoint가 없습니다"));
+		return;
+	}
+
+	AActor* SelectedSpawnPoint =
+		SpawnPointCandidates[
+			FMath::RandRange(0, SpawnPointCandidates.Num() - 1)];
+	if (!SelectedSpawnPoint)
+	{
+		return;
+	}
+
+	const FVector SpawnLocation =
+		SelectedSpawnPoint->GetActorLocation()
+		+ FVector::UpVector * GiftBoxSpawnHeightOffset;
+	const FRotator SpawnRotation = SelectedSpawnPoint->GetActorRotation();
+
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.Owner = this;
+	SpawnParameters.SpawnCollisionHandlingOverride =
+		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+	AGiftBox* GiftBox = World->SpawnActor<AGiftBox>(
+		SpawnGiftBoxClass,
+		SpawnLocation,
+		SpawnRotation,
+		SpawnParameters);
+	if (GiftBox)
+	{
+		GiftBox->InitializeGiftBoxFromServer(ChooseGiftBoxGrade());
+		BroadcastPersonalTextAlarm(NSLOCTEXT(
+			"SnowRumble",
+			"GiftBoxSantaDroppedGift",
+			"산타가 선물을 흘렸다네"));
+		BroadcastEventLogMessage(NSLOCTEXT(
+			"SnowRumble",
+			"GiftBoxSantaDroppedGiftLog",
+			"산타가 선물을 흘렸다네"));
+	}
+
+	ScheduleNextGiftBoxSpawn(GiftBoxSpawnIntervalSeconds);
 }
 
 void ASnowRumbleGameMode::CompleteMapShrinkFromBlueprint()
@@ -564,6 +664,28 @@ void ASnowRumbleGameMode::BroadcastEventLogMessage(const FText& Message) const
 	}
 }
 
+void ASnowRumbleGameMode::BroadcastPersonalTextAlarm(
+	const FText& Message) const
+{
+	UWorld* World = GetWorld();
+	if (!World || Message.IsEmpty())
+	{
+		return;
+	}
+
+	for (FConstPlayerControllerIterator It =
+			World->GetPlayerControllerIterator();
+		It;
+		++It)
+	{
+		if (ASnowRumblePlayerController* PlayerController =
+			Cast<ASnowRumblePlayerController>(It->Get()))
+		{
+			PlayerController->ClientShowPersonalTextAlarm(Message);
+		}
+	}
+}
+
 FString ASnowRumbleGameMode::GetEventLogPlayerName(
 	const ASnowRumbleCharacter* Character) const
 {
@@ -573,6 +695,65 @@ FString ASnowRumbleGameMode::GetEventLogPlayerName(
 	return SnowRumblePlayerState
 		? SnowRumblePlayerState->GetLobbyPlayerName()
 		: TEXT("Player");
+}
+
+void ASnowRumbleGameMode::GetGiftBoxSpawnPointCandidates(
+	TArray<AActor*>& OutCandidates) const
+{
+	OutCandidates.Reset();
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	TArray<AActor*> FallbackCandidates;
+	for (TActorIterator<ATargetPoint> It(World); It; ++It)
+	{
+		ATargetPoint* TargetPoint = *It;
+		if (!TargetPoint)
+		{
+			continue;
+		}
+
+		if (!GiftBoxSpawnPointTag.IsNone()
+			&& TargetPoint->ActorHasTag(GiftBoxSpawnPointTag))
+		{
+			OutCandidates.Add(TargetPoint);
+			continue;
+		}
+
+		FallbackCandidates.Add(TargetPoint);
+	}
+
+	if (OutCandidates.IsEmpty())
+	{
+		OutCandidates = MoveTemp(FallbackCandidates);
+	}
+}
+
+TSubclassOf<AGiftBox> ASnowRumbleGameMode::ResolveGiftBoxClass() const
+{
+	if (GiftBoxClass)
+	{
+		return GiftBoxClass;
+	}
+
+	if (!DefaultGiftBoxClassPath.IsValid())
+	{
+		return nullptr;
+	}
+
+	UClass* LoadedClass = DefaultGiftBoxClassPath.TryLoadClass<AGiftBox>();
+	return LoadedClass ? TSubclassOf<AGiftBox>(LoadedClass) : nullptr;
+}
+
+ESnowRumbleGiftBoxGrade ASnowRumbleGameMode::ChooseGiftBoxGrade() const
+{
+	return FMath::FRand() <= GoldGiftBoxSpawnChance
+		? ESnowRumbleGiftBoxGrade::Gold
+		: ESnowRumbleGiftBoxGrade::Red;
 }
 
 bool ASnowRumbleGameMode::IsValidRoundTeam(ESnowRumbleTeam Team) const

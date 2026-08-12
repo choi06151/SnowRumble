@@ -34,6 +34,8 @@ class UTexture;
 class UWidgetInteractionComponent;
 class UWidgetComponent;
 class AController;
+class AGiftBox;
+class AGiftBoxItemPickup;
 class ALobbyInteractionBoard;
 class ASnowballItem;
 struct FDamageEvent;
@@ -381,8 +383,20 @@ protected:
 	/** 로컬 플레이어가 상호작용할 가장 가까운 로비 게시판을 찾는다. */
 	ALobbyInteractionBoard* FindClosestLobbyBoardCandidate() const;
 
+	/** 로컬 플레이어가 상호작용할 가장 가까운 선물상자를 찾는다. */
+	AGiftBox* FindClosestGiftBoxCandidate() const;
+
+	/** 로컬 플레이어가 상호작용할 가장 가까운 선물상자 아이템을 찾는다. */
+	AGiftBoxItemPickup* FindClosestGiftBoxItemPickupCandidate() const;
+
 	/** 소유 플레이어가 가까운 로비 게시판 상호작용을 서버에 요청한다. */
 	void TryInteractWithLobbyBoard();
+
+	/** 소유 플레이어가 가까운 선물상자 개봉을 서버에 요청한다. */
+	void TryInteractWithGiftBox();
+
+	/** 소유 플레이어가 가까운 선물상자 아이템 획득을 서버에 요청한다. */
+	void TryPickupGiftBoxItem();
 
 	/** 로컬 플레이어 화면의 로비 게시판 카메라 포커스를 원래 캐릭터 카메라로 복구한다. */
 	void ClearLobbyBoardFocus();
@@ -390,6 +404,14 @@ protected:
 	/** 서버가 현재 위치와 상태를 검사해 로비 게시판 상호작용을 확정한다. */
 	UFUNCTION(Server, Reliable)
 	void ServerTryInteractWithLobbyBoard(ALobbyInteractionBoard* Board);
+
+	/** 서버가 현재 위치와 상태를 검사해 선물상자 개봉을 확정한다. */
+	UFUNCTION(Server, Reliable)
+	void ServerTryOpenGiftBox(AGiftBox* GiftBox);
+
+	/** 서버가 현재 위치와 상태를 검사해 선물상자 아이템 획득을 확정한다. */
+	UFUNCTION(Server, Reliable)
+	void ServerTryPickupGiftBoxItem(AGiftBoxItemPickup* Pickup);
 
 	/** 서버가 현재 포커스 대상과 버튼 액션을 검사해 게시판 이벤트를 확정한다. */
 	UFUNCTION(Server, Reliable)

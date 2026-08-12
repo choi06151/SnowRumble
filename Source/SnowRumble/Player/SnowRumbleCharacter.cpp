@@ -8,6 +8,8 @@
 #include "../Game/SnowRumblePlayerState.h"
 #include "../Interaction/LobbyInteractionBoard_C.h"
 #include "../Interaction/OutlineComponent.h"
+#include "../Item/GiftBox_C.h"
+#include "../Item/GiftBoxItemPickup_C.h"
 #include "../Snowball/SnowballCreationComponent.h"
 #include "../Snowball/SnowballEquipmentComponent.h"
 #include "../Snowball/SnowballItem.h"
@@ -186,6 +188,14 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 			&& !FocusedLobbyBoard)
 		{
 			OutlinedActor = FindClosestLobbyBoardCandidate();
+			if (!OutlinedActor)
+			{
+				OutlinedActor = FindClosestGiftBoxCandidate();
+			}
+			if (!OutlinedActor)
+			{
+				OutlinedActor = FindClosestGiftBoxItemPickupCandidate();
+			}
 			if (!OutlinedActor
 				&& SnowballEquipmentComponent
 				&& !SnowballEquipmentComponent->HasHeldSnowball())
@@ -1346,6 +1356,28 @@ bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
 		return true;
 	}
 
+	if (AGiftBox* GiftBox = FindClosestGiftBoxCandidate())
+	{
+		OutPromptText = NSLOCTEXT(
+			"SnowRumble",
+			"InteractPromptGiftBox",
+			"E - 선물상자");
+		OutPromptActor = GiftBox;
+		return true;
+	}
+
+	if (AGiftBoxItemPickup* Pickup = FindClosestGiftBoxItemPickupCandidate())
+	{
+		OutPromptText = FText::Format(
+			NSLOCTEXT(
+				"SnowRumble",
+				"InteractPromptGiftBoxItem",
+				"E - {0}"),
+			Pickup->GetDisplayName());
+		OutPromptActor = Pickup;
+		return true;
+	}
+
 	if (!SnowballEquipmentComponent
 		|| SnowballEquipmentComponent->HasHeldSnowball())
 	{
@@ -1745,6 +1777,16 @@ void ASnowRumbleCharacter::HandleInteractCompleted()
 			if (OutlinedBoard)
 			{
 				TryInteractWithLobbyBoard();
+			}
+			else if (OutlineComponent
+				&& Cast<AGiftBox>(OutlineComponent->GetOutlinedActor()))
+			{
+				TryInteractWithGiftBox();
+			}
+			else if (OutlineComponent
+				&& Cast<AGiftBoxItemPickup>(OutlineComponent->GetOutlinedActor()))
+			{
+				TryPickupGiftBoxItem();
 			}
 			else
 			{
@@ -2248,6 +2290,73 @@ ALobbyInteractionBoard* ASnowRumbleCharacter::FindClosestLobbyBoardCandidate()
 	return ClosestBoard;
 }
 
+AGiftBox* ASnowRumbleCharacter::FindClosestGiftBoxCandidate() const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return nullptr;
+	}
+
+	const FVector CharacterLocation = GetActorLocation();
+	float ClosestDistanceSquared = TNumericLimits<float>::Max();
+	AGiftBox* ClosestGiftBox = nullptr;
+
+	for (TActorIterator<AGiftBox> Iterator(World); Iterator; ++Iterator)
+	{
+		AGiftBox* Candidate = *Iterator;
+		if (!Candidate || !Candidate->CanInteractWith(this))
+		{
+			continue;
+		}
+
+		const float DistanceSquared = FVector::DistSquared(
+			CharacterLocation,
+			Candidate->GetActorLocation());
+		if (DistanceSquared <= ClosestDistanceSquared)
+		{
+			ClosestDistanceSquared = DistanceSquared;
+			ClosestGiftBox = Candidate;
+		}
+	}
+
+	return ClosestGiftBox;
+}
+
+AGiftBoxItemPickup*
+ASnowRumbleCharacter::FindClosestGiftBoxItemPickupCandidate() const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return nullptr;
+	}
+
+	const FVector CharacterLocation = GetActorLocation();
+	float ClosestDistanceSquared = TNumericLimits<float>::Max();
+	AGiftBoxItemPickup* ClosestPickup = nullptr;
+
+	for (TActorIterator<AGiftBoxItemPickup> Iterator(World); Iterator; ++Iterator)
+	{
+		AGiftBoxItemPickup* Candidate = *Iterator;
+		if (!Candidate || !Candidate->CanInteractWith(this))
+		{
+			continue;
+		}
+
+		const float DistanceSquared = FVector::DistSquared(
+			CharacterLocation,
+			Candidate->GetActorLocation());
+		if (DistanceSquared <= ClosestDistanceSquared)
+		{
+			ClosestDistanceSquared = DistanceSquared;
+			ClosestPickup = Candidate;
+		}
+	}
+
+	return ClosestPickup;
+}
+
 void ASnowRumbleCharacter::TryInteractWithLobbyBoard()
 {
 	if (!IsLocallyControlled() || !CanPerformGameplayAction())
@@ -2270,6 +2379,64 @@ void ASnowRumbleCharacter::TryInteractWithLobbyBoard()
 	else
 	{
 		ServerTryInteractWithLobbyBoard(Board);
+	}
+}
+
+void ASnowRumbleCharacter::TryInteractWithGiftBox()
+{
+	if (!IsLocallyControlled() || !CanPerformGameplayAction())
+	{
+		return;
+	}
+
+	AGiftBox* GiftBox = OutlineComponent
+		? Cast<AGiftBox>(OutlineComponent->GetOutlinedActor())
+		: nullptr;
+	if (!GiftBox)
+	{
+		GiftBox = FindClosestGiftBoxCandidate();
+	}
+	if (!GiftBox)
+	{
+		return;
+	}
+
+	if (HasAuthority())
+	{
+		ServerTryOpenGiftBox_Implementation(GiftBox);
+	}
+	else
+	{
+		ServerTryOpenGiftBox(GiftBox);
+	}
+}
+
+void ASnowRumbleCharacter::TryPickupGiftBoxItem()
+{
+	if (!IsLocallyControlled() || !CanPerformGameplayAction())
+	{
+		return;
+	}
+
+	AGiftBoxItemPickup* Pickup = OutlineComponent
+		? Cast<AGiftBoxItemPickup>(OutlineComponent->GetOutlinedActor())
+		: nullptr;
+	if (!Pickup)
+	{
+		Pickup = FindClosestGiftBoxItemPickupCandidate();
+	}
+	if (!Pickup)
+	{
+		return;
+	}
+
+	if (HasAuthority())
+	{
+		ServerTryPickupGiftBoxItem_Implementation(Pickup);
+	}
+	else
+	{
+		ServerTryPickupGiftBoxItem(Pickup);
 	}
 }
 
@@ -2370,6 +2537,32 @@ void ASnowRumbleCharacter::ServerTryInteractWithLobbyBoard_Implementation(
 	}
 
 	Board->Interact(this);
+}
+
+void ASnowRumbleCharacter::ServerTryOpenGiftBox_Implementation(
+	AGiftBox* GiftBox)
+{
+	if (!CanPerformGameplayAction()
+		|| !GiftBox
+		|| !GiftBox->CanInteractWith(this))
+	{
+		return;
+	}
+
+	GiftBox->TryOpen(this);
+}
+
+void ASnowRumbleCharacter::ServerTryPickupGiftBoxItem_Implementation(
+	AGiftBoxItemPickup* Pickup)
+{
+	if (!CanPerformGameplayAction()
+		|| !Pickup
+		|| !Pickup->CanInteractWith(this))
+	{
+		return;
+	}
+
+	Pickup->TryPickup(this);
 }
 
 void ASnowRumbleCharacter::ServerRequestLobbyBoardAction_Implementation(

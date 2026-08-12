@@ -35,7 +35,7 @@
 | I-08 눈 전투 | C-09 | K-05, K-06, K-08, S-06 | 눈 제작·조준·충전·피격과 큰 눈 광역 결과 | 예정 |
 | I-09 경기 흐름 | C-05 | K-11, S-11, 맵 담당 | 라운드 시간·승수·결과·금색 상자 시점 | 진행중 |
 | I-10 커스터마이징 | C-11 | S-01, S-02, S-08 | 외형 저장·복제·적용 상태 | 진행중 |
-| I-11 아이템 | 재배정 필요, 기존 K-01~K-11 대기 | C-12, S-08, S-09, S-10, J | 아이템 상태·모델 요구·배치·UI 계약 | 대기 |
+| I-11 아이템 | C-25, 기존 K-01~K-11 대기 | C-12, S-08, S-09, S-10, J | 선물상자 스폰·개봉·랜덤 보상 확정, 아이템 상태·모델 요구·배치·UI 계약 | 진행중 |
 | I-12 레벨·비주얼 | S-12, J-05 | C-12 | 세 맵과 UI·모델·표현 자산 | 예정 |
 | I-13 부활 계약 | C-13 | K-07, S-07, C-05 | 핫팩 부활 진행·취소·완료와 무적 결과 | 예정 |
 | I-14 팀 등장 | C-14 | S-10, J-02, J-04 | 팀 스폰·시작 제한·팀 소개 상태 | 예정 |
@@ -94,6 +94,7 @@
 | C-22 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 안내 WBP 배치·스타일: 사용자/S 인계 | `Tasks/C/C-22_interaction_prompt_ui.md`, `Tasks/C/ROLE_C.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/UI/InteractionPromptWidget_C.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/Snowball/SnowballEquipmentComponent.*`, `Source/SnowRumble/Interaction/LobbyInteractionBoard_C.*` | 진행중 |
 | C-23 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 캐릭터 BP 조정값 확인: 사용자/S 인계 | `Tasks/C/C-23_camera_wheel_zoom.md`, `Tasks/C/ROLE_C.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Player/SnowRumbleCharacter.*` | 진행중 |
 | C-24 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 새 SkeletalMesh·Skeleton·ABP·캐릭터 BP 연결: 사용자/S 인계 | `Tasks/C/C-24_character_model_anim_contract.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Player/SnowRumbleCharacterAnimInstance_C.*` | 진행중 |
+| C-25 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 선물상자 Blueprint·아이템 Pickup Blueprint·모델·맵 TargetPoint 배치: 사용자/S/J 인계 | `Tasks/C/C-25_pvp_gift_box_item_foundation.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `docs/ARCHITECTURE.md`, `docs/PENDING_ISSUES.md`, `Source/SnowRumble/Item/GiftBox_C.*`, `Source/SnowRumble/Item/GiftBoxItemPickup_C.*`, `Source/SnowRumble/Game/SnowRumbleGameMode.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*` | 진행중 |
 | K-12 | K | 강혜원(K) | 강혜원(K), 공용 로딩·플레이어 계약: 최재원(C) | 문서·C++·Blueprint: 강혜원(K), 기존 PvP 맵 자산 수정 없음 | `Tasks/K/K-12_snowman_mode_foundation.md`, `Tasks/K/PLAN_K.md`, 눈사람 모드 GameMode/GameState/PlayerController 후보는 구현 승인 전 확정 | 예정 |
 | K-13 | K | 강혜원(K) | 강혜원(K), 공용 플레이어·눈 전투 계약: 최재원(C) | 문서·C++·Blueprint: 강혜원(K) | `Tasks/K/K-13_snowman_infection_flow.md`, `Tasks/K/PLAN_K.md`, 눈사람 이동·감염 관련 생성 후보는 구현 승인 전 확정 | 예정 |
 | K-14 | K | 강혜원(K) | 강혜원(K), 공용 경기 결과 계약: 최재원(C) | 문서·C++·Blueprint: 강혜원(K), UI 표현 자산은 사용자/S 인계 | `Tasks/K/K-14_snowman_mode_integration.md`, `Tasks/K/PLAN_K.md`, 눈사람 모드 승패·HUD 인계 후보는 구현 승인 전 확정 | 예정 |
@@ -113,3 +114,6 @@
 - 2026-08-12: C-11 페인트 trace에 원형 커서 중심 자동 보정을 추가함. `bUsePaintCursorCenterTraceOffset`이 켜져 있으면 현재 브러시 커서 지름의 절반만큼 trace 위치를 보정하고, `PaintCursorScreenOffset`은 마지막 미세 조정값으로 유지함. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor PID 46944의 DLL 잠금으로 최종 링크는 보류됨.
 - 2026-08-12: 강혜원(K) 담당을 아이템 중심에서 눈사람 모드 중심으로 변경함. 눈사람 모드는 10분 제한시간, 기존 PvP 맵 재사용, 환경 축소 비활성, 랜덤 눈사람 시작, 접촉 감염과 전원 감염/생존자 승리 조건을 기준으로 K-12~K-14 후속 Task에서 개발함.
 - 2026-08-12: C-11 모자 커스터마이징 계약을 추가함. `FSnowRumbleCustomizationData::HatMeshIndex`, 캐릭터 `HatMeshComponent`/`CustomizationHatMeshes`, 커스터마이징 WBP `HatModeButton`/`HatPreviousButton`/`HatNextButton`으로 모자 후보를 순환·저장·복제·적용하게 함. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됨.
+- 2026-08-12: PvP 내부 아이템 첫 범위로 C-25 선물상자 계약을 추가함. 기존 대기 상태의 I-11 아이템 계약은 C-25가 선물상자 스폰·개봉·랜덤 보상 확정 기반을 먼저 제공하고, 실제 개별 아이템 효과와 모델·맵 배치는 후속 인계로 처리함.
+- 2026-08-12: C-25 선물상자 C++ 기반을 구현함. `AGiftBox`는 빨간색/황금색 등급과 등급별 보상 후보, 낙하·착지·개봉 Blueprint 이벤트를 제공하고, PvP GameMode는 레벨 담당자가 배치한 `TargetPoint` 후보에서 상자를 공중 스폰함. `SnowRumbleEditor Win64 Development` 빌드가 성공함.
+- 2026-08-12: C-25 선물상자 보상 흐름을 아이템 Pickup 스폰 후 `E` 획득 구조로 변경함. `AGiftBox::TakeDamage()`로 눈덩이 피격 개봉을 지원하고, `AGiftBoxItemPickup`이 획득 확정과 로그/알림을 담당함. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됨.
