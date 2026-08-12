@@ -9,7 +9,7 @@
 
 ## 현재 집중 Task
 
-- [C-25](C-25_pvp_gift_box_item_foundation.md) PvP 선물상자와 아이템 기본 계약
+- [C-05](C-05_round_match_flow.md) 1/3/5 라운드 경기 흐름
 
 ## 개발 스타일
 
@@ -196,3 +196,15 @@
 - 2026-08-12: C-25 아이템 Pickup이 살짝 둥둥 떠다니도록 `FloatAmplitude`와 `FloatSpeed` 조정값을 추가했다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됐다.
 - 2026-08-12: C-25 아이템 Pickup 기본 `FloatSpeed`를 5로 변경하고, 선물상자 BP에서 같은 StaticMesh에 등급별 머티리얼을 입힐 수 있도록 `GradeMaterialIndex`, `RedGiftBoxMaterial`, `GoldGiftBoxMaterial`을 추가했다. 상자 개봉/사라짐 이펙트용 `OpenedEffect` Niagara 슬롯도 추가했다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됐다.
 - 2026-08-12: C-25 아이템 BP 내부 연결용 `ESnowRumbleGiftItemType` enum 계약을 추가했다. `FSnowRumbleGiftBoxReward::ItemType`이 `AGiftBoxItemPickup`에 복제되고, Pickup BP는 `GetItemType()` 또는 `OnItemDataChanged()`에서 기능·외형을 분기할 수 있다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-12: C-25 아이템 효과 1차 구현을 추가했다. `UGiftItemEffectComponent`가 핫팩 보유, 즉시 회복, 에너지 드링크 5초 무적, 부츠 이동속도, 패딩 피해 감소, 장갑 눈 제작 시간 감소, 눈오리 제작기 눈덩이 피해 증가, 황금 붕어빵 지속 회복, 눈삽 내구도와 모닥불 키트 보유 수를 서버 권한으로 관리한다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됐다.
+- 2026-08-12: C-25 핫팩과 모닥불 키트 정책을 사용자 결정에 맞게 변경했다. 일반 핫팩은 1개까지만 장착하고, 황금 핫팩은 획득 즉시 같은 팀의 얼음 상태 아군을 50% HP로 부활시키며, 모닥불 키트는 보유하지 않고 `ACampfire`를 캐릭터 앞에 즉시 설치한다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-12: C-25 장비 외형 슬롯을 추가했다. 캐릭터는 부츠, 장갑, 패딩, 핫팩, 눈삽, 눈오리 제작기용 고정 StaticMeshComponent를 갖고 `UGiftItemEffectComponent` 복제 상태에 따라 표시한다. UHT는 통과했으나 현재 시스템 page file 부족 `C3859/C1076`으로 C++ 컴파일 전 PCH 생성 단계에서 빌드가 보류됐다.
+- 2026-08-12: C-24 애니메이션 장착 자세 계약을 보강했다. `ESnowRumbleHeldAnimationState`/`HeldAnimationState`로 맨손, 작은 눈덩이, 큰 눈덩이, 눈삽, 눈오리 제작기를 ABP에서 한 값으로 분기할 수 있고, 빠른 연결용 `SnowShovelHoldAnimation`, `SnowDuckMakerHoldAnimation` 슬롯을 추가했다.
+- 2026-08-12: C-24/C-25 애니메이션 연동을 보강했다. 선물상자 열기와 선물 아이템 획득 성공은 `bIsInteractingWithItem`/`ItemInteractionAnimation`으로, 실제 HP 피해 피격은 `bIsHitReacting`/`HitReactAnimation`으로 ABP가 분기할 수 있다.
+- 2026-08-12: C-24/C-25 애니메이션 연동 변경은 `git diff --check`와 UHT/C++ 컴파일을 통과했다. 최종 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
+- 2026-08-12: C-11 색칠하기 브러시 색 선택을 기본 컬러 피커에서 고정 팔레트 버튼으로 변경했다. WBP는 `RedBrushColorButton`, `OrangeBrushColorButton`, `YellowBrushColorButton`, `GreenBrushColorButton`, `BlueBrushColorButton`, `IndigoBrushColorButton`, `PurpleBrushColorButton`, `BlackBrushColorButton`, `WhiteBrushColorButton`만 배치하고, 선택된 색은 Pressed 스타일로 유지된다.
+- 2026-08-12: C-11 고정 팔레트 버튼 변경은 `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드를 통과했다.
+- 2026-08-12: C-11 팔레트 버튼 클릭 시 실제 브러시 색이 해당 버튼의 WBP 스타일 Normal Tint와 BackgroundColor를 기준으로 정해지게 했다.
+- 2026-08-12: C-11 버튼 tint 기반 브러시 색 변경은 `git diff --check`와 UHT/C++ 컴파일을 통과했다. 최종 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
+- 2026-08-13: C-05 정규 라운드 최종 공동 1등 처리로 단판 승부 타이브레이커를 추가했다. 공동 1등 팀만 결과 판정과 피해 적용 대상이 되며 `TiebreakerTravelUrl` 전용 PvP 맵으로 이동하고, HUD는 `단판승부` 문구와 경기 시간만 표시하며 맵 축소는 비활성화된다. 아이템 스폰은 기존 PvP와 동일하게 유지된다.
+- 2026-08-13: C-05 타이브레이커 비동점 팀은 관전자 상태로 복제해 이동·상호작용·충돌 간섭을 막고 경기 참가자 시점을 보게 했다. `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드를 통과했다.

@@ -87,6 +87,10 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Match")
 	FString LobbyReturnTravelUrl = TEXT("/Game/Maps/L_Lobby?listen");
 
+	/** 공동 1등 발생 시 이동할 단판 승부 전용 PvP 맵 travel URL이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Match")
+	FString TiebreakerTravelUrl = TEXT("/Game/Maps/L_Tiebreaker?listen");
+
 	/** 실제 맵 축소 완료 신호가 오기 전 임시로 축소 완료를 가정할 시간이다. */
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Map Pressure", meta = (ClampMin = "0.0"))
 	float TemporaryMapShrinkDurationSeconds = 5.0f;
@@ -99,6 +103,9 @@ private:
 
 	/** 라운드 결과 표시 후 남은 라운드가 있으면 다음 PvP 맵으로 이동한다. */
 	void TravelToNextRoundIfNeeded();
+
+	/** 공동 1등 단판 승부 맵으로 이동한다. */
+	void TravelToTiebreakerRound();
 
 	/** 다음 맵 축소 타이머를 예약한다. */
 	void ScheduleNextMapShrink();
@@ -117,6 +124,9 @@ private:
 
 	/** 매치 결과 표시 후 로비로 복귀한다. */
 	void ReturnToLobbyAfterMatchEnd();
+
+	/** 공용 PvP travel URL에 listen과 ExpectedPlayers 옵션을 붙인다. */
+	FString BuildPvPTravelUrl(const FString& BaseTravelUrl) const;
 
 	/** 새로 생성된 Pawn의 생명 상태 변경을 라운드 종료 검사에 연결한다. */
 	void BindPawnLifeState(APawn* Pawn);

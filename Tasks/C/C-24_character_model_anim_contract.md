@@ -15,6 +15,7 @@
 - [x] ABP가 직접 읽을 이동, 조준, 눈덩이, 얼음, 사망, 아이템 획득 상태 변수를 제공한다.
 - [x] 새 모델용 ABP에서 애니메이션 에셋을 장착할 슬롯 프로퍼티를 제공한다.
 - [x] 현재 상태 우선순위에 맞는 주 애니메이션을 반환하는 조회 함수를 제공한다.
+- [x] 맨손, 작은 눈덩이, 큰 눈덩이, 눈삽, 눈오리 제작기 자세를 ABP 단일 enum 상태로 구분한다.
 - [ ] 새 캐릭터 모델 Skeleton과 ABP 자산 연결을 에디터에서 확인한다.
 
 ## 작업 배정
@@ -46,13 +47,16 @@
   - `USnowRumbleCharacterAnimInstance::bIsChargingSnowball`: 눈덩이 투척 충전 상태
   - `USnowRumbleCharacterAnimInstance::bIsCreatingSnowball`: 눈덩이 제작 상태
   - `USnowRumbleCharacterAnimInstance::bIsPickingUpItem`: 아이템 획득 연출 상태
+  - `USnowRumbleCharacterAnimInstance::bIsInteractingWithItem`: 선물상자 열기와 선물 아이템 획득 상호작용 연출 상태
+  - `USnowRumbleCharacterAnimInstance::bIsHitReacting`: 실제 피해를 받은 직후 피격 반응 연출 상태
   - `USnowRumbleCharacterAnimInstance::SnowballCarryState`: 평소, 작은 눈덩이 보유, 큰 눈덩이 보유 구분
+  - `USnowRumbleCharacterAnimInstance::HeldAnimationState`: 맨손, 작은 눈덩이, 큰 눈덩이, 눈삽, 눈오리 제작기 자세 구분
   - `USnowRumbleCharacterAnimInstance::SnowballActionState`: 굴리기 같은 운반과 별개인 눈덩이 행동 상태
   - `USnowRumbleCharacterAnimInstance::TimedActionState`: 머리 위 진행 행동과 같은 제작·굴리기 상태
   - `USnowRumbleCharacterAnimInstance::SnowballChargeProgress`: 투척 충전 0~1 진행도
   - `USnowRumbleCharacterAnimInstance::SnowballCreationProgress`: 눈덩이 제작 0~1 진행도
   - `USnowRumbleCharacterAnimInstance::GetPrimaryAnimation()`: 현재 상태 우선순위에 맞는 주 애니메이션 슬롯 반환
-  - 애니메이션 슬롯 프로퍼티: `IdleAnimation`, `WalkAnimation`, `SprintAnimation`, `JumpOrFallAnimation`, `AimIdleAnimation`, `AimWalkAnimation`, `SmallSnowballHoldAnimation`, `LargeSnowballHoldAnimation`, `SnowballChargeAnimation`, `CreateSnowballAnimation`, `RollSnowballAnimation`, `PickupAnimation`, `FrozenAnimation`, `DeadAnimation`
+  - 애니메이션 슬롯 프로퍼티: `IdleAnimation`, `WalkAnimation`, `SprintAnimation`, `JumpOrFallAnimation`, `AimIdleAnimation`, `AimWalkAnimation`, `SmallSnowballHoldAnimation`, `LargeSnowballHoldAnimation`, `SnowShovelHoldAnimation`, `SnowDuckMakerHoldAnimation`, `SnowballChargeAnimation`, `CreateSnowballAnimation`, `RollSnowballAnimation`, `PickupAnimation`, `ItemInteractionAnimation`, `HitReactAnimation`, `FrozenAnimation`, `DeadAnimation`
 - 인계 대상: 사용자/S. 새 ABP는 `USnowRumbleCharacterAnimInstance`를 부모로 만들고 슬롯 프로퍼티에 새 Skeleton용 애니메이션 에셋을 지정한다.
 
 ## 범위 밖
@@ -72,16 +76,22 @@
 
 - 새 캐릭터 Skeleton이 기존 Skeleton과 같은지, 리타기팅이 필요한지 확인
 - ABP가 단일 `GetPrimaryAnimation()` 기반으로 빠르게 붙을지, BlendSpace와 상태머신으로 확장할지 확인
+- 눈삽과 눈오리 제작기를 동시에 장착했을 때 별도 선택 입력을 둘지 확인. 현재 애니메이션 기준은 눈덩이 보유가 최우선이고, 그 다음 눈삽, 눈오리 제작기 순서다.
 
 ## 변경 기록
 
 - 2026-08-11: 새 캐릭터 모델과 ABP를 Codex 관리 계약으로 전환하기 위해 C-24를 추가했다. ABP 부모 `USnowRumbleCharacterAnimInstance`와 슬롯형 애니메이션 프로퍼티를 제공한다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor PID 41016의 DLL 잠금으로 최종 링크는 보류됐다.
+- 2026-08-12: 아이템 장착 표현에 맞춰 `ESnowRumbleHeldAnimationState`와 `HeldAnimationState`를 추가했다. ABP는 `BareHands`, `SmallSnowball`, `LargeSnowball`, `SnowShovel`, `SnowDuckMaker` 기준으로 자세 상태머신을 나눌 수 있고, 빠른 연결용 슬롯 `SnowShovelHoldAnimation`, `SnowDuckMakerHoldAnimation`을 제공한다.
+- 2026-08-12: 선물상자/선물 아이템 상호작용과 피격 반응용 상태를 추가했다. `ItemInteractionAnimation`은 선물상자 열기와 선물 아이템 획득 성공 때, `HitReactAnimation`은 실제 HP 피해가 적용된 직후 짧게 재생하는 슬롯이다.
+- 2026-08-12: `git diff --check`와 UHT/C++ 컴파일을 통과했다. 최종 링크는 실행 중인 Unreal Editor가 `UnrealEditor-SnowRumble.dll`을 잡고 있어 `LNK1104`로 보류됐다.
 
 ## 수동 작업
 
 - 새 캐릭터용 Animation Blueprint를 만들고 부모 클래스를 `USnowRumbleCharacterAnimInstance`로 지정한다.
 - 새 ABP의 Class Defaults에서 필요한 슬롯 프로퍼티에 새 Skeleton용 Animation Sequence를 지정한다.
 - 빠른 확인용 ABP는 `GetPrimaryAnimation()` 반환값을 재생하는 구조로 시작하고, 이후 품질이 필요하면 같은 상태 변수로 BlendSpace와 상태머신을 구성한다.
+- 자연스러운 최종 ABP는 `HeldAnimationState`를 상위 자세 상태로 두고, 각 자세 안에서 `GroundSpeed`, `bIsSprinting`, `bIsInAir`, `bIsAiming`, `bIsChargingSnowball`, `bIsCreatingSnowball`로 세부 전이를 나눈다.
+- 우선 넣을 애니메이션은 맨손 Idle/Walk/Run/Jump/Fall, 작은 눈덩이 Hold/Walk/Aim/ThrowCharge/Throw, 큰 눈덩이 Hold/HeavyWalk/Aim/ThrowCharge/Throw, 눈삽 Hold/Walk/Swing, 눈오리 제작기 Hold/Walk/Use, 눈 만들기, 굴리기, 눈덩이 줍기, 선물상자/선물 아이템 상호작용, 피격 반응, 얼음, 사망이다.
 - `BP_SnowRumbleCharacter`의 Mesh에 새 SkeletalMesh를 지정한다.
 - `BP_SnowRumbleCharacter`의 Mesh Anim Class에 새 ABP를 지정한다.
 - 새 모델 머티리얼에 C-11의 `BodyColor` Vector Parameter와 `PaintTexture` Texture Parameter를 연결하거나, BP의 파라미터 이름을 실제 머티리얼 이름에 맞춘다.
@@ -94,6 +104,8 @@
 
 - [x] ABP용 C++ AnimInstance 부모 추가
 - [x] 애니메이션 상태 변수와 슬롯 프로퍼티 추가
+- [x] 맨손·작은 눈·큰 눈·눈삽·눈오리 제작기 자세 구분 enum 추가
+- [x] 선물 아이템 상호작용과 피격 반응 슬롯 추가
 - [x] 현재 Task 문서가 실제 구현 기준으로 갱신됨
 - [x] 로컬 정적 점검과 C++ 컴파일 통과. 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류
 - [x] 역할·소유권·담당자 이니셜 규칙 위반 없음

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "../Interaction/LobbyInteractionBoard_C.h"
+#include "../Item/GiftItemTypes_C.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "GameFramework/Character.h"
 #include "SnowRumbleCharacter.generated.h"
@@ -14,6 +15,7 @@ class UInputAction;
 class UInputMappingContext;
 class UAnimMontage;
 class UEmoteRadialMenuWidget;
+class UGiftItemEffectComponent;
 class UInteractionPromptWidget;
 class UMainHUDWidget;
 class UMaterialInstanceDynamic;
@@ -64,6 +66,16 @@ enum class ESnowRumbleTimedActionState : uint8
 	RollingSnowball
 };
 
+UENUM(BlueprintType)
+enum class ESnowRumbleHeldAnimationState : uint8
+{
+	BareHands,
+	SmallSnowball,
+	LargeSnowball,
+	SnowShovel,
+	SnowDuckMaker
+};
+
 UCLASS()
 class SNOWRUMBLE_API ASnowRumbleCharacter : public ACharacter
 {
@@ -106,6 +118,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
 	ESnowballCarryState GetSnowballCarryState() const;
 
+	/** Animation Blueprint에서 맨손, 눈덩이, 장착 도구 자세를 한 값으로 구분한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
+	ESnowRumbleHeldAnimationState GetHeldAnimationState() const;
+
 	/** Animation Blueprint에서 운반 상태와 별개인 눈덩이 행동 상태를 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
 	ESnowballActionState GetSnowballActionState() const;
@@ -129,6 +145,14 @@ public:
 	/** Animation Blueprint에서 아이템 획득 동작 중인지 확인한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
 	bool IsPickingUpItem() const;
+
+	/** Animation Blueprint에서 선물상자와 선물 아이템 상호작용 중인지 확인한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
+	bool IsInteractingWithItem() const;
+
+	/** Animation Blueprint에서 피격 반응 중인지 확인한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
+	bool IsHitReacting() const;
 
 	/** UI에서 사용할 0~1 정규화된 눈덩이 제작 진행도를 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
@@ -176,6 +200,21 @@ public:
 
 	/** 서버에서 아이템 획득 성공 애니메이션 상태를 시작한다. */
 	void NotifyItemPickupSucceeded();
+
+	/** 서버에서 선물상자나 선물 아이템 상호작용 성공 애니메이션 상태를 시작한다. */
+	void NotifyItemInteractionSucceeded();
+
+	/** 서버에서 선물상자 아이템 효과를 캐릭터에 적용한다. */
+	bool ApplyGiftBoxItemEffectFromServer(ESnowRumbleGiftItemType ItemType);
+
+	/** 서버가 단판 승부 비참가자를 관전자 상태로 전환한다. */
+	void SetTiebreakerSpectatorFromServer(bool bNewTiebreakerSpectator);
+
+	/** 현재 아이템 효과 기준 눈덩이 제작 시간 배율을 반환한다. */
+	float GetSnowballCreationDurationMultiplier() const;
+
+	/** 현재 아이템 효과 기준 눈덩이 피해 배율을 반환한다. */
+	float GetSnowballDamageMultiplier() const;
 
 	/** 보유 장비가 바뀌면 스프린트와 현재 최대 이동속도를 다시 적용한다. */
 	void RefreshHeldEquipmentMovementState();
@@ -380,6 +419,22 @@ protected:
 
 	void RefreshCustomizationHatMesh();
 
+	UFUNCTION()
+	void HandleGiftItemEffectsChanged();
+
+	/** 복제된 아이템 효과 상태와 소켓 설정에 맞춰 장비 외형 슬롯 Mesh를 갱신한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Item|Equipment Visual")
+	void RefreshGiftItemEquipmentMeshes();
+
+	/** 장비 외형 슬롯을 캐릭터 Mesh 소켓에 맞춰 붙이고 표시 상태를 갱신한다. */
+	void RefreshGiftItemEquipmentMeshSlot(
+		UStaticMeshComponent* SlotComponent,
+		UStaticMesh* SlotMesh,
+		FName AttachSocketName,
+		const FVector& RelativeLocation,
+		const FRotator& RelativeRotation,
+		const FVector& RelativeScale) const;
+
 	/** 로컬 플레이어가 상호작용할 가장 가까운 로비 게시판을 찾는다. */
 	ALobbyInteractionBoard* FindClosestLobbyBoardCandidate() const;
 
@@ -434,6 +489,12 @@ protected:
 	/** PvP 시작 잠금 상태에 맞춰 로컬 컨트롤러 입력 연결을 차단하거나 복구한다. */
 	void RefreshPvpMatchInputLock();
 
+	/** 단판 승부 관전자면 로컬 카메라를 경기 참가자 시점으로 붙인다. */
+	void RefreshTiebreakerSpectatorViewTarget();
+
+	/** 로컬 관전 카메라가 따라갈 단판 승부 참가 캐릭터를 찾는다. */
+	ASnowRumbleCharacter* FindTiebreakerSpectatorViewTarget() const;
+
 	/** 스프린트 상태에 맞는 최대 이동속도를 CharacterMovement에 적용한다. */
 	void ApplyMovementSpeed();
 
@@ -465,9 +526,26 @@ protected:
 	/** 서버에서 아이템 획득 애니메이션 상태를 종료한다. */
 	void FinishPickupAnimationState();
 
+	/** 서버에서 아이템 상호작용 애니메이션 상태를 종료한다. */
+	void FinishItemInteractionAnimationState();
+
+	/** 서버에서 피격 반응 애니메이션 상태를 시작한다. */
+	void StartHitReactAnimationState();
+
+	/** 서버에서 피격 반응 애니메이션 상태를 종료한다. */
+	void FinishHitReactAnimationState();
+
 	/** 복제된 획득 상태에 따라 이동 잠금과 복구를 적용한다. */
 	UFUNCTION()
 	void OnRep_IsPickingUpItem();
+
+	/** 복제된 아이템 상호작용 상태에 따라 이동 잠금과 복구를 적용한다. */
+	UFUNCTION()
+	void OnRep_IsInteractingWithItem();
+
+	/** 복제된 단판 승부 관전자 상태에 따라 이동 잠금과 복구를 적용한다. */
+	UFUNCTION()
+	void OnRep_TiebreakerSpectator();
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Input")
 	void OnInteractInput(bool bPressed);
@@ -495,6 +573,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Health")
 	TObjectPtr<USnowRumbleHealthComponent> HealthComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Effect")
+	TObjectPtr<UGiftItemEffectComponent> GiftItemEffectComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball")
 	TObjectPtr<USnowballEquipmentComponent> SnowballEquipmentComponent;
@@ -559,6 +640,156 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Customization|Hat")
 	TObjectPtr<UStaticMeshComponent> HatMeshComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual")
+	TObjectPtr<UStaticMeshComponent> LeftBootsMeshComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual")
+	TObjectPtr<UStaticMeshComponent> RightBootsMeshComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual")
+	TObjectPtr<UStaticMeshComponent> LeftGlovesMeshComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual")
+	TObjectPtr<UStaticMeshComponent> RightGlovesMeshComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual")
+	TObjectPtr<UStaticMeshComponent> PaddingMeshComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual")
+	TObjectPtr<UStaticMeshComponent> HotPackMeshComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual")
+	TObjectPtr<UStaticMeshComponent> ShovelMeshComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual")
+	TObjectPtr<UStaticMeshComponent> DuckMakerMeshComponent;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Boots")
+	TObjectPtr<UStaticMesh> LeftBootsEquipmentMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Boots")
+	TObjectPtr<UStaticMesh> RightBootsEquipmentMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Boots")
+	FName LeftBootsEquipmentAttachSocketName = TEXT("LeftBootsSocket");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Boots")
+	FName RightBootsEquipmentAttachSocketName = TEXT("RightBootsSocket");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Boots")
+	FVector LeftBootsEquipmentRelativeLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Boots")
+	FVector RightBootsEquipmentRelativeLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Boots")
+	FRotator LeftBootsEquipmentRelativeRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Boots")
+	FRotator RightBootsEquipmentRelativeRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Boots")
+	FVector LeftBootsEquipmentRelativeScale = FVector::OneVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Boots")
+	FVector RightBootsEquipmentRelativeScale = FVector::OneVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Gloves")
+	TObjectPtr<UStaticMesh> LeftGlovesEquipmentMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Gloves")
+	TObjectPtr<UStaticMesh> RightGlovesEquipmentMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Gloves")
+	FName LeftGlovesEquipmentAttachSocketName = TEXT("LeftGlovesSocket");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Gloves")
+	FName RightGlovesEquipmentAttachSocketName = TEXT("RightGlovesSocket");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Gloves")
+	FVector LeftGlovesEquipmentRelativeLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Gloves")
+	FVector RightGlovesEquipmentRelativeLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Gloves")
+	FRotator LeftGlovesEquipmentRelativeRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Gloves")
+	FRotator RightGlovesEquipmentRelativeRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Gloves")
+	FVector LeftGlovesEquipmentRelativeScale = FVector::OneVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Gloves")
+	FVector RightGlovesEquipmentRelativeScale = FVector::OneVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Padding")
+	TObjectPtr<UStaticMesh> PaddingEquipmentMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Padding")
+	FName PaddingEquipmentAttachSocketName = TEXT("PaddingSocket");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Padding")
+	FVector PaddingEquipmentRelativeLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Padding")
+	FRotator PaddingEquipmentRelativeRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Padding")
+	FVector PaddingEquipmentRelativeScale = FVector::OneVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Hot Pack")
+	TObjectPtr<UStaticMesh> HotPackEquipmentMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Hot Pack")
+	FName HotPackEquipmentAttachSocketName = TEXT("HotPackSocket");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Hot Pack")
+	FVector HotPackEquipmentRelativeLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Hot Pack")
+	FRotator HotPackEquipmentRelativeRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Hot Pack")
+	FVector HotPackEquipmentRelativeScale = FVector::OneVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Shovel")
+	TObjectPtr<UStaticMesh> SnowShovelEquipmentMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Shovel")
+	TObjectPtr<UStaticMesh> GoldenShovelEquipmentMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Shovel")
+	FName ShovelEquipmentAttachSocketName = TEXT("ShovelSocket");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Shovel")
+	FVector ShovelEquipmentRelativeLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Shovel")
+	FRotator ShovelEquipmentRelativeRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Shovel")
+	FVector ShovelEquipmentRelativeScale = FVector::OneVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Duck Maker")
+	TObjectPtr<UStaticMesh> SnowDuckMakerEquipmentMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Duck Maker")
+	TObjectPtr<UStaticMesh> GoldenDuckMakerEquipmentMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Duck Maker")
+	FName DuckMakerEquipmentAttachSocketName = TEXT("DuckMakerSocket");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Duck Maker")
+	FVector DuckMakerEquipmentRelativeLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Duck Maker")
+	FRotator DuckMakerEquipmentRelativeRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Duck Maker")
+	FVector DuckMakerEquipmentRelativeScale = FVector::OneVector;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Hat")
 	TArray<TObjectPtr<UStaticMesh>> CustomizationHatMeshes;
@@ -674,6 +905,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation", meta = (ClampMin = "0.01"))
 	float PickupAnimationStateDuration = 0.6f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation", meta = (ClampMin = "0.01"))
+	float ItemInteractionAnimationStateDuration = 0.6f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation", meta = (ClampMin = "0.01"))
+	float HitReactAnimationStateDuration = 0.35f;
+
 	/** 원형 선택 UI의 8개 칸에 대응하는 이모션 몽타주 슬롯이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Emote")
 	TArray<TObjectPtr<UAnimMontage>> EmoteMontages;
@@ -711,13 +948,23 @@ protected:
 	TObjectPtr<UInteractionPromptWidget> InteractionPromptWidget;
 
 	bool bIsEmoteRadialMenuOpen = false;
-	bool bPvpMatchInputIgnoreApplied = false;
+	bool bPvpMatchMoveInputIgnoreApplied = false;
+	bool bPvpMatchLookInputIgnoreApplied = false;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_IsSprinting, Category = "SnowRumble|Movement")
 	bool bIsSprinting = false;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_IsPickingUpItem, Category = "SnowRumble|Animation")
 	bool bIsPickingUpItem = false;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_IsInteractingWithItem, Category = "SnowRumble|Animation")
+	bool bIsInteractingWithItem = false;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Animation")
+	bool bIsHitReacting = false;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_TiebreakerSpectator, Category = "SnowRumble|Match")
+	bool bTiebreakerSpectator = false;
 
 	float DefaultFieldOfView = 90.0f;
 	FVector DefaultCameraSocketOffset = FVector::ZeroVector;
@@ -727,6 +974,8 @@ protected:
 	double PostThrowAimCameraEndTime = -1.0;
 
 	FTimerHandle PickupAnimationTimerHandle;
+	FTimerHandle ItemInteractionAnimationTimerHandle;
+	FTimerHandle HitReactAnimationTimerHandle;
 
 	bool bIsInteractHeld = false;
 	bool bUsedInteractForRolling = false;
@@ -745,6 +994,9 @@ protected:
 	FSnowRumbleCustomizationData AppliedCustomizationData;
 
 private:
+	/** 단판 승부 중에는 대상 팀과 공격자 팀이 모두 단판 승부 대상인지 확인한다. */
+	bool IsDamageAllowedByTiebreaker(AController* EventInstigator) const;
+
 	/** 적용된 커스터마이징 데이터의 stroke 배열로 RenderTarget을 다시 그린다. */
 	void RedrawCustomizationPaintTexture();
 

@@ -55,7 +55,17 @@ public:
 	bool bIsPickingUpItem = false;
 
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|State")
+	bool bIsInteractingWithItem = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|State")
+	bool bIsHitReacting = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|State")
 	ESnowballCarryState SnowballCarryState = ESnowballCarryState::Normal;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|State")
+	ESnowRumbleHeldAnimationState HeldAnimationState =
+		ESnowRumbleHeldAnimationState::BareHands;
 
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|State")
 	ESnowballActionState SnowballActionState = ESnowballActionState::None;
@@ -94,6 +104,12 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation|Slots|Snowball")
 	TObjectPtr<UAnimSequenceBase> LargeSnowballHoldAnimation;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation|Slots|Tool")
+	TObjectPtr<UAnimSequenceBase> SnowShovelHoldAnimation;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation|Slots|Tool")
+	TObjectPtr<UAnimSequenceBase> SnowDuckMakerHoldAnimation;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation|Slots|Snowball")
 	TObjectPtr<UAnimSequenceBase> SnowballChargeAnimation;
 
@@ -105,6 +121,12 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation|Slots|Action")
 	TObjectPtr<UAnimSequenceBase> PickupAnimation;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation|Slots|Action")
+	TObjectPtr<UAnimSequenceBase> ItemInteractionAnimation;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation|Slots|Action")
+	TObjectPtr<UAnimSequenceBase> HitReactAnimation;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation|Slots|Health")
 	TObjectPtr<UAnimSequenceBase> FrozenAnimation;

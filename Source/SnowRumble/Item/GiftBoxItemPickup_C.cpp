@@ -114,13 +114,18 @@ bool AGiftBoxItemPickup::TryPickup(ASnowRumbleCharacter* Character)
 		return false;
 	}
 
+	if (!Character->ApplyGiftBoxItemEffectFromServer(ItemType))
+	{
+		return false;
+	}
+
 	bPickedUp = true;
 	if (CollisionComponent)
 	{
 		CollisionComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
 
-	Character->NotifyItemPickupSucceeded();
+	Character->NotifyItemInteractionSucceeded();
 	NotifyPickedUp(Character);
 	OnItemPickedUp(Character);
 	SetLifeSpan(PickedUpDestroyDelaySeconds);
