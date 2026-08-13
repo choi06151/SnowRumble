@@ -7,6 +7,7 @@
 #include "../Item/GiftItemTypes_C.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "GameFramework/Character.h"
+#include "SnowRumbleCharacterAnimationTypes_C.h"
 #include "SnowRumbleCharacter.generated.h"
 
 class UCameraComponent;
@@ -200,6 +201,12 @@ public:
 
 	/** 서버에서 아이템 획득 성공 애니메이션 상태를 시작한다. */
 	void NotifyItemPickupSucceeded();
+
+	/** 서버에서 눈덩이 획득 성공 one-shot 애니메이션을 포함해 상태를 시작한다. */
+	void NotifySnowballPickupSucceeded(bool bWasLargeSnowball);
+
+	/** 서버에서 눈덩이 던지기 성공 one-shot 애니메이션을 모든 화면에 요청한다. */
+	void NotifySnowballThrowSucceeded(bool bWasLargeSnowball);
 
 	/** 서버에서 선물상자나 선물 아이템 상호작용 성공 애니메이션 상태를 시작한다. */
 	void NotifyItemInteractionSucceeded();
@@ -506,6 +513,15 @@ protected:
 
 	/** 로컬 AnimInstance에 선택된 이모션 몽타주를 재생한다. */
 	void PlayEmoteMontage(int32 EmoteIndex);
+
+	/** 서버 확정 애니메이션 trigger를 현재 화면의 AnimInstance로 전달한다. */
+	void RequestAnimationTriggerFromServer(
+		ESnowRumbleCharacterAnimTrigger Trigger);
+
+	/** 서버가 확정한 one-shot 애니메이션 trigger를 모든 화면에 전달한다. */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastRequestAnimationTrigger(
+		ESnowRumbleCharacterAnimTrigger Trigger);
 
 	/** 서버가 소유 클라이언트의 이모션 선택을 검사하고 확정한다. */
 	UFUNCTION(Server, Reliable)

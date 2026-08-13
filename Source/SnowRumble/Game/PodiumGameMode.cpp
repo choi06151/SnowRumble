@@ -9,13 +9,14 @@
 #include "Camera/CameraActor.h"
 #include "Engine/GameInstance.h"
 #include "EngineUtils.h"
-#include "GameFramework/GameModeBase.h"
 #include "GameFramework/PlayerStart.h"
 #include "Kismet/GameplayStatics.h"
 
 APodiumGameMode::APodiumGameMode()
 {
 	PlayerControllerClass = APodiumPlayerController::StaticClass();
+	DefaultPawnClass = ASnowRumbleCharacter::StaticClass();
+	PlayerStateClass = ASnowRumblePlayerState::StaticClass();
 }
 
 void APodiumGameMode::BeginPlay()

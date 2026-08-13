@@ -2,20 +2,22 @@
 
 ## 설명
 
-새 캐릭터 모델과 Animation Blueprint를 교체할 때 C++ 플레이어 상태를 안정적으로 읽고, ABP에서 애니메이션 슬롯에 에셋을 장착하는 계약을 제공한다.
+새 캐릭터 모델과 Animation Blueprint를 교체할 때 C++ 플레이어 상태를 안정적으로 읽고, ABP에서 지속 pose와 one-shot 동작을 분리해 연결하는 계약을 제공한다.
 
 ## 상태 전이 기준
 
 - 시작 가능: C-01 기존 캐릭터 기반 인수, C-08 팀 식별·이름표 계약, C-11 커스터마이징 머티리얼 적용 경로
-- 완료 가능: ABP 부모 클래스, 상태 변수, 애니메이션 슬롯 계약, 에디터 연결 절차와 결과 확인 항목이 정리됨
+- 완료 가능: ABP 부모 클래스, 상태 변수, 지속 pose와 one-shot trigger 계약, 에디터 연결 절차와 결과 확인 항목이 정리됨
 
 ## 구현 항목
 
 - [x] `ASnowRumbleCharacter` 상태를 읽는 ABP용 C++ AnimInstance 부모를 제공한다.
 - [x] ABP가 직접 읽을 이동, 조준, 눈덩이, 얼음, 사망, 아이템 획득 상태 변수를 제공한다.
-- [x] 새 모델용 ABP에서 애니메이션 에셋을 장착할 슬롯 프로퍼티를 제공한다.
-- [x] 현재 상태 우선순위에 맞는 주 애니메이션을 반환하는 조회 함수를 제공한다.
+- [x] 새 모델용 ABP에서 직접 Sequence Player를 연결할 상태 계약을 제공한다.
+- [x] 현재 상태 우선순위에 맞는 이동·상체·전체 몸 액션 상태를 계산한다.
 - [x] 맨손, 작은 눈덩이, 큰 눈덩이, 눈삽, 눈오리 제작기 자세를 ABP 단일 enum 상태로 구분한다.
+- [x] 이동, 상체 자세, 전체 몸 액션을 분리한 ABP용 파생 상태 enum을 제공한다.
+- [x] 눈덩이 줍기, 눈덩이 던지기, 아이템 상호작용, 피격 반응 같은 one-shot 동작을 AnimBP 이벤트로 제공한다.
 - [ ] 새 캐릭터 모델 Skeleton과 ABP 자산 연결을 에디터에서 확인한다.
 
 ## 작업 배정
@@ -24,8 +26,8 @@
 - 기능 소유자: 최재원(C)
 - 계약 소유자: 최재원(C)
 - 자산 수정자: C++·문서 최재원(C), 새 SkeletalMesh·Skeleton·ABP·캐릭터 BP 연결은 사용자/S
-- 생성 파일: `Source/SnowRumble/Player/SnowRumbleCharacterAnimInstance_C.h`, `Source/SnowRumble/Player/SnowRumbleCharacterAnimInstance_C.cpp`, `Tasks/C/C-24_character_model_anim_contract.md`
-- 변경 파일: `Tasks/C/PLAN_C.md`, `docs/PLANS.md`
+- 생성 파일: `Source/SnowRumble/Player/SnowRumbleCharacterAnimInstance_C.h`, `Source/SnowRumble/Player/SnowRumbleCharacterAnimInstance_C.cpp`, `Source/SnowRumble/Player/SnowRumbleCharacterAnimationTypes_C.h`, `Tasks/C/C-24_character_model_anim_contract.md`
+- 변경 파일: `Source/SnowRumble/Player/SnowRumbleCharacter.h`, `Source/SnowRumble/Player/SnowRumbleCharacter.cpp`, `Source/SnowRumble/Snowball/SnowballEquipmentComponent.cpp`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`
 - 공유 확인 대상: S-01, S-05, S-08
 - 병합 순서: C++ AnimInstance 계약 반영 후 새 모델·ABP 자산 연결
 
@@ -55,9 +57,14 @@
   - `USnowRumbleCharacterAnimInstance::TimedActionState`: 머리 위 진행 행동과 같은 제작·굴리기 상태
   - `USnowRumbleCharacterAnimInstance::SnowballChargeProgress`: 투척 충전 0~1 진행도
   - `USnowRumbleCharacterAnimInstance::SnowballCreationProgress`: 눈덩이 제작 0~1 진행도
-  - `USnowRumbleCharacterAnimInstance::GetPrimaryAnimation()`: 현재 상태 우선순위에 맞는 주 애니메이션 슬롯 반환
-  - 애니메이션 슬롯 프로퍼티: `IdleAnimation`, `WalkAnimation`, `SprintAnimation`, `JumpOrFallAnimation`, `AimIdleAnimation`, `AimWalkAnimation`, `SmallSnowballHoldAnimation`, `LargeSnowballHoldAnimation`, `SnowShovelHoldAnimation`, `SnowDuckMakerHoldAnimation`, `SnowballChargeAnimation`, `CreateSnowballAnimation`, `RollSnowballAnimation`, `PickupAnimation`, `ItemInteractionAnimation`, `HitReactAnimation`, `FrozenAnimation`, `DeadAnimation`
-- 인계 대상: 사용자/S. 새 ABP는 `USnowRumbleCharacterAnimInstance`를 부모로 만들고 슬롯 프로퍼티에 새 Skeleton용 애니메이션 에셋을 지정한다.
+  - `USnowRumbleCharacterAnimInstance::LocomotionAnimState`: `Idle`, `Walk`, `Sprint`, `InAir` 중 하체 이동 pose 선택용 상태
+  - `USnowRumbleCharacterAnimInstance::UpperBodyAnimState`: `None`, `Aim`, `SmallSnowball`, `LargeSnowball`, `SnowShovel`, `SnowDuckMaker`, `ChargeSnowball` 중 상체 override pose 선택용 상태
+  - `USnowRumbleCharacterAnimInstance::FullBodyAnimState`: `None`, `CreateSnowball`, `RollSnowball`, `Pickup`, `ItemInteraction`, `HitReact`, `Frozen`, `Dead` 중 최종 전체 몸 action pose 선택용 상태
+  - `USnowRumbleCharacterAnimInstance::HasUpperBodyOverride()`: 상체 pose를 locomotion 위에 섞어야 하는지 반환
+  - `USnowRumbleCharacterAnimInstance::HasFullBodyOverride()`: 전체 몸 action pose가 최종 pose를 덮어써야 하는지 반환
+  - `ESnowRumbleCharacterAnimTrigger`: 서버가 확정한 one-shot 동작 enum. `PickupSmallSnowball`, `PickupLargeSnowball`, `ItemInteraction`, `ThrowSmallSnowball`, `ThrowLargeSnowball`, `HitReact`를 제공한다.
+  - `USnowRumbleCharacterAnimInstance::OnAnimationTriggerRequested(ESnowRumbleCharacterAnimTrigger Trigger)`: AnimBP가 구현하는 이벤트. 캐릭터 C++이 서버 multicast로 호출하며, ABP에서 Montage나 Slot 재생 분기에 사용한다.
+- 인계 대상: 사용자/S. 새 ABP는 `USnowRumbleCharacterAnimInstance`를 부모로 만들고, Anim Graph에서 지속 상태는 enum별 Sequence Player로 직접 연결한다. 줍기·던지기·피격 같은 순간 동작은 `OnAnimationTriggerRequested` 이벤트에서 Montage로 재생한다.
 
 ## 범위 밖
 
@@ -75,7 +82,7 @@
 ## 결정 필요
 
 - 새 캐릭터 Skeleton이 기존 Skeleton과 같은지, 리타기팅이 필요한지 확인
-- ABP가 단일 `GetPrimaryAnimation()` 기반으로 빠르게 붙을지, BlendSpace와 상태머신으로 확장할지 확인
+- 없음
 - 눈삽과 눈오리 제작기를 동시에 장착했을 때 별도 선택 입력을 둘지 확인. 현재 애니메이션 기준은 눈덩이 보유가 최우선이고, 그 다음 눈삽, 눈오리 제작기 순서다.
 
 ## 변경 기록
@@ -84,13 +91,22 @@
 - 2026-08-12: 아이템 장착 표현에 맞춰 `ESnowRumbleHeldAnimationState`와 `HeldAnimationState`를 추가했다. ABP는 `BareHands`, `SmallSnowball`, `LargeSnowball`, `SnowShovel`, `SnowDuckMaker` 기준으로 자세 상태머신을 나눌 수 있고, 빠른 연결용 슬롯 `SnowShovelHoldAnimation`, `SnowDuckMakerHoldAnimation`을 제공한다.
 - 2026-08-12: 선물상자/선물 아이템 상호작용과 피격 반응용 상태를 추가했다. `ItemInteractionAnimation`은 선물상자 열기와 선물 아이템 획득 성공 때, `HitReactAnimation`은 실제 HP 피해가 적용된 직후 짧게 재생하는 슬롯이다.
 - 2026-08-12: `git diff --check`와 UHT/C++ 컴파일을 통과했다. 최종 링크는 실행 중인 Unreal Editor가 `UnrealEditor-SnowRumble.dll`을 잡고 있어 `LNK1104`로 보류됐다.
+- 2026-08-13: `GetPrimaryAnimation()` 단일 출력 방식은 조준+이동, 스프린트+장착처럼 상태 조합이 늘어날 때 ABP에서 쓰기 어렵고 thread-safe 경고를 만들 수 있어, C++ 부모가 `LocomotionAnimState`, `UpperBodyAnimState`, `FullBodyAnimState`를 계산하는 구조로 확장했다. ABP는 이 세 enum으로 pose를 조합한다. C++ 컴파일은 통과했고, 최종 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
+- 2026-08-13: ABP에서 애니메이션 에셋을 Sequence Player에 직접 연결하기로 결정해 `GetPrimaryAnimation()` 함수와 `IdleAnimation` 등 Class Defaults 슬롯 프로퍼티를 제거했다.
+- 2026-08-13: 지속 pose만으로는 큰 눈덩이를 허리 펴며 드는 동작처럼 시작/종료가 있는 애니메이션을 표현하기 어려워 `ESnowRumbleCharacterAnimTrigger`와 `OnAnimationTriggerRequested` 이벤트를 추가했다. 눈덩이 줍기·던지기·아이템 상호작용·피격 반응은 서버 확정 후 모든 화면의 AnimBP로 trigger가 전달된다. UHT와 C++ 컴파일은 통과했고, 최종 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
 
 ## 수동 작업
 
 - 새 캐릭터용 Animation Blueprint를 만들고 부모 클래스를 `USnowRumbleCharacterAnimInstance`로 지정한다.
-- 새 ABP의 Class Defaults에서 필요한 슬롯 프로퍼티에 새 Skeleton용 Animation Sequence를 지정한다.
-- 빠른 확인용 ABP는 `GetPrimaryAnimation()` 반환값을 재생하는 구조로 시작하고, 이후 품질이 필요하면 같은 상태 변수로 BlendSpace와 상태머신을 구성한다.
-- 자연스러운 최종 ABP는 `HeldAnimationState`를 상위 자세 상태로 두고, 각 자세 안에서 `GroundSpeed`, `bIsSprinting`, `bIsInAir`, `bIsAiming`, `bIsChargingSnowball`, `bIsCreatingSnowball`로 세부 전이를 나눈다.
+- Anim Graph의 기본 하체 pose는 `Blend Poses by ESnowRumbleLocomotionAnimState`로 만들고, `Idle`, `Walk`, `Sprint`, `InAir` 핀에 각 Sequence Player를 연결한다.
+- 상체 pose는 `Blend Poses by ESnowRumbleUpperBodyAnimState`로 만들고, `Aim`, `SmallSnowball`, `LargeSnowball`, `SnowShovel`, `SnowDuckMaker`, `ChargeSnowball` 핀에 각 Sequence Player를 연결한다.
+- `HasUpperBodyOverride()`가 true이면 `Layered Blend Per Bone`으로 상체 pose를 기본 하체 pose 위에 섞는다. 시작 bone은 새 Skeleton 기준 spine 또는 chest 계열 본으로 잡는다.
+- 전체 몸 action pose는 `Blend Poses by ESnowRumbleFullBodyAnimState`로 만들고, `CreateSnowball`, `RollSnowball`, `Pickup`, `ItemInteraction`, `HitReact`, `Frozen`, `Dead` 핀에 각 Sequence Player를 연결한다.
+- `HasFullBodyOverride()`가 true이면 전체 몸 action pose가 최종 pose를 덮어쓰게 `Blend Poses by Bool`로 연결한다.
+- Anim Graph에 Montage 재생용 Slot 노드를 최종 출력 직전 또는 full-body layer 뒤에 배치한다.
+- Event Graph에서 `OnAnimationTriggerRequested`를 구현하고 `Switch on ESnowRumbleCharacterAnimTrigger`로 분기한다.
+- `PickupSmallSnowball`/`PickupLargeSnowball`에는 눈덩이를 허리 펴며 드는 시작 동작 Montage를 연결하고, Montage 종료 뒤에는 `UpperBodyAnimState`의 보유 pose가 자연스럽게 유지되게 한다.
+- `ThrowSmallSnowball`/`ThrowLargeSnowball`, `ItemInteraction`, `HitReact`도 같은 이벤트에서 각 Montage를 재생한다.
 - 우선 넣을 애니메이션은 맨손 Idle/Walk/Run/Jump/Fall, 작은 눈덩이 Hold/Walk/Aim/ThrowCharge/Throw, 큰 눈덩이 Hold/HeavyWalk/Aim/ThrowCharge/Throw, 눈삽 Hold/Walk/Swing, 눈오리 제작기 Hold/Walk/Use, 눈 만들기, 굴리기, 눈덩이 줍기, 선물상자/선물 아이템 상호작용, 피격 반응, 얼음, 사망이다.
 - `BP_SnowRumbleCharacter`의 Mesh에 새 SkeletalMesh를 지정한다.
 - `BP_SnowRumbleCharacter`의 Mesh Anim Class에 새 ABP를 지정한다.
@@ -103,9 +119,11 @@
 ### 에이전트 확인
 
 - [x] ABP용 C++ AnimInstance 부모 추가
-- [x] 애니메이션 상태 변수와 슬롯 프로퍼티 추가
+- [x] 애니메이션 상태 변수 추가
 - [x] 맨손·작은 눈·큰 눈·눈삽·눈오리 제작기 자세 구분 enum 추가
-- [x] 선물 아이템 상호작용과 피격 반응 슬롯 추가
+- [x] 이동·상체·전체 몸 액션 파생 상태 enum 추가
+- [x] 선물 아이템 상호작용과 피격 반응 상태·trigger 추가
+- [x] one-shot 애니메이션 trigger enum과 AnimBP 이벤트 추가
 - [x] 현재 Task 문서가 실제 구현 기준으로 갱신됨
 - [x] 로컬 정적 점검과 C++ 컴파일 통과. 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류
 - [x] 역할·소유권·담당자 이니셜 규칙 위반 없음
@@ -114,7 +132,7 @@
 ### 결과 확인
 
 - [ ] 새 ABP 부모가 `USnowRumbleCharacterAnimInstance`로 설정된다.
-- [ ] 새 ABP 슬롯 프로퍼티에 새 캐릭터 Skeleton용 애니메이션을 지정할 수 있다.
+- [ ] 새 ABP Anim Graph의 상태별 Sequence Player에 새 캐릭터 Skeleton용 애니메이션을 지정할 수 있다.
 - [ ] `BP_SnowRumbleCharacter`에 새 SkeletalMesh와 새 ABP를 지정하면 PIE에서 캐릭터가 스폰된다.
 - [ ] 걷기, 달리기, 점프/낙하, 조준, 눈덩이 보유, 눈덩이 제작, 굴리기, 아이템 획득, 얼음, 사망 상태가 ABP 변수로 갱신된다.
 - [ ] 새 모델에서도 이름표, 팀 색, 커스터마이징 머티리얼, 눈덩이 손 부착 위치가 깨지지 않는다.
