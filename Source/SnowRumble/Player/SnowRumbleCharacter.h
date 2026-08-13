@@ -515,6 +515,10 @@ protected:
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayEmote(int32 EmoteIndex);
 
+public:
+	/** 서버 전용 연출 흐름에서 지정한 이모션을 모든 화면에 재생한다. */
+	void PlayServerDirectedEmote(int32 EmoteIndex);
+
 	/** 서버가 소유 클라이언트의 스프린트 상태 요청을 검사하고 확정한다. */
 	UFUNCTION(Server, Reliable)
 	void ServerSetSprinting(bool bNewSprinting);
