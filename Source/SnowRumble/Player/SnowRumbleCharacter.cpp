@@ -3,6 +3,7 @@
 #include "SnowRumbleCharacter.h"
 
 #include "SnowRumbleHealthComponent.h"
+#include "../Game/SnowmanModeGameState_K.h"
 #include "../Game/SnowRumbleGameState_C.h"
 #include "../Game/SnowRumbleLobbyGameState.h"
 #include "../Game/SnowRumblePlayerState.h"
@@ -2419,8 +2420,16 @@ bool ASnowRumbleCharacter::IsPvpMatchInputLocked() const
 	const ASnowRumbleGameState* SnowRumbleGameState = World
 		? World->GetGameState<ASnowRumbleGameState>()
 		: nullptr;
-	return SnowRumbleGameState
-		&& SnowRumbleGameState->IsMatchInputLocked();
+	if (SnowRumbleGameState && SnowRumbleGameState->IsMatchInputLocked())
+	{
+		return true;
+	}
+
+	const ASnowmanModeGameState* SnowmanModeGameState = World
+		? World->GetGameState<ASnowmanModeGameState>()
+		: nullptr;
+	return SnowmanModeGameState
+		&& SnowmanModeGameState->IsSnowmanModeInputLocked();
 }
 
 void ASnowRumbleCharacter::RefreshPvpMatchInputLock()

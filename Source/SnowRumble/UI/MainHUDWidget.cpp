@@ -2,6 +2,7 @@
 
 #include "MainHUDWidget.h"
 
+#include "../Game/SnowmanModeGameState_K.h"
 #include "../Game/SnowRumbleGameState_C.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "../Player/SnowRumbleCharacter.h"
@@ -238,6 +239,19 @@ void UMainHUDWidget::RefreshStartCountdownPresentation()
 	const ASnowRumbleGameState* SnowRumbleGameState = World
 		? World->GetGameState<ASnowRumbleGameState>()
 		: nullptr;
+	const ASnowmanModeGameState* SnowmanModeGameState = World
+		? World->GetGameState<ASnowmanModeGameState>()
+		: nullptr;
+	if (SnowmanModeGameState
+		&& SnowmanModeGameState->ShouldShowSnowmanModeStartCountdown())
+	{
+		StartCountdownText->SetText(
+			SnowmanModeGameState->GetSnowmanModeStartCountdownText());
+		StartCountdownText->SetVisibility(
+			ESlateVisibility::SelfHitTestInvisible);
+		return;
+	}
+
 	if (!SnowRumbleGameState
 		|| !SnowRumbleGameState->ShouldShowStartCountdown())
 	{
@@ -285,6 +299,36 @@ void UMainHUDWidget::RefreshMatchTimerPresentation()
 	const ASnowRumbleGameState* SnowRumbleGameState = World
 		? World->GetGameState<ASnowRumbleGameState>()
 		: nullptr;
+	const ASnowmanModeGameState* SnowmanModeGameState = World
+		? World->GetGameState<ASnowmanModeGameState>()
+		: nullptr;
+	if (SnowmanModeGameState)
+	{
+		const bool bShouldShowSnowmanMatchTime =
+			SnowmanModeGameState->IsSnowmanModeTimerActive();
+
+		if (MatchElapsedTimeText)
+		{
+			if (bShouldShowSnowmanMatchTime)
+			{
+				MatchElapsedTimeText->SetText(
+					SnowmanModeGameState->GetSnowmanModeElapsedTimeText());
+				MatchElapsedTimeText->SetVisibility(
+					ESlateVisibility::SelfHitTestInvisible);
+			}
+			else
+			{
+				MatchElapsedTimeText->SetVisibility(ESlateVisibility::Collapsed);
+			}
+		}
+
+		if (MapShrinkCountdownText)
+		{
+			MapShrinkCountdownText->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		return;
+	}
+
 	const bool bShouldShowMatchTimers =
 		SnowRumbleGameState
 		&& !SnowRumbleGameState->IsMatchInputLocked()

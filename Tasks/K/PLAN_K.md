@@ -9,7 +9,7 @@
 
 ## 현재 집중 Task
 
-- [K-12](K-12_snowman_mode_foundation.md) 눈사람 모드 기반
+- [K-13](K-13_snowman_infection_flow.md) 눈사람 이동과 감염
 
 ## 개발 스타일
 
@@ -23,7 +23,7 @@
 
 | 우선순위 | Task | 결과 | 필수 선행 | 상태 |
 | --- | --- | --- | --- | --- |
-| 1 | [K-12](K-12_snowman_mode_foundation.md) | 눈사람 모드 기반 | C-04, C 공용 로딩·모드 선택 계약 확인 | 진행중 |
+| 1 | [K-12](K-12_snowman_mode_foundation.md) | 눈사람 모드 기반 | C-04, C 공용 로딩·모드 선택 계약 확인 | 완료 |
 | 2 | [K-13](K-13_snowman_infection_flow.md) | 눈사람 이동과 감염 | K-12, C-09 또는 눈덩이 피격 계약 확인 | 예정 |
 | 3 | [K-14](K-14_snowman_mode_integration.md) | 눈사람 모드 통합 | K-12, K-13, 결과 UI·로딩 인계 확인 | 예정 |
 | 4 | [K-01](K-01_item_foundation.md) | 아이템 기반 | 재배정 결정 필요 | 대기 |
@@ -52,3 +52,8 @@
 - 2026-08-12: K-12 시작 전 구현 기준을 확정했다. 기존 로비 게시판의 PvP / 눈사람 모드 선택 흐름을 사용하고, 기존 PvP 후보 맵 전체를 재사용하며, 눈사람 모드 전용 GameMode 구조와 GameMode 쪽 환경 축소 시작 호출 비활성을 우선 검토한다. C 공용 계약 변경이 필요하면 구현 전에 보고한다.
 - 2026-08-12: K-12 구현을 승인받아 진행중으로 전환했다. PvP 흐름은 유지하고 `LobbyMode == Snowman`일 때만 Snowman 전용 GameMode travel 분기를 추가하는 유지안으로 진행한다.
 - 2026-08-12: K-12 첫 구현을 추가했다. `ASnowmanModeGameMode`/`ASnowmanModeGameState`가 10분 제한시간과 로딩창 닫기를 독립 처리하고, 로비 GameMode는 `LobbyMode == Snowman`일 때만 기존 PvP 후보 맵을 Snowman 전용 GameMode override로 travel한다. 현재 환경에 UE 5.8 빌드 경로가 없어 최종 빌드는 사용자 확인이 필요하다.
+- 2026-08-13: K-12 빌드 후 눈사람 모드에서 플레이어가 스폰되지 않는 문제를 반영했다. `ASnowmanModeGameMode`에 기존 PvP GameMode와 같은 PlayerStart 중복 회피와 분산 스폰 보정 경로를 추가했으며, 재빌드와 Listen Server 수동 확인이 필요하다.
+- 2026-08-13: 눈사람 모드 스폰 성공 후 PvP처럼 3초 뒤 실제 시작되길 원한다는 확인을 반영했다. `ASnowmanModeGameState`에 시작 카운트다운 복제 상태와 표시 함수를 추가하고, `ASnowmanModeGameMode`는 로딩 완료 후 3초 카운트다운 뒤 10분 제한시간을 시작하게 했다. 시작 전 이동·시야 입력 잠금은 Snowman GameMode가 PlayerController 입력 잠금으로 처리한다.
+- 2026-08-13: 눈사람 모드 HUD 표시 요구를 기존 PvP HUD 재사용 기준으로 정정했다. `StartCountdownText`는 시작 카운트다운, `MatchElapsedTimeText`는 시작 후 진행 시간을 표시하며, 별도 `SnowmanTimerText`는 필요 없도록 `MainHUDWidget` 표시 분기를 조정했다.
+- 2026-08-13: 눈사람 모드 시작 전 이동 잠금은 되지만 시야 회전이 계속되는 문제를 반영했다. `ASnowRumbleCharacter`의 입력 잠금 확인이 `ASnowmanModeGameState::IsSnowmanModeInputLocked()`도 보게 해 `Look()` 입력을 차단한다.
+- 2026-08-13: 사용자가 K-12 눈사람 모드 기반 결과 확인을 완료했다. 눈사람 모드 진입, 스폰, 3초 시작 카운트다운, 이동·시야 입력 잠금과 해제, 진행 시간 표시, 환경 축소 비활성 기반을 확인했으므로 K-12를 완료로 전환하고 현재 집중 Task를 K-13으로 넘겼다.
