@@ -3080,7 +3080,15 @@ void ASnowRumbleCharacter::RefreshPvpMatchInputLock()
 	}
 
 	const bool bMatchInputLocked = IsPvpMatchInputLocked();
-	const bool bShouldBlockMove = bMatchInputLocked || bTiebreakerSpectator;
+
+	const UGameInstance* GameInstance =
+		GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	const USnowRumbleMatchSubsystem* MatchSubsystem = GameInstance
+		? GameInstance->GetSubsystem<USnowRumbleMatchSubsystem>()
+		: nullptr;
+	const bool bTiebreakerActive = MatchSubsystem && MatchSubsystem->IsTiebreakerActive();
+
+	const bool bShouldBlockMove = bMatchInputLocked || (bTiebreakerSpectator && bTiebreakerActive);
 	const bool bShouldBlockLook = bMatchInputLocked;
 
 	if (bShouldBlockMove && !bPvpMatchMoveInputIgnoreApplied)
@@ -3169,6 +3177,16 @@ void ASnowRumbleCharacter::ServerRequestPlayEmote_Implementation(int32 EmoteInde
 void ASnowRumbleCharacter::MulticastPlayEmote_Implementation(int32 EmoteIndex)
 {
 	PlayEmoteMontage(EmoteIndex);
+}
+
+void ASnowRumbleCharacter::PlayServerDirectedEmote(int32 EmoteIndex)
+{
+	if (!HasAuthority() || !IsValidEmoteIndex(EmoteIndex))
+	{
+		return;
+	}
+
+	MulticastPlayEmote(EmoteIndex);
 }
 
 void ASnowRumbleCharacter::ApplyMovementSpeed()

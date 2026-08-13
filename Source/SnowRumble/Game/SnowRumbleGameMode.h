@@ -91,6 +91,14 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Match")
 	FString TiebreakerTravelUrl = TEXT("/Game/Maps/L_Tiebreaker?listen");
 
+	/** 매치 종료 후 포디엄(시상대)으로 이동할 레벨 travel URL이다. 에디터에서 L_Podium을 준비해야 함. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Match")
+	FString PodiumTravelUrl = TEXT("/Game/Maps/L_Podium?listen");
+
+	/** 매치 종료 후 포디엄으로 이동하고 배치하기까지의 대기 시간(초) */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Match", meta = (ClampMin = "0.0"))
+	float PodiumTravelDelaySeconds = 3.0f;
+
 	/** 실제 맵 축소 완료 신호가 오기 전 임시로 축소 완료를 가정할 시간이다. */
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Map Pressure", meta = (ClampMin = "0.0"))
 	float TemporaryMapShrinkDurationSeconds = 5.0f;
@@ -106,6 +114,9 @@ private:
 
 	/** 공동 1등 단판 승부 맵으로 이동한다. */
 	void TravelToTiebreakerRound();
+
+	/** 매치 종료 후 포디엄으로 서버가 이동하는 함수(헤더에 선언되어야 함). */
+	void TravelToPodiumAfterMatchEnd();
 
 	/** 다음 맵 축소 타이머를 예약한다. */
 	void ScheduleNextMapShrink();

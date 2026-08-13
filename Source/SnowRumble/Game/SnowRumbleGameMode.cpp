@@ -602,8 +602,20 @@ void ASnowRumbleGameMode::ReturnToLobbyAfterMatchEnd()
 	if (!HasAuthority()
 		|| !MatchSubsystem
 		|| !MatchSubsystem->IsMatchComplete()
-		|| LobbyReturnTravelUrl.IsEmpty())
+		|| (LobbyReturnTravelUrl.IsEmpty() && PodiumTravelUrl.IsEmpty()))
 	{
+		return;
+	}
+
+	// If a PodiumTravelUrl is set, prefer traveling to podium first.
+	if (!PodiumTravelUrl.IsEmpty())
+	{
+		FTimerHandle PodiumDelayHandle;
+		GetWorldTimerManager().SetTimer(
+			PodiumDelayHandle,
+			[this]() { TravelToPodiumAfterMatchEnd(); },
+			PodiumTravelDelaySeconds,
+			false);
 		return;
 	}
 
@@ -616,6 +628,59 @@ void ASnowRumbleGameMode::ReturnToLobbyAfterMatchEnd()
 	MatchSubsystem->ResetPvPMatch();
 	if (UWorld* World = GetWorld())
 	{
+		World->ServerTravel(TravelUrl);
+	}
+}
+
+void ASnowRumbleGameMode::TravelToPodiumAfterMatchEnd()
+{
+	USnowRumbleMatchSubsystem* MatchSubsystem = GetMatchSubsystem();
+	if (!HasAuthority()
+		|| !MatchSubsystem
+		|| !MatchSubsystem->IsMatchComplete()
+		|| PodiumTravelUrl.IsEmpty())
+	{
+		if (!LobbyReturnTravelUrl.IsEmpty())
+		{
+			FString TravelUrl = LobbyReturnTravelUrl;
+			if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
+			{
+				TravelUrl += TEXT("?listen");
+			}
+			MatchSubsystem->ResetPvPMatch();
+			if (UWorld* World = GetWorld())
+			{
+				World->ServerTravel(TravelUrl);
+			}
+		}
+		return;
+	}
+
+	FString TravelUrl = PodiumTravelUrl;
+	if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
+	{
+		TravelUrl += TEXT("?listen");
+	}
+	if (!TravelUrl.Contains(TEXT("ExpectedPlayers="), ESearchCase::IgnoreCase))
+	{
+		TravelUrl += FString::Printf(
+			TEXT("%sExpectedPlayers=%d"),
+			TravelUrl.Contains(TEXT("?")) ? TEXT("&") : TEXT("?"),
+			ExpectedPlayerCount);
+	}
+
+	// Keep match state until podium placement completes.
+	if (UWorld* World = GetWorld())
+	{
+		for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+		{
+			if (ASnowRumblePlayerController* PlayerController = Cast<ASnowRumblePlayerController>(It->Get()))
+			{
+				PlayerController->ClientShowLoadingScreen();
+				PlayerController->ClientUpdateLoadingProgress(0, ExpectedPlayerCount);
+			}
+		}
+
 		World->ServerTravel(TravelUrl);
 	}
 }
