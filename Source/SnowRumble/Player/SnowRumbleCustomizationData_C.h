@@ -54,11 +54,15 @@ struct SNOWRUMBLE_API FSnowRumbleCustomizationData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SnowRumble|Customization")
 	bool bFlipPaintUvY = false;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SnowRumble|Customization")
+	int32 HatMeshIndex = INDEX_NONE;
+
 	bool operator==(const FSnowRumbleCustomizationData& Other) const
 	{
 		return BodyColor == Other.BodyColor
 			&& PaintStrokes == Other.PaintStrokes
-			&& bFlipPaintUvY == Other.bFlipPaintUvY;
+			&& bFlipPaintUvY == Other.bFlipPaintUvY
+			&& HatMeshIndex == Other.HatMeshIndex;
 	}
 
 	bool operator!=(const FSnowRumbleCustomizationData& Other) const

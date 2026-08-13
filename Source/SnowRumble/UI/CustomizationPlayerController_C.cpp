@@ -89,14 +89,15 @@ void ACustomizationPlayerController::ShowCustomizationMenu()
 	}
 	Widget->SetKeyboardFocus();
 
-	bShowMouseCursor = true;
-	EnsureMouseCursorWidgets();
-	ApplyCurrentMouseCursorWidget();
 	FInputModeGameAndUI InputMode;
 	InputMode.SetWidgetToFocus(Widget->TakeWidget());
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	InputMode.SetHideCursorDuringCapture(false);
 	SetInputMode(InputMode);
+
+	bShowMouseCursor = true;
+	EnsureMouseCursorWidgets();
+	ApplyCurrentMouseCursorWidget();
 }
 
 void ACustomizationPlayerController::ReturnToMainMenu()
@@ -263,6 +264,86 @@ FSnowRumbleCustomizationData
 ACustomizationPlayerController::GetPreviewCustomizationData() const
 {
 	return PreviewCustomizationData;
+}
+
+void ACustomizationPlayerController::SetPreviewHatMeshIndex(
+	int32 NewHatMeshIndex)
+{
+	FSnowRumbleCustomizationData NewData = PreviewCustomizationData;
+	NewData.HatMeshIndex = NewHatMeshIndex;
+
+	if (ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter())
+	{
+		NewData.HatMeshIndex =
+			PreviewCharacter->NormalizeCustomizationHatMeshIndex(
+				NewData.HatMeshIndex);
+	}
+	else
+	{
+		NewData = USnowRumbleCustomizationSubsystem::SanitizeCustomizationData(
+			NewData);
+	}
+
+	PreviewCustomizationData = NewData;
+	ApplyPreviewDataToCharacter();
+	SavePreviewCustomizationData();
+}
+
+void ACustomizationPlayerController::SelectPreviousPreviewHat()
+{
+	ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter();
+	if (!PreviewCharacter)
+	{
+		SetPreviewHatMeshIndex(INDEX_NONE);
+		return;
+	}
+
+	const int32 HatOptionCount =
+		PreviewCharacter->GetCustomizationHatOptionCount();
+	if (HatOptionCount <= 0)
+	{
+		SetPreviewHatMeshIndex(INDEX_NONE);
+		return;
+	}
+
+	const int32 CurrentHatIndex =
+		PreviewCharacter->NormalizeCustomizationHatMeshIndex(
+			PreviewCustomizationData.HatMeshIndex);
+	const int32 NewHatIndex = CurrentHatIndex == INDEX_NONE
+		? HatOptionCount - 1
+		: CurrentHatIndex - 1;
+	SetPreviewHatMeshIndex(NewHatIndex);
+}
+
+void ACustomizationPlayerController::SelectNextPreviewHat()
+{
+	ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter();
+	if (!PreviewCharacter)
+	{
+		SetPreviewHatMeshIndex(INDEX_NONE);
+		return;
+	}
+
+	const int32 HatOptionCount =
+		PreviewCharacter->GetCustomizationHatOptionCount();
+	if (HatOptionCount <= 0)
+	{
+		SetPreviewHatMeshIndex(INDEX_NONE);
+		return;
+	}
+
+	const int32 CurrentHatIndex =
+		PreviewCharacter->NormalizeCustomizationHatMeshIndex(
+			PreviewCustomizationData.HatMeshIndex);
+	const int32 NewHatIndex = CurrentHatIndex >= HatOptionCount - 1
+		? INDEX_NONE
+		: CurrentHatIndex + 1;
+	SetPreviewHatMeshIndex(NewHatIndex);
+}
+
+int32 ACustomizationPlayerController::GetPreviewHatMeshIndex() const
+{
+	return PreviewCustomizationData.HatMeshIndex;
 }
 
 void ACustomizationPlayerController::UndoLastPaintStroke()
@@ -1271,18 +1352,28 @@ void ACustomizationPlayerController::ApplyCurrentMouseCursorWidget()
 		return;
 	}
 
+	bShowMouseCursor = true;
+	DefaultMouseCursor = EMouseCursor::Default;
+	CurrentMouseCursor = EMouseCursor::Default;
 	EnsureMouseCursorWidgets();
+	UpdatePaintMouseCursorPresentation();
+
+	if (!bIsPaintCursorActive)
+	{
+		SetMouseCursorWidget(EMouseCursor::Default, nullptr);
+		return;
+	}
+
 	UUserWidget* TargetCursorWidget = bIsPaintCursorActive
 		? PaintMouseCursorWidget
 		: DefaultMouseCursorWidget;
 	if (!TargetCursorWidget)
 	{
+		SetMouseCursorWidget(EMouseCursor::Default, nullptr);
 		return;
 	}
 
 	SetMouseCursorWidget(EMouseCursor::Default, TargetCursorWidget);
-	DefaultMouseCursor = EMouseCursor::Default;
-	CurrentMouseCursor = EMouseCursor::Default;
 	UpdatePaintMouseCursorPresentation();
 }
 

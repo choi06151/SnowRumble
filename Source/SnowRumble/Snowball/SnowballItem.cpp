@@ -463,10 +463,16 @@ void ASnowballItem::HandleThrownImpact(
 
 	if (OtherActor)
 	{
+		const ASnowRumbleCharacter* ThrowingCharacter =
+			Cast<ASnowRumbleCharacter>(GetOwner());
+		const float ItemDamageMultiplier = ThrowingCharacter
+			? ThrowingCharacter->GetSnowballDamageMultiplier()
+			: 1.0f;
 		const float ChargedDamage = Damage * FMath::Lerp(
 			FMath::Clamp(MinimumDamageMultiplier, 0.0f, 1.0f),
 			1.0f,
-			CurrentThrowChargeProgress);
+			CurrentThrowChargeProgress)
+			* ItemDamageMultiplier;
 		UGameplayStatics::ApplyDamage(
 			OtherActor,
 			ChargedDamage,
