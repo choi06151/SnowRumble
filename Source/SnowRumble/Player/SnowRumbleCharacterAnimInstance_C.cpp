@@ -24,89 +24,21 @@ void USnowRumbleCharacterAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	RefreshFromOwnerCharacter();
 }
 
-UAnimSequenceBase* USnowRumbleCharacterAnimInstance::GetPrimaryAnimation() const
+bool USnowRumbleCharacterAnimInstance::HasUpperBodyOverride() const
 {
-	if (bIsDead && DeadAnimation)
-	{
-		return DeadAnimation;
-	}
-	if (bIsFrozen && FrozenAnimation)
-	{
-		return FrozenAnimation;
-	}
-	if (bIsPickingUpItem && PickupAnimation)
-	{
-		return PickupAnimation;
-	}
-	if (SnowballActionState == ESnowballActionState::RollingSnowball
-		&& RollSnowballAnimation)
-	{
-		return RollSnowballAnimation;
-	}
-	if (bIsCreatingSnowball && CreateSnowballAnimation)
-	{
-		return CreateSnowballAnimation;
-	}
-	if (bIsChargingSnowball && SnowballChargeAnimation)
-	{
-		return SnowballChargeAnimation;
-	}
-	if (bIsAiming)
-	{
-		if (bIsMoving && AimWalkAnimation)
-		{
-			return AimWalkAnimation;
-		}
-		if (AimIdleAnimation)
-		{
-			return AimIdleAnimation;
-		}
-	}
-	if (SnowballCarryState == ESnowballCarryState::LargeSnowball
-		&& LargeSnowballHoldAnimation)
-	{
-		return LargeSnowballHoldAnimation;
-	}
-	if (SnowballCarryState == ESnowballCarryState::SmallSnowball
-		&& SmallSnowballHoldAnimation)
-	{
-		return SmallSnowballHoldAnimation;
-	}
-	if (bIsInAir && JumpOrFallAnimation)
-	{
-		return JumpOrFallAnimation;
-	}
-	if (bIsSprinting && SprintAnimation)
-	{
-		return SprintAnimation;
-	}
-	if (bIsMoving && WalkAnimation)
-	{
-		return WalkAnimation;
-	}
+	return UpperBodyAnimState != ESnowRumbleUpperBodyAnimState::None;
+}
 
-	return IdleAnimation;
+bool USnowRumbleCharacterAnimInstance::HasFullBodyOverride() const
+{
+	return FullBodyAnimState != ESnowRumbleFullBodyAnimState::None;
 }
 
 void USnowRumbleCharacterAnimInstance::RefreshFromOwnerCharacter()
 {
 	if (!CachedCharacter)
 	{
-		GroundSpeed = 0.0f;
-		bIsMoving = false;
-		bIsInAir = false;
-		bIsSprinting = false;
-		bIsFrozen = false;
-		bIsDead = false;
-		bIsAiming = false;
-		bIsChargingSnowball = false;
-		bIsCreatingSnowball = false;
-		bIsPickingUpItem = false;
-		SnowballCarryState = ESnowballCarryState::Normal;
-		SnowballActionState = ESnowballActionState::None;
-		TimedActionState = ESnowRumbleTimedActionState::None;
-		SnowballChargeProgress = 0.0f;
-		SnowballCreationProgress = 0.0f;
+		ResetAnimationState();
 		return;
 	}
 
@@ -126,11 +58,123 @@ void USnowRumbleCharacterAnimInstance::RefreshFromOwnerCharacter()
 	bIsChargingSnowball = CachedCharacter->IsChargingSnowball();
 	bIsCreatingSnowball = CachedCharacter->IsCreatingSnowball();
 	bIsPickingUpItem = CachedCharacter->IsPickingUpItem();
+	bIsInteractingWithItem = CachedCharacter->IsInteractingWithItem();
+	bIsHitReacting = CachedCharacter->IsHitReacting();
 	SnowballCarryState = CachedCharacter->GetSnowballCarryState();
+	HeldAnimationState = CachedCharacter->GetHeldAnimationState();
 	SnowballActionState = CachedCharacter->GetSnowballActionState();
 	TimedActionState = CachedCharacter->GetTimedActionState();
 	SnowballChargeProgress =
 		FMath::Clamp(CachedCharacter->GetSnowballChargeProgress(), 0.0f, 1.0f);
 	SnowballCreationProgress =
 		FMath::Clamp(CachedCharacter->GetSnowballCreationProgress(), 0.0f, 1.0f);
+	RefreshDerivedAnimationStates();
+}
+
+void USnowRumbleCharacterAnimInstance::RefreshDerivedAnimationStates()
+{
+	if (bIsInAir)
+	{
+		LocomotionAnimState = ESnowRumbleLocomotionAnimState::InAir;
+	}
+	else if (bIsSprinting)
+	{
+		LocomotionAnimState = ESnowRumbleLocomotionAnimState::Sprint;
+	}
+	else if (bIsMoving)
+	{
+		LocomotionAnimState = ESnowRumbleLocomotionAnimState::Walk;
+	}
+	else
+	{
+		LocomotionAnimState = ESnowRumbleLocomotionAnimState::Idle;
+	}
+
+	if (bIsChargingSnowball)
+	{
+		UpperBodyAnimState = ESnowRumbleUpperBodyAnimState::ChargeSnowball;
+	}
+	else if (bIsAiming)
+	{
+		UpperBodyAnimState = ESnowRumbleUpperBodyAnimState::Aim;
+	}
+	else if (SnowballCarryState == ESnowballCarryState::LargeSnowball)
+	{
+		UpperBodyAnimState = ESnowRumbleUpperBodyAnimState::LargeSnowball;
+	}
+	else if (SnowballCarryState == ESnowballCarryState::SmallSnowball)
+	{
+		UpperBodyAnimState = ESnowRumbleUpperBodyAnimState::SmallSnowball;
+	}
+	else if (HeldAnimationState == ESnowRumbleHeldAnimationState::SnowShovel)
+	{
+		UpperBodyAnimState = ESnowRumbleUpperBodyAnimState::SnowShovel;
+	}
+	else if (
+		HeldAnimationState == ESnowRumbleHeldAnimationState::SnowDuckMaker)
+	{
+		UpperBodyAnimState = ESnowRumbleUpperBodyAnimState::SnowDuckMaker;
+	}
+	else
+	{
+		UpperBodyAnimState = ESnowRumbleUpperBodyAnimState::None;
+	}
+
+	if (bIsDead)
+	{
+		FullBodyAnimState = ESnowRumbleFullBodyAnimState::Dead;
+	}
+	else if (bIsFrozen)
+	{
+		FullBodyAnimState = ESnowRumbleFullBodyAnimState::Frozen;
+	}
+	else if (bIsHitReacting)
+	{
+		FullBodyAnimState = ESnowRumbleFullBodyAnimState::HitReact;
+	}
+	else if (bIsInteractingWithItem)
+	{
+		FullBodyAnimState = ESnowRumbleFullBodyAnimState::ItemInteraction;
+	}
+	else if (bIsPickingUpItem)
+	{
+		FullBodyAnimState = ESnowRumbleFullBodyAnimState::Pickup;
+	}
+	else if (SnowballActionState == ESnowballActionState::RollingSnowball)
+	{
+		FullBodyAnimState = ESnowRumbleFullBodyAnimState::RollSnowball;
+	}
+	else if (bIsCreatingSnowball)
+	{
+		FullBodyAnimState = ESnowRumbleFullBodyAnimState::CreateSnowball;
+	}
+	else
+	{
+		FullBodyAnimState = ESnowRumbleFullBodyAnimState::None;
+	}
+}
+
+void USnowRumbleCharacterAnimInstance::ResetAnimationState()
+{
+	GroundSpeed = 0.0f;
+	bIsMoving = false;
+	bIsInAir = false;
+	bIsSprinting = false;
+	bIsFrozen = false;
+	bIsDead = false;
+	bIsAiming = false;
+	bIsChargingSnowball = false;
+	bIsCreatingSnowball = false;
+	bIsPickingUpItem = false;
+	bIsInteractingWithItem = false;
+	bIsHitReacting = false;
+	SnowballCarryState = ESnowballCarryState::Normal;
+	HeldAnimationState = ESnowRumbleHeldAnimationState::BareHands;
+	SnowballActionState = ESnowballActionState::None;
+	TimedActionState = ESnowRumbleTimedActionState::None;
+	SnowballChargeProgress = 0.0f;
+	SnowballCreationProgress = 0.0f;
+	LocomotionAnimState = ESnowRumbleLocomotionAnimState::Idle;
+	UpperBodyAnimState = ESnowRumbleUpperBodyAnimState::None;
+	FullBodyAnimState = ESnowRumbleFullBodyAnimState::None;
 }

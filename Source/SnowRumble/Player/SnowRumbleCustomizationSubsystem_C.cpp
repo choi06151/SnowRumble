@@ -26,6 +26,18 @@ FLinearColor USnowRumbleCustomizationSubsystem::GetBodyColor() const
 	return CustomizationData.BodyColor;
 }
 
+void USnowRumbleCustomizationSubsystem::SetHatMeshIndex(int32 NewHatMeshIndex)
+{
+	FSnowRumbleCustomizationData NewData = CustomizationData;
+	NewData.HatMeshIndex = NewHatMeshIndex;
+	CustomizationData = SanitizeCustomizationData(NewData);
+}
+
+int32 USnowRumbleCustomizationSubsystem::GetHatMeshIndex() const
+{
+	return CustomizationData.HatMeshIndex;
+}
+
 void USnowRumbleCustomizationSubsystem::ResetCustomizationData()
 {
 	CustomizationData = GetDefaultCustomizationData();
@@ -38,6 +50,7 @@ USnowRumbleCustomizationSubsystem::GetDefaultCustomizationData()
 	DefaultData.BodyColor = FLinearColor::White;
 	DefaultData.PaintStrokes.Reset();
 	DefaultData.bFlipPaintUvY = false;
+	DefaultData.HatMeshIndex = INDEX_NONE;
 	return DefaultData;
 }
 
@@ -50,6 +63,10 @@ USnowRumbleCustomizationSubsystem::SanitizeCustomizationData(
 	SanitizedData.BodyColor.G = FMath::Clamp(SanitizedData.BodyColor.G, 0.0f, 1.0f);
 	SanitizedData.BodyColor.B = FMath::Clamp(SanitizedData.BodyColor.B, 0.0f, 1.0f);
 	SanitizedData.BodyColor.A = 1.0f;
+	SanitizedData.HatMeshIndex = FMath::Clamp(
+		SanitizedData.HatMeshIndex,
+		INDEX_NONE,
+		255);
 
 	constexpr int32 MaxPaintStrokeCount = 64;
 	constexpr int32 MaxPaintPointCountPerStroke = 256;

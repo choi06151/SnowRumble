@@ -3,11 +3,13 @@
 #include "SnowRumbleGameMode.h"
 
 #include "Engine/GameInstance.h"
+#include "../Item/GiftBox_C.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "../Player/SnowRumbleHealthComponent.h"
 #include "../UI/SnowRumblePlayerController.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerStart.h"
+#include "Engine/TargetPoint.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "SnowRumbleGameState_C.h"
@@ -77,6 +79,7 @@ void ASnowRumbleGameMode::InitGame(
 	MapShrinkStage = 0;
 	GetWorldTimerManager().ClearTimer(MapShrinkTimerHandle);
 	GetWorldTimerManager().ClearTimer(MapShrinkCompletionTimerHandle);
+	GetWorldTimerManager().ClearTimer(GiftBoxSpawnTimerHandle);
 }
 
 void ASnowRumbleGameMode::PostLogin(APlayerController* NewPlayer)
@@ -152,7 +155,13 @@ void ASnowRumbleGameMode::StartMatchCountdownAfterLoading()
 				{
 					SnowRumbleGameState->StartMatchCountdownFromServer(
 						MatchStartCountdownSeconds);
-					ScheduleNextMapShrink();
+					if (!SnowRumbleGameState->IsTiebreakerRound())
+					{
+						ScheduleNextMapShrink();
+					}
+					ScheduleNextGiftBoxSpawn(
+						MatchStartCountdownSeconds
+						+ FirstGiftBoxSpawnDelaySeconds);
 				}
 			},
 			MatchStartCountdownDelaySeconds,
@@ -165,7 +174,13 @@ void ASnowRumbleGameMode::StartMatchCountdownAfterLoading()
 	{
 		SnowRumbleGameState->StartMatchCountdownFromServer(
 			MatchStartCountdownSeconds);
-		ScheduleNextMapShrink();
+		if (!SnowRumbleGameState->IsTiebreakerRound())
+		{
+			ScheduleNextMapShrink();
+		}
+		ScheduleNextGiftBoxSpawn(
+			MatchStartCountdownSeconds
+			+ FirstGiftBoxSpawnDelaySeconds);
 	}
 }
 
@@ -225,6 +240,20 @@ void ASnowRumbleGameMode::RestartPlayerAtPlayerStart(
 	UsedSpawnLocations.Add(SpawnTransform.GetLocation());
 	RestartPlayerAtTransform(NewPlayer, SpawnTransform);
 	BindPawnLifeState(NewPlayer->GetPawn());
+	if (ASnowRumbleCharacter* Character =
+		Cast<ASnowRumbleCharacter>(NewPlayer->GetPawn()))
+	{
+		const USnowRumbleMatchSubsystem* MatchSubsystem = GetMatchSubsystem();
+		const ASnowRumblePlayerState* SnowRumblePlayerState =
+			NewPlayer->GetPlayerState<ASnowRumblePlayerState>();
+		const bool bTiebreakerSpectator =
+			MatchSubsystem
+			&& MatchSubsystem->IsTiebreakerActive()
+			&& (!SnowRumblePlayerState
+				|| !MatchSubsystem->IsTiebreakerTeam(
+					SnowRumblePlayerState->GetLobbyTeam()));
+		Character->SetTiebreakerSpectatorFromServer(bTiebreakerSpectator);
+	}
 	EvaluateRoundEndCondition();
 }
 
@@ -277,11 +306,25 @@ void ASnowRumbleGameMode::EvaluateRoundEndCondition()
 			MatchSubsystem->RecordRoundWin(WinningTeam);
 		}
 
+		const bool bStartedTiebreaker =
+			MatchSubsystem
+			&& MatchSubsystem->StartTiebreakerForLeadingTie();
+
 		SnowRumbleGameState->EndRoundFromServer(
 			WinningTeam,
 			MatchSubsystem);
 
-		if (MatchSubsystem && !MatchSubsystem->IsMatchComplete())
+		if (bStartedTiebreaker)
+		{
+			FTimerHandle TiebreakerTravelTimerHandle;
+			GetWorldTimerManager().SetTimer(
+				TiebreakerTravelTimerHandle,
+				this,
+				&ASnowRumbleGameMode::TravelToTiebreakerRound,
+				NextRoundTravelDelaySeconds,
+				false);
+		}
+		else if (MatchSubsystem && !MatchSubsystem->IsMatchComplete())
 		{
 			FTimerHandle NextRoundTravelTimerHandle;
 			GetWorldTimerManager().SetTimer(
@@ -322,16 +365,7 @@ void ASnowRumbleGameMode::TravelToNextRoundIfNeeded()
 		return;
 	}
 
-	if (!NextLevelPath.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
-	{
-		NextLevelPath += TEXT("?listen");
-	}
-	if (ExpectedPlayerCount > 0)
-	{
-		NextLevelPath += FString::Printf(
-			TEXT("?ExpectedPlayers=%d"),
-			ExpectedPlayerCount);
-	}
+	NextLevelPath = BuildPvPTravelUrl(NextLevelPath);
 
 	if (UWorld* World = GetWorld())
 	{
@@ -354,6 +388,40 @@ void ASnowRumbleGameMode::TravelToNextRoundIfNeeded()
 	}
 }
 
+void ASnowRumbleGameMode::TravelToTiebreakerRound()
+{
+	USnowRumbleMatchSubsystem* MatchSubsystem = GetMatchSubsystem();
+	if (!HasAuthority()
+		|| !MatchSubsystem
+		|| !MatchSubsystem->IsTiebreakerActive()
+		|| TiebreakerTravelUrl.IsEmpty())
+	{
+		return;
+	}
+
+	const FString TravelUrl = BuildPvPTravelUrl(TiebreakerTravelUrl);
+
+	if (UWorld* World = GetWorld())
+	{
+		for (FConstPlayerControllerIterator It =
+				World->GetPlayerControllerIterator();
+			It;
+			++It)
+		{
+			if (ASnowRumblePlayerController* PlayerController =
+				Cast<ASnowRumblePlayerController>(It->Get()))
+			{
+				PlayerController->ClientShowLoadingScreen();
+				PlayerController->ClientUpdateLoadingProgress(
+					0,
+					ExpectedPlayerCount);
+			}
+		}
+
+		World->ServerTravel(TravelUrl);
+	}
+}
+
 void ASnowRumbleGameMode::ScheduleNextMapShrink()
 {
 	ASnowRumbleGameState* SnowRumbleGameState =
@@ -361,6 +429,10 @@ void ASnowRumbleGameMode::ScheduleNextMapShrink()
 	if (!HasAuthority()
 		|| !SnowRumbleGameState
 		|| SnowRumbleGameState->IsRoundEnded())
+	{
+		return;
+	}
+	if (SnowRumbleGameState->IsTiebreakerRound())
 	{
 		return;
 	}
@@ -376,6 +448,25 @@ void ASnowRumbleGameMode::ScheduleNextMapShrink()
 		false);
 }
 
+void ASnowRumbleGameMode::ScheduleNextGiftBoxSpawn(float DelaySeconds)
+{
+	ASnowRumbleGameState* SnowRumbleGameState =
+		GetGameState<ASnowRumbleGameState>();
+	if (!HasAuthority()
+		|| !SnowRumbleGameState
+		|| SnowRumbleGameState->IsRoundEnded())
+	{
+		return;
+	}
+
+	GetWorldTimerManager().SetTimer(
+		GiftBoxSpawnTimerHandle,
+		this,
+		&ASnowRumbleGameMode::SpawnGiftBox,
+		FMath::Max(0.0f, DelaySeconds),
+		false);
+}
+
 void ASnowRumbleGameMode::TriggerMapShrink()
 {
 	ASnowRumbleGameState* SnowRumbleGameState =
@@ -383,6 +474,7 @@ void ASnowRumbleGameMode::TriggerMapShrink()
 	if (!HasAuthority()
 		|| !SnowRumbleGameState
 		|| SnowRumbleGameState->IsRoundEnded()
+		|| SnowRumbleGameState->IsTiebreakerRound()
 		|| SnowRumbleGameState->IsMapShrinkInProgress())
 	{
 		return;
@@ -402,6 +494,78 @@ void ASnowRumbleGameMode::TriggerMapShrink()
 		&ASnowRumbleGameMode::CompleteMapShrinkFromServer,
 		TemporaryMapShrinkDurationSeconds,
 		false);
+}
+
+void ASnowRumbleGameMode::SpawnGiftBox()
+{
+	ASnowRumbleGameState* SnowRumbleGameState =
+		GetGameState<ASnowRumbleGameState>();
+	UWorld* World = GetWorld();
+	const TSubclassOf<AGiftBox> SpawnGiftBoxClass = ResolveGiftBoxClass();
+	if (!HasAuthority()
+		|| !World
+		|| !SnowRumbleGameState
+		|| SnowRumbleGameState->IsRoundEnded()
+		|| !SpawnGiftBoxClass)
+	{
+		if (!SpawnGiftBoxClass)
+		{
+			BroadcastPersonalTextAlarm(NSLOCTEXT(
+				"SnowRumble",
+				"GiftBoxClassMissing",
+				"선물상자 클래스가 설정되지 않았습니다"));
+		}
+		return;
+	}
+
+	TArray<AActor*> SpawnPointCandidates;
+	GetGiftBoxSpawnPointCandidates(SpawnPointCandidates);
+	if (SpawnPointCandidates.IsEmpty())
+	{
+		BroadcastPersonalTextAlarm(NSLOCTEXT(
+			"SnowRumble",
+			"GiftBoxTargetPointMissing",
+			"선물상자 TargetPoint가 없습니다"));
+		return;
+	}
+
+	AActor* SelectedSpawnPoint =
+		SpawnPointCandidates[
+			FMath::RandRange(0, SpawnPointCandidates.Num() - 1)];
+	if (!SelectedSpawnPoint)
+	{
+		return;
+	}
+
+	const FVector SpawnLocation =
+		SelectedSpawnPoint->GetActorLocation()
+		+ FVector::UpVector * GiftBoxSpawnHeightOffset;
+	const FRotator SpawnRotation = SelectedSpawnPoint->GetActorRotation();
+
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.Owner = this;
+	SpawnParameters.SpawnCollisionHandlingOverride =
+		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+	AGiftBox* GiftBox = World->SpawnActor<AGiftBox>(
+		SpawnGiftBoxClass,
+		SpawnLocation,
+		SpawnRotation,
+		SpawnParameters);
+	if (GiftBox)
+	{
+		GiftBox->InitializeGiftBoxFromServer(ChooseGiftBoxGrade());
+		BroadcastPersonalTextAlarm(NSLOCTEXT(
+			"SnowRumble",
+			"GiftBoxSantaDroppedGift",
+			"산타가 선물을 흘렸다네"));
+		BroadcastEventLogMessage(NSLOCTEXT(
+			"SnowRumble",
+			"GiftBoxSantaDroppedGiftLog",
+			"산타가 선물을 흘렸다네"));
+	}
+
+	ScheduleNextGiftBoxSpawn(GiftBoxSpawnIntervalSeconds);
 }
 
 void ASnowRumbleGameMode::CompleteMapShrinkFromBlueprint()
@@ -438,8 +602,20 @@ void ASnowRumbleGameMode::ReturnToLobbyAfterMatchEnd()
 	if (!HasAuthority()
 		|| !MatchSubsystem
 		|| !MatchSubsystem->IsMatchComplete()
-		|| LobbyReturnTravelUrl.IsEmpty())
+		|| (LobbyReturnTravelUrl.IsEmpty() && PodiumTravelUrl.IsEmpty()))
 	{
+		return;
+	}
+
+	// If a PodiumTravelUrl is set, prefer traveling to podium first.
+	if (!PodiumTravelUrl.IsEmpty())
+	{
+		FTimerHandle PodiumDelayHandle;
+		GetWorldTimerManager().SetTimer(
+			PodiumDelayHandle,
+			[this]() { TravelToPodiumAfterMatchEnd(); },
+			PodiumTravelDelaySeconds,
+			false);
 		return;
 	}
 
@@ -452,6 +628,59 @@ void ASnowRumbleGameMode::ReturnToLobbyAfterMatchEnd()
 	MatchSubsystem->ResetPvPMatch();
 	if (UWorld* World = GetWorld())
 	{
+		World->ServerTravel(TravelUrl);
+	}
+}
+
+void ASnowRumbleGameMode::TravelToPodiumAfterMatchEnd()
+{
+	USnowRumbleMatchSubsystem* MatchSubsystem = GetMatchSubsystem();
+	if (!HasAuthority()
+		|| !MatchSubsystem
+		|| !MatchSubsystem->IsMatchComplete()
+		|| PodiumTravelUrl.IsEmpty())
+	{
+		if (!LobbyReturnTravelUrl.IsEmpty())
+		{
+			FString TravelUrl = LobbyReturnTravelUrl;
+			if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
+			{
+				TravelUrl += TEXT("?listen");
+			}
+			MatchSubsystem->ResetPvPMatch();
+			if (UWorld* World = GetWorld())
+			{
+				World->ServerTravel(TravelUrl);
+			}
+		}
+		return;
+	}
+
+	FString TravelUrl = PodiumTravelUrl;
+	if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
+	{
+		TravelUrl += TEXT("?listen");
+	}
+	if (!TravelUrl.Contains(TEXT("ExpectedPlayers="), ESearchCase::IgnoreCase))
+	{
+		TravelUrl += FString::Printf(
+			TEXT("%sExpectedPlayers=%d"),
+			TravelUrl.Contains(TEXT("?")) ? TEXT("&") : TEXT("?"),
+			ExpectedPlayerCount);
+	}
+
+	// Keep match state until podium placement completes.
+	if (UWorld* World = GetWorld())
+	{
+		for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+		{
+			if (ASnowRumblePlayerController* PlayerController = Cast<ASnowRumblePlayerController>(It->Get()))
+			{
+				PlayerController->ClientShowLoadingScreen();
+				PlayerController->ClientUpdateLoadingProgress(0, ExpectedPlayerCount);
+			}
+		}
+
 		World->ServerTravel(TravelUrl);
 	}
 }
@@ -564,6 +793,28 @@ void ASnowRumbleGameMode::BroadcastEventLogMessage(const FText& Message) const
 	}
 }
 
+void ASnowRumbleGameMode::BroadcastPersonalTextAlarm(
+	const FText& Message) const
+{
+	UWorld* World = GetWorld();
+	if (!World || Message.IsEmpty())
+	{
+		return;
+	}
+
+	for (FConstPlayerControllerIterator It =
+			World->GetPlayerControllerIterator();
+		It;
+		++It)
+	{
+		if (ASnowRumblePlayerController* PlayerController =
+			Cast<ASnowRumblePlayerController>(It->Get()))
+		{
+			PlayerController->ClientShowPersonalTextAlarm(Message);
+		}
+	}
+}
+
 FString ASnowRumbleGameMode::GetEventLogPlayerName(
 	const ASnowRumbleCharacter* Character) const
 {
@@ -575,8 +826,75 @@ FString ASnowRumbleGameMode::GetEventLogPlayerName(
 		: TEXT("Player");
 }
 
+void ASnowRumbleGameMode::GetGiftBoxSpawnPointCandidates(
+	TArray<AActor*>& OutCandidates) const
+{
+	OutCandidates.Reset();
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	TArray<AActor*> FallbackCandidates;
+	for (TActorIterator<ATargetPoint> It(World); It; ++It)
+	{
+		ATargetPoint* TargetPoint = *It;
+		if (!TargetPoint)
+		{
+			continue;
+		}
+
+		if (!GiftBoxSpawnPointTag.IsNone()
+			&& TargetPoint->ActorHasTag(GiftBoxSpawnPointTag))
+		{
+			OutCandidates.Add(TargetPoint);
+			continue;
+		}
+
+		FallbackCandidates.Add(TargetPoint);
+	}
+
+	if (OutCandidates.IsEmpty())
+	{
+		OutCandidates = MoveTemp(FallbackCandidates);
+	}
+}
+
+TSubclassOf<AGiftBox> ASnowRumbleGameMode::ResolveGiftBoxClass() const
+{
+	if (GiftBoxClass)
+	{
+		return GiftBoxClass;
+	}
+
+	if (!DefaultGiftBoxClassPath.IsValid())
+	{
+		return nullptr;
+	}
+
+	UClass* LoadedClass = DefaultGiftBoxClassPath.TryLoadClass<AGiftBox>();
+	return LoadedClass ? TSubclassOf<AGiftBox>(LoadedClass) : nullptr;
+}
+
+ESnowRumbleGiftBoxGrade ASnowRumbleGameMode::ChooseGiftBoxGrade() const
+{
+	return FMath::FRand() <= GoldGiftBoxSpawnChance
+		? ESnowRumbleGiftBoxGrade::Gold
+		: ESnowRumbleGiftBoxGrade::Red;
+}
+
 bool ASnowRumbleGameMode::IsValidRoundTeam(ESnowRumbleTeam Team) const
 {
+	if (const USnowRumbleMatchSubsystem* MatchSubsystem = GetMatchSubsystem())
+	{
+		if (MatchSubsystem->IsTiebreakerActive())
+		{
+			return MatchSubsystem->IsTiebreakerTeam(Team);
+		}
+	}
+
 	switch (Team)
 	{
 	case ESnowRumbleTeam::Red:
@@ -591,6 +909,23 @@ bool ASnowRumbleGameMode::IsValidRoundTeam(ESnowRumbleTeam Team) const
 	default:
 		return false;
 	}
+}
+
+FString ASnowRumbleGameMode::BuildPvPTravelUrl(
+	const FString& BaseTravelUrl) const
+{
+	FString TravelUrl = BaseTravelUrl;
+	if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
+	{
+		TravelUrl += TEXT("?listen");
+	}
+	if (ExpectedPlayerCount > 0)
+	{
+		TravelUrl += FString::Printf(
+			TEXT("?ExpectedPlayers=%d"),
+			ExpectedPlayerCount);
+	}
+	return TravelUrl;
 }
 
 void ASnowRumbleGameMode::BroadcastLoadingProgress()
