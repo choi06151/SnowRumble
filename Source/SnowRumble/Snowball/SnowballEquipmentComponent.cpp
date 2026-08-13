@@ -404,7 +404,7 @@ void USnowballEquipmentComponent::ServerTryPickupSnowball_Implementation()
 		Character->GetSnowballHoldPoint()))
 	{
 		HeldSnowball = PickupCandidate;
-		Character->NotifyItemPickupSucceeded();
+		Character->NotifySnowballPickupSucceeded(IsHoldingLargeSnowball());
 		OnRep_HeldSnowball();
 		Character->ForceNetUpdate();
 	}
@@ -516,6 +516,7 @@ void USnowballEquipmentComponent::ServerReleaseChargedSnowball_Implementation(
 	bIsAiming = false;
 	OnRep_HeldSnowball();
 	OnRep_IsAiming();
+	Character->NotifySnowballThrowSucceeded(bThrowingLargeSnowball);
 	Character->ForceNetUpdate();
 }
 

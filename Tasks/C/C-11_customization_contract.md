@@ -213,6 +213,7 @@
 - 2026-08-11: 마우스 커서 슬롯 계약을 추가했다. 메인메뉴, 로비/PvP 계열, 커스터마이징 PlayerController BP의 `DefaultMouseCursorWidgetClass`는 게임 전체 기본 커서로 적용되고, 커스터마이징 `PaintMouseCursorWidgetClass`는 색칠하기 원형 커서로 자동 전환된다. 페인트 커서 내부 `BrushCursorSizeBox`는 현재 브러시 크기에 맞춰 지름을 갱신한다.
 - 2026-08-11: 브러시 색 버튼으로 여는 언리얼 기본 컬러 피커가 버튼 오른쪽이 아니라 왼쪽에 뜨도록 `OpenPaintBrushColorPickerOnLeft(FVector2D)` 경로를 추가했다.
 - 2026-08-11: 페인트 커서 색상 계약을 추가했다. 원형 커서 WBP에 `BrushCursorColorBorder` 또는 `BrushCursorColorImage`를 배치하면 현재 브러시 색 변경 시 커서 표시 색도 같은 색으로 갱신된다.
+- 2026-08-13: 커스터마이징 프리뷰 캐릭터를 possess한 뒤 공용 캐릭터 Tick이 `GameOnly` 입력 모드와 커서 숨김을 계속 적용하던 문제를 수정했다. `ASnowRumbleCharacter`는 `ACustomizationPlayerController`가 조종 중일 때 커스터마이징 UI의 입력 모드와 커서 표시를 덮어쓰지 않는다. 커스터마이징 기본 화면은 하드웨어 기본 커서를 유지하고, PaintMode에서만 `PaintMouseCursorWidgetClass` 원형 커서로 전환한다.
 - 2026-08-12: 페인트 trace를 기본 몸 머티리얼 slot 0 전용으로 제한하는 `PaintAllowedMaterialIndex`를 추가했다. `PaintCursorScreenOffset`은 부위별 위치 보정이 아니라 커서 hotspot 보정용으로만 사용한다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
 - 2026-08-12: 페인트 trace에 `bUsePaintCursorCenterTraceOffset` 자동 중심 보정을 추가했다. 원형 커서 위젯이 좌상단 기준으로 표시되는 경우 현재 브러시 커서 지름의 절반만큼 trace 위치를 보정한다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor PID 46944의 DLL 잠금으로 최종 링크는 보류됐다.
 - 2026-08-12: 모자 커스터마이징 첫 범위를 추가했다. `HatMeshComponent` 빈 슬롯, `CustomizationHatMeshes` 후보 배열, `HatMeshIndex` 저장·복제 데이터, `HatModeButton`/`HatPreviousButton`/`HatNextButton` UI 계약을 제공한다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됐다.

@@ -89,14 +89,15 @@ void ACustomizationPlayerController::ShowCustomizationMenu()
 	}
 	Widget->SetKeyboardFocus();
 
-	bShowMouseCursor = true;
-	EnsureMouseCursorWidgets();
-	ApplyCurrentMouseCursorWidget();
 	FInputModeGameAndUI InputMode;
 	InputMode.SetWidgetToFocus(Widget->TakeWidget());
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	InputMode.SetHideCursorDuringCapture(false);
 	SetInputMode(InputMode);
+
+	bShowMouseCursor = true;
+	EnsureMouseCursorWidgets();
+	ApplyCurrentMouseCursorWidget();
 }
 
 void ACustomizationPlayerController::ReturnToMainMenu()
@@ -1351,18 +1352,28 @@ void ACustomizationPlayerController::ApplyCurrentMouseCursorWidget()
 		return;
 	}
 
+	bShowMouseCursor = true;
+	DefaultMouseCursor = EMouseCursor::Default;
+	CurrentMouseCursor = EMouseCursor::Default;
 	EnsureMouseCursorWidgets();
+	UpdatePaintMouseCursorPresentation();
+
+	if (!bIsPaintCursorActive)
+	{
+		SetMouseCursorWidget(EMouseCursor::Default, nullptr);
+		return;
+	}
+
 	UUserWidget* TargetCursorWidget = bIsPaintCursorActive
 		? PaintMouseCursorWidget
 		: DefaultMouseCursorWidget;
 	if (!TargetCursorWidget)
 	{
+		SetMouseCursorWidget(EMouseCursor::Default, nullptr);
 		return;
 	}
 
 	SetMouseCursorWidget(EMouseCursor::Default, TargetCursorWidget);
-	DefaultMouseCursor = EMouseCursor::Default;
-	CurrentMouseCursor = EMouseCursor::Default;
 	UpdatePaintMouseCursorPresentation();
 }
 

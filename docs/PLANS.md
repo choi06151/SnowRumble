@@ -123,6 +123,9 @@
 - 2026-08-12: C-24 애니메이션 장착 자세 계약을 보강함. `ESnowRumbleHeldAnimationState`/`HeldAnimationState`로 맨손, 작은 눈덩이, 큰 눈덩이, 눈삽, 눈오리 제작기를 ABP에서 한 값으로 분기할 수 있고, 빠른 연결용 `SnowShovelHoldAnimation`, `SnowDuckMakerHoldAnimation` 슬롯을 추가함.
 - 2026-08-12: C-24/C-25 애니메이션 연동을 보강함. 선물상자 열기와 선물 아이템 획득 성공은 `bIsInteractingWithItem`/`ItemInteractionAnimation`으로, 실제 HP 피해 피격은 `bIsHitReacting`/`HitReactAnimation`으로 ABP가 분기할 수 있음.
 - 2026-08-12: C-24/C-25 애니메이션 연동 변경은 `git diff --check`와 UHT/C++ 컴파일을 통과함. 최종 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됨.
+- 2026-08-13: C-24 ABP 부모를 이동·상체·전체 몸 액션 3계층 상태 구조로 확장함. `LocomotionAnimState`, `UpperBodyAnimState`, `FullBodyAnimState`와 override helper를 통해 ABP가 조준+이동, 스프린트+장착 같은 조합을 enum blend와 상체 레이어로 처리하게 함. C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됨.
+- 2026-08-13: C-24 Class Defaults 애니메이션 슬롯 계약을 제거함. `GetPrimaryAnimation()`과 `IdleAnimation` 등 슬롯 프로퍼티는 삭제하고, 새 ABP는 Anim Graph의 상태별 Sequence Player에 애니메이션 에셋을 직접 연결하는 구조로 확정함.
+- 2026-08-13: C-24 one-shot 애니메이션 trigger 계약을 추가함. `ESnowRumbleCharacterAnimTrigger`와 `OnAnimationTriggerRequested`로 눈덩이 줍기/던지기, 아이템 상호작용, 피격 반응을 서버 확정 후 모든 화면의 AnimBP에 전달함. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됨.
 - 2026-08-12: C-11 색칠하기 브러시 색 선택을 기본 컬러 피커에서 고정 팔레트 버튼으로 변경함. WBP는 빨강, 주황, 노랑, 초록, 파랑, 남색, 보라, 검정, 하양 버튼만 배치하고, 선택된 색은 Pressed 스타일로 유지됨.
 - 2026-08-12: C-11 고정 팔레트 버튼 변경은 `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드를 통과함.
 - 2026-08-12: C-11 팔레트 버튼 클릭 시 실제 브러시 색이 해당 버튼의 WBP 스타일 Normal Tint와 BackgroundColor를 기준으로 정해지게 함.
@@ -130,3 +133,4 @@
 - 2026-08-13: C-05 정규 라운드 최종 공동 1등 처리로 단판 승부 타이브레이커를 추가함. `ASnowRumbleGameMode::TiebreakerTravelUrl`에 전용 PvP 맵을 지정하면 공동 1등 팀끼리만 최종 판정과 피해 적용 대상이 되며, 같은 GameMode/Controller/HUD를 사용함. HUD는 `단판승부`와 경기 시간만 표시하고 맵 축소는 비활성화하며, 선물상자 아이템 스폰은 기존 PvP와 동일하게 유지함. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 최종 링크는 보류됨.
 - 2026-08-13: C-05 단판 승부 비동점 팀은 관전자 상태로 전환함. `ASnowRumbleCharacter::SetTiebreakerSpectatorFromServer()`가 관전자 상태를 복제하고, 관전자는 이동·상호작용·아이템 사용과 충돌 간섭이 막히며 `RefreshTiebreakerSpectatorViewTarget()`으로 경기 참가자 시점을 봄. `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드를 통과함.
 - 2026-08-13: C-05 매치 종료 후 포디움 레벨 이동을 추가함. `APodiumGameMode`가 현재 매치 참가 팀 색만 기준으로 1~3등을 산정하고 `Podium_Team1`/`Podium_Team2`/`Podium_Team3` PlayerStart에 배치하며, `UPodiumWidget`에 결과 문구를 전달한 뒤 10초 후 `ResetPvPMatch()`와 로비 복귀를 수행함. `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드가 성공함.
+- 2026-08-13: 레벨별 책임 분리를 위해 포디움 전용 `APodiumGameMode`/`APodiumPlayerController`에서 PvP GameMode/PlayerController 상속을 제거함. 포디움은 결과 표시·배치·로비 복귀만 담당하고, PvP HUD·채팅·ESC·라운드 입력 복구 흐름은 섞이지 않게 함. 커스터마이징 커서 숨김 문제도 공용 캐릭터 입력 복구 경로에서 `ACustomizationPlayerController`를 제외해 수정함. C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됨.

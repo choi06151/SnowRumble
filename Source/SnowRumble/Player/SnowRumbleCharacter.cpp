@@ -21,11 +21,13 @@
 #include "../UI/MainHUDWidget.h"
 #include "../UI/OverheadNameplateWidget_C.h"
 #include "../UI/SnowRumblePlayerController.h"
+#include "SnowRumbleCharacterAnimInstance_C.h"
 #include "Animation/AnimMontage.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SceneComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/WidgetInteractionComponent.h"
@@ -630,6 +632,46 @@ void ASnowRumbleCharacter::NotifyItemPickupSucceeded()
 	ForceNetUpdate();
 }
 
+void ASnowRumbleCharacter::NotifySnowballPickupSucceeded(bool bWasLargeSnowball)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	bIsPickingUpItem = true;
+	OnRep_IsPickingUpItem();
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			PickupAnimationTimerHandle,
+			this,
+			&ASnowRumbleCharacter::FinishPickupAnimationState,
+			PickupAnimationStateDuration,
+			false);
+	}
+
+	RequestAnimationTriggerFromServer(
+		bWasLargeSnowball
+			? ESnowRumbleCharacterAnimTrigger::PickupLargeSnowball
+			: ESnowRumbleCharacterAnimTrigger::PickupSmallSnowball);
+	ForceNetUpdate();
+}
+
+void ASnowRumbleCharacter::NotifySnowballThrowSucceeded(bool bWasLargeSnowball)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	RequestAnimationTriggerFromServer(
+		bWasLargeSnowball
+			? ESnowRumbleCharacterAnimTrigger::ThrowLargeSnowball
+			: ESnowRumbleCharacterAnimTrigger::ThrowSmallSnowball);
+}
+
 void ASnowRumbleCharacter::NotifyItemInteractionSucceeded()
 {
 	if (!HasAuthority())
@@ -650,6 +692,8 @@ void ASnowRumbleCharacter::NotifyItemInteractionSucceeded()
 			false);
 	}
 
+	RequestAnimationTriggerFromServer(
+		ESnowRumbleCharacterAnimTrigger::ItemInteraction);
 	ForceNetUpdate();
 }
 
@@ -3129,7 +3173,8 @@ void ASnowRumbleCharacter::RefreshPvpMatchInputLock()
 
 	if (!bShouldBlockMove
 		&& !bShouldBlockLook
-		&& !FocusedLobbyBoard)
+		&& !FocusedLobbyBoard
+		&& !Cast<ACustomizationPlayerController>(PlayerController))
 	{
 		PlayerController->SetInputMode(FInputModeGameOnly());
 		PlayerController->SetShowMouseCursor(false);
@@ -3161,6 +3206,37 @@ void ASnowRumbleCharacter::PlayEmoteMontage(int32 EmoteIndex)
 	}
 
 	PlayAnimMontage(EmoteMontages[EmoteIndex].Get());
+}
+
+void ASnowRumbleCharacter::RequestAnimationTriggerFromServer(
+	ESnowRumbleCharacterAnimTrigger Trigger)
+{
+	if (!HasAuthority()
+		|| Trigger == ESnowRumbleCharacterAnimTrigger::None)
+	{
+		return;
+	}
+
+	MulticastRequestAnimationTrigger(Trigger);
+}
+
+void ASnowRumbleCharacter::MulticastRequestAnimationTrigger_Implementation(
+	ESnowRumbleCharacterAnimTrigger Trigger)
+{
+	if (Trigger == ESnowRumbleCharacterAnimTrigger::None
+		|| !GetMesh())
+	{
+		return;
+	}
+
+	USnowRumbleCharacterAnimInstance* AnimInstance =
+		Cast<USnowRumbleCharacterAnimInstance>(GetMesh()->GetAnimInstance());
+	if (!AnimInstance)
+	{
+		return;
+	}
+
+	AnimInstance->OnAnimationTriggerRequested(Trigger);
 }
 
 void ASnowRumbleCharacter::ServerRequestPlayEmote_Implementation(int32 EmoteIndex)
@@ -3281,6 +3357,8 @@ void ASnowRumbleCharacter::StartHitReactAnimationState()
 	}
 
 	bIsHitReacting = true;
+	RequestAnimationTriggerFromServer(
+		ESnowRumbleCharacterAnimTrigger::HitReact);
 
 	if (UWorld* World = GetWorld())
 	{
