@@ -23,14 +23,19 @@
 - [x] HUD WBP의 라운드 종료 패널 표시 바인딩을 제공한다.
 - [ ] 5분 30초 마지막 금색 상자 발생 시점을 제공한다.
 - [x] 라운드가 남아 있으면 결과 표시 후 다음 랜덤 PvP 맵으로 이동한다.
+- [x] 모든 정규 라운드 종료 시 공동 1등이 있으면 단판 승부 전용 PvP 맵으로 이동한다.
+- [x] 단판 승부 중에는 공동 1등 대상 팀끼리의 피해만 유효하게 처리한다.
+- [x] 단판 승부 대상이 아닌 팀은 관전자 상태로 전환해 이동·상호작용·충돌 간섭을 막고 경기 참가자 시점을 보게 한다.
+- [x] 단판 승부 라운드에서는 맵 축소 기믹을 사용하지 않고 경기 시간과 아이템 스폰은 유지한다.
+- [x] 매치 종료 뒤 포디움 레벨로 이동해 현재 매치 참가 팀만 기준으로 1~3등을 표시하고 10초 뒤 로비로 복귀한다.
 - [x] 매치 종료 뒤 대기방 복귀를 제공한다.
 - [ ] 방 나가기 결과를 제공한다.
 
 ## 작업 배정
 - 담당자·기능·계약 소유자: 최재원(C)
 - 자산 수정자: C++·문서 최재원(C), 결과 UI/연출은 사용자 또는 S 인계
-- 생성 파일: `Source/SnowRumble/Game/SnowRumbleMatchSubsystem_C.h`, `Source/SnowRumble/Game/SnowRumbleMatchSubsystem_C.cpp`
-- 변경 파일: `Source/SnowRumble/Game/SnowRumbleGameMode.*`, `Source/SnowRumble/Game/SnowRumbleGameState_C.*`, `Source/SnowRumble/Game/SnowRumbleLobbyGameMode.*`, `Source/SnowRumble/Game/SnowRumbleLobbyGameState.*`, `Source/SnowRumble/UI/LobbyBoardWidget_C.*`, `Source/SnowRumble/UI/MainHUDWidget.cpp`, `Source/SnowRumble/Player/SnowRumbleHealthComponent.cpp`, `Tasks/C/C-05_round_match_flow.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`
+- 생성 파일: `Source/SnowRumble/Game/SnowRumbleMatchSubsystem_C.h`, `Source/SnowRumble/Game/SnowRumbleMatchSubsystem_C.cpp`, `Source/SnowRumble/Game/PodiumGameMode.*`, `Source/SnowRumble/Game/PodiumPlayerController.*`, `Source/SnowRumble/UI/PodiumWidget.*`
+- 변경 파일: `Source/SnowRumble/Game/SnowRumbleGameMode.*`, `Source/SnowRumble/Game/SnowRumbleGameState_C.*`, `Source/SnowRumble/Game/SnowRumbleLobbyGameMode.*`, `Source/SnowRumble/Game/SnowRumbleLobbyGameState.*`, `Source/SnowRumble/UI/LobbyBoardWidget_C.*`, `Source/SnowRumble/UI/MainHUDWidget.cpp`, `Source/SnowRumble/Player/SnowRumbleHealthComponent.cpp`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Tasks/C/C-05_round_match_flow.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`
 - 공유 확인 대상: K-11, S-11, S-10, J-02, J-04
 - 병합 순서: C-04 후, K-02·S-11 전
 
@@ -43,6 +48,7 @@
   - `ASnowRumbleGameState::GetCurrentRoundNumber()`: 현재 라운드 번호를 반환한다.
   - `ASnowRumbleGameState::GetRoundLimit()`: 로비에서 설정한 총 라운드 수를 반환한다.
   - `ASnowRumbleGameState::IsMatchEnded()`: 모든 라운드가 끝나 매치 결과가 확정됐는지 반환한다.
+  - `ASnowRumbleGameState::IsTiebreakerRound()`: 현재 PvP 라운드가 공동 1등 단판 승부인지 반환한다.
   - `ASnowRumbleGameState::GetMatchWinningTeam()`: 매치 1등 팀 색을 반환한다.
   - `ASnowRumbleGameState::OnRoundResultChanged`: 라운드 결과 복제 갱신을 UI/연출에 알린다.
   - `ASnowRumbleLobbyGameState::GetMatchRoundLimit()`: 로비에서 선택한 총 라운드 수를 반환한다.
@@ -52,6 +58,9 @@
   - `ASnowRumbleLobbyGameState::SetMatchRoundLimitFromServer(int32 NewRoundLimit)`: 서버가 총 라운드 수를 1, 3, 5 중 하나로 변경한다.
   - `ASnowRumbleLobbyGameState::SetGameSpeedFromServer(ESnowRumbleGameSpeed NewGameSpeed)`: 서버가 게임 속도를 변경한다.
   - `USnowRumbleMatchSubsystem::GetGameSpeed()`: travel 사이 유지되는 현재 매치 게임 속도를 반환한다.
+  - `USnowRumbleMatchSubsystem::StartTiebreakerForLeadingTie()`: 정규 라운드가 모두 끝난 뒤 공동 1등 팀이 2팀 이상이면 단판 승부 상태로 전환한다.
+  - `USnowRumbleMatchSubsystem::IsTiebreakerActive()`: travel 사이 유지되는 단판 승부 진행 여부를 반환한다.
+  - `USnowRumbleMatchSubsystem::IsTiebreakerTeam(ESnowRumbleTeam Team)`: 해당 팀이 현재 단판 승부 대상 팀인지 반환한다.
   - `USnowRumbleMatchSubsystem::GetMapShrinkIntervalSeconds(ESnowRumbleGameSpeed GameSpeed)`: 속도별 맵 축소 주기를 반환한다. `Slow=90`, `Normal=60`, `Fast=30`초다.
   - `ULobbyWidget::MatchRoundLimitText`: `WBP_Lobby`에 같은 이름의 TextBlock이 있으면 로비에서 선택한 총 라운드 수를 표시한다.
   - `ULobbyWidget::GameSpeedText`: `WBP_Lobby`에 같은 이름의 TextBlock이 있으면 현재 게임 속도를 `느리게`, `보통`, `빠르게` 중 하나로 표시한다.
@@ -72,9 +81,9 @@
   - `ULobbyBoardWidget::InvalidActionAnimation`: 게시판 WBP에 같은 이름의 Widget Animation이 있으면 클라이언트가 방 설정을 변경하려 하거나 호스트가 시작 불가 상태에서 시작을 누를 때 재생한다.
   - `ULobbyBoardWidget::InvalidActionReasonText`: 게시판 WBP에 같은 이름의 TextBlock이 있으면 예외행동 사유를 C++가 표시한다.
   - `ULobbyBoardWidget::OnInvalidActionFeedback(const FText& ReasonText)`: 게시판 WBP가 사유 텍스트를 받아 직접 패널 표시나 애니메이션 재생을 연결할 수 있다.
-  - `UMainHUDWidget::CurrentRoundText`: `WBP_MainHUDWidget`에 같은 이름의 TextBlock이 있으면 현재 라운드를 `라운드 {현재} / {전체}` 형식으로 표시한다.
+  - `UMainHUDWidget::CurrentRoundText`: `WBP_MainHUDWidget`에 같은 이름의 TextBlock이 있으면 현재 라운드를 `라운드 {현재} / {전체}` 형식으로 표시하고, 단판 승부 라운드에서는 `단판승부`로 표시한다.
   - `UMainHUDWidget::MatchElapsedTimeText`: `WBP_MainHUDWidget`에 같은 이름의 TextBlock이 있으면 PvP 시작 후 현재 경기 시간을 `경기 시간 0:00` 형식으로 표시한다.
-  - `UMainHUDWidget::MapShrinkCountdownText`: `WBP_MainHUDWidget`에 같은 이름의 TextBlock이 있으면 `{초}초 후 맵이 축소됩니다` 또는 `맵이 축소됩니다!`를 표시한다.
+  - `UMainHUDWidget::MapShrinkCountdownText`: `WBP_MainHUDWidget`에 같은 이름의 TextBlock이 있으면 `{초}초 후 맵이 축소됩니다` 또는 `맵이 축소됩니다!`를 표시한다. 단판 승부 라운드에서는 숨긴다.
   - `UMainHUDWidget::EndRoundPanel`: HUD WBP에 같은 이름의 Panel이 있으면 라운드 종료 시 자동 표시한다.
   - `UMainHUDWidget::EndRoundResultText`: HUD WBP에 같은 이름의 TextBlock이 있으면 `{승리팀} 승리` 문구를 자동 표시한다.
   - `UMainHUDWidget::RedTeamScoreText`, `SkyTeamScoreText`, `GreenTeamScoreText`, `YellowTeamScoreText`, `PurpleTeamScoreText`, `PinkTeamScoreText`, `BlueTeamScoreText`, `WhiteTeamScoreText`: HUD WBP에 같은 이름의 TextBlock이 있으면 해당 팀의 라운드 승수를 자동 표시한다.
@@ -86,6 +95,14 @@
   - `ASnowRumbleGameState::GetSecondsUntilNextMapShrink()`, `GetMapShrinkCountdownText()`, `IsMapShrinkInProgress()`: HUD와 맵 표현이 다음 축소 상태를 읽는 계약이다.
   - `ASnowRumbleGameState::GetGameSpeed()`, `GetMapShrinkIntervalSeconds()`: 현재 속도와 축소 주기를 읽는다.
   - `ASnowRumbleGameMode::LobbyReturnTravelUrl`: 모든 라운드가 끝난 뒤 복귀할 로비 맵 travel URL이다. 기본값은 `/Game/Maps/L_Lobby?listen`이다.
+  - `ASnowRumbleGameMode::TiebreakerTravelUrl`: 공동 1등 발생 시 이동할 단판 승부 전용 PvP 맵 travel URL이다. 기본값은 `/Game/Maps/L_Tiebreaker?listen`이다.
+  - `ASnowRumbleGameMode::PodiumTravelUrl`: 매치 종료 뒤 이동할 포디움 맵 travel URL이다. 기본값은 `/Game/Maps/L_Podium?listen`이며 `ExpectedPlayers` 옵션을 함께 넘긴다.
+  - `APodiumGameMode`: 포디움 맵 전용 GameMode다. 서버가 매치에 실제 참가한 팀 색만 수집해 누적 라운드 승수 내림차순으로 1~3등을 정하고, 포디움 배치와 UI 결과 문구를 확정한다.
+  - `APodiumGameMode::PodiumLobbyReturnTravelUrl`: 포디움 결과 표시 후 복귀할 로비 travel URL이다. 기본값은 `/Game/Maps/L_Lobby?listen`이다.
+  - `APodiumGameMode::PodiumReturnDelaySeconds`: 포디움 결과를 보여준 뒤 로비로 돌아가기까지의 시간이다. 기본값은 10초다.
+  - `APodiumPlayerController::PodiumWidgetClass`: 포디움에서 로컬 플레이어에게 표시할 `UPodiumWidget` 기반 WBP 클래스다.
+  - `UPodiumWidget::FirstPlaceText`, `SecondPlaceText`, `ThirdPlaceText`, `SubtitleText`: 같은 이름의 TextBlock이 WBP에 있으면 C++가 1~3등 팀과 10초 후 복귀 안내를 자동 표시한다.
+  - `ASnowRumbleCharacter::PlayServerDirectedEmote(int32 EmoteIndex)`: 서버 전용 연출 흐름에서 확정한 이모션을 모든 화면에 재생한다.
   - 라운드 시간·단계·금색 상자 시점은 C-05 후속 범위에서 제공한다.
 - 인계 대상: K-11, S-11, S-10, J-02, J-04, C-12
 
@@ -100,7 +117,6 @@
 ## 결정 필요
 - 라운드 사이 HP·장비·아이템 초기화 범위
 - 6분 이후 최대 연장시간 사용 여부
-- 3팀 이상에서 최종 점수 동점이 생겼을 때 공식 동점 처리 방식
 
 ## 수동 작업
 
@@ -130,6 +146,14 @@
 - PvP HUD에 다음 맵 축소 안내를 표시하려면 `WBP_MainHUDWidget`에 TextBlock을 배치하고 이름을 `MapShrinkCountdownText`로 맞춘다.
 - PvP GameMode Blueprint 또는 맵별 GameMode Blueprint에서 `OnMapShrinkRequested` 이벤트를 구현하면 실제 맵 축소를 시작할 수 있다.
 - 실제 맵 축소가 완료되는 시점에 `CompleteMapShrinkFromBlueprint()`를 호출하면 5초 임시 완료 타이머 대신 완료 신호 기준으로 다음 축소 주기가 시작된다.
+- 단판 승부 전용 작은 PvP 맵을 만들고, PvP GameMode Blueprint의 `TiebreakerTravelUrl`에 해당 맵 travel URL을 넣는다.
+- 단판 승부 맵은 같은 GameMode, Controller, HUD를 사용한다.
+- 단판 승부 맵에도 기존 선물상자 TargetPoint를 배치하면 아이템 스폰은 정규 PvP와 동일하게 동작한다.
+- 포디움 맵 `L_Podium`에는 `BP_SnowRumblePodiumGameMode` 또는 `APodiumGameMode` 기반 GameMode를 지정한다.
+- 포디움 맵의 PlayerStart에는 1등 자리 `Podium_Team1`, 2등 자리 `Podium_Team2`, 3등 자리 `Podium_Team3` 태그를 붙인다. 같은 등수에 팀원이 여러 명이면 같은 태그 PlayerStart를 여러 개 배치한다.
+- 포디움 카메라는 CameraActor에 `Podium_Camera` 태그를 붙인다.
+- 포디움 UI WBP는 `UPodiumWidget`을 부모로 만들고, 자동 텍스트 표시가 필요하면 `FirstPlaceText`, `SecondPlaceText`, `ThirdPlaceText`, `SubtitleText` TextBlock을 배치한다.
+- `BP_SnowRumblePodiumController` 또는 `APodiumPlayerController` 기본값에서 `PodiumWidgetClass`에 포디움 UI WBP를 지정한다.
 
 ## 완료 조건
 ### 에이전트 확인
@@ -152,8 +176,17 @@
 - [x] 게임 속도별 맵 축소 주기 계약 제공
 - [x] HUD 경기 시간·맵 축소 안내 TextBlock 바인딩 제공
 - [x] 맵 담당 Blueprint 축소 시작 이벤트와 완료 신호 계약 제공
+- [x] 공동 1등 단판 승부 전용 맵 이동 계약 제공
+- [x] 단판 승부 HUD 라운드 문구와 맵 축소 숨김 처리 제공
+- [x] 매치 종료 후 포디움 레벨 이동 계약 제공
+- [x] 포디움 참가 팀 기준 순위 산정과 10초 후 로비 복귀 계약 제공
 
 ### 검증 메모
+
+- 2026-08-13: 매치 종료 후 로비로 바로 복귀하지 않고 `ASnowRumbleGameMode::PodiumTravelUrl`로 포디움 맵에 이동하게 정리했다. 포디움 전용 `APodiumGameMode`가 현재 접속한 PlayerState의 팀 색만 참가 팀으로 수집하고, `USnowRumbleMatchSubsystem::GetTeamRoundWinCount()` 기준으로 1~3등을 산정한다. 포디움 맵의 `Podium_Team1`/`Podium_Team2`/`Podium_Team3` PlayerStart에 팀원을 배치하고, `Podium_Camera` 카메라로 시점을 고정하며, `UPodiumWidget` 기반 WBP에 결과 문구를 전달한다. 결과 표시 10초 뒤 `ResetPvPMatch()` 후 로비로 복귀한다. `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드를 통과했다.
+- 2026-08-13: 정규 라운드가 모두 끝난 뒤 공동 1등 팀이 있으면 `USnowRumbleMatchSubsystem::StartTiebreakerForLeadingTie()`가 단판 승부 상태를 travel 사이 유지하고, `ASnowRumbleGameMode::TiebreakerTravelUrl`로 전용 PvP 맵에 이동하게 했다. 단판 승부에서는 라운드 문구가 `단판승부`로 표시되고 `MapShrinkCountdownText`는 숨겨지며, 맵 축소 타이머와 `OnMapShrinkRequested` 호출은 중지된다. 선물상자 스폰 타이머는 그대로 예약된다. `git diff --check`는 통과했고 UHT/C++ 컴파일도 통과했지만, 실행 중인 Unreal Editor가 `UnrealEditor-SnowRumble.dll`을 잡고 있어 최종 링크는 `LNK1104`로 실패했다.
+- 2026-08-13: 단판 승부 맵에 모든 플레이어가 같이 travel되더라도 비동점 팀이 판정에 간섭하지 못하도록, 캐릭터 피해 적용 시 공격자와 대상이 모두 단판 승부 대상 팀일 때만 피해를 허용하게 했다. `git diff --check`와 UHT/C++ 컴파일은 통과했고, 최종 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
+- 2026-08-13: 단판 승부 대상이 아닌 팀 플레이어는 `ASnowRumbleCharacter::SetTiebreakerSpectatorFromServer()`로 관전자 상태가 복제된다. 관전자 상태에서는 이동·상호작용·아이템 사용이 `CanPerformGameplayAction()`에서 막히고, 로컬 이동 입력과 Pawn/WorldDynamic/PhysicsBody 충돌 응답도 비활성화해 경기 간섭을 줄인다. 로컬 카메라는 `RefreshTiebreakerSpectatorViewTarget()`이 단판 승부 참가 캐릭터를 찾아 `SetViewTargetWithBlend()`로 붙이며, 대상이 아직 복제되지 않았거나 사망하면 Tick에서 다시 찾는다. `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드를 통과했다.
 
 - 2026-08-10: 서버 `ASnowRumbleGameMode`가 플레이어 얼음/사망 상태 변경 시 라운드 종료 조건을 재검사한다. 사망 또는 얼음 상태가 아닌 생존 플레이어가 한 팀 색에만 남으면 `ASnowRumbleGameState::EndRoundFromServer`로 라운드 승리 팀을 복제하고, `IsMatchInputLocked()`가 true가 되어 전체 입력을 잠근다. `UMainHUDWidget`은 `EndRoundPanel`과 `EndRoundResultText` 선택 바인딩을 제공한다. `git diff --check`는 통과했고 `MainHUDWidget.cpp`를 포함한 관련 C++ 컴파일도 통과했지만, 실행 중인 Unreal Editor가 `UnrealEditor-SnowRumble.dll`을 잡고 있어 최종 링크는 `LNK1104`로 실패했다. 에디터 종료 후 재빌드 확인이 필요하다.
 - 2026-08-10: PvP 스폰 중 첫 팀 Pawn만 생존한 순간 라운드 종료가 조기 확정되지 않도록, `ASnowRumbleGameMode::EvaluateRoundEndCondition()`은 `ASnowRumbleGameState::IsMatchInputLocked()`가 true인 로딩·카운트다운·시작 전 구간에서는 판정을 건너뛴다. `git diff --check`는 통과했고 C++ 컴파일도 통과했지만, 실행 중인 Unreal Editor가 `UnrealEditor-SnowRumble.dll`을 잡고 있어 최종 링크는 `LNK1104`로 실패했다.
@@ -213,4 +246,17 @@
 - [ ] 현재 임시 완료 기준으로 `맵이 축소됩니다!` 표시 약 5초 후 다음 축소 카운트다운이 다시 시작된다.
 - [ ] 3라운드 또는 5라운드 설정에서 라운드 종료 후 남은 라운드가 있으면 로딩창이 다시 표시되고 다른 PvP 후보 맵으로 이동한다.
 - [ ] 마지막 라운드 종료 후 `IsMatchEnded()`가 true가 되고 `GetMatchWinningTeam()`이 최종 1등 팀을 반환한다.
-- [ ] 마지막 라운드 종료 후 약 `MatchEndLobbyReturnDelaySeconds` 뒤 로비로 복귀한다.
+- [ ] 마지막 정규 라운드 종료 후 공동 1등이 있으면 로비로 복귀하지 않고 `TiebreakerTravelUrl` 맵으로 이동한다.
+- [ ] 단판 승부 HUD의 `CurrentRoundText`가 `단판승부`로 표시된다.
+- [ ] 단판 승부 HUD에서는 `MatchElapsedTimeText`만 보이고 `MapShrinkCountdownText`는 숨겨진다.
+- [ ] 단판 승부 맵에서는 맵 축소 이벤트가 호출되지 않는다.
+- [ ] 단판 승부 맵에서도 선물상자가 기존 TargetPoint 기준으로 스폰된다.
+- [ ] 단판 승부 대상이 아닌 팀 플레이어의 눈덩이는 피해를 주지 못한다.
+- [ ] 단판 승부 대상이 아닌 팀 플레이어는 이동·상호작용을 할 수 없고 경기 참가자 시점으로 관전한다.
+- [ ] 단판 승부 대상이 아닌 팀 플레이어는 Pawn/눈덩이 충돌로 경기에 간섭하지 않는다.
+- [ ] 단판 승부 승리 팀이 최종 1등 팀으로 확정되고 이후 로비로 복귀한다.
+- [ ] 마지막 라운드 종료 후 약 `MatchEndLobbyReturnDelaySeconds` 뒤 포디움 맵으로 이동한다.
+- [ ] 포디움 맵에서 실제 참가 팀 색만 1~3등 후보로 표시되고, 매치에 없던 팀 색은 표시되지 않는다.
+- [ ] 포디움 맵에서 `Podium_Team1`, `Podium_Team2`, `Podium_Team3` 태그 PlayerStart에 순위별 팀원이 배치된다.
+- [ ] 포디움 화면에서 `FirstPlaceText`, `SecondPlaceText`, `ThirdPlaceText`, `SubtitleText`가 있으면 결과와 10초 후 복귀 안내가 표시된다.
+- [ ] 포디움 결과 표시 약 10초 후 매치 상태가 초기화되고 로비로 복귀한다.

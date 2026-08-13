@@ -158,3 +158,43 @@
 - 2026-07-26: 전체 MVP Task를 프로그래머와 Blueprint 개발자의 2인 협업 구조로 개편하고 C++→Blueprint 인계 기준을 추가함.
 - 2026-07-26: 멀티플레이 초심자 학습 흐름에 맞춰 2인 PIE → 최소 눈덩이 복제 → HP·얼기를 LAN 세션보다 먼저 검증하도록 Task 순서를 조정함.
 - 2026-07-26: SnowRumble GDD와 러프 기획을 기준으로 MVP 6개 Phase와 14개 Task 초안을 구성함.
+
+- 2026-08-10: C-05 팀 점수 HUD를 참가 팀만 표시하도록 정리함. 팀별 Row 또는 ScoreText는 현재 참가 팀 기준으로 표시·숨김만 처리하고 WBP 배치 순서는 유지함.
+- 2026-08-10: C-08 머리 위 이름표를 Screen space에서 World space로 전환함. 이름표가 로컬 카메라를 향하고 거리감에 따라 자연스럽게 크기가 달라지도록 함.
+- 2026-08-10: C-04 PvP 후보 레벨 랜덤 진입 첫 범위를 구현함. `ASnowRumbleLobbyGameMode`는 `PvPLevelCandidates` 후보 배열에서 서버가 레벨을 선택하고 `?listen?ExpectedPlayers=` travel URL을 생성함.
+- 2026-08-10: C-05 로비 설정 기반 1/3/5 라운드 매치 흐름을 추가함. `USnowRumbleMatchSubsystem`이 travel 사이 누적 점수와 라운드 번호를 유지하고, 남은 라운드가 있으면 다음 PvP 후보 맵으로 이동하며, 마지막 라운드 후 `ASnowRumbleGameState`가 매치 1등 팀을 복제함.
+- 2026-08-10: C-05 모든 라운드 종료 후 임시 로비 복귀를 추가함. 매치 결과를 짧게 보여준 뒤 `/Game/Maps/L_Lobby?listen`으로 이동하고, 복귀 직전 `USnowRumbleMatchSubsystem` 누적 상태를 초기화함.
+- 2026-08-10: Steam 출시는 최종 목표로 유지하되 현재 개발과 테스트는 LAN/NULL 세션으로 계속 진행하기로 결정함. Steam 세션, Overlay 친구 초대, 초대 수락과 세션 정리는 C-18 최종 통합 Task로 분리하고, 앞으로 세션 관련 새 기능은 공개 세션 계약을 통해 개발해 LAN/Steam 세부 구현이 UI·PvP 코드로 새지 않게 함.
+- 2026-08-10: C-05 게임 속도별 맵 축소 호출 계약을 추가함. 로비 게시판은 90/60/30초 축소 주기 설정을 제공하고, PvP HUD는 경기 시간과 다음 축소 안내를 표시하며, 실제 맵 축소는 `ASnowRumbleGameMode::OnMapShrinkRequested`와 `CompleteMapShrinkFromBlueprint()`로 J/S 맵 담당에게 인계함.
+- 2026-08-10: C-19 전체/팀 텍스트 채팅 계약을 추가함. `ASnowRumblePlayerController`가 Enter 입력, 서버 검증, 전체/팀 라우팅을 맡고 `UChatWidget` WBP 부모를 로비·PvP·추후 모드에서 재사용하게 함.
+- 2026-08-10: C-19 채팅 채널 정책을 조정함. 로비는 전체 채팅만 허용하고, PvP와 추후 모드는 채팅 입력 중 Tab으로 전체/팀 채팅을 전환하게 함.
+- 2026-08-10: C-19 채팅 입력 UX를 완료함. Enter 입력 시 TextBox 포커스, Enter 제출 후 GameOnly 복귀, 입력 중 스크롤, 채널 표시, 로그 스크롤바와 테두리 표시 정책을 정리하고 빌드 통과 후 완료 처리함.
+- 2026-08-10: C-19 채팅 로그 표시 수명주기를 추가함. 마지막 채팅 갱신 또는 Enter 입력 후 5초 동안 표시하고 이후 서서히 사라지며, Enter 입력이나 새 메시지 수신 시 즉시 다시 표시함.
+- 2026-08-10: C-20 이벤트 로그 UI 계약을 추가함. 로비/HUD WBP는 `EventLogText` 선택 바인딩을 통해 누적 로그를 표시하고, 서버 이벤트는 `ASnowRumblePlayerController::ClientReceiveEventLogMessage()`로 각 클라이언트에 전달함.
+- 2026-08-10: C-21 옵션 메뉴 기능 정의를 추가함. 옵션은 메인메뉴와 로비에서 같은 WBP로 열고, PvP와 눈사람 모드에서는 ESC 옵션 메뉴를 열지 않는 정책으로 정리함.
+- 2026-08-10: C-21 옵션 WBP 부모 `UOptionsWidget`을 추가함. 상단 카테고리 버튼 4개와 하단 `OptionsContentSwitcher` 인덱스 0 감도, 1 사운드, 2 키 설정, 3 마이크 구조를 제공함.
+- 2026-08-11: C-21 메인메뉴와 로비 옵션 진입 연결을 추가함. 메인메뉴 `SettingsButton`과 로비 ESC 메뉴 `SettingsButton`은 각 PlayerController의 `OptionsWidgetClass`로 같은 옵션 WBP를 열 수 있음.
+- 2026-08-11: C-21 옵션 WBP 포커스 경고를 막기 위해 `UOptionsWidget` 기본 포커스를 생성자와 런타임 구성 단계에서 활성화하고, 키바인딩 패널 표시용 `UOptionsKeyBindingRowWidget` 부모와 기본 조작 목록 계약을 추가함.
+- 2026-08-11: C-21 키바인딩 행의 변경 버튼을 누르면 다음 키보드/마우스 버튼 입력을 캡처해 UI 할당값을 변경하고, `Esc` 입력으로 대기 상태를 취소하게 함.
+- 2026-08-11: C-21 키바인딩 변경값을 로컬 사용자 설정에 저장하고, 캐릭터 Enhanced Input 매핑과 채팅 열기 직접 키 바인딩에 실제 적용하게 함.
+- 2026-08-11: C-21 옵션 메뉴 복귀 후 로비 입력 차단이 남는 문제를 수정하고, `ResetButton`이 현재 선택된 WidgetSwitcher 카테고리만 초기화하도록 `OnOptionsCategoryResetRequested(...)` WBP 이벤트를 추가함.
+- 2026-08-11: C-21 키 설정 변경은 적용 전까지 옵션 WBP 임시값으로만 유지하고, `ApplyButton`에서 저장·입력 반영을 실행하게 함. WBP용 `SetHasPendingOptionChanges(...)`와 닫기 시 임시 변경 폐기 경로를 추가함.
+- 2026-08-11: C-21 감도 설정 계약을 추가함. 옵션 WBP는 `SensitivitySlider`와 `SensitivityValueText`를 배치하면 슬라이더와 퍼센트 표시를 자동 갱신하고, 적용 후 캐릭터 카메라 입력에 로컬 저장 감도가 반영됨.
+- 2026-08-11: C-21 배경음악/효과음 볼륨 설정 계약을 추가함. 옵션 WBP는 `BgmVolumeSlider`/`BgmVolumeValueText`, `SfxVolumeSlider`/`SfxVolumeValueText`를 배치하면 슬라이더와 퍼센트 표시를 자동 갱신하고, 적용 후 로컬 저장값과 선택 SoundClass 볼륨에 반영됨.
+- 2026-08-11: C-21 마이크 설정 계약을 추가함. 옵션 WBP는 `MicrophoneVolumeSlider`/`MicrophoneVolumeValueText`, `MicrophonePushToTalkButton`, `MicrophoneAlwaysOnButton`을 배치하고, 기본 `K` 마이크 입력 키바인딩과 PlayerController 마이크 상태 이벤트를 사용할 수 있음.
+- 2026-08-11: C-21 선택형 버튼 눌림 표시를 추가함. 옵션 메뉴의 현재 카테고리·마이크 방식과 로비 게시판의 현재 팀 색·모드·라운드 수·게임 속도·ready 상태 버튼은 기존 Pressed 스타일을 유지해 선택 상태를 표시함.
+- 2026-08-11: C-21 마이크 입력 상태를 엔진 네트워크 음성 송출에 연결함. PlayerController가 `StartTalking()`/`StopTalking()`을 호출하고, 캐릭터 Blueprint에는 `MicrophonePushToTalkAction` Enhanced Input 슬롯을 제공함. `SnowRumbleEditor Win64 Development` 빌드가 성공함.
+- 2026-08-11: C-21 마이크 송출 중 플레이어 이름 표시를 추가함. PlayerState가 음성 송출 중 여부를 복제하고, 로비/HUD WBP는 `VoiceSpeakingContainer` 안의 `VoiceSpeakingIcon` Image와 `VoiceSpeakingNamesText` TextBlock으로 현재 말하는 플레이어를 표시함. C++ 컴파일은 통과했으나 에디터 DLL 잠금으로 최종 링크는 보류됨.
+- 2026-08-11: C-21 마이크 채널 전환을 추가함. 기본 `M` 키로 전체/팀 말하기를 전환하고, PlayerState 복제 채널과 gameplay mute로 팀 말하기 수신 범위를 제한하며, `PersonalAlarmText`/`PersonalAlarmAnimation`으로 로컬 상태 알림을 표시함. `SnowRumbleEditor Win64 Development` 빌드가 성공함.
+- 2026-08-11: C-21 마이크 채널 전환 기본 키를 `N`으로 옮기고 `M`은 플레이어 지정 음소거 입력으로 분리함. 캐릭터 Blueprint 슬롯 `MicrophoneChannelToggleAction`/`VoiceTargetMuteAction`과 PlayerController 이벤트 `OnVoiceTargetMuteRequested()`를 제공함.
+- 2026-08-11: C-21 `M` 플레이어 지정 음소거 메뉴를 추가함. `UVoiceMuteMenuWidget`/`UVoiceMutePlayerRowWidget` 부모는 현재 인게임 플레이어 목록으로 행을 동적 생성하고, 각 행 버튼으로 로컬 수동 음소거를 토글함.
+- 2026-08-11: C-11 메인메뉴 커스터마이징 진입 경로를 추가함. `CustomizationButton`은 메인메뉴 PlayerController의 `CustomizationLevelUrl`로 커스터마이징 레벨 이동을 수행함.
+- 2026-08-11: C-11 커스터마이징 레벨 전용 GameMode, PlayerController, WBP 부모를 추가함. 레벨 진입 시 커스터마이징 WBP를 표시하고 `CustomizationCamera` 태그 카메라를 ViewTarget으로 사용하며, WidgetSwitcher로 메인/시점변경/색칠하기 화면을 전환함.
+- 2026-08-11: C-11 몸 색상 커스터마이징 저장·복제·적용 경로를 추가함. `USnowRumbleCustomizationSubsystem`이 로컬 저장을 맡고, 로비 입장 시 `ASnowRumblePlayerState::CustomizationData`로 서버 제출·복제되며, 캐릭터는 `BodyColor` 머티리얼 파라미터로 색을 적용함. `SnowRumbleEditor Win64 Development` 빌드가 성공함.
+- 2026-08-11: C-11 색칠하기 화면 버튼 계약을 구체화함. `BrushColorButton`은 언리얼 기본 컬러 피커, `BrushSizeButton`은 press 중 휠 크기 조정, `FillBodyColorButton`은 현재 브러시 색 기반 `BodyColor` 전체 칠하기로 동작하며, stroke별 색과 두께를 저장·복제함.
+- 2026-08-11: C-11 커스터마이징 WBP 실제 구조에 맞춰 `PaintMode`가 `CustomizationContentSwitcher` 1번 인덱스의 색칠하기 `DrawPanel`을 열도록 조정함.
+- 2026-08-11: C-11 현재 브러시 색 표시 칸 계약을 추가함. `BrushColorPreviewBorder` 또는 `BrushColorPreviewImage`를 배치하면 현재 브러시 색을 자동 표시함.
+- 2026-08-11: C-11 마우스 커서 슬롯 계약을 게임 전체 기본 커서로 확장함. 메인메뉴, 로비/PvP 계열, 커스터마이징 PlayerController BP에 `DefaultMouseCursorWidgetClass`를 지정하면 각 UI 커서 표시 시 기본 커서가 적용되고, 커스터마이징 `PaintMouseCursorWidgetClass`는 색칠하기 원형 커서로 전환됨.
+- 2026-08-11: C-11 페인트 커서 색상 갱신 계약을 추가함. 원형 커서 WBP에 `BrushCursorColorBorder` 또는 `BrushCursorColorImage`를 배치하면 현재 브러시 색 변경 시 커서 표시 색도 같은 색으로 갱신됨.
+- 2026-08-11: C-22 상호작용 안내 UI를 구현함. 로컬 상호작용 후보가 있으면 대상 옆 화면 위치에 `E - 게시판`, `E - 눈덩이` 안내 WBP를 표시하고, 실제 WBP 스타일은 사용자/S에 인계함. `SnowRumbleEditor Win64 Development` 빌드가 성공함.
+- 2026-08-11: C-23 마우스 휠 카메라 줌을 구현함. 로비와 PvP에서 로컬 플레이어 카메라 SpringArm 길이를 휠 업/다운으로 조절하며, C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됨.

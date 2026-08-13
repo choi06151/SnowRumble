@@ -34,6 +34,14 @@ UAnimSequenceBase* USnowRumbleCharacterAnimInstance::GetPrimaryAnimation() const
 	{
 		return FrozenAnimation;
 	}
+	if (bIsHitReacting && HitReactAnimation)
+	{
+		return HitReactAnimation;
+	}
+	if (bIsInteractingWithItem && ItemInteractionAnimation)
+	{
+		return ItemInteractionAnimation;
+	}
 	if (bIsPickingUpItem && PickupAnimation)
 	{
 		return PickupAnimation;
@@ -72,6 +80,16 @@ UAnimSequenceBase* USnowRumbleCharacterAnimInstance::GetPrimaryAnimation() const
 	{
 		return SmallSnowballHoldAnimation;
 	}
+	if (HeldAnimationState == ESnowRumbleHeldAnimationState::SnowShovel
+		&& SnowShovelHoldAnimation)
+	{
+		return SnowShovelHoldAnimation;
+	}
+	if (HeldAnimationState == ESnowRumbleHeldAnimationState::SnowDuckMaker
+		&& SnowDuckMakerHoldAnimation)
+	{
+		return SnowDuckMakerHoldAnimation;
+	}
 	if (bIsInAir && JumpOrFallAnimation)
 	{
 		return JumpOrFallAnimation;
@@ -102,7 +120,10 @@ void USnowRumbleCharacterAnimInstance::RefreshFromOwnerCharacter()
 		bIsChargingSnowball = false;
 		bIsCreatingSnowball = false;
 		bIsPickingUpItem = false;
+		bIsInteractingWithItem = false;
+		bIsHitReacting = false;
 		SnowballCarryState = ESnowballCarryState::Normal;
+		HeldAnimationState = ESnowRumbleHeldAnimationState::BareHands;
 		SnowballActionState = ESnowballActionState::None;
 		TimedActionState = ESnowRumbleTimedActionState::None;
 		SnowballChargeProgress = 0.0f;
@@ -126,7 +147,10 @@ void USnowRumbleCharacterAnimInstance::RefreshFromOwnerCharacter()
 	bIsChargingSnowball = CachedCharacter->IsChargingSnowball();
 	bIsCreatingSnowball = CachedCharacter->IsCreatingSnowball();
 	bIsPickingUpItem = CachedCharacter->IsPickingUpItem();
+	bIsInteractingWithItem = CachedCharacter->IsInteractingWithItem();
+	bIsHitReacting = CachedCharacter->IsHitReacting();
 	SnowballCarryState = CachedCharacter->GetSnowballCarryState();
+	HeldAnimationState = CachedCharacter->GetHeldAnimationState();
 	SnowballActionState = CachedCharacter->GetSnowballActionState();
 	TimedActionState = CachedCharacter->GetTimedActionState();
 	SnowballChargeProgress =

@@ -84,6 +84,18 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization")
 	FSnowRumbleCustomizationData GetPreviewCustomizationData() const;
 
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization|Hat")
+	void SetPreviewHatMeshIndex(int32 NewHatMeshIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization|Hat")
+	void SelectPreviousPreviewHat();
+
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization|Hat")
+	void SelectNextPreviewHat();
+
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization|Hat")
+	int32 GetPreviewHatMeshIndex() const;
+
 	/** 마지막으로 완료한 드로잉 선 하나를 제거한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
 	void UndoLastPaintStroke();

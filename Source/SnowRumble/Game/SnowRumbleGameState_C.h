@@ -62,6 +62,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Match")
 	bool IsMatchEnded() const;
 
+	/** 공동 1등 단판 승부 라운드인지 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Match")
+	bool IsTiebreakerRound() const;
+
 	/** 매치 1등 팀을 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Match")
 	ESnowRumbleTeam GetMatchWinningTeam() const;
@@ -178,6 +182,9 @@ protected:
 
 	UPROPERTY(ReplicatedUsing = OnRep_RoundResult)
 	bool bMatchEnded = false;
+
+	UPROPERTY(Replicated)
+	bool bTiebreakerRound = false;
 
 	UPROPERTY(ReplicatedUsing = OnRep_RoundResult)
 	ESnowRumbleTeam MatchWinningTeam = ESnowRumbleTeam::None;
