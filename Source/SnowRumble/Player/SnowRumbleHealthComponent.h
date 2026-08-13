@@ -34,6 +34,9 @@ public:
 	/** 서버에서 피해를 적용하고 HP와 얼기 상태를 확정한다. */
 	float ApplyDamage(float DamageAmount);
 
+	/** 서버에서 회복을 적용하고 HP 변경량을 반환한다. */
+	float ApplyHealing(float HealAmount);
+
 	/** 현재 HP를 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Health")
 	float GetCurrentHealth() const;

@@ -63,6 +63,27 @@ float USnowRumbleHealthComponent::ApplyDamage(float DamageAmount)
 	return PreviousHealth - CurrentHealth;
 }
 
+float USnowRumbleHealthComponent::ApplyHealing(float HealAmount)
+{
+	AActor* OwningActor = GetOwner();
+	if (!OwningActor
+		|| !OwningActor->HasAuthority()
+		|| HealAmount <= 0.0f
+		|| bIsFrozen
+		|| bIsDead)
+	{
+		return 0.0f;
+	}
+
+	const float PreviousHealth = CurrentHealth;
+	CurrentHealth = FMath::Clamp(CurrentHealth + HealAmount, 0.0f, MaxHealth);
+	if (!FMath::IsNearlyEqual(PreviousHealth, CurrentHealth))
+	{
+		OnRep_CurrentHealth();
+	}
+	return CurrentHealth - PreviousHealth;
+}
+
 float USnowRumbleHealthComponent::GetCurrentHealth() const
 {
 	return CurrentHealth;
