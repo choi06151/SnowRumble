@@ -7,6 +7,7 @@
 #include "../Game/SnowRumbleLobbyGameState.h"
 #include "../Game/SnowRumbleMatchSubsystem_C.h"
 #include "../Game/SnowRumblePlayerState.h"
+#include "../Environment/SnowTrailRenderTargetManager_C.h"
 #include "../Interaction/LobbyInteractionBoard_C.h"
 #include "../Interaction/OutlineComponent.h"
 #include "../Item/GiftBox_C.h"
@@ -287,6 +288,7 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 	RefreshPvpMatchInputLock();
 	ApplyMovementSpeed();
 	RefreshLocalSnowEffect();
+	UpdateDistanceBasedSnowTrail(DeltaSeconds);
 
 	if (IsLocallyControlled() && FocusedLobbyBoard)
 	{
@@ -524,6 +526,58 @@ void ASnowRumbleCharacter::RequestPlayEmote(int32 EmoteIndex)
 	else
 	{
 		ServerRequestPlayEmote(EmoteIndex);
+	}
+}
+
+void ASnowRumbleCharacter::RequestSnowFootstepEffect(FName FootSocketName)
+{
+	const UWorld* World = GetWorld();
+	if (!World
+		|| !GetMesh()
+		|| IsFrozen()
+		|| IsDead())
+	{
+		return;
+	}
+
+	const double CurrentTime = World->GetTimeSeconds();
+	if (LastSnowFootstepEffectTime >= 0.0
+		&& CurrentTime - LastSnowFootstepEffectTime
+			< SnowFootstepEffectCooldown)
+	{
+		return;
+	}
+
+	if (FootSocketName.IsNone())
+	{
+		FootSocketName = LeftFootSocketName;
+	}
+
+	FHitResult FootstepHit;
+	if (!FindSnowFootstepSurface(FootSocketName, FootstepHit))
+	{
+		return;
+	}
+
+	LastSnowFootstepEffectTime = CurrentTime;
+	OnSnowFootstepEffect(
+		FootSocketName,
+		FootstepHit.ImpactPoint,
+		FootstepHit.ImpactNormal.GetSafeNormal());
+
+	if (bEnableSharedSnowTrailStamps && IsLocallyControlled())
+	{
+		RequestSharedSnowTrailStamp(
+			FootstepHit.ImpactPoint,
+			FootstepHit.ImpactNormal.GetSafeNormal(),
+			FootSocketName);
+
+		if (bEnableDistanceBasedSnowTrailStamps)
+		{
+			bDistanceSnowTrailActive = true;
+			LastDistanceSnowTrailStampLocation = FootstepHit.ImpactPoint;
+			LastDistanceSnowTrailFootSocketName = FootSocketName;
+		}
 	}
 }
 
@@ -3206,6 +3260,245 @@ void ASnowRumbleCharacter::PlayEmoteMontage(int32 EmoteIndex)
 	}
 
 	PlayAnimMontage(EmoteMontages[EmoteIndex].Get());
+}
+
+bool ASnowRumbleCharacter::FindSnowFootstepSurface(
+	FName FootSocketName,
+	FHitResult& OutFootstepHit) const
+{
+	if (!GetMesh()
+		|| FootSocketName.IsNone()
+		|| SnowFootstepSurfaceTag.IsNone())
+	{
+		return false;
+	}
+
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	const FVector SocketLocation = GetMesh()->DoesSocketExist(FootSocketName)
+		? GetMesh()->GetSocketLocation(FootSocketName)
+		: GetActorLocation();
+	const FVector TraceStart =
+		SocketLocation + FVector::UpVector * SnowFootstepTraceUpOffset;
+	const FVector TraceEnd =
+		SocketLocation
+		- FVector::UpVector * SnowFootstepTraceDownDistance;
+
+	FCollisionQueryParams QueryParams(
+		SCENE_QUERY_STAT(SnowFootstepTrace),
+		false,
+		this);
+	QueryParams.AddIgnoredActor(this);
+
+	const bool bHit = World->LineTraceSingleByChannel(
+		OutFootstepHit,
+		TraceStart,
+		TraceEnd,
+		ECC_Visibility,
+		QueryParams);
+	return bHit
+		&& OutFootstepHit.GetActor()
+		&& OutFootstepHit.GetActor()->ActorHasTag(SnowFootstepSurfaceTag);
+}
+
+bool ASnowRumbleCharacter::FindSnowFootstepSurfaceAtLocation(
+	const FVector& FootstepLocation,
+	FHitResult& OutFootstepHit) const
+{
+	if (SnowFootstepSurfaceTag.IsNone())
+	{
+		return false;
+	}
+
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	const FVector TraceStart =
+		FootstepLocation + FVector::UpVector * SnowFootstepTraceUpOffset;
+	const FVector TraceEnd =
+		FootstepLocation
+		- FVector::UpVector * SnowFootstepTraceDownDistance;
+
+	FCollisionQueryParams QueryParams(
+		SCENE_QUERY_STAT(SnowFootstepLocationTrace),
+		false,
+		this);
+	QueryParams.AddIgnoredActor(this);
+
+	const bool bHit = World->LineTraceSingleByChannel(
+		OutFootstepHit,
+		TraceStart,
+		TraceEnd,
+		ECC_Visibility,
+		QueryParams);
+	return bHit
+		&& OutFootstepHit.GetActor()
+		&& OutFootstepHit.GetActor()->ActorHasTag(SnowFootstepSurfaceTag);
+}
+
+void ASnowRumbleCharacter::UpdateDistanceBasedSnowTrail(float DeltaSeconds)
+{
+	if (!bEnableDistanceBasedSnowTrailStamps
+		|| !bDistanceSnowTrailActive
+		|| !bEnableSharedSnowTrailStamps
+		|| !IsLocallyControlled()
+		|| IsFrozen()
+		|| IsDead()
+		|| IsInAir()
+		|| bTiebreakerSpectator)
+	{
+		return;
+	}
+
+	const FVector Velocity2D(GetVelocity().X, GetVelocity().Y, 0.0f);
+	if (Velocity2D.Size() < SnowTrailDistanceStampMinimumSpeed)
+	{
+		return;
+	}
+
+	FHitResult TrailSurfaceHit;
+	if (!FindSnowFootstepSurfaceAtLocation(
+		GetSnowTrailProbeLocation(),
+		TrailSurfaceHit))
+	{
+		bDistanceSnowTrailActive = false;
+		return;
+	}
+
+	const float StampInterval =
+		FMath::Max(1.0f, SnowTrailDistanceStampInterval);
+	if (FVector::DistSquared2D(
+		LastDistanceSnowTrailStampLocation,
+		TrailSurfaceHit.ImpactPoint) < FMath::Square(StampInterval))
+	{
+		return;
+	}
+
+	const FName FootSocketName =
+		LastDistanceSnowTrailFootSocketName.IsNone()
+			? LeftFootSocketName
+			: LastDistanceSnowTrailFootSocketName;
+	RequestSharedSnowTrailStamp(
+		TrailSurfaceHit.ImpactPoint,
+		TrailSurfaceHit.ImpactNormal.GetSafeNormal(),
+		FootSocketName);
+	LastDistanceSnowTrailStampLocation = TrailSurfaceHit.ImpactPoint;
+}
+
+void ASnowRumbleCharacter::RequestSharedSnowTrailStamp(
+	const FVector& FootstepLocation,
+	const FVector& FootstepNormal,
+	FName FootSocketName)
+{
+	if (!bEnableSharedSnowTrailStamps)
+	{
+		return;
+	}
+
+	if (HasAuthority())
+	{
+		ServerRequestSnowTrailStamp_Implementation(
+			FootstepLocation,
+			FootstepNormal.GetSafeNormal(),
+			FootSocketName);
+	}
+	else
+	{
+		ServerRequestSnowTrailStamp(
+			FootstepLocation,
+			FootstepNormal.GetSafeNormal(),
+			FootSocketName);
+	}
+}
+
+FVector ASnowRumbleCharacter::GetSnowTrailProbeLocation() const
+{
+	const UCapsuleComponent* Capsule = GetCapsuleComponent();
+	const float CapsuleHalfHeight = Capsule
+		? Capsule->GetScaledCapsuleHalfHeight()
+		: 0.0f;
+	return GetActorLocation()
+		- FVector::UpVector * FMath::Max(0.0f, CapsuleHalfHeight - 5.0f);
+}
+
+void ASnowRumbleCharacter::ServerRequestSnowTrailStamp_Implementation(
+	FVector_NetQuantize FootstepLocation,
+	FVector_NetQuantizeNormal FootstepNormal,
+	FName FootSocketName)
+{
+	if (!bEnableSharedSnowTrailStamps
+		|| IsFrozen()
+		|| IsDead())
+	{
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const double CurrentTime = World->GetTimeSeconds();
+	if (LastSnowTrailStampServerTime >= 0.0
+		&& CurrentTime - LastSnowTrailStampServerTime
+			< SnowTrailStampServerCooldown)
+	{
+		return;
+	}
+
+	const float MaxDistance =
+		FMath::Max(0.0f, SnowTrailStampMaxClientDistance);
+	if (MaxDistance > 0.0f
+		&& FVector::DistSquared(
+			FootstepLocation,
+			GetActorLocation()) > FMath::Square(MaxDistance))
+	{
+		return;
+	}
+
+	FHitResult ServerFootstepHit;
+	if (!FindSnowFootstepSurfaceAtLocation(
+		FootstepLocation,
+		ServerFootstepHit))
+	{
+		return;
+	}
+
+	LastSnowTrailStampServerTime = CurrentTime;
+	MulticastStampSnowTrail(
+		ServerFootstepHit.ImpactPoint,
+		ServerFootstepHit.ImpactNormal.GetSafeNormal(),
+		FootSocketName,
+		SnowTrailStampRadius);
+}
+
+void ASnowRumbleCharacter::MulticastStampSnowTrail_Implementation(
+	FVector_NetQuantize FootstepLocation,
+	FVector_NetQuantizeNormal FootstepNormal,
+	FName FootSocketName,
+	float RadiusWorld)
+{
+	ASnowTrailRenderTargetManager* SnowTrailManager =
+		ASnowTrailRenderTargetManager::FindSnowTrailManager(this);
+	if (!SnowTrailManager)
+	{
+		return;
+	}
+
+	SnowTrailManager->StampSnowTrailAtWorldLocation(
+		FootstepLocation,
+		FootstepNormal.GetSafeNormal(),
+		RadiusWorld,
+		FootSocketName,
+		this);
 }
 
 void ASnowRumbleCharacter::RequestAnimationTriggerFromServer(
