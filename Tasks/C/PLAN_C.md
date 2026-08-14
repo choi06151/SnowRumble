@@ -9,7 +9,7 @@
 
 ## 현재 집중 Task
 
-- [C-27](C-27_snow_trail_render_target.md) 눈길 RenderTarget 계약
+- [C-14](C-14_spawn_intro_flow.md) 팀 스폰과 시작 연출
 
 ## 개발 스타일
 
@@ -218,3 +218,5 @@
 - 2026-08-13: 레벨별 GameMode/PlayerController 구조 판단에 따라 포디움은 PvP 상속을 제거했다. 결과 표시 전용 `APodiumGameMode`는 `AGameModeBase`, `APodiumPlayerController`는 `APlayerController`를 직접 상속해 PvP 전용 HUD·입력·라운드 흐름이 포디움에 섞이지 않게 했다.
 - 2026-08-14: 사용자가 눈 밟힘 효과를 요청해 C-26을 추가하고 현재 집중 Task로 전환했다. 첫 범위는 캐릭터 AnimNotify/Blueprint 호출 함수, `SnowSurface` 태그 trace, Blueprint 표현 이벤트 계약까지로 제한한다.
 - 2026-08-14: 사용자가 Decal 대신 지형 머티리얼을 실시간으로 파내는 눈길을 요청해 C-27을 추가하고 현재 집중 Task로 전환했다. 첫 범위는 맵 배치용 RenderTarget Manager와 발걸음 서버 검증/멀티캐스트 stamp 계약까지로 제한한다.
+- 2026-08-14: C-11 커스터마이징 페인트에서 브러시 크기 변경 시 trace 위치가 같이 밀려 보이는 문제에 대응해 커서 중심 보정을 현재 브러시 지름 기반에서 고정 hotspot 보정값 기반으로 변경했다.
+- 2026-08-14: 사용자가 PvP 시작 시 팀 소개 카메라 연출을 요청하고 랜덤 PlayerStart 스폰에서도 가능한지 확인해 C-14를 현재 집중 Task로 재개했다. 고정 CameraRig 대신 로딩창 종료 후 스폰된 팀 Pawn 위치로 로컬 임시 카메라를 계산하고, 팀 소개 종료 뒤 기존 `3, 2, 1, 시작!` 카운트다운으로 이어지게 했다.
