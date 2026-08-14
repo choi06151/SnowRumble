@@ -9,7 +9,7 @@
 
 ## 현재 집중 Task
 
-- [C-05](C-05_round_match_flow.md) 1/3/5 라운드 경기 흐름
+- [C-27](C-27_snow_trail_render_target.md) 눈길 RenderTarget 계약
 
 ## 개발 스타일
 
@@ -48,6 +48,8 @@
 | 23 | [C-23](C-23_camera_wheel_zoom.md) | 마우스 휠 카메라 줌 | 기존 플레이어 카메라 | 진행중 |
 | 24 | [C-24](C-24_character_model_anim_contract.md) | 캐릭터 모델과 ABP 애니메이션 계약 | C-01, C-08, C-11 | 진행중 |
 | 25 | [C-25](C-25_pvp_gift_box_item_foundation.md) | PvP 선물상자와 아이템 기본 계약 | C-01, C-05, C-22 | 진행중 |
+| 26 | [C-26](C-26_snow_footstep_effect.md) | 눈 밟힘 효과 계약 | C-01 | 진행중 |
+| 27 | [C-27](C-27_snow_trail_render_target.md) | 눈길 RenderTarget 계약 | C-26 | 진행중 |
 
 ## 통합 변경 요청
 
@@ -214,3 +216,5 @@
 - 2026-08-13: C-05 매치 종료 후 포디움 레벨 이동을 추가했다. `APodiumGameMode`가 현재 매치 참가 팀만 기준으로 순위를 산정해 포디움 PlayerStart에 배치하고, `UPodiumWidget`에 결과 문구를 전달한 뒤 10초 후 매치 상태를 초기화하고 로비로 복귀한다.
 - 2026-08-13: 커스터마이징 맵에서만 마우스 커서가 사라지는 문제를 수정했다. 커스터마이징 프리뷰 캐릭터를 possess한 상태에서 공용 캐릭터 Tick이 `GameOnly`와 커서 숨김을 되돌리던 경로를 `ACustomizationPlayerController`에서는 제외하고, 기본 화면은 하드웨어 커서, PaintMode는 원형 소프트웨어 커서를 사용하게 정리했다.
 - 2026-08-13: 레벨별 GameMode/PlayerController 구조 판단에 따라 포디움은 PvP 상속을 제거했다. 결과 표시 전용 `APodiumGameMode`는 `AGameModeBase`, `APodiumPlayerController`는 `APlayerController`를 직접 상속해 PvP 전용 HUD·입력·라운드 흐름이 포디움에 섞이지 않게 했다.
+- 2026-08-14: 사용자가 눈 밟힘 효과를 요청해 C-26을 추가하고 현재 집중 Task로 전환했다. 첫 범위는 캐릭터 AnimNotify/Blueprint 호출 함수, `SnowSurface` 태그 trace, Blueprint 표현 이벤트 계약까지로 제한한다.
+- 2026-08-14: 사용자가 Decal 대신 지형 머티리얼을 실시간으로 파내는 눈길을 요청해 C-27을 추가하고 현재 집중 Task로 전환했다. 첫 범위는 맵 배치용 RenderTarget Manager와 발걸음 서버 검증/멀티캐스트 stamp 계약까지로 제한한다.
