@@ -8,6 +8,8 @@
 #include "../UI/LobbyPlayerController.h"
 #include "../UI/SnowRumblePlayerController.h"
 #include "HAL/IConsoleManager.h"
+#include "GameFramework/GameModeBase.h"
+#include "SnowmanModeGameMode_K.h"
 #include "SnowRumbleLobbyGameState.h"
 #include "SnowRumbleMatchSubsystem_C.h"
 #include "SnowRumblePlayerState.h"
@@ -36,6 +38,7 @@ ASnowRumbleLobbyGameMode::ASnowRumbleLobbyGameMode()
 	PlayerStateClass = ASnowRumblePlayerState::StaticClass();
 	PlayerControllerClass = ALobbyPlayerController::StaticClass();
 	DefaultPawnClass = ASnowRumbleCharacter::StaticClass();
+	SnowmanModeGameModeClass = ASnowmanModeGameMode::StaticClass();
 	bUseSeamlessTravel = true;
 
 	if (IConsoleVariable* AllowPieSeamlessTravel =
@@ -58,13 +61,15 @@ void ASnowRumbleLobbyGameMode::RequestStartMatch(
 	ASnowRumbleLobbyGameState* LobbyGameState =
 		GetGameState<ASnowRumbleLobbyGameState>();
 	if (!LobbyGameState
-		|| LobbyGameState->GetLobbyMode() != ESnowRumbleLobbyMode::Pvp
 		|| !LobbyGameState->CanStartLobbyMatch())
 	{
 		return;
 	}
 
-	PendingMatchTravelUrl = BuildMatchTravelUrl(LobbyGameState->GetLobbyPlayers().Num());
+	PendingMatchTravelUrl =
+		LobbyGameState->GetLobbyMode() == ESnowRumbleLobbyMode::Snowman
+			? BuildSnowmanModeTravelUrl(LobbyGameState->GetLobbyPlayers().Num())
+			: BuildMatchTravelUrl(LobbyGameState->GetLobbyPlayers().Num());
 	if (PendingMatchTravelUrl.IsEmpty())
 	{
 		return;
@@ -311,6 +316,44 @@ FString ASnowRumbleLobbyGameMode::BuildMatchTravelUrl(
 	if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
 	{
 		TravelUrl += TEXT("?listen");
+	}
+
+	if (ExpectedPlayerCount > 0)
+	{
+		TravelUrl += FString::Printf(
+			TEXT("?ExpectedPlayers=%d"),
+			ExpectedPlayerCount);
+	}
+	return TravelUrl;
+}
+
+FString ASnowRumbleLobbyGameMode::BuildSnowmanModeTravelUrl(
+	int32 ExpectedPlayerCount)
+{
+	const TArray<FString> CandidateLevelPaths = GetPvPLevelCandidatePaths();
+	FString TravelUrl = CandidateLevelPaths.IsEmpty()
+		? FString()
+		: CandidateLevelPaths[
+			FMath::RandRange(0, CandidateLevelPaths.Num() - 1)];
+	if (TravelUrl.IsEmpty())
+	{
+		TravelUrl = MatchTravelUrl;
+	}
+	if (TravelUrl.IsEmpty() || !SnowmanModeGameModeClass)
+	{
+		return FString();
+	}
+
+	if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
+	{
+		TravelUrl += TEXT("?listen");
+	}
+
+	const FString GameModePath = SnowmanModeGameModeClass->GetPathName();
+	if (!GameModePath.IsEmpty()
+		&& !TravelUrl.Contains(TEXT("?game="), ESearchCase::IgnoreCase))
+	{
+		TravelUrl += FString::Printf(TEXT("?game=%s"), *GameModePath);
 	}
 
 	if (ExpectedPlayerCount > 0)
