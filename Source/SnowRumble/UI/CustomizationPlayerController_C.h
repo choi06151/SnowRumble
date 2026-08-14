@@ -221,9 +221,13 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint")
 	FVector2D PaintCursorScreenOffset = FVector2D::ZeroVector;
 
-	/** 소프트웨어 페인트 커서의 좌상단 기준 표시를 원 중심 trace로 보정할지 정한다. */
+	/** 소프트웨어 페인트 커서 hotspot이 고정으로 어긋난 경우 아래 고정 보정값을 trace에 반영할지 정한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint")
 	bool bUsePaintCursorCenterTraceOffset = true;
+
+	/** 브러시 크기와 무관하게 trace에 더할 고정 커서 중심 보정값이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint")
+	FVector2D PaintCursorCenterTraceOffset = FVector2D::ZeroVector;
 
 	/** 페인트를 허용할 머티리얼 슬롯이다. -1이면 모든 슬롯을 허용한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint")
