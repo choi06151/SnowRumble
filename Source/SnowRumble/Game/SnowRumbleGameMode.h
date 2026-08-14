@@ -66,6 +66,8 @@ private:
 
 	bool bLoadingScreensDismissed = false;
 	bool bStartCountdownStarted = false;
+	bool bMatchIntroStarted = false;
+	int32 MatchIntroTeamIndex = 0;
 
 	/** PvP 맵 시작 후 입력을 잠글 카운트다운 시간이다. */
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Match", meta = (ClampMin = "0.0"))
@@ -74,6 +76,10 @@ private:
 	/** 로딩창 제거와 HUD 생성이 반영된 뒤 카운트다운을 시작하기 위한 지연이다. */
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Match", meta = (ClampMin = "0.0"))
 	float MatchStartCountdownDelaySeconds = 3.0f;
+
+	/** PvP 시작 전 팀 소개에서 한 팀을 보여줄 시간이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Match Intro", meta = (ClampMin = "0.0"))
+	float MatchIntroTeamShotSeconds = 2.5f;
 
 	/** 라운드 종료 결과를 보여준 뒤 다음 라운드 맵으로 이동하기까지 기다릴 시간이다. */
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Match", meta = (ClampMin = "0.0"))
@@ -108,6 +114,21 @@ private:
 
 	/** PvP 맵 로딩이 끝난 뒤 서버 확정 시작 카운트다운을 시작한다. */
 	void StartMatchCountdownAfterLoading();
+
+	/** PvP 맵 로딩이 끝난 뒤 팀 소개 인트로를 시작한다. */
+	void StartMatchIntroAfterLoading();
+
+	/** 현재 PvP 진입에서 팀 소개 시퀀스를 재생해야 하는지 반환한다. */
+	bool ShouldPlayMatchIntroSequence() const;
+
+	/** 다음 팀 소개 카메라 샷을 모든 클라이언트에 지시한다. */
+	void AdvanceMatchIntroSequence();
+
+	/** 팀 소개가 끝난 뒤 기존 시작 카운트다운을 확정한다. */
+	void FinishMatchIntroSequence();
+
+	/** 기존 C-17 시작 카운트다운과 경기 타이머들을 시작한다. */
+	void StartConfirmedMatchCountdown();
 
 	/** 라운드 결과 표시 후 남은 라운드가 있으면 다음 PvP 맵으로 이동한다. */
 	void TravelToNextRoundIfNeeded();
@@ -166,6 +187,9 @@ private:
 	/** 현재 팀이 라운드 참가 팀으로 유효한지 확인한다. */
 	bool IsValidRoundTeam(ESnowRumbleTeam Team) const;
 
+	/** 현재 라운드에 실제 참가 중인 팀을 고정 표시 순서로 수집한다. */
+	void GetActiveRoundTeams(TArray<ESnowRumbleTeam>& OutTeams) const;
+
 	/** 현재 PvP 레벨 접속 진행률을 접속 완료된 클라이언트들에게 보낸다. */
 	void BroadcastLoadingProgress();
 
@@ -177,6 +201,8 @@ private:
 
 	/** 이번 PvP 매치에서 이미 확정한 실제 스폰 위치다. */
 	TArray<FVector> UsedSpawnLocations;
+
+	TArray<ESnowRumbleTeam> MatchIntroTeams;
 
 	struct FTrackedLifeState
 	{
@@ -193,6 +219,7 @@ private:
 	FTimerHandle MapShrinkTimerHandle;
 	FTimerHandle MapShrinkCompletionTimerHandle;
 	FTimerHandle GiftBoxSpawnTimerHandle;
+	FTimerHandle MatchIntroTimerHandle;
 
 	/** 서버가 스폰할 선물상자 Blueprint 클래스다. */
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box")

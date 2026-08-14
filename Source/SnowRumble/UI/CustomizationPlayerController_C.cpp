@@ -863,9 +863,8 @@ bool ACustomizationPlayerController::GetPaintCursorScreenPosition(
 
 	if (bUsePaintCursorCenterTraceOffset)
 	{
-		const float CursorRadius = GetPaintCursorDiameter() * 0.5f;
-		OutMouseX += CursorRadius * ViewportScale;
-		OutMouseY += CursorRadius * ViewportScale;
+		OutMouseX += PaintCursorCenterTraceOffset.X;
+		OutMouseY += PaintCursorCenterTraceOffset.Y;
 	}
 
 	OutMouseX += PaintCursorScreenOffset.X;
