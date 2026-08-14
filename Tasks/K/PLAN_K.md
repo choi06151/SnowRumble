@@ -66,3 +66,4 @@
 - 2026-08-13: K-13 실행 로그에서 접촉 거리 판정은 통과하지만 감염 시작이 false로 반환되는 문제를 확인했다. Snowman GameState의 참가자 Entry 검색은 PlayerState 포인터 외에 PlayerId/UniqueId fallback을 사용해 같은 플레이어 매칭 실패를 줄인다.
 - 2026-08-14: K-13 결과 확인 중 감염 완료 후 눈사람 BP로 전환된 캐릭터가 땅에 박혀 움직이지 못하는 문제를 반영했다. Snowman GameMode는 전환 스폰 시 기존 Pawn의 발 위치와 바닥 trace를 기준으로 새 눈사람 Capsule 높이를 보정하고, collision handling을 `AdjustIfPossibleButAlwaysSpawn`으로 변경한다.
 - 2026-08-14: 사용자가 K-13 결과 확인을 완료했다. 랜덤 시작 눈사람, 접촉 감염 대기, 10초 뒤 눈사람 전환, 전환 후 이동, 클라이언트 상태 동기화를 확인했고, 땅에 박혀 생성되는 문제는 테스트 횟수가 많지는 않지만 해결된 것으로 보인다고 판단했다. K-13을 완료로 전환하고 다음 집중 Task를 K-14로 넘긴다.
+- 2026-08-14: `master`에 K 브랜치를 병합한 뒤 UE unity build에서 `SnowmanModeGameMode_K.cpp`와 `SnowRumbleGameMode.cpp`의 익명 namespace helper 이름이 충돌해 컴파일이 실패하는 문제를 수정했다. K 소유 helper를 `MakeSnowmanModeRandomHorizontalOffset`으로 변경했고, `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
