@@ -71,6 +71,7 @@
 - 2026-08-13: 실행 로그에서 접촉 거리 판정은 성공하지만 `Started=false`, `NormalRoleAfter=Normal`으로 남는 문제를 확인했다. 참가자 Entry 검색이 PlayerState 포인터 일치에만 의존해 전용 Pawn 교체/복제 타이밍에서 같은 플레이어를 못 찾을 수 있으므로 `PlayerId`와 `UniqueId` fallback 매칭을 추가했다.
 - 2026-08-14: 결과 확인 중 감염 완료 후 `BP_SnowmanCharacter_K`로 전환될 때 캐릭터가 땅에 박혀 움직이지 못하는 경우를 반영했다. 전환 스폰 위치는 기존 인간 Pawn의 발 위치와 바닥 trace를 기준으로 새 눈사람 Capsule half height만큼 올리고, Spawn Collision Handling은 `AdjustIfPossibleButAlwaysSpawn`으로 보정한다.
 - 2026-08-14: 사용자가 K-13 결과 확인을 완료했다. 테스트 횟수는 많지 않지만 감염 완료 후 `BP_SnowmanCharacter_K`가 땅에 박혀 생성되는 문제는 해결된 것으로 보인다고 확인했다. 실행 중 `BP_SnowmanCharacter_K`의 `CharacterMesh0` material slot 0 경고가 관찰됐지만, 감염·전환·이동을 막는 오류는 아니며 표현/머티리얼 정리는 후속 자산 다듬기 항목으로 남긴다.
+- 2026-08-14: `master`에 K 브랜치를 병합한 뒤 UE unity build에서 `SnowmanModeGameMode_K.cpp`와 `SnowRumbleGameMode.cpp`의 익명 namespace helper `MakeRandomHorizontalOffset` 이름이 충돌해 컴파일이 실패하는 문제를 수정했다. K 소유 파일의 helper를 `MakeSnowmanModeRandomHorizontalOffset`으로 변경했으며, `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
 
 ## 수동 작업 (구현 후 구체화)
 
@@ -92,6 +93,7 @@
 - [x] 역할·소유권·담당자 이니셜 규칙 위반 없음
 - [x] 공용 계약과 캡슐화 규칙 위반 없음
 - [x] 현재 Task 문서가 실제 구현 기준으로 갱신됨
+- [x] `master` 병합 후 `SnowRumbleEditor Win64 Development` 빌드 성공 확인
 
 ### 결과 확인 (구현 후 구체화)
 
