@@ -76,10 +76,14 @@ void ASnowRumbleGameMode::InitGame(
 		: FMath::Max(0, FCString::Atoi(*ExpectedPlayersOption));
 	bLoadingScreensDismissed = false;
 	bStartCountdownStarted = false;
+	bMatchIntroStarted = false;
+	MatchIntroTeamIndex = 0;
+	MatchIntroTeams.Reset();
 	MapShrinkStage = 0;
 	GetWorldTimerManager().ClearTimer(MapShrinkTimerHandle);
 	GetWorldTimerManager().ClearTimer(MapShrinkCompletionTimerHandle);
 	GetWorldTimerManager().ClearTimer(GiftBoxSpawnTimerHandle);
+	GetWorldTimerManager().ClearTimer(MatchIntroTimerHandle);
 }
 
 void ASnowRumbleGameMode::PostLogin(APlayerController* NewPlayer)
@@ -121,6 +125,7 @@ void ASnowRumbleGameMode::TryDismissLoadingScreens()
 
 	bLoadingScreensDismissed = true;
 	BroadcastLoadingProgress();
+	const bool bShouldPlayMatchIntro = ShouldPlayMatchIntroSequence();
 	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
 		It;
 		++It)
@@ -129,6 +134,11 @@ void ASnowRumbleGameMode::TryDismissLoadingScreens()
 			Cast<ASnowRumblePlayerController>(It->Get()))
 		{
 			PlayerController->ClientHideLoadingScreen();
+			if (bShouldPlayMatchIntro)
+			{
+				PlayerController->ClientStartPvpIntroFadeOut(
+					MatchStartCountdownDelaySeconds);
+			}
 		}
 	}
 
@@ -150,25 +160,119 @@ void ASnowRumbleGameMode::StartMatchCountdownAfterLoading()
 			CountdownDelayTimerHandle,
 			[this]()
 			{
-				if (ASnowRumbleGameState* SnowRumbleGameState =
-					GetGameState<ASnowRumbleGameState>())
-				{
-					SnowRumbleGameState->StartMatchCountdownFromServer(
-						MatchStartCountdownSeconds);
-					if (!SnowRumbleGameState->IsTiebreakerRound())
-					{
-						ScheduleNextMapShrink();
-					}
-					ScheduleNextGiftBoxSpawn(
-						MatchStartCountdownSeconds
-						+ FirstGiftBoxSpawnDelaySeconds);
-				}
+				StartMatchIntroAfterLoading();
 			},
 			MatchStartCountdownDelaySeconds,
 			false);
 		return;
 	}
 
+	StartMatchIntroAfterLoading();
+}
+
+void ASnowRumbleGameMode::StartMatchIntroAfterLoading()
+{
+	if (bMatchIntroStarted)
+	{
+		return;
+	}
+
+	bMatchIntroStarted = true;
+	if (!ShouldPlayMatchIntroSequence())
+	{
+		StartConfirmedMatchCountdown();
+		return;
+	}
+
+	MatchIntroTeamIndex = 0;
+	GetActiveRoundTeams(MatchIntroTeams);
+	if (MatchIntroTeams.IsEmpty() || MatchIntroTeamShotSeconds <= 0.0f)
+	{
+		FinishMatchIntroSequence();
+		return;
+	}
+
+	AdvanceMatchIntroSequence();
+}
+
+bool ASnowRumbleGameMode::ShouldPlayMatchIntroSequence() const
+{
+	const USnowRumbleMatchSubsystem* MatchSubsystem = GetMatchSubsystem();
+	if (!MatchSubsystem || !MatchSubsystem->IsPvPMatchActive())
+	{
+		return true;
+	}
+
+	if (MatchSubsystem->IsTiebreakerActive())
+	{
+		return true;
+	}
+
+	return MatchSubsystem->GetCurrentRoundNumber() <= 1;
+}
+
+void ASnowRumbleGameMode::AdvanceMatchIntroSequence()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		FinishMatchIntroSequence();
+		return;
+	}
+
+	if (!MatchIntroTeams.IsValidIndex(MatchIntroTeamIndex))
+	{
+		FinishMatchIntroSequence();
+		return;
+	}
+
+	const ESnowRumbleTeam IntroTeam = MatchIntroTeams[MatchIntroTeamIndex];
+	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
+		It;
+		++It)
+	{
+		if (ASnowRumblePlayerController* PlayerController =
+			Cast<ASnowRumblePlayerController>(It->Get()))
+		{
+			PlayerController->ClientPlayPvpTeamIntroShot(
+				IntroTeam,
+				MatchIntroTeamShotSeconds);
+		}
+	}
+
+	++MatchIntroTeamIndex;
+	GetWorldTimerManager().SetTimer(
+		MatchIntroTimerHandle,
+		this,
+		&ASnowRumbleGameMode::AdvanceMatchIntroSequence,
+		MatchIntroTeamShotSeconds,
+		false);
+}
+
+void ASnowRumbleGameMode::FinishMatchIntroSequence()
+{
+	GetWorldTimerManager().ClearTimer(MatchIntroTimerHandle);
+
+	if (UWorld* World = GetWorld())
+	{
+		for (FConstPlayerControllerIterator It =
+				World->GetPlayerControllerIterator();
+			It;
+			++It)
+		{
+			if (ASnowRumblePlayerController* PlayerController =
+				Cast<ASnowRumblePlayerController>(It->Get()))
+			{
+				PlayerController->ClientFinishPvpTeamIntro();
+			}
+		}
+	}
+
+	StartConfirmedMatchCountdown();
+}
+
+void ASnowRumbleGameMode::StartConfirmedMatchCountdown()
+{
 	if (ASnowRumbleGameState* SnowRumbleGameState =
 		GetGameState<ASnowRumbleGameState>())
 	{
@@ -908,6 +1012,52 @@ bool ASnowRumbleGameMode::IsValidRoundTeam(ESnowRumbleTeam Team) const
 		return true;
 	default:
 		return false;
+	}
+}
+
+void ASnowRumbleGameMode::GetActiveRoundTeams(
+	TArray<ESnowRumbleTeam>& OutTeams) const
+{
+	OutTeams.Reset();
+	if (!GameState)
+	{
+		return;
+	}
+
+	TSet<ESnowRumbleTeam> PresentTeams;
+	for (APlayerState* PlayerState : GameState->PlayerArray)
+	{
+		const ASnowRumblePlayerState* SnowRumblePlayerState =
+			Cast<ASnowRumblePlayerState>(PlayerState);
+		if (!SnowRumblePlayerState)
+		{
+			continue;
+		}
+
+		const ESnowRumbleTeam Team = SnowRumblePlayerState->GetLobbyTeam();
+		if (IsValidRoundTeam(Team))
+		{
+			PresentTeams.Add(Team);
+		}
+	}
+
+	const ESnowRumbleTeam TeamOrder[] =
+	{
+		ESnowRumbleTeam::Red,
+		ESnowRumbleTeam::Blue,
+		ESnowRumbleTeam::Sky,
+		ESnowRumbleTeam::Green,
+		ESnowRumbleTeam::Yellow,
+		ESnowRumbleTeam::Purple,
+		ESnowRumbleTeam::Pink,
+		ESnowRumbleTeam::White
+	};
+	for (const ESnowRumbleTeam Team : TeamOrder)
+	{
+		if (PresentTeams.Contains(Team))
+		{
+			OutTeams.Add(Team);
+		}
 	}
 }
 
