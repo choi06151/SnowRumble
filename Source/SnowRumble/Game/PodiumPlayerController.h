@@ -36,3 +36,4 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UPodiumWidget> PodiumWidget;
 };
+	
