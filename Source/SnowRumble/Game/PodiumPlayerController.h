@@ -3,13 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "../UI/SnowRumblePlayerController.h"
+#include "GameFramework/PlayerController.h"
 #include "PodiumPlayerController.generated.h"
 
 class UPodiumWidget;
 
 UCLASS()
-class SNOWRUMBLE_API APodiumPlayerController : public ASnowRumblePlayerController
+class SNOWRUMBLE_API APodiumPlayerController : public APlayerController
 {
 	GENERATED_BODY()
 
@@ -36,3 +36,4 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UPodiumWidget> PodiumWidget;
 };
+	

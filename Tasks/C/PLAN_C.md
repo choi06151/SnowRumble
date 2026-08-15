@@ -9,7 +9,7 @@
 
 ## 현재 집중 Task
 
-- [C-05](C-05_round_match_flow.md) 1/3/5 라운드 경기 흐름
+- [C-14](C-14_spawn_intro_flow.md) 팀 스폰과 시작 연출
 
 ## 개발 스타일
 
@@ -48,6 +48,8 @@
 | 23 | [C-23](C-23_camera_wheel_zoom.md) | 마우스 휠 카메라 줌 | 기존 플레이어 카메라 | 진행중 |
 | 24 | [C-24](C-24_character_model_anim_contract.md) | 캐릭터 모델과 ABP 애니메이션 계약 | C-01, C-08, C-11 | 진행중 |
 | 25 | [C-25](C-25_pvp_gift_box_item_foundation.md) | PvP 선물상자와 아이템 기본 계약 | C-01, C-05, C-22 | 진행중 |
+| 26 | [C-26](C-26_snow_footstep_effect.md) | 눈 밟힘 효과 계약 | C-01 | 진행중 |
+| 27 | [C-27](C-27_snow_trail_render_target.md) | 눈길 RenderTarget 계약 | C-26 | 진행중 |
 
 ## 통합 변경 요청
 
@@ -202,6 +204,9 @@
 - 2026-08-12: C-24 애니메이션 장착 자세 계약을 보강했다. `ESnowRumbleHeldAnimationState`/`HeldAnimationState`로 맨손, 작은 눈덩이, 큰 눈덩이, 눈삽, 눈오리 제작기를 ABP에서 한 값으로 분기할 수 있고, 빠른 연결용 `SnowShovelHoldAnimation`, `SnowDuckMakerHoldAnimation` 슬롯을 추가했다.
 - 2026-08-12: C-24/C-25 애니메이션 연동을 보강했다. 선물상자 열기와 선물 아이템 획득 성공은 `bIsInteractingWithItem`/`ItemInteractionAnimation`으로, 실제 HP 피해 피격은 `bIsHitReacting`/`HitReactAnimation`으로 ABP가 분기할 수 있다.
 - 2026-08-12: C-24/C-25 애니메이션 연동 변경은 `git diff --check`와 UHT/C++ 컴파일을 통과했다. 최종 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
+- 2026-08-13: C-24 ABP 부모 구조를 단일 `GetPrimaryAnimation()` 출력에서 이동·상체·전체 몸 액션 3계층 상태로 확장했다. `LocomotionAnimState`, `UpperBodyAnimState`, `FullBodyAnimState`와 `HasUpperBodyOverride()`/`HasFullBodyOverride()`를 제공해 ABP가 `Blend Poses by Enum`, `Layered Blend Per Bone`, `Blend Poses by Bool`로 애니메이션 슬롯을 조합하게 했다. C++ 컴파일은 통과했고, 최종 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됐다.
+- 2026-08-13: C-24에서 더 이상 Class Defaults 애니메이션 슬롯을 쓰지 않기로 결정해 `GetPrimaryAnimation()`과 `IdleAnimation` 등 슬롯 프로퍼티를 제거했다. ABP는 Anim Graph의 상태별 Sequence Player에 애니메이션 에셋을 직접 연결한다.
+- 2026-08-13: C-24에 one-shot 애니메이션 trigger 계약을 추가했다. `ESnowRumbleCharacterAnimTrigger`와 `OnAnimationTriggerRequested`로 눈덩이 줍기/던지기, 아이템 상호작용, 피격 반응을 서버 확정 후 모든 화면의 AnimBP에 전달한다. UHT와 C++ 컴파일은 통과했고, 최종 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
 - 2026-08-12: C-11 색칠하기 브러시 색 선택을 기본 컬러 피커에서 고정 팔레트 버튼으로 변경했다. WBP는 `RedBrushColorButton`, `OrangeBrushColorButton`, `YellowBrushColorButton`, `GreenBrushColorButton`, `BlueBrushColorButton`, `IndigoBrushColorButton`, `PurpleBrushColorButton`, `BlackBrushColorButton`, `WhiteBrushColorButton`만 배치하고, 선택된 색은 Pressed 스타일로 유지된다.
 - 2026-08-12: C-11 고정 팔레트 버튼 변경은 `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드를 통과했다.
 - 2026-08-12: C-11 팔레트 버튼 클릭 시 실제 브러시 색이 해당 버튼의 WBP 스타일 Normal Tint와 BackgroundColor를 기준으로 정해지게 했다.
@@ -209,3 +214,9 @@
 - 2026-08-13: C-05 정규 라운드 최종 공동 1등 처리로 단판 승부 타이브레이커를 추가했다. 공동 1등 팀만 결과 판정과 피해 적용 대상이 되며 `TiebreakerTravelUrl` 전용 PvP 맵으로 이동하고, HUD는 `단판승부` 문구와 경기 시간만 표시하며 맵 축소는 비활성화된다. 아이템 스폰은 기존 PvP와 동일하게 유지된다.
 - 2026-08-13: C-05 타이브레이커 비동점 팀은 관전자 상태로 복제해 이동·상호작용·충돌 간섭을 막고 경기 참가자 시점을 보게 했다. `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드를 통과했다.
 - 2026-08-13: C-05 매치 종료 후 포디움 레벨 이동을 추가했다. `APodiumGameMode`가 현재 매치 참가 팀만 기준으로 순위를 산정해 포디움 PlayerStart에 배치하고, `UPodiumWidget`에 결과 문구를 전달한 뒤 10초 후 매치 상태를 초기화하고 로비로 복귀한다.
+- 2026-08-13: 커스터마이징 맵에서만 마우스 커서가 사라지는 문제를 수정했다. 커스터마이징 프리뷰 캐릭터를 possess한 상태에서 공용 캐릭터 Tick이 `GameOnly`와 커서 숨김을 되돌리던 경로를 `ACustomizationPlayerController`에서는 제외하고, 기본 화면은 하드웨어 커서, PaintMode는 원형 소프트웨어 커서를 사용하게 정리했다.
+- 2026-08-13: 레벨별 GameMode/PlayerController 구조 판단에 따라 포디움은 PvP 상속을 제거했다. 결과 표시 전용 `APodiumGameMode`는 `AGameModeBase`, `APodiumPlayerController`는 `APlayerController`를 직접 상속해 PvP 전용 HUD·입력·라운드 흐름이 포디움에 섞이지 않게 했다.
+- 2026-08-14: 사용자가 눈 밟힘 효과를 요청해 C-26을 추가하고 현재 집중 Task로 전환했다. 첫 범위는 캐릭터 AnimNotify/Blueprint 호출 함수, `SnowSurface` 태그 trace, Blueprint 표현 이벤트 계약까지로 제한한다.
+- 2026-08-14: 사용자가 Decal 대신 지형 머티리얼을 실시간으로 파내는 눈길을 요청해 C-27을 추가하고 현재 집중 Task로 전환했다. 첫 범위는 맵 배치용 RenderTarget Manager와 발걸음 서버 검증/멀티캐스트 stamp 계약까지로 제한한다.
+- 2026-08-14: C-11 커스터마이징 페인트에서 브러시 크기 변경 시 trace 위치가 같이 밀려 보이는 문제에 대응해 커서 중심 보정을 현재 브러시 지름 기반에서 고정 hotspot 보정값 기반으로 변경했다.
+- 2026-08-14: 사용자가 PvP 시작 시 팀 소개 카메라 연출을 요청하고 랜덤 PlayerStart 스폰에서도 가능한지 확인해 C-14를 현재 집중 Task로 재개했다. 고정 CameraRig 대신 로딩창 종료 후 스폰된 팀 Pawn 위치로 로컬 임시 카메라를 계산하고, 팀 소개 종료 뒤 기존 `3, 2, 1, 시작!` 카운트다운으로 이어지게 했다.
