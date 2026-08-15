@@ -7,6 +7,7 @@
 #include "../Item/GiftItemTypes_C.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "GameFramework/Character.h"
+#include "SnowRumbleCharacterAnimationTypes_C.h"
 #include "SnowRumbleCharacter.generated.h"
 
 class UCameraComponent;
@@ -174,6 +175,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Emote")
 	void RequestPlayEmote(int32 EmoteIndex);
 
+	/** AnimNotify나 Blueprint에서 발이 닿은 순간 호출해 눈 밟힘 표현을 요청한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Footstep")
+	void RequestSnowFootstepEffect(FName FootSocketName);
+
 	/** 로컬 플레이어 화면에서 이모션 원형 메뉴를 닫고 게임 입력으로 복구한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Emote|UI")
 	void CloseEmoteRadialMenu();
@@ -200,6 +205,12 @@ public:
 
 	/** 서버에서 아이템 획득 성공 애니메이션 상태를 시작한다. */
 	void NotifyItemPickupSucceeded();
+
+	/** 서버에서 눈덩이 획득 성공 one-shot 애니메이션을 포함해 상태를 시작한다. */
+	void NotifySnowballPickupSucceeded(bool bWasLargeSnowball);
+
+	/** 서버에서 눈덩이 던지기 성공 one-shot 애니메이션을 모든 화면에 요청한다. */
+	void NotifySnowballThrowSucceeded(bool bWasLargeSnowball);
 
 	/** 서버에서 선물상자나 선물 아이템 상호작용 성공 애니메이션 상태를 시작한다. */
 	void NotifyItemInteractionSucceeded();
@@ -507,6 +518,52 @@ protected:
 	/** 로컬 AnimInstance에 선택된 이모션 몽타주를 재생한다. */
 	void PlayEmoteMontage(int32 EmoteIndex);
 
+	/** 지정한 발 socket 아래에서 눈 표면을 찾는다. */
+	bool FindSnowFootstepSurface(
+		FName FootSocketName,
+		FHitResult& OutFootstepHit) const;
+
+	/** 지정한 월드 위치 주변에서 눈 표면을 찾는다. */
+	bool FindSnowFootstepSurfaceAtLocation(
+		const FVector& FootstepLocation,
+		FHitResult& OutFootstepHit) const;
+
+	/** 눈 표면 위에서 이동 거리에 맞춰 연속 눈길 stamp를 요청한다. */
+	void UpdateDistanceBasedSnowTrail(float DeltaSeconds);
+
+	/** 소유 클라이언트 또는 호스트에서 서버 검증 눈길 stamp를 요청한다. */
+	void RequestSharedSnowTrailStamp(
+		const FVector& FootstepLocation,
+		const FVector& FootstepNormal,
+		FName FootSocketName);
+
+	/** 캐릭터 중심 기준으로 현재 발밑 눈 표면을 찾을 위치를 반환한다. */
+	FVector GetSnowTrailProbeLocation() const;
+
+	/** 서버 확정 애니메이션 trigger를 현재 화면의 AnimInstance로 전달한다. */
+	void RequestAnimationTriggerFromServer(
+		ESnowRumbleCharacterAnimTrigger Trigger);
+
+	/** 서버가 확정한 one-shot 애니메이션 trigger를 모든 화면에 전달한다. */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastRequestAnimationTrigger(
+		ESnowRumbleCharacterAnimTrigger Trigger);
+
+	/** 소유 클라이언트가 발걸음 위치를 서버에 보내 눈길 stamp를 요청한다. */
+	UFUNCTION(Server, Unreliable)
+	void ServerRequestSnowTrailStamp(
+		FVector_NetQuantize FootstepLocation,
+		FVector_NetQuantizeNormal FootstepNormal,
+		FName FootSocketName);
+
+	/** 서버가 검증한 눈길 stamp를 모든 클라이언트의 Manager에 전달한다. */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastStampSnowTrail(
+		FVector_NetQuantize FootstepLocation,
+		FVector_NetQuantizeNormal FootstepNormal,
+		FName FootSocketName,
+		float RadiusWorld);
+
 	/** 서버가 소유 클라이언트의 이모션 선택을 검사하고 확정한다. */
 	UFUNCTION(Server, Reliable)
 	void ServerRequestPlayEmote(int32 EmoteIndex);
@@ -565,6 +622,13 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Input")
 	void OnEmoteInput(bool bPressed);
+
+	/** 눈 표면에서 발이 닿았을 때 현재 화면에서만 Niagara, Decal, Sound 같은 표현을 재생한다. */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Footstep")
+	void OnSnowFootstepEffect(
+		FName FootSocketName,
+		FVector FootstepLocation,
+		FVector FootstepNormal);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Camera")
 	TObjectPtr<USpringArmComponent> CameraBoom;
@@ -861,6 +925,58 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Movement", meta = (ClampMin = "0.0"))
 	float AimWalkSpeed = 300.0f;
 
+	/** 눈 밟힘 효과를 허용할 바닥 Actor 태그다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep")
+	FName SnowFootstepSurfaceTag = TEXT("SnowSurface");
+
+	/** 왼발 AnimNotify에서 이름을 넘기지 않았을 때 사용할 기본 socket 이름이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep")
+	FName LeftFootSocketName = TEXT("foot_l");
+
+	/** 오른발 AnimNotify에서 이름을 넘기지 않았을 때 사용할 기본 socket 이름이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep")
+	FName RightFootSocketName = TEXT("foot_r");
+
+	/** 발 socket 위쪽에서 trace를 시작하는 높이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep", meta = (ClampMin = "0.0"))
+	float SnowFootstepTraceUpOffset = 18.0f;
+
+	/** 발 socket 아래로 눈 표면을 찾는 거리다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep", meta = (ClampMin = "0.0"))
+	float SnowFootstepTraceDownDistance = 70.0f;
+
+	/** 발걸음 효과가 너무 촘촘히 반복되지 않도록 막는 최소 간격이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep", meta = (ClampMin = "0.0"))
+	float SnowFootstepEffectCooldown = 0.08f;
+
+	/** 눈 밟힘 위치를 서버 검증 후 지형 RenderTarget 눈길 stamp로 공유할지 정한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snow Trail")
+	bool bEnableSharedSnowTrailStamps = true;
+
+	/** 눈길 RenderTarget에 남길 기본 stamp 반지름(cm)이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snow Trail", meta = (ClampMin = "1.0"))
+	float SnowTrailStampRadius = 38.0f;
+
+	/** 서버에서 눈길 stamp 요청을 너무 자주 처리하지 않도록 막는 최소 간격이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snow Trail", meta = (ClampMin = "0.0"))
+	float SnowTrailStampServerCooldown = 0.08f;
+
+	/** 클라이언트가 보낸 발 위치가 서버 캐릭터 위치에서 허용되는 최대 거리다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snow Trail", meta = (ClampMin = "0.0"))
+	float SnowTrailStampMaxClientDistance = 260.0f;
+
+	/** AnimNotify로 눈 표면을 밟은 뒤 이동 거리 기준으로 연속 눈길 stamp를 찍을지 정한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Distance")
+	bool bEnableDistanceBasedSnowTrailStamps = true;
+
+	/** 연속 눈길 stamp를 새로 찍기 위한 최소 이동 거리(cm)다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Distance", meta = (ClampMin = "1.0"))
+	float SnowTrailDistanceStampInterval = 42.0f;
+
+	/** 이 속도보다 느리면 연속 눈길 stamp를 찍지 않는다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Distance", meta = (ClampMin = "0.0"))
+	float SnowTrailDistanceStampMinimumSpeed = 20.0f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling|Debug")
 	bool bDrawRollingSnowballCollisionDebug = true;
 
@@ -976,6 +1092,8 @@ public:
 	float DesiredCameraArmLength = 400.0f;
 	float CameraShoulderSide = 1.0f;
 	double PostThrowAimCameraEndTime = -1.0;
+	double LastSnowFootstepEffectTime = -1.0;
+	double LastSnowTrailStampServerTime = -1.0;
 
 	FTimerHandle PickupAnimationTimerHandle;
 	FTimerHandle ItemInteractionAnimationTimerHandle;
@@ -985,6 +1103,9 @@ public:
 	bool bUsedInteractForRolling = false;
 	bool bLobbyBoardPointerPressed = false;
 	bool bLocalSnowEffectActive = false;
+	bool bDistanceSnowTrailActive = false;
+	FVector LastDistanceSnowTrailStampLocation = FVector::ZeroVector;
+	FName LastDistanceSnowTrailFootSocketName = NAME_None;
 
 	UPROPERTY(Transient)
 	TObjectPtr<ALobbyInteractionBoard> FocusedLobbyBoard;

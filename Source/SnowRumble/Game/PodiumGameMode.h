@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SnowRumbleGameMode.h"
 #include "SnowRumblePlayerState.h"
+#include "GameFramework/GameModeBase.h"
 #include "PodiumGameMode.generated.h"
 
 class ACameraActor;
@@ -23,7 +23,7 @@ struct FSnowRumblePodiumTeamResult
 };
 
 UCLASS()
-class SNOWRUMBLE_API APodiumGameMode : public ASnowRumbleGameMode
+class SNOWRUMBLE_API APodiumGameMode : public AGameModeBase
 {
 	GENERATED_BODY()
 

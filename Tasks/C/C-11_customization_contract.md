@@ -170,7 +170,8 @@
   - `UCustomizationWidget::GetPaintBrushColor()`: WBP가 현재 브러시 색 표시를 바인딩할 수 있는 조회 함수
   - `UCustomizationWidget::GetPaintBrushSize()`: WBP가 현재 브러시 크기 표시를 바인딩할 수 있는 조회 함수
   - `ACustomizationPlayerController::PaintCursorScreenOffset`: 페인트 trace 화면 좌표에 더하는 픽셀 단위 X/Y 보정값. X 양수는 오른쪽, Y 양수는 아래쪽으로 trace를 옮긴다.
-  - `ACustomizationPlayerController::bUsePaintCursorCenterTraceOffset`: 소프트웨어 페인트 커서가 좌상단 기준으로 표시될 때 원 중심에서 trace가 나가도록 커서 반지름만큼 자동 보정할지 정한다.
+  - `ACustomizationPlayerController::bUsePaintCursorCenterTraceOffset`: 소프트웨어 페인트 커서 hotspot 보정값을 trace에 반영할지 정한다. 이 보정은 현재 브러시 크기를 사용하지 않는다.
+  - `ACustomizationPlayerController::PaintCursorCenterTraceOffset`: 브러시 크기와 무관하게 trace에 더하는 고정 커서 hotspot 보정값
   - `ACustomizationPlayerController::PaintAllowedMaterialIndex`: 페인트를 허용할 머티리얼 슬롯. 기본값은 몸 slot 0이며, -1이면 모든 슬롯을 허용한다.
   - `ACustomizationPlayerController::bShowPaintHitDebug`: 페인트 hit 컴포넌트, 머티리얼 슬롯, UV를 화면 디버그로 표시할지 정한다.
   - `ACustomizationPlayerController::PaintBrushWheelStep`: 휠 한 칸당 브러시 크기 변화량
@@ -213,8 +214,11 @@
 - 2026-08-11: 마우스 커서 슬롯 계약을 추가했다. 메인메뉴, 로비/PvP 계열, 커스터마이징 PlayerController BP의 `DefaultMouseCursorWidgetClass`는 게임 전체 기본 커서로 적용되고, 커스터마이징 `PaintMouseCursorWidgetClass`는 색칠하기 원형 커서로 자동 전환된다. 페인트 커서 내부 `BrushCursorSizeBox`는 현재 브러시 크기에 맞춰 지름을 갱신한다.
 - 2026-08-11: 브러시 색 버튼으로 여는 언리얼 기본 컬러 피커가 버튼 오른쪽이 아니라 왼쪽에 뜨도록 `OpenPaintBrushColorPickerOnLeft(FVector2D)` 경로를 추가했다.
 - 2026-08-11: 페인트 커서 색상 계약을 추가했다. 원형 커서 WBP에 `BrushCursorColorBorder` 또는 `BrushCursorColorImage`를 배치하면 현재 브러시 색 변경 시 커서 표시 색도 같은 색으로 갱신된다.
+- 2026-08-13: 커스터마이징 프리뷰 캐릭터를 possess한 뒤 공용 캐릭터 Tick이 `GameOnly` 입력 모드와 커서 숨김을 계속 적용하던 문제를 수정했다. `ASnowRumbleCharacter`는 `ACustomizationPlayerController`가 조종 중일 때 커스터마이징 UI의 입력 모드와 커서 표시를 덮어쓰지 않는다. 커스터마이징 기본 화면은 하드웨어 기본 커서를 유지하고, PaintMode에서만 `PaintMouseCursorWidgetClass` 원형 커서로 전환한다.
 - 2026-08-12: 페인트 trace를 기본 몸 머티리얼 slot 0 전용으로 제한하는 `PaintAllowedMaterialIndex`를 추가했다. `PaintCursorScreenOffset`은 부위별 위치 보정이 아니라 커서 hotspot 보정용으로만 사용한다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
 - 2026-08-12: 페인트 trace에 `bUsePaintCursorCenterTraceOffset` 자동 중심 보정을 추가했다. 원형 커서 위젯이 좌상단 기준으로 표시되는 경우 현재 브러시 커서 지름의 절반만큼 trace 위치를 보정한다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor PID 46944의 DLL 잠금으로 최종 링크는 보류됐다.
+- 2026-08-14: 브러시 크기를 바꿀 때 trace 위치가 함께 밀려 보이는 문제에 대응해 `bUsePaintCursorCenterTraceOffset`이 현재 브러시 지름을 사용하지 않게 했다. 필요한 hotspot 보정은 브러시 크기와 무관한 `PaintCursorCenterTraceOffset`과 `PaintCursorScreenOffset`으로만 적용한다.
+- 2026-08-14: 위 변경은 UHT와 C++ 컴파일, `.lib` 생성까지 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 `LNK1104`로 보류됐다.
 - 2026-08-12: 모자 커스터마이징 첫 범위를 추가했다. `HatMeshComponent` 빈 슬롯, `CustomizationHatMeshes` 후보 배열, `HatMeshIndex` 저장·복제 데이터, `HatModeButton`/`HatPreviousButton`/`HatNextButton` UI 계약을 제공한다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됐다.
 - 2026-08-12: 색칠하기 브러시 색 선택을 언리얼 기본 컬러 피커에서 고정 팔레트 버튼으로 변경했다. WBP는 빨강, 주황, 노랑, 초록, 파랑, 남색, 보라, 검정, 하양 버튼만 배치하고, 선택된 색 버튼은 C++에서 Pressed 스타일로 유지된다.
 - 2026-08-12: 고정 팔레트 버튼 변경은 `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드를 통과했다.
@@ -235,8 +239,7 @@
 - 원형 커서 WBP 안에 `SizeBox`를 만들고 이름을 `BrushCursorSizeBox`로 맞추면 브러시 크기에 따라 커서 지름이 자동 조정된다.
 - 원형 커서 WBP 안에 현재 색을 입힐 Border 또는 Image를 만들고 이름을 `BrushCursorColorBorder` 또는 `BrushCursorColorImage`로 맞추면 브러시 색에 따라 커서 색이 자동 조정된다.
 - 원형 커서 지름이 너무 작거나 크면 커스터마이징 PlayerController BP의 `PaintCursorBrushSizeScale`, `MinPaintCursorDiameter`, `MaxPaintCursorDiameter`를 조정한다.
-- 페인트 trace가 원형 커서 중심에서 나가야 하면 커스터마이징 PlayerController BP의 `bUsePaintCursorCenterTraceOffset`을 켠다. 기본값은 켜짐이다.
-- 자동 중심 보정 뒤에도 페인트 위치가 커서 이미지의 중심과 전체적으로 조금 어긋나면 커스터마이징 PlayerController BP의 `PaintCursorScreenOffset`을 작게 조정한다. X 양수는 오른쪽, Y 양수는 아래쪽으로 trace를 옮긴다. 이 값은 부위별·회전별 UV 오차 보정용이 아니라 마지막 hotspot 미세 보정용이다.
+- 페인트 trace가 커서 이미지의 중심과 전체적으로 조금 어긋나면 커스터마이징 PlayerController BP의 `PaintCursorCenterTraceOffset` 또는 `PaintCursorScreenOffset`을 작게 조정한다. X 양수는 오른쪽, Y 양수는 아래쪽으로 trace를 옮긴다. 이 값은 브러시 크기별 보정이나 부위별·회전별 UV 오차 보정용이 아니라 고정 hotspot 미세 보정용이다.
 - 몸만 칠하려면 커스터마이징 PlayerController BP의 `PaintAllowedMaterialIndex`를 기본값 0으로 둔다. 모든 머티리얼 slot을 칠해야 하는 테스트에서는 -1로 바꾼다.
 - hit된 컴포넌트, 머티리얼 slot, UV를 확인해야 하면 커스터마이징 PlayerController BP의 `bShowPaintHitDebug`를 켠다.
 - 커스터마이징 PlayerController BP의 `PreviewAnimationAsset`에 커마 방에서 보여줄 포즈/애니메이션 에셋을 지정한다. 비워두면 기존 애니메이션 상태를 멈춘다.
