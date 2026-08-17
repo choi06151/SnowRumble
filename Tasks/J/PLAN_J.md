@@ -9,28 +9,40 @@
 
 ## 현재 집중 Task
 
-- [J-03 눈섬 블록아웃](J-03_snow_island_blockout.md)
+- [J-01 얼음 빙하 블록아웃](J-01_ice_glacier_blockout.md) 제작 준비와 첫 Editor 작업
+- [J-03 눈섬 블록아웃](J-03_snow_island_blockout.md), [J-04 눈섬 게임플레이 배치](J-04_snow_island_gameplay_layout.md)는 기존 결과 확인 상태 유지
 
 ## 개발 스타일
 
 - 상태: C++ 기반 개발, 블루프린트로 다듬기
 - 역할 적용: 맵과 레벨은 Unreal Editor에서 제작하고, 프로그래밍이 필요한 Gameplay 규칙·네트워크·Damage 로직은 C++ 중심으로 구현한다. Blueprint는 C++ 구현 이후 Material, Niagara/VFX, Sound, 시각적 경고, 디자인 프리셋과 Editor 연결을 다듬는 용도로 사용한다.
 
+## 담당 맵 요약
+
+| 맵 | Task | 현재 역할 |
+| --- | --- | --- |
+| Ice Glacier / 얼음 빙하 | [J-01](J-01_ice_glacier_blockout.md), [J-02](J-02_ice_glacier_gameplay_layout.md) | 다음 실제 작업. 먼저 Blockout을 만든 뒤 수위 상승 Gameplay Layout으로 연결 |
+| Snow Island / 눈섬 | [J-03](J-03_snow_island_blockout.md), [J-04](J-04_snow_island_gameplay_layout.md) | 맵과 Water gameplay 기록 유지. Editor 결과 확인 항목은 아직 진행중 |
+| Snow Forest / 눈숲속 | [J-06](J-06_snow_forest_level.md) | 지난주 팀 회의에서 S → J로 담당 변경. 기존 S-10 기록은 보존 |
+
 ## 작업 대기열
 
 | 우선순위 | Task | 결과 | 필수 선행 | 상태 |
 | --- | --- | --- | --- | --- |
-| 1 | [J-03](J-03_snow_island_blockout.md) | 눈섬 블록아웃 | 없음 | 진행중 |
-| 2 | [J-01](J-01_ice_glacier_blockout.md) | 얼음 빙하 블록아웃 | 없음 | 예정 |
-| 3 | [J-02](J-02_ice_glacier_gameplay_layout.md) | 얼음 빙하 게임플레이 배치·수위 로직 | J-01, C-04, C-05, C-07, C-14, K-02, K-08 | 예정 |
-| 4 | [J-04](J-04_snow_island_gameplay_layout.md) | 눈섬 게임플레이 배치·물 상승 침수 Damage | J-03, C-04, C-05, C-14, K-02, K-08 | 예정 |
-| 5 | [J-05](J-05_level_integration.md) | 두 맵 통합 | J-02, J-04, K-10 | 예정 |
+| 1 | [J-01](J-01_ice_glacier_blockout.md) | 얼음 빙하 블록아웃 | 없음 | 진행중 |
+| 2 | [J-02](J-02_ice_glacier_gameplay_layout.md) | 얼음 빙하 게임플레이 배치·수위 로직 | J-01, C-04, C-05, C-07, C-14, K-02, K-08 | 예정 |
+| 3 | [J-03](J-03_snow_island_blockout.md) | 눈섬 블록아웃 | 없음 | 진행중 |
+| 4 | [J-04](J-04_snow_island_gameplay_layout.md) | 눈섬 게임플레이 배치·물 상승 침수 Damage | J-03, C-04, C-05, C-14, K-02, K-08 | 진행중 |
+| 5 | [J-06](J-06_snow_forest_level.md) | 눈숲속 맵 제작 | 담당 변경 확인, 연결은 C·K 계약 | 예정 |
+| 6 | [J-05](J-05_level_integration.md) | 두 맵 통합 | J-02, J-04, K-10 | 예정 |
 
 ## 통합 변경 요청
 
 - J-03: C가 `Content/Maps/L_SnowIsland_J.umap`의 J 브랜치 생성·단독 수정·push 진행을 승인함. 중앙 `docs/PLANS.md` 현재 작업 배정 기록은 C 소유이므로 등록 요청 상태를 유지함. `DemoMap`과 `Content/LowpolyStyle/WinterEnvironment/` 원본 자산은 참고·참조만 하고 수정하지 않음.
 - J-04: 회의 결정에 따라 눈섬 환경 압박을 기존 GDD의 자기장 표현에서 경기 후반 물 상승·침수 Damage로 구체화함. C 소유 GDD와 중앙 `docs/PLANS.md` 정합성 갱신은 C 통합 경로에서 확인 필요.
-- J-04: `Source/SnowRumble/Map/`에 눈섬 전용 환경 Actor C++ 파일을 추가할 예정임. `docs/ARCHITECTURE.md` 폴더 구조 반영은 C 통합 경로에서 확인 필요.
+- J-04: `Source/SnowRumble/Map/`에 눈섬 전용 환경 Actor C++ 파일이 추가된 상태임. `docs/ARCHITECTURE.md` 폴더 구조 반영은 C 통합 경로에서 확인 필요.
+- J-01: `Content/Maps/L_IceGlacier_J.umap` 생성과 J 단독 수정 등록은 C 통합 경로에서 확인 필요.
+- J-06: 지난주 팀 회의에서 Snow Forest / 눈숲속 맵 제작 담당이 S에서 J로 변경됨. 기존 S-10 기록은 보존하고, 중앙 `docs/PLANS.md`, `ROLE_J.md`, `ROLE_S.md`, S-10 상태 조정 여부는 C/S 통합 경로에서 확인 필요.
 
 ## 계획 변경 기록
 
@@ -42,3 +54,7 @@
 - 2026-08-10: J-03을 현재 집중 Task와 진행중 상태로 전환하고, 신규 눈섬 맵 후보의 J 단독 수정 등록을 C 통합 경로에 요청.
 - 2026-08-10: C 확인에 따라 `L_SnowIsland_J.umap`을 J 브랜치에서 생성·단독 수정·push할 권한을 승인된 것으로 기록하고 중앙 기록 요청은 유지.
 - 2026-08-13: J 기본 작업 방식을 `C++ 기반 개발, 블루프린트로 다듬기`로 개정했다. J-04는 신규 Task를 만들지 않고 기존 Task 안에서 물 상승, 침수 판정과 기존 Damage 시스템 호출을 구현하는 방향으로 확정했다.
+- 2026-08-17: Git history와 현재 C++ 기준으로 J-03/J-04 실제 작업 기록을 복원했다. J-04는 `ASnowIslandWaterPressureActor` 구현이 존재하고 결과 확인이 남아 있어 상태를 진행중으로 조정했다.
+- 2026-08-17: J-04 실제 구현 기록을 프로젝트 Task 문서 스타일에 맞게 구현 현황, Gameplay 흐름, 주요 설정값, 검증 메모 중심으로 재정리했다.
+- 2026-08-17: 다음 실제 Editor 작업을 J-01 얼음 빙하 Blockout으로 전환하고, 첫 작업 세션에서 따라갈 Phase별 제작 순서를 J-01에 정리했다.
+- 2026-08-17: 지난주 팀 회의의 Snow Forest / 눈숲속 담당 변경(S → J)을 반영해 J-06을 추가했다. 기존 S-10 문서는 수정하지 않는다.
