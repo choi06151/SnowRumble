@@ -17,7 +17,7 @@
 - [x] 0~240초는 물 높이 변화와 Water Damage를 비활성화한다.
 - [x] 240~300초는 외곽 낮은 지형이 잠기도록 물을 보간 상승시킨다.
 - [x] 300~360초는 안전 지역이 중앙으로 축소되도록 물을 추가 보간 상승시킨다.
-- [x] 360초 이후 연장전에는 이전보다 빠른 속도로 물을 계속 상승시킨다.
+- [x] 360초 이후 연장전에는 `OvertimeRiseSpeed` 값에 따라 물을 계속 상승시킬 수 있게 한다.
 - [x] 서버에서 Character Capsule 하단 기준으로 침수 여부를 판정한다.
 - [x] 침수 중인 플레이어에게 Character별 유효 침수시간 1초가 누적될 때마다 8 Damage를 1회 적용한다.
 - [x] Damage는 `UGameplayStatics::ApplyDamage`를 통해 기존 `ASnowRumbleCharacter::TakeDamage()`와 `USnowRumbleHealthComponent::ApplyDamage()` 흐름을 재사용한다.
@@ -83,6 +83,63 @@
 - 2026-08-13: 기존 HP/Damage/동결/사망/라운드 종료 흐름을 재사용하고, C-07 완료 전에는 `RequestHazardDamage()` 내부에서 기존 `UGameplayStatics::ApplyDamage` 경로를 사용하기로 정리했다.
 - 2026-08-13: Water Damage는 전역 Timer 순간 판정이 아니라 서버 0.1초 체크에서 Character별 `DamageProgressSeconds`를 누적하고 1초마다 8 Damage를 1회 적용하는 방식으로 조정했다. `ExitGraceSeconds` 기본값은 0.5초다.
 - 2026-08-13: Runtime Water는 실제 `Water` 하나만 제어하고 `Water2`/`Water3`는 목표 World Z 참고용으로만 사용하기로 정리했다. 물 상승과 침수 판정은 World Z 기준이다.
+
+## 구현 현황
+
+- 2026-08-13 `782dbd1`에서 `ASnowIslandWaterPressureActor` C++ 구현(`Source/SnowRumble/Map/SnowIslandWaterPressureActor_J.h`, `Source/SnowRumble/Map/SnowIslandWaterPressureActor_J.cpp`)을 추가했다.
+- 이 Actor는 기존 Water Actor를 움직이는 눈섬 전용 환경 압박 Actor다. 복제 상태는 물 단계와 현재 수위(`CurrentWaterStage`, `CurrentWaterZ`)로 제한하고, 클라이언트는 복제된 수위를 기존 Water Actor 표현에 적용한다.
+- Runtime 제어 대상은 `ControlledWaterActor` 하나다. `Water2`와 `Water3`는 `OuterFloodWaterZ`, `CentralFloodWaterZ`를 정할 때 쓰는 높이 참고용이며, 런타임 이동 대상이 아니다.
+- Water Component는 `WaterComponentName`으로 찾는다. 기본 이름은 `StaticMeshComponent0`이며, 해당 Component를 찾지 못하면 `RootComponent`를 사용한다.
+- 시작 수위는 기본적으로 `ControlledWaterActor`의 현재 World Z를 `InitialWaterZ`로 사용한다. 필요하면 `bUseControlledWaterInitialZ`를 끄고 `ManualInitialWaterZ`로 직접 지정할 수 있다.
+- 수위는 `ASnowRumbleGameState::GetRoundElapsedSeconds()`를 기준으로 World Z에서 계산한다. 0~240초는 안정 구간, 240~300초는 외곽 침수, 300~360초는 중앙 방향 침수, 360초 이후는 overtime 상승 구간이다.
+- Water 이동은 X/Y를 유지하고 Z만 갱신한다.
+- 침수 판정은 서버에서 Character Capsule 하단 Sample Z와 현재 Water Z를 비교한다.
+- Water Damage는 캐릭터별 침수 상태를 따로 누적하고, 1초의 유효 침수마다 기존 Damage 경로로 8 Damage를 적용한다.
+- 캐릭터별 누적 상태는 `SubmersionStates`에 저장하며, 유효 침수 progress와 이탈 시간만 관리한다.
+- Damage 호출은 `UGameplayStatics::ApplyDamage()`에서 기존 `ASnowRumbleCharacter::TakeDamage()`와 `USnowRumbleHealthComponent::ApplyDamage()`로 이어진다. 별도의 HP 시스템, J 전용 HealthComponent, 별도 HP replication은 만들지 않았다.
+
+## Gameplay 흐름
+
+1. GameState의 라운드 경과 시간이 갱신된다.
+2. `ASnowIslandWaterPressureActor`가 시간 구간에 맞는 Water World Z를 계산하고 기존 Water Actor에 적용한다.
+3. 서버 Damage Timer가 Character Capsule 하단 기준으로 침수 여부를 확인한다.
+4. 침수 중인 Character는 유효 침수 시간이 누적된다. 짧은 이탈은 grace 동안 누적 상태를 유지하고, grace 이상 이탈하면 progress를 초기화한다.
+5. 유효 침수 시간이 1초에 도달하면 기존 Damage 경로로 8 Damage를 적용한다.
+6. Frozen/Dead Character와 더 이상 유효하지 않은 Character는 Water Damage 대상에서 제외하고 누적 상태를 정리한다.
+
+## 주요 설정값
+
+| 항목 | 기본값 | 의미 |
+| --- | --- | --- |
+| `InitialWaterZ` | Runtime 산정 | 기본적으로 `ControlledWaterActor`의 현재 World Z를 사용한다. |
+| `ManualInitialWaterZ` | `0.0` | 자동 시작 수위를 쓰지 않을 때 사용할 수동 시작 수위. |
+| `StableEndSeconds` | `240.0` | 안정 구간 종료. 이 전에는 수위 변화와 Water Damage를 적용하지 않는다. |
+| `OuterFloodEndSeconds` | `300.0` | 외곽 침수 목표 수위(`OuterFloodWaterZ`)에 도달하는 시간. |
+| `CentralFloodEndSeconds` | `360.0` | 중앙 침수 목표 수위(`CentralFloodWaterZ`)에 도달하는 시간. |
+| `OvertimeRiseSpeed` | `0.0` | 360초 이후 초당 추가 상승량. 실제 연장전 압박은 Editor에서 튜닝한다. |
+| `SubmersionSampleOffsetZ` | `0.0` | Capsule 하단 침수 판정 위치를 보정하는 값. |
+| `RequiredSubmersionDepth` | `0.0` | Damage 판정에 필요한 최소 침수 깊이. |
+| `DamageCheckIntervalSeconds` | `0.1` | 서버가 Character별 침수 상태를 확인하는 주기. |
+| `DamageApplyIntervalSeconds` | `1.0` | Damage 1회 적용에 필요한 유효 침수 시간. |
+| `DamagePerTick` | `8.0` | 유효 침수 1회마다 적용하는 Damage 값. |
+| `ExitGraceSeconds` | `0.5` | 물 밖으로 나간 뒤 침수 progress를 유지하는 grace 시간. |
+
+## 구현 결정 및 주의사항
+
+- Snow Island Water timing의 240/300/360초 기준은 J-04 전용 환경 압박 시간표다.
+- `USnowRumbleMatchSubsystem::GetMapShrinkIntervalSeconds()`의 게임 속도별 90/60/30초 값은 공용 map shrink interval이며, Snow Island Water timing과 다른 개념으로 취급한다.
+- 이유를 확인하지 않은 상태에서 공용 `SnowRumbleMatchSubsystem_C`의 90/60/30초 값을 240/300/360초로 교체하지 않는다.
+- 핵심 Gameplay logic은 Level Blueprint에 넣지 않고 `ASnowIslandWaterPressureActor` C++에 둔다.
+- C++는 서버 판정, 물 상태 복제, Damage timing을 담당하고 Blueprint는 Material, Niagara/VFX, Sound, 시각 경고와 디자인 프리셋을 다듬는 용도로 사용한다.
+- `RequestHazardDamage(AActor* Target, float DamageAmount)`는 C-07 이후 공용 Damage 계약으로 바꿀 수 있는 경계 함수로 유지한다.
+
+## 검증 메모
+
+- 현재 코드 기준으로 물 단계/수위 복제, 시간 기반 Lerp, 서버 침수 판정, 캐릭터별 침수 누적, Frozen/Dead skip, 기존 Damage/HealthComponent 경로 재사용을 확인했다.
+- `bLogWaterDamageDebug`를 켜면 `[WaterDamage]` 로그로 Character, 침수 여부, 침수 progress, 이탈 시간, Water/Sample Z, Frozen/Dead 여부, 적용 Damage, Damage 전후 HP를 확인할 수 있다.
+- [확인 필요] 실제 `L_SnowIsland_J.umap`에서 `ControlledWaterActor`, `OuterFloodWaterZ`, `CentralFloodWaterZ`, Water Component Mobility가 올바르게 설정되었는지 Editor에서 확인해야 한다.
+- [확인 필요] Listen Server / Client에서 물 상승과 Damage가 실제로 관찰되었다는 로그 파일은 현재 저장소와 `Saved` 검색에서 확인하지 못했다. 결과 확인 체크리스트는 아직 미완료로 유지한다.
+- [확인 필요] `ASnowIslandWaterPressureActor`는 자체 RootComponent를 생성하지 않는다. RootComponent 또는 network relevancy 관련 경고가 있었는지는 현재 코드와 Git 기록만으로 해결 완료를 확정할 수 없다.
 
 ## 수동 작업
 

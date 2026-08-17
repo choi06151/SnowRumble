@@ -50,6 +50,13 @@
 - 2026-08-10: 신규 맵 후보를 `Content/Maps/L_SnowIsland_J.umap`으로 확정하고 J 단독 수정 등록을 C 통합 경로에 요청했다.
 - 2026-08-10: C 확인에 따라 J 브랜치에서 신규 맵을 생성·단독 수정·push하는 작업 권한을 승인된 것으로 기록했다.
 
+## 맵 작업 기록
+
+- 2026-08-12 `828aff5`: `Content/Maps/L_SnowIsland_J.umap`을 J 브랜치에 최초 추가하고 눈섬 블록아웃 시작 기록을 남겼다.
+- 2026-08-13 `782dbd1`, 2026-08-14 `b1b6296`, 2026-08-15 `84ca373`: Git 기록상 `L_SnowIsland_J.umap`이 이어서 갱신되었다. `.umap` 내부 배치 세부 내용은 Editor로 열어 확인하지 않았으므로 완료 체크에는 반영하지 않는다.
+- 현재 작업 트리에는 `Content/Maps/L_SnowIsland_J.umap` 로컬 수정이 남아 있다. 이 문서 정리 작업에서는 해당 맵 파일을 수정하지 않는다.
+- Gameplay C++ 구현과 Water Damage 기록은 J-03에 섞지 않고 J-04에서 관리한다.
+
 ## 수동 작업
 
 1. J 브랜치로 열린 SnowRumble 프로젝트에서 Content Browser의 `DemoMap`을 읽기 전용 기준으로 확인한다.
@@ -61,6 +68,7 @@
 7. 실제 Gameplay Actor 대신 식별 가능한 임시 Actor로 팀 시작·기본 눈덩이·상자·모닥불 후보 위치를 표시한다.
 8. 자기장 중심·단계·반경·시간·속도·피해와 Gameplay Blueprint·C++는 추가하지 않는다.
 9. 저장 시 `L_SnowIsland_J.umap`만 J 변경으로 남고 `DemoMap`과 공유 환경 `.uasset`이 수정되지 않았는지 확인한다.
+
 ## 완료 조건
 ### 에이전트 확인
 - [ ] 눈섬 블록아웃 완료
