@@ -1168,11 +1168,21 @@ void ACustomizationPlayerController::AddPaintPoint(
 		return;
 	}
 
-	if (!ActivePaintStroke.Points.IsEmpty()
-		&& FVector2D::Distance(ActivePaintStroke.Points.Last(), PaintUv)
-			< PaintPointMinDistance)
+	if (!ActivePaintStroke.Points.IsEmpty())
 	{
-		return;
+		const float PointDistance =
+			FVector2D::Distance(ActivePaintStroke.Points.Last(), PaintUv);
+		if (PointDistance < PaintPointMinDistance)
+		{
+			return;
+		}
+		if (PaintPointMaxDistance > 0.0f
+			&& PointDistance > PaintPointMaxDistance)
+		{
+			FinishPaintStroke();
+			BeginPaintStroke(PaintUv, MeshComponentName, MaterialIndex);
+			return;
+		}
 	}
 
 	ActivePaintStroke.Points.Add(PaintUv);
@@ -1405,7 +1415,13 @@ void ACustomizationPlayerController::ApplyCustomizationInputLock()
 			ControlledPawn->FindComponentByClass<UCharacterMovementComponent>())
 		{
 			MovementComponent->StopMovementImmediately();
+			MovementComponent->Velocity = FVector::ZeroVector;
+			MovementComponent->GravityScale = 0.0f;
 			MovementComponent->MaxWalkSpeed = 0.0f;
+			if (MovementComponent->MovementMode != MOVE_None)
+			{
+				MovementComponent->DisableMovement();
+			}
 		}
 	}
 }

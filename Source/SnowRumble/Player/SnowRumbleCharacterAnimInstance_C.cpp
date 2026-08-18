@@ -92,11 +92,49 @@ void USnowRumbleCharacterAnimInstance::RefreshDerivedAnimationStates()
 
 	if (bIsChargingSnowball)
 	{
-		UpperBodyAnimState = ESnowRumbleUpperBodyAnimState::ChargeSnowball;
+		switch (HeldAnimationState)
+		{
+		case ESnowRumbleHeldAnimationState::LargeSnowball:
+			UpperBodyAnimState =
+				ESnowRumbleUpperBodyAnimState::LargeSnowballCharge;
+			break;
+		case ESnowRumbleHeldAnimationState::SnowShovel:
+			UpperBodyAnimState =
+				ESnowRumbleUpperBodyAnimState::SnowShovelCharge;
+			break;
+		case ESnowRumbleHeldAnimationState::SnowDuckMaker:
+			UpperBodyAnimState =
+				ESnowRumbleUpperBodyAnimState::SnowDuckMakerCharge;
+			break;
+		case ESnowRumbleHeldAnimationState::SmallSnowball:
+		default:
+			UpperBodyAnimState =
+				ESnowRumbleUpperBodyAnimState::SmallSnowballCharge;
+			break;
+		}
 	}
 	else if (bIsAiming)
 	{
-		UpperBodyAnimState = ESnowRumbleUpperBodyAnimState::Aim;
+		switch (HeldAnimationState)
+		{
+		case ESnowRumbleHeldAnimationState::LargeSnowball:
+			UpperBodyAnimState =
+				ESnowRumbleUpperBodyAnimState::LargeSnowballAim;
+			break;
+		case ESnowRumbleHeldAnimationState::SnowShovel:
+			UpperBodyAnimState =
+				ESnowRumbleUpperBodyAnimState::SnowShovelAim;
+			break;
+		case ESnowRumbleHeldAnimationState::SnowDuckMaker:
+			UpperBodyAnimState =
+				ESnowRumbleUpperBodyAnimState::SnowDuckMakerAim;
+			break;
+		case ESnowRumbleHeldAnimationState::SmallSnowball:
+		default:
+			UpperBodyAnimState =
+				ESnowRumbleUpperBodyAnimState::SmallSnowballAim;
+			break;
+		}
 	}
 	else if (SnowballCarryState == ESnowballCarryState::LargeSnowball)
 	{

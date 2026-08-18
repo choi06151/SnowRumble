@@ -189,6 +189,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "0.0001", ClampMax = "1.0"))
 	float PaintPointMinDistance = 0.0025f;
 
+	/** UV 좌표 변화가 이 값보다 크면 UV seam으로 보고 현재 선을 끊는다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float PaintPointMaxDistance = 0.08f;
+
 	/** RenderTarget에 그릴 선 두께다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "1.0", ClampMax = "256.0"))
 	float PaintStrokeThickness = 12.0f;
