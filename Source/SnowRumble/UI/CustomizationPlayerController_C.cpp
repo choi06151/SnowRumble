@@ -18,6 +18,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/SkinnedAsset.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerStart.h"
 #include "Kismet/GameplayStatics.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
@@ -63,6 +64,7 @@ void ACustomizationPlayerController::PlayerTick(float DeltaTime)
 
 	if (IsLocalController())
 	{
+		ApplyCustomizationInputLock();
 		UpdatePreviewRotation(DeltaTime);
 		UpdatePaintUndoInput();
 		UpdatePaintInput();
@@ -96,6 +98,7 @@ void ACustomizationPlayerController::ShowCustomizationMenu()
 	SetInputMode(InputMode);
 
 	bShowMouseCursor = true;
+	ApplyCustomizationInputLock();
 	EnsureMouseCursorWidgets();
 	ApplyCurrentMouseCursorWidget();
 }
@@ -474,6 +477,7 @@ ACustomizationPlayerController::EnsurePreviewCharacter()
 				if (HasAuthority() && !Candidate->GetController())
 				{
 					Possess(Candidate);
+					ApplyCustomizationInputLock();
 				}
 				return Candidate;
 			}
@@ -489,6 +493,7 @@ ACustomizationPlayerController::EnsurePreviewCharacter()
 			if (HasAuthority() && !Candidate->GetController())
 			{
 				Possess(Candidate);
+				ApplyCustomizationInputLock();
 			}
 			return Candidate;
 		}
@@ -526,6 +531,7 @@ ACustomizationPlayerController::EnsurePreviewCharacter()
 		GetPreviewCharacterSpawnTransform());
 	CachedPreviewCharacter = SpawnedPreviewCharacter;
 	Possess(SpawnedPreviewCharacter);
+	ApplyCustomizationInputLock();
 	return SpawnedPreviewCharacter;
 }
 
@@ -1374,6 +1380,34 @@ void ACustomizationPlayerController::ApplyCurrentMouseCursorWidget()
 
 	SetMouseCursorWidget(EMouseCursor::Default, TargetCursorWidget);
 	UpdatePaintMouseCursorPresentation();
+}
+
+void ACustomizationPlayerController::ApplyCustomizationInputLock()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (!IsMoveInputIgnored())
+	{
+		SetIgnoreMoveInput(true);
+	}
+	if (!IsLookInputIgnored())
+	{
+		SetIgnoreLookInput(true);
+	}
+	bShowMouseCursor = true;
+
+	if (APawn* ControlledPawn = GetPawn())
+	{
+		if (UCharacterMovementComponent* MovementComponent =
+			ControlledPawn->FindComponentByClass<UCharacterMovementComponent>())
+		{
+			MovementComponent->StopMovementImmediately();
+			MovementComponent->MaxWalkSpeed = 0.0f;
+		}
+	}
 }
 
 void ACustomizationPlayerController::UpdatePaintMouseCursorPresentation()

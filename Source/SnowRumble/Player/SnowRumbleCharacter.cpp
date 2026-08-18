@@ -1875,12 +1875,21 @@ void ASnowRumbleCharacter::OpenEmoteRadialMenu()
 	APlayerController* PlayerController = Cast<APlayerController>(Controller);
 	if (PlayerController && EmoteRadialMenuWidget)
 	{
-		FInputModeGameAndUI InputMode;
-		InputMode.SetWidgetToFocus(EmoteRadialMenuWidget->TakeWidget());
-		InputMode.SetHideCursorDuringCapture(false);
-		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-		PlayerController->SetInputMode(InputMode);
-		PlayerController->SetShowMouseCursor(true);
+		if (ASnowRumblePlayerController* SnowRumblePlayerController =
+			Cast<ASnowRumblePlayerController>(PlayerController))
+		{
+			SnowRumblePlayerController->EnableDefaultCursorUiInput(
+				EmoteRadialMenuWidget);
+		}
+		else
+		{
+			FInputModeGameAndUI InputMode;
+			InputMode.SetWidgetToFocus(EmoteRadialMenuWidget->TakeWidget());
+			InputMode.SetHideCursorDuringCapture(false);
+			InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			PlayerController->SetInputMode(InputMode);
+			PlayerController->SetShowMouseCursor(true);
+		}
 		PlayerController->SetIgnoreLookInput(true);
 	}
 
@@ -1899,9 +1908,17 @@ void ASnowRumbleCharacter::CloseEmoteRadialMenu()
 		if (APlayerController* PlayerController =
 			Cast<APlayerController>(Controller))
 		{
-			FInputModeGameOnly InputMode;
-			PlayerController->SetInputMode(InputMode);
-			PlayerController->SetShowMouseCursor(false);
+			if (ASnowRumblePlayerController* SnowRumblePlayerController =
+				Cast<ASnowRumblePlayerController>(PlayerController))
+			{
+				SnowRumblePlayerController->RestoreGameOnlyInput();
+			}
+			else
+			{
+				FInputModeGameOnly InputMode;
+				PlayerController->SetInputMode(InputMode);
+				PlayerController->SetShowMouseCursor(false);
+			}
 			PlayerController->SetIgnoreLookInput(false);
 		}
 	}
@@ -2033,6 +2050,10 @@ void ASnowRumbleCharacter::Move(const FInputActionValue& Value)
 	{
 		return;
 	}
+	if (Cast<ACustomizationPlayerController>(Controller))
+	{
+		return;
+	}
 
 	if (bIsInteractHeld
 		&& !bUsedInteractForRolling
@@ -2056,6 +2077,10 @@ void ASnowRumbleCharacter::Move(const FInputActionValue& Value)
 void ASnowRumbleCharacter::Look(const FInputActionValue& Value)
 {
 	if (bIsEmoteRadialMenuOpen || IsPvpMatchInputLocked())
+	{
+		return;
+	}
+	if (Cast<ACustomizationPlayerController>(Controller))
 	{
 		return;
 	}
@@ -3576,7 +3601,9 @@ void ASnowRumbleCharacter::ApplyMovementSpeed()
 				? GiftItemEffectComponent->GetMovementSpeedMultiplier()
 				: 1.0f;
 		MovementComponent->MaxWalkSpeed =
-			(IsPvpMatchInputLocked()
+			(Cast<ACustomizationPlayerController>(Controller)
+				? 0.0f
+				: IsPvpMatchInputLocked()
 				? 0.0f
 				: HealthComponent && HealthComponent->IsDead()
 				? 0.0f

@@ -3,6 +3,7 @@
 #include "SnowRumblePlayerController.h"
 
 #include "Blueprint/WidgetBlueprintLibrary.h"
+#include "Blueprint/UserWidget.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "../Player/SnowRumbleUserSettingsSubsystem_C.h"
 #include "Camera/CameraActor.h"
@@ -239,6 +240,38 @@ void ASnowRumblePlayerController::CloseChatInput()
 		bShowMouseCursor = false;
 		SetInputMode(FInputModeGameOnly());
 	}
+}
+
+void ASnowRumblePlayerController::EnableDefaultCursorUiInput(
+	UUserWidget* WidgetToFocus)
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	bShowMouseCursor = true;
+	ApplyDefaultMouseCursorWidget();
+
+	FInputModeGameAndUI InputMode;
+	if (WidgetToFocus)
+	{
+		InputMode.SetWidgetToFocus(WidgetToFocus->TakeWidget());
+	}
+	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	InputMode.SetHideCursorDuringCapture(false);
+	SetInputMode(InputMode);
+}
+
+void ASnowRumblePlayerController::RestoreGameOnlyInput()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	bShowMouseCursor = false;
+	SetInputMode(FInputModeGameOnly());
 }
 
 void ASnowRumblePlayerController::SubmitChatMessage(

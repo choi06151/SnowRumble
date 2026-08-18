@@ -38,6 +38,21 @@
 - 2026-08-08: page file 여유 확보 후 C-02 최종 `SnowRumbleEditor Win64 Development` 빌드가 성공함. S-02 UI 연결과 호스트·클라이언트 수동 결과 확인은 남아 있음.
 - 2026-08-08: C-02 빠른 참가·코드 참가 확인을 위해 `LogSnowRumbleSession` 로그와 클라이언트 방 만들기 방어 메시지를 추가하고 재빌드 성공을 확인함.
 - 2026-08-08: C-02 참가하기 흐름을 방 코드 입력 UI 전제로 조정함. 빠른 참여는 자동 참가를 유지하고, 참가하기 버튼은 S-02 WBP의 방 코드 입력 UI 표시 이벤트로 인계함.
+- 2026-08-11: C-24 캐릭터 모델·ABP 계약을 추가함. 새 ABP는 `USnowRumbleCharacterAnimInstance`를 부모로 사용하고, 캐릭터 상태 변수와 `IdleAnimation` 등 슬롯 프로퍼티에 새 Skeleton용 애니메이션을 장착할 수 있음. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor PID 41016의 DLL 잠금으로 최종 링크는 보류됨.
+- 2026-08-12: C-11 페인트 trace를 기본 몸 머티리얼 slot 0 전용으로 제한함. `PaintAllowedMaterialIndex`는 기본 0, -1이면 모든 slot 허용이며, `bShowPaintHitDebug`로 hit 컴포넌트·slot·UV를 확인할 수 있음. `SnowRumbleEditor Win64 Development` 빌드가 성공함.
+- 2026-08-12: C-11 페인트 trace에 원형 커서 중심 자동 보정을 추가함. `bUsePaintCursorCenterTraceOffset`이 켜져 있으면 현재 브러시 커서 지름의 절반만큼 trace 위치를 보정하고, `PaintCursorScreenOffset`은 마지막 미세 조정값으로 유지함. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor PID 46944의 DLL 잠금으로 최종 링크는 보류됨.
+- 2026-08-12: 강혜원(K) 담당을 아이템 중심에서 눈사람 모드 중심으로 변경함. 눈사람 모드는 10분 제한시간, 기존 PvP 맵 재사용, 환경 축소 비활성, 랜덤 눈사람 시작, 접촉 감염과 전원 감염/생존자 승리 조건을 기준으로 K-12~K-14 후속 Task에서 개발함.
+- 2026-08-12: C-11 모자 커스터마이징 계약을 추가함. `FSnowRumbleCustomizationData::HatMeshIndex`, 캐릭터 `HatMeshComponent`/`CustomizationHatMeshes`, 커스터마이징 WBP `HatModeButton`/`HatPreviousButton`/`HatNextButton`으로 모자 후보를 순환·저장·복제·적용하게 함. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됨.
+- 2026-08-12: PvP 내부 아이템 첫 범위로 C-25 선물상자 계약을 추가함. 기존 대기 상태의 I-11 아이템 계약은 C-25가 선물상자 스폰·개봉·랜덤 보상 확정 기반을 먼저 제공하고, 실제 개별 아이템 효과와 모델·맵 배치는 후속 인계로 처리함.
+- 2026-08-12: C-25 선물상자 C++ 기반을 구현함. `AGiftBox`는 빨간색/황금색 등급과 등급별 보상 후보, 낙하·착지·개봉 Blueprint 이벤트를 제공하고, PvP GameMode는 레벨 담당자가 배치한 `TargetPoint` 후보에서 상자를 공중 스폰함. `SnowRumbleEditor Win64 Development` 빌드가 성공함.
+- 2026-08-12: C-25 선물상자 보상 흐름을 아이템 Pickup 스폰 후 `E` 획득 구조로 변경함. `AGiftBox::TakeDamage()`로 눈덩이 피격 개봉을 지원하고, `AGiftBoxItemPickup`이 획득 확정과 로그/알림을 담당함. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됨.
+- 2026-08-12: C-25 아이템 효과 1차 구현을 추가함. `UGiftItemEffectComponent`가 핫팩 보유, 즉시 회복, 에너지 드링크 5초 무적, 부츠 이동속도, 패딩 피해 감소, 장갑 눈 제작 시간 감소, 눈오리 제작기 눈덩이 피해 증가, 황금 붕어빵 지속 회복, 눈삽 내구도와 모닥불 키트 보유 수를 서버 권한으로 관리함. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됨.
+- 2026-08-12: C-25 핫팩과 모닥불 키트 정책을 사용자 결정에 맞게 변경함. 일반 핫팩은 1개까지만 장착하고, 황금 핫팩은 획득 즉시 같은 팀의 얼음 상태 아군을 50% HP로 부활시키며, 모닥불 키트는 보유하지 않고 `ACampfire`를 캐릭터 앞에 즉시 설치함. `SnowRumbleEditor Win64 Development` 빌드가 성공함.
+- 2026-08-12: C-25 장비 외형 슬롯을 추가함. 캐릭터는 부츠, 장갑, 패딩, 핫팩, 눈삽, 눈오리 제작기용 고정 StaticMeshComponent를 갖고 `UGiftItemEffectComponent` 복제 상태에 따라 표시함. UHT는 통과했으나 현재 시스템 page file 부족 `C3859/C1076`으로 C++ 컴파일 전 PCH 생성 단계에서 빌드가 보류됨.
+- 2026-08-12: C-24 애니메이션 장착 자세 계약을 보강함. `ESnowRumbleHeldAnimationState`/`HeldAnimationState`로 맨손, 작은 눈덩이, 큰 눈덩이, 눈삽, 눈오리 제작기를 ABP에서 한 값으로 분기할 수 있고, 빠른 연결용 `SnowShovelHoldAnimation`, `SnowDuckMakerHoldAnimation` 슬롯을 추가함.
+- 2026-08-12: C-24/C-25 애니메이션 연동을 보강함. 선물상자 열기와 선물 아이템 획득 성공은 `bIsInteractingWithItem`/`ItemInteractionAnimation`으로, 실제 HP 피해 피격은 `bIsHitReacting`/`HitReactAnimation`으로 ABP가 분기할 수 있음.
+- 2026-08-12: C-24/C-25 애니메이션 연동 변경은 `git diff --check`와 UHT/C++ 컴파일을 통과함. 최종 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됨.
+- 2026-08-13: C-24 ABP 부모를 이동·상체·전체 몸 액션 3계층 상태 구조로 확장함. `LocomotionAnimState`, `UpperBodyAnimState`, `FullBodyAnimState`와 override helper를 통해 ABP가 조준+이동, 스프린트+장착 같은 조합을 enum blend와 상체 레이어로 처리하게 함. C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됨.
 - 2026-08-08: C-02 방 코드 입력 UI의 표시·확인·취소 흐름을 `UMainMenuWidget` 선택 바인딩 위젯으로 처리하도록 보강해 S-02는 WBP 배치와 이름 바인딩만 수행하면 되게 함.
 - 2026-08-08: C-02 방 코드 입력 패널 표시 버튼을 `FindButton` 바인딩 기준으로 정리함.
 - 2026-08-08: C-02 빠른 참여 버튼을 `QuickJoinButton` 바인딩 기준으로 정리함.
