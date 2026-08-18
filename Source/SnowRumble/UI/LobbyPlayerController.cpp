@@ -148,12 +148,16 @@ void ALobbyPlayerController::ShowLobbyEscapeMenu()
 	}
 	Widget->SetKeyboardFocus();
 
-	bShowMouseCursor = true;
-	ApplyDefaultMouseCursorWidget();
 	ResetIgnoreMoveInput();
 	ResetIgnoreLookInput();
 	SetIgnoreMoveInput(true);
 	SetIgnoreLookInput(true);
+	SetShowMouseCursor(true);
+	bEnableClickEvents = true;
+	bEnableMouseOverEvents = true;
+	DefaultMouseCursor = EMouseCursor::Default;
+	CurrentMouseCursor = EMouseCursor::Default;
+	SetMouseCursorWidget(EMouseCursor::Default, nullptr);
 
 	FInputModeUIOnly InputMode;
 	InputMode.SetWidgetToFocus(Widget->TakeWidget());
@@ -200,12 +204,16 @@ void ALobbyPlayerController::ShowOptionsMenu()
 	}
 	Widget->SetKeyboardFocus();
 
-	bShowMouseCursor = true;
-	ApplyDefaultMouseCursorWidget();
 	ResetIgnoreMoveInput();
 	ResetIgnoreLookInput();
 	SetIgnoreMoveInput(true);
 	SetIgnoreLookInput(true);
+	SetShowMouseCursor(true);
+	bEnableClickEvents = true;
+	bEnableMouseOverEvents = true;
+	DefaultMouseCursor = EMouseCursor::Default;
+	CurrentMouseCursor = EMouseCursor::Default;
+	SetMouseCursorWidget(EMouseCursor::Default, nullptr);
 
 	FInputModeUIOnly InputMode;
 	InputMode.SetWidgetToFocus(Widget->TakeWidget());
@@ -357,6 +365,13 @@ bool ALobbyPlayerController::CanOpenChatInput() const
 	return Super::CanOpenChatInput()
 		&& (!LobbyEscapeMenuWidget || !LobbyEscapeMenuWidget->IsInViewport())
 		&& (!OptionsWidget || !OptionsWidget->IsInViewport());
+}
+
+bool ALobbyPlayerController::IsGameplayUiInputOpen() const
+{
+	return Super::IsGameplayUiInputOpen()
+		|| (LobbyEscapeMenuWidget && LobbyEscapeMenuWidget->IsInViewport())
+		|| (OptionsWidget && OptionsWidget->IsInViewport());
 }
 
 bool ALobbyPlayerController::SupportsTeamChat() const

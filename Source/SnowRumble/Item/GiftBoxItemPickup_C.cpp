@@ -39,6 +39,11 @@ void AGiftBoxItemPickup::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (HasAuthority())
+	{
+		InitializePlacedPickupFromDefaults();
+	}
+
 	if (ItemMeshComponent)
 	{
 		InitialMeshRelativeLocation = ItemMeshComponent->GetRelativeLocation();
@@ -162,6 +167,38 @@ void AGiftBoxItemPickup::GetLifetimeReplicatedProps(
 void AGiftBoxItemPickup::OnRep_ItemData()
 {
 	OnItemDataChanged(ItemType, ItemId, DisplayName);
+}
+
+void AGiftBoxItemPickup::InitializePlacedPickupFromDefaults()
+{
+	if (ItemType != ESnowRumbleGiftItemType::None
+		|| DefaultItemType == ESnowRumbleGiftItemType::None)
+	{
+		return;
+	}
+
+	ItemType = DefaultItemType;
+	ItemId = DefaultItemId.IsNone()
+		? FName(*StaticEnum<ESnowRumbleGiftItemType>()->GetNameStringByValue(
+			static_cast<int64>(DefaultItemType)))
+		: DefaultItemId;
+	DisplayName = DefaultDisplayName.IsEmpty()
+		? GetFallbackDisplayNameForItemType()
+		: DefaultDisplayName;
+	OnRep_ItemData();
+	ForceNetUpdate();
+}
+
+FText AGiftBoxItemPickup::GetFallbackDisplayNameForItemType() const
+{
+	const UEnum* ItemTypeEnum = StaticEnum<ESnowRumbleGiftItemType>();
+	if (!ItemTypeEnum || ItemType == ESnowRumbleGiftItemType::None)
+	{
+		return FText::GetEmpty();
+	}
+
+	return FText::FromString(
+		ItemTypeEnum->GetNameStringByValue(static_cast<int64>(ItemType)));
 }
 
 void AGiftBoxItemPickup::NotifyPickedUp(

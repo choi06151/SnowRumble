@@ -179,12 +179,20 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Footstep")
 	void RequestSnowFootstepEffect(FName FootSocketName);
 
+	/** 던지기 몽타주의 AnimNotify 시점에 보류 중인 눈덩이 투척을 확정한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snowball")
+	void RequestSnowballThrowReleaseFromNotify();
+
 	/** 로컬 플레이어 화면에서 이모션 원형 메뉴를 닫고 게임 입력으로 복구한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Emote|UI")
 	void CloseEmoteRadialMenu();
 
 	/** 눈덩이를 부착할 캐릭터의 조정 가능한 장착 위치를 반환한다. */
 	USceneComponent* GetSnowballHoldPoint() const;
+
+	/** 눈덩이 크기에 맞는 캐릭터의 조정 가능한 장착 위치를 반환한다. */
+	USceneComponent* GetSnowballHoldPointForSnowball(
+		const ASnowballItem* Snowball) const;
 
 	/** 서버에서 굴리기 전용 충돌 프록시를 눈덩이 위치와 크기로 활성화한다. */
 	void EnableRollingSnowballCollision(
@@ -656,6 +664,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball")
 	TObjectPtr<USceneComponent> SnowballHoldPoint;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball")
+	TObjectPtr<USceneComponent> LargeSnowballHoldPoint;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Interaction")
 	TObjectPtr<UOutlineComponent> OutlineComponent;

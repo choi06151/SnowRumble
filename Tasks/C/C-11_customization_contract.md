@@ -13,6 +13,8 @@
 - 메인메뉴에서 커스터마이징 레벨로 이동하는 첫 진입 경로를 제공한다.
 - 커스터마이징 레벨 전용 GameMode, PlayerController, UI 부모를 제공한다.
 - 커스터마이징 레벨에 들어오면 UI를 항상 표시하고 마우스 커서와 클릭 입력을 유지한다.
+- 커스터마이징 레벨에서는 프리뷰 캐릭터를 possess해도 WASD 이동과 카메라 룩 입력이 캐릭터 동작으로 전달되지 않고 마우스/UI 입력만 처리한다.
+- 커스터마이징 레벨의 프리뷰 캐릭터는 중력과 CharacterMovement 이동 모드를 끄고 위치가 떨어지지 않게 고정한다.
 - 레벨에 배치한 태그 기반 카메라를 ViewTarget으로 삼아 캐릭터를 바라보는 구조를 제공한다.
 - 커스터마이징 UI는 WidgetSwitcher로 메인 화면과 색칠하기 화면을 전환한다.
 - 시점변경 화면은 카메라를 돌리지 않고 프리뷰 캐릭터를 좌/우 버튼 press 동안 계속 회전한다.
@@ -21,6 +23,8 @@
 - 메쉬 직접 드로잉 1차 범위는 커스터마이징 레벨 프리뷰에서 현재 브러시 색과 크기로 그리고, Stroke 단위 이전과 전체 초기화를 지원한다.
 - 페인트 trace는 기본적으로 몸 머티리얼 slot 0만 허용하고, 다른 slot 또는 알 수 없는 slot은 stroke 생성을 막는다.
 - 페인트 trace는 소프트웨어 커서의 좌상단 기준 표시를 보정해 원형 커서 중심에서 나가도록 자동 보정한다.
+- 페인트 stroke는 UV 좌표가 갑자기 멀리 이동하면 관절/UV seam으로 보고 선을 끊어 긴 튐 선을 만들지 않는다.
+- 색칠하기 버튼은 메인 화면에서 색칠하기 화면으로 전환하고, 색칠하기 화면에서 다시 누르면 메인 화면으로 돌아간다.
 - 색칠하기 화면은 고정 브러시 색 팔레트, 브러시 크기 조정 버튼, 전체 칠하기 버튼을 제공한다.
 - 모자 선택 화면은 색칠하기 버튼 옆의 모자 버튼으로 열고, 위/아래 버튼으로 현재 캐릭터 BP에 등록된 모자 StaticMesh 후보를 하나씩 순환한다.
 - 모자 선택 결과는 StaticMesh 자산 직접 참조가 아니라 `HatMeshIndex`로 저장·복제하고, 각 캐릭터 BP의 후보 배열에서 같은 인덱스를 장착한다.
@@ -37,6 +41,8 @@
 - [x] 메인메뉴 PlayerController BP가 이동할 커스터마이징 레벨 URL을 설정할 수 있게 한다.
 - [x] 커스터마이징 레벨 전용 GameMode와 PlayerController를 제공한다.
 - [x] 커스터마이징 레벨 진입 시 WBP를 자동 생성하고 마우스 UI 입력을 유지한다.
+- [x] 커스터마이징 레벨에서 WASD 이동과 카메라 룩 입력이 프리뷰 캐릭터 동작으로 전달되지 않게 막는다.
+- [x] 커스터마이징 레벨 프리뷰 캐릭터가 중력을 받지 않고 제자리 고정되게 막는다.
 - [x] 레벨 카메라 태그 기준으로 커스터마이징 카메라 ViewTarget을 적용한다.
 - [x] 커스터마이징 WBP의 WidgetSwitcher 기반 화면 전환 계약을 제공한다.
 - [x] 좌/우 버튼을 누르고 있는 동안 프리뷰 캐릭터를 회전한다.
@@ -51,10 +57,12 @@
 - [x] 페인트 trace X/Y 보정값을 PlayerController BP에서 픽셀 단위로 지정할 수 있게 한다.
 - [x] 페인트 trace가 허용 머티리얼 slot만 stroke로 받게 한다.
 - [x] 페인트 trace가 원형 커서 중심에서 나가도록 브러시 크기 기준 자동 보정을 적용한다.
+- [x] 관절/UV seam 부근에서 UV 점프가 발생하면 같은 stroke로 잇지 않고 새 stroke로 분리한다.
 - [x] 로컬 플레이어의 드로잉 결과를 저장·복제한다.
 - [x] 페인트 화면에서 `BackButton`과 `Ctrl+Z`가 마지막 완료 stroke를 하나씩 누적 undo하게 한다.
 - [x] 색칠하기 화면이 아닐 때 좌클릭으로 페인트 stroke가 생성되지 않게 한다.
 - [x] 색칠하기 버튼을 누르면 `CustomizationContentSwitcher` 인덱스 1 색칠하기 화면으로 전환한다.
+- [x] 색칠하기 화면에서 색칠하기 버튼을 다시 누르면 `CustomizationContentSwitcher` 인덱스 0 메인 화면으로 돌아간다.
 - [x] 색칠하기 화면의 브러시 색을 빨강, 주황, 노랑, 초록, 파랑, 남색, 보라, 검정, 하양 고정 팔레트 버튼으로 선택하게 한다.
 - [x] 현재 선택된 브러시 색 버튼은 Pressed 상태 스타일로 표시한다.
 - [x] `BrushSizeButton`을 누른 상태에서 마우스 휠로 브러시 크기를 조정하게 한다.
@@ -172,6 +180,7 @@
   - `ACustomizationPlayerController::PaintCursorScreenOffset`: 페인트 trace 화면 좌표에 더하는 픽셀 단위 X/Y 보정값. X 양수는 오른쪽, Y 양수는 아래쪽으로 trace를 옮긴다.
   - `ACustomizationPlayerController::bUsePaintCursorCenterTraceOffset`: 소프트웨어 페인트 커서 hotspot 보정값을 trace에 반영할지 정한다. 이 보정은 현재 브러시 크기를 사용하지 않는다.
   - `ACustomizationPlayerController::PaintCursorCenterTraceOffset`: 브러시 크기와 무관하게 trace에 더하는 고정 커서 hotspot 보정값
+  - `ACustomizationPlayerController::PaintPointMaxDistance`: 연속된 UV 점 사이 거리가 이 값보다 크면 UV seam으로 보고 현재 stroke를 끊는다. 기본값은 `0.08`이다.
   - `ACustomizationPlayerController::PaintAllowedMaterialIndex`: 페인트를 허용할 머티리얼 슬롯. 기본값은 몸 slot 0이며, -1이면 모든 슬롯을 허용한다.
   - `ACustomizationPlayerController::bShowPaintHitDebug`: 페인트 hit 컴포넌트, 머티리얼 슬롯, UV를 화면 디버그로 표시할지 정한다.
   - `ACustomizationPlayerController::PaintBrushWheelStep`: 휠 한 칸당 브러시 크기 변화량
@@ -224,6 +233,14 @@
 - 2026-08-12: 고정 팔레트 버튼 변경은 `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드를 통과했다.
 - 2026-08-12: 팔레트 버튼 클릭 시 하드코딩된 색 대신 해당 버튼의 WBP 스타일 Normal Tint와 BackgroundColor를 기준으로 브러시 색을 정하게 변경했다.
 - 2026-08-12: 버튼 tint 기반 브러시 색 변경은 `git diff --check`와 UHT/C++ 컴파일을 통과했다. 최종 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
+- 2026-08-18: 커스터마이징 맵에서 프리뷰 캐릭터를 possess한 상태로 WASD와 마우스 룩 입력이 캐릭터 동작에 전달되는 문제를 수정했다. `ACustomizationPlayerController`가 이동/시점 입력 ignore와 이동 정지를 유지하고, `ASnowRumbleCharacter`도 커스터마이징 컨트롤러 조종 중 Move/Look과 이동속도를 차단한다.
+- 2026-08-18: 위 입력 잠금 변경은 `git diff --check`와 C++ 컴파일 및 `.lib` 생성까지 통과했으나, 실행 중인 Unreal Editor PID 10272의 DLL 잠금 `LNK1104`로 최종 링크는 보류됐다.
+- 2026-08-18: 커스터마이징 프리뷰 캐릭터 입력 잠금이 CharacterMovement 속도, 중력, MovementMode까지 함께 고정하게 했다. 프리뷰 캐릭터가 공중에 있거나 지면이 없더라도 중력으로 떨어지지 않는다.
+- 2026-08-18: 위 프리뷰 고정 변경은 `git diff --check`와 C++ 컴파일을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
+- 2026-08-18: 관절/UV seam 부근에서 페인트 선이 길게 튀는 현상을 완화했다. `PaintPointMaxDistance`보다 먼 UV 점프가 나오면 현재 stroke를 저장하고 새 stroke를 시작해 RenderTarget 위에서 멀리 떨어진 UV 섬끼리 직선으로 이어지지 않게 했다.
+- 2026-08-18: UV seam 튐 완화 변경은 `git diff --check`와 C++ 컴파일을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
+- 2026-08-18: `PaintModeButton`을 토글 버튼처럼 동작하게 변경했다. 메인 화면에서는 색칠하기 화면으로 들어가고, 색칠하기 화면에서 다시 누르면 `Main` 페이지로 돌아간다.
+- 2026-08-18: `PaintModeButton` 토글 변경은 `git diff --check`와 C++ 컴파일을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
 
 ## 수동 작업
 
@@ -292,6 +309,9 @@
 - [ ] 메인메뉴에서 `CustomizationButton`을 누르면 지정된 커스터마이징 레벨로 이동한다.
 - [ ] `CustomizationLevelUrl`을 다른 맵 경로로 바꾸면 해당 맵으로 이동한다.
 - [ ] 커스터마이징 레벨 진입 시 커스터마이징 WBP가 표시되고 마우스 커서와 클릭 입력을 사용할 수 있다.
+- [ ] 커스터마이징 레벨에서 WASD를 눌러도 프리뷰 캐릭터가 이동하지 않는다.
+- [ ] 커스터마이징 레벨에서 프리뷰 캐릭터가 중력을 받지 않고 제자리에서 떨어지지 않는다.
+- [ ] 커스터마이징 레벨에서 마우스를 움직여도 프리뷰 캐릭터 카메라가 회전하지 않고, 마우스 클릭/휠 기반 UI와 색칠하기 입력은 동작한다.
 - [ ] `CustomizationCamera` 태그가 붙은 카메라 시점으로 캐릭터가 보인다.
 - [ ] 커스터마이징 방 프리뷰 캐릭터가 지정한 `PreviewAnimationAsset`의 지정 시점 포즈로 정지한다.
 - [ ] `RotateLeftButton`을 누르고 있는 동안 프리뷰 캐릭터가 왼쪽으로 회전한다.
@@ -299,6 +319,7 @@
 - [ ] 좌/우 회전 버튼에서 손을 떼면 프리뷰 캐릭터 회전이 멈춘다.
 - [ ] 커스터마이징 레벨 프리뷰 캐릭터 머리 위 이름표가 보이지 않는다.
 - [ ] `PaintModeButton`을 누르면 색칠하기 화면으로 전환된다.
+- [ ] 색칠하기 화면에서 `PaintModeButton`을 다시 누르면 메인 화면으로 돌아간다.
 - [ ] `HatModeButton`을 누르면 모자 선택 패널로 전환된다.
 - [ ] `HatNextButton`을 누르면 다음 모자 후보가 프리뷰 캐릭터 머리에 장착된다.
 - [ ] `HatPreviousButton`을 누르면 이전 모자 후보가 프리뷰 캐릭터 머리에 장착된다.
@@ -325,6 +346,7 @@
 - [ ] 색칠하기 화면에서 캐릭터 Mesh를 좌클릭 드래그하면 현재 브러시 색과 크기로 선이 그려진다.
 - [ ] 색칠하기 화면에서 커서 위치와 검정 선 시작점이 좌우로 어긋나지 않는다.
 - [ ] 브러시 크기를 바꿔도 색칠 trace가 원형 커서 중심 근처에서 시작된다.
+- [ ] 관절이나 UV seam 부근을 가로질러 칠해도 선이 멀리 떨어진 부위로 길게 튀지 않고 필요한 지점에서 끊긴다.
 - [ ] 몸 material slot 0이 아닌 부위를 클릭하거나 slot을 알 수 없는 hit가 나오면 새 stroke가 생기지 않는다.
 - [ ] `bShowPaintHitDebug`를 켜면 색칠 hit의 컴포넌트, material slot, UV가 화면에 표시된다.
 - [ ] 색칠하기 화면에서 선을 그린 뒤 Apply 없이 메인메뉴로 돌아갔다가 다시 커스터마이징에 들어와도 선이 유지된다.
