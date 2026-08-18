@@ -3,14 +3,12 @@
 #include "SnowRumblePlayerController.h"
 
 #include "Blueprint/WidgetBlueprintLibrary.h"
-#include "Blueprint/UserWidget.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "../Player/SnowRumbleUserSettingsSubsystem_C.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
 #include "ChatWidget_C.h"
 #include "Components/InputComponent.h"
-#include "Components/Widget.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/Pawn.h"
@@ -155,12 +153,11 @@ void ASnowRumblePlayerController::RebindConfiguredInputKeys()
 	if (BoundChatChannelToggleKey.IsValid()
 		&& BoundChatChannelToggleKey != BoundChatInputKey)
 	{
-		FInputKeyBinding& ChatChannelToggleBinding = InputComponent->BindKey(
+		InputComponent->BindKey(
 			BoundChatChannelToggleKey,
 			IE_Pressed,
 			this,
 			&ASnowRumblePlayerController::HandleChatChannelTogglePressed);
-		ChatChannelToggleBinding.bConsumeInput = false;
 	}
 	if (BoundMicrophonePushToTalkKey.IsValid())
 	{
@@ -219,32 +216,15 @@ void ASnowRumblePlayerController::OpenChatInput(
 		Widget->AddToViewport(50);
 	}
 
-	SetShowMouseCursor(true);
-	bEnableClickEvents = true;
-	bEnableMouseOverEvents = true;
+	bShowMouseCursor = true;
 	ApplyDefaultMouseCursorWidget();
-	if (!bChatInputIgnoringPawnInput)
-	{
-		SetIgnoreMoveInput(true);
-		SetIgnoreLookInput(true);
-		bChatInputIgnoringPawnInput = true;
-	}
-
-	Widget->OpenChatInput(InitialChannel);
-
 	FInputModeGameAndUI InputMode;
-	if (UWidget* FocusWidget = Widget->GetChatInputFocusWidget())
-	{
-		InputMode.SetWidgetToFocus(FocusWidget->TakeWidget());
-	}
-	else
-	{
-		InputMode.SetWidgetToFocus(Widget->TakeWidget());
-	}
+	InputMode.SetWidgetToFocus(Widget->TakeWidget());
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	InputMode.SetHideCursorDuringCapture(false);
 	SetInputMode(InputMode);
-	Widget->FocusChatInputTextBox();
+
+	Widget->OpenChatInput(InitialChannel);
 }
 
 void ASnowRumblePlayerController::CloseChatInput()
@@ -256,59 +236,9 @@ void ASnowRumblePlayerController::CloseChatInput()
 
 	if (IsLocalController())
 	{
-		if (bChatInputIgnoringPawnInput)
-		{
-			ResetIgnoreMoveInput();
-			ResetIgnoreLookInput();
-			bChatInputIgnoringPawnInput = false;
-		}
-		SetShowMouseCursor(false);
+		bShowMouseCursor = false;
 		SetInputMode(FInputModeGameOnly());
 	}
-}
-
-void ASnowRumblePlayerController::EnableDefaultCursorUiInput(
-	UUserWidget* WidgetToFocus,
-	bool bUseCustomCursorWidget)
-{
-	if (!IsLocalController())
-	{
-		return;
-	}
-
-	SetShowMouseCursor(true);
-	bEnableClickEvents = true;
-	bEnableMouseOverEvents = true;
-	DefaultMouseCursor = EMouseCursor::Default;
-	CurrentMouseCursor = EMouseCursor::Default;
-	if (bUseCustomCursorWidget)
-	{
-		ApplyDefaultMouseCursorWidget();
-	}
-	else
-	{
-		SetMouseCursorWidget(EMouseCursor::Default, nullptr);
-	}
-
-	FInputModeGameAndUI InputMode;
-	if (WidgetToFocus)
-	{
-		InputMode.SetWidgetToFocus(WidgetToFocus->TakeWidget());
-	}
-	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-	InputMode.SetHideCursorDuringCapture(false);
-	SetInputMode(InputMode);
-}
-
-void ASnowRumblePlayerController::RestoreGameOnlyInput()
-{
-	if (!IsLocalController())
-	{
-		return;
-	}
-
-	SetShowMouseCursor(false);
-	SetInputMode(FInputModeGameOnly());
 }
 
 void ASnowRumblePlayerController::SubmitChatMessage(
@@ -347,11 +277,6 @@ bool ASnowRumblePlayerController::IsTeamChatAvailable() const
 bool ASnowRumblePlayerController::IsChatInputOpen() const
 {
 	return ChatWidget && ChatWidget->IsChatInputOpen();
-}
-
-bool ASnowRumblePlayerController::IsGameplayUiInputOpen() const
-{
-	return IsChatInputOpen();
 }
 
 bool ASnowRumblePlayerController::IsMicrophoneInputActive() const
@@ -1280,17 +1205,8 @@ UChatWidget* ASnowRumblePlayerController::EnsureChatWidget()
 
 void ASnowRumblePlayerController::ApplyDefaultMouseCursorWidget()
 {
-	if (!IsLocalController())
+	if (!IsLocalController() || !DefaultMouseCursorWidgetClass)
 	{
-		return;
-	}
-
-	DefaultMouseCursor = EMouseCursor::Default;
-	CurrentMouseCursor = EMouseCursor::Default;
-
-	if (!DefaultMouseCursorWidgetClass)
-	{
-		SetMouseCursorWidget(EMouseCursor::Default, nullptr);
 		return;
 	}
 
@@ -1301,11 +1217,12 @@ void ASnowRumblePlayerController::ApplyDefaultMouseCursorWidget()
 	}
 	if (!DefaultMouseCursorWidget)
 	{
-		SetMouseCursorWidget(EMouseCursor::Default, nullptr);
 		return;
 	}
 
 	SetMouseCursorWidget(EMouseCursor::Default, DefaultMouseCursorWidget);
+	DefaultMouseCursor = EMouseCursor::Default;
+	CurrentMouseCursor = EMouseCursor::Default;
 }
 
 bool ASnowRumblePlayerController::ShouldReceiveChatMessage(

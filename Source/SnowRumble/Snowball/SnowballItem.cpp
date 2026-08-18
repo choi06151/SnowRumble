@@ -323,8 +323,7 @@ void ASnowballItem::RefreshStatePresentation()
 {
 	if (ItemState == ESnowballItemState::Held && Holder)
 	{
-		if (USceneComponent* HoldPoint =
-			Holder->GetSnowballHoldPointForSnowball(this))
+		if (USceneComponent* HoldPoint = Holder->GetSnowballHoldPoint())
 		{
 			if (ProjectileMovement)
 			{

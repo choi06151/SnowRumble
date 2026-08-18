@@ -79,10 +79,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snowball")
 	void ReleaseChargedSnowball();
 
-	/** 던지기 몽타주의 AnimNotify 시점에 서버가 보류 중인 투척을 실제 발사한다. */
-	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snowball")
-	void ConfirmPendingThrowFromAnimationNotify();
-
 	/** 투척 없이 진행 중인 충전을 취소한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snowball")
 	void CancelCharging();
@@ -146,9 +142,6 @@ protected:
 		FVector_NetQuantizeNormal ViewDirection);
 
 	UFUNCTION(Server, Reliable)
-	void ServerConfirmPendingThrowFromAnimationNotify();
-
-	UFUNCTION(Server, Reliable)
 	void ServerCancelCharging();
 
 	/** 서버가 실제 보유 상태를 검사하고 캐릭터 앞에 눈덩이를 내려놓는다. */
@@ -182,12 +175,6 @@ protected:
 		const FVector& ViewLocation,
 		const FVector& ViewDirection,
 		FVector& OutAimTarget) const;
-
-	/** 서버가 저장해 둔 던지기 값을 사용해 실제 눈덩이 투척을 처리한다. */
-	void ExecutePendingThrowFromServer();
-
-	/** 보류 중인 던지기 값을 모두 초기화한다. */
-	void ClearPendingThrow();
 
 	void SetChargingState(bool bNewCharging);
 
@@ -252,8 +239,4 @@ protected:
 	float LargeSnowballCarryWalkSpeed = 200.0f;
 
 	double ChargeStartTime = -1.0;
-	bool bHasPendingThrow = false;
-	FVector PendingThrowDirection = FVector::ZeroVector;
-	float PendingThrowSpeed = 0.0f;
-	float PendingThrowChargeProgress = 0.0f;
 };

@@ -267,15 +267,5 @@ private:
 		const AActor* StartSpot) const;
 
 	/** 이번 매치에서 이미 확정한 스폰 위치와 충분히 떨어져 있는지 확인한다. */
-	bool TryResolveSpawnLocationOnGround(
-		const FVector& CandidateLocation,
-		FVector& OutSpawnLocation) const;
-
-	bool IsSpawnCapsuleClear(const FVector& SpawnLocation) const;
-
-	void GetDefaultPawnCapsuleSize(
-		float& OutCapsuleRadius,
-		float& OutCapsuleHalfHeight) const;
-
 	bool IsSpawnLocationFarEnough(const FVector& CandidateLocation) const;
 };

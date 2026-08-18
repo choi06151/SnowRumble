@@ -21,18 +21,12 @@ UENUM(BlueprintType)
 enum class ESnowRumbleUpperBodyAnimState : uint8
 {
 	None,
+	Aim,
 	SmallSnowball,
-	SmallSnowballAim,
 	LargeSnowball,
-	LargeSnowballAim,
 	SnowShovel,
-	SnowShovelAim,
 	SnowDuckMaker,
-	SnowDuckMakerAim,
-	SmallSnowballCharge,
-	LargeSnowballCharge,
-	SnowShovelCharge,
-	SnowDuckMakerCharge
+	ChargeSnowball
 };
 
 UENUM(BlueprintType)

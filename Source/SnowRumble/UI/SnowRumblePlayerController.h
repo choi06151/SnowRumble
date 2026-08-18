@@ -43,10 +43,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI|Chat")
 	bool IsChatInputOpen() const;
 
-	/** 캐릭터 게임 입력을 막아야 하는 UI가 열려 있는지 반환한다. */
-	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI")
-	virtual bool IsGameplayUiInputOpen() const;
-
 	/** 현재 로컬 마이크 입력 상태가 켜져 있는지 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Voice")
 	bool IsMicrophoneInputActive() const;
@@ -87,16 +83,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Voice")
 	bool IsVoicePlayerManuallyMuted(
 		const ASnowRumblePlayerState* TargetPlayerState) const;
-
-	/** 로컬 UI 입력으로 전환하고 기본 커서 위젯을 표시한다. */
-	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Cursor")
-	void EnableDefaultCursorUiInput(
-		UUserWidget* WidgetToFocus,
-		bool bUseCustomCursorWidget = true);
-
-	/** 로컬 게임 입력으로 돌아가고 마우스 커서를 숨긴다. */
-	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Cursor")
-	void RestoreGameOnlyInput();
 
 	UFUNCTION(Client, Reliable, Category = "SnowRumble|UI|Loading")
 	void ClientShowLoadingScreen();
@@ -334,8 +320,6 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<ACameraActor> PvpIntroCameraActor;
-
-	bool bChatInputIgnoringPawnInput = false;
 
 	FTransform PvpIntroCameraCurrentStartTransform;
 	FTransform PvpIntroCameraDollyStartTransform;

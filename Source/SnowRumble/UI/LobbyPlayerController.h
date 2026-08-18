@@ -80,7 +80,6 @@ protected:
 	virtual void SetupInputComponent() override;
 	virtual void ClientShowLoadingScreen_Implementation() override;
 	virtual bool CanOpenChatInput() const override;
-	virtual bool IsGameplayUiInputOpen() const override;
 	virtual bool SupportsTeamChat() const override;
 
 	/** 대기방에서 자동 생성할 WBP_Lobby 클래스다. */
