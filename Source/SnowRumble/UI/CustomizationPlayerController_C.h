@@ -189,6 +189,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "0.0001", ClampMax = "1.0"))
 	float PaintPointMinDistance = 0.0025f;
 
+	/** UV 좌표 변화가 이 값보다 크면 UV seam으로 보고 현재 선을 끊는다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float PaintPointMaxDistance = 0.08f;
+
 	/** RenderTarget에 그릴 선 두께다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "1.0", ClampMax = "256.0"))
 	float PaintStrokeThickness = 12.0f;
@@ -253,6 +257,9 @@ private:
 
 	/** 현재 페이지와 커서 슬롯에 맞춰 표시할 소프트웨어 커서를 적용한다. */
 	void ApplyCurrentMouseCursorWidget();
+
+	/** 커스터마이징 화면에서는 마우스/UI 입력만 쓰도록 Pawn 이동과 시점 입력을 잠근다. */
+	void ApplyCustomizationInputLock();
 
 	/** 원형 페인트 커서 위젯의 표시 크기와 색을 현재 브러시에 맞춘다. */
 	void UpdatePaintMouseCursorPresentation();

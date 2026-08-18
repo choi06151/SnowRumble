@@ -40,7 +40,7 @@ PvP 라운드 중 서버가 맵에 배치된 후보 지점에서 선물상자를
 ## 공용 계약과 인계
 
 - 제공받을 계약: C-05 PvP 라운드 시간과 종료 상태, C-22 상호작용 안내 UI 경로, 기존 PlayerController 개인 알림/이벤트 로그 경로
-- 제공할 계약: `AGiftBox`, `AGiftBoxItemPickup`, `UGiftItemEffectComponent`, `ACampfire`, `ESnowRumbleGiftBoxGrade::Red`/`Gold`, `FSnowRumbleGiftBoxReward::PickupClass`, `AGiftBox::CanInteractWith()`, `AGiftBox::TryOpen()`, `AGiftBox::TakeDamage()`, `AGiftBox::OnGiftBoxGradeChanged()`, `AGiftBox::OnGiftBoxLanded()`, `AGiftBox::OnGiftBoxOpened()`, `AGiftBoxItemPickup::TryPickup()`, `AGiftBoxItemPickup::OnItemDataChanged()`, `AGiftBoxItemPickup::OnItemPickedUp()`, `UGiftItemEffectComponent::ApplyGiftItemFromServer()`, `UGiftItemEffectComponent::HasHotPack()`, `UGiftItemEffectComponent::HasBoots()`, `UGiftItemEffectComponent::HasPadding()`, `UGiftItemEffectComponent::HasGloves()`, `UGiftItemEffectComponent::GetSnowShovelDurability()`, `UGiftItemEffectComponent::GetEquippedShovelItemType()`, `UGiftItemEffectComponent::GetEquippedDuckMakerItemType()`, `ASnowRumbleCharacter::ApplyGiftBoxItemEffectFromServer()`, `ASnowRumbleCharacter::NotifyItemInteractionSucceeded()`, `ASnowRumbleCharacter::IsInteractingWithItem()`, `ASnowRumbleGameMode::GiftBoxClass`, `GiftBoxSpawnPointTag`, `FirstGiftBoxSpawnDelaySeconds`, `GiftBoxSpawnIntervalSeconds`, `GoldGiftBoxSpawnChance`
+- 제공할 계약: `AGiftBox`, `AGiftBoxItemPickup`, `UGiftItemEffectComponent`, `ACampfire`, `ESnowRumbleGiftBoxGrade::Red`/`Gold`, `FSnowRumbleGiftBoxReward::PickupClass`, `AGiftBox::CanInteractWith()`, `AGiftBox::TryOpen()`, `AGiftBox::TakeDamage()`, `AGiftBox::OnGiftBoxGradeChanged()`, `AGiftBox::OnGiftBoxLanded()`, `AGiftBox::OnGiftBoxOpened()`, `AGiftBoxItemPickup::DefaultItemType`, `AGiftBoxItemPickup::DefaultItemId`, `AGiftBoxItemPickup::DefaultDisplayName`, `AGiftBoxItemPickup::TryPickup()`, `AGiftBoxItemPickup::OnItemDataChanged()`, `AGiftBoxItemPickup::OnItemPickedUp()`, `UGiftItemEffectComponent::ApplyGiftItemFromServer()`, `UGiftItemEffectComponent::HasHotPack()`, `UGiftItemEffectComponent::HasBoots()`, `UGiftItemEffectComponent::HasPadding()`, `UGiftItemEffectComponent::HasGloves()`, `UGiftItemEffectComponent::GetSnowShovelDurability()`, `UGiftItemEffectComponent::GetEquippedShovelItemType()`, `UGiftItemEffectComponent::GetEquippedDuckMakerItemType()`, `ASnowRumbleCharacter::ApplyGiftBoxItemEffectFromServer()`, `ASnowRumbleCharacter::NotifyItemInteractionSucceeded()`, `ASnowRumbleCharacter::IsInteractingWithItem()`, `ASnowRumbleGameMode::GiftBoxClass`, `GiftBoxSpawnPointTag`, `FirstGiftBoxSpawnDelaySeconds`, `GiftBoxSpawnIntervalSeconds`, `GoldGiftBoxSpawnChance`
 - 인계 대상: 사용자/S/J는 PvP 맵에 선물상자 Spawn Point용 `TargetPoint`를 배치한다. `GiftBoxSpawnPointTag` 기본값은 `GiftBoxSpawn`이며, 해당 태그가 붙은 TargetPoint가 없으면 맵의 모든 TargetPoint를 후보로 사용한다. 사용자/S는 `AGiftBox` 기반 선물상자 Blueprint 모델·낙하 표현·개봉 연출을 연결한다.
 
 ## 범위 밖
@@ -80,6 +80,8 @@ PvP 라운드 중 서버가 맵에 배치된 후보 지점에서 선물상자를
 - 2026-08-12: 장비 외형 슬롯 갱신 함수 `RefreshGiftItemEquipmentMeshes()`를 BlueprintCallable로 열어 캐릭터 BP에서 소켓 설정 변경 후 재부착을 직접 호출할 수 있게 했다. UHT와 일부 C++ 컴파일은 진행됐으나 현재 시스템 compiler heap 부족 `C1060`으로 최종 빌드는 보류됐다.
 - 2026-08-12: 선물상자 열기와 선물 아이템 획득 성공 시 `ASnowRumbleCharacter::NotifyItemInteractionSucceeded()`로 `bIsInteractingWithItem`을 짧게 복제하게 했다. ABP는 C-24의 `ItemInteractionAnimation` 슬롯으로 이 상태를 표현한다.
 - 2026-08-12: 아이템 상호작용 애니메이션 연동 변경은 `git diff --check`와 UHT/C++ 컴파일을 통과했다. 최종 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
+- 2026-08-18: 개발 테스트용으로 선물상자에서 spawn되지 않고 직접 배치한 `AGiftBoxItemPickup`도 먹을 수 있게 했다. 서버 BeginPlay에서 `ItemType`이 `None`이면 `DefaultItemType`, `DefaultItemId`, `DefaultDisplayName`으로 초기화한다.
+- 2026-08-18: 직접 배치 아이템 Pickup 기본값 변경은 `git diff --check`, UHT, C++ 컴파일과 `.lib` 생성을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
 
 ## 수동 작업 (구현 후 구체화)
 
@@ -88,16 +90,17 @@ PvP 라운드 중 서버가 맵에 배치된 후보 지점에서 선물상자를
 3. `AGiftBoxItemPickup`을 부모로 하는 아이템 Pickup Blueprint를 만든다.
 4. Pickup Blueprint에서 `ItemMeshComponent`에 아이템 모델을 연결하고, `OnItemDataChanged`에서 `ItemId` 또는 표시 이름에 따라 모델·색·텍스트를 바꾼다.
 5. 선물상자 Blueprint의 `RedBoxRewards`와 `GoldBoxRewards` 배열에서 등급별 보상 후보 이름과 `PickupClass`를 지정한다. 공통 Pickup BP 하나를 쓰려면 `DefaultPickupClass`에 지정한다.
-6. PvP GameMode Blueprint 또는 클래스 기본값에서 `GiftBoxClass`에 선물상자 Blueprint를 지정한다.
-7. PvP 맵마다 레벨 담당자가 `TargetPoint`를 배치한다. 선물상자 전용 후보만 쓰려면 Actor Tag에 `GiftBoxSpawn`을 추가한다.
-8. 필요하면 `FirstGiftBoxSpawnDelaySeconds`, `GiftBoxSpawnIntervalSeconds`, `GiftBoxSpawnHeightOffset`, `GoldGiftBoxSpawnChance`를 조정한다.
-9. 효과 상태 UI나 외형 표시가 필요하면 캐릭터의 `GiftItemEffectComponent`에서 `HasHotPack()`, `GetSnowShovelDurability()` 같은 읽기 함수를 사용한다.
-10. 모닥불 표현을 바꾸려면 `ACampfire`를 부모로 하는 Blueprint를 만들고 `CampfireMeshComponent`, `OnCampfireStateChanged(NewRemainingHitPoints, bExtinguished)`에 모델·불꽃·연기·꺼짐 연출을 연결한 뒤 캐릭터 Blueprint의 `GiftItemEffectComponent`에서 `CampfireClass`에 지정한다.
-11. 캐릭터 Blueprint에서 `LeftBootsEquipmentMesh`, `RightBootsEquipmentMesh`, `LeftGlovesEquipmentMesh`, `RightGlovesEquipmentMesh`, `PaddingEquipmentMesh`, `HotPackEquipmentMesh`, `SnowShovelEquipmentMesh`, `GoldenShovelEquipmentMesh`, `SnowDuckMakerEquipmentMesh`, `GoldenDuckMakerEquipmentMesh`를 지정한다.
-12. 캐릭터 Skeleton 또는 Mesh에 `LeftBootsSocket`, `RightBootsSocket`, `LeftGlovesSocket`, `RightGlovesSocket`, `PaddingSocket`, `HotPackSocket`, `ShovelSocket`, `DuckMakerSocket` 같은 장비 소켓을 만든다.
-13. 장비 슬롯 위치는 각 `*EquipmentAttachSocketName`, `*EquipmentRelativeLocation`, `*EquipmentRelativeRotation`, `*EquipmentRelativeScale`로 조정한다. 전용 소켓이 없으면 Attach Socket Name을 비워 Mesh 기준 상대 위치로 맞출 수 있다.
-14. 캐릭터 BP에서 소켓 이름이나 상대 위치를 바꾼 뒤 즉시 반영이 필요하면 `RefreshGiftItemEquipmentMeshes()`를 호출한다. 이 함수는 각 슬롯 컴포넌트를 현재 소켓 설정에 맞춰 다시 부착한다.
-15. 캐릭터 ABP의 `ItemInteractionAnimation`에는 선물상자를 열거나 바닥의 선물 아이템을 집는 짧은 상호작용 애니메이션을 지정한다.
+6. 개발 중 아이템 Pickup BP를 맵에 직접 배치해 테스트하려면 해당 BP 또는 배치 인스턴스의 `DefaultItemType`을 원하는 아이템으로 지정한다. 필요하면 `DefaultDisplayName`도 지정한다.
+7. PvP GameMode Blueprint 또는 클래스 기본값에서 `GiftBoxClass`에 선물상자 Blueprint를 지정한다.
+8. PvP 맵마다 레벨 담당자가 `TargetPoint`를 배치한다. 선물상자 전용 후보만 쓰려면 Actor Tag에 `GiftBoxSpawn`을 추가한다.
+9. 필요하면 `FirstGiftBoxSpawnDelaySeconds`, `GiftBoxSpawnIntervalSeconds`, `GiftBoxSpawnHeightOffset`, `GoldGiftBoxSpawnChance`를 조정한다.
+10. 효과 상태 UI나 외형 표시가 필요하면 캐릭터의 `GiftItemEffectComponent`에서 `HasHotPack()`, `GetSnowShovelDurability()` 같은 읽기 함수를 사용한다.
+11. 모닥불 표현을 바꾸려면 `ACampfire`를 부모로 하는 Blueprint를 만들고 `CampfireMeshComponent`, `OnCampfireStateChanged(NewRemainingHitPoints, bExtinguished)`에 모델·불꽃·연기·꺼짐 연출을 연결한 뒤 캐릭터 Blueprint의 `GiftItemEffectComponent`에서 `CampfireClass`에 지정한다.
+12. 캐릭터 Blueprint에서 `LeftBootsEquipmentMesh`, `RightBootsEquipmentMesh`, `LeftGlovesEquipmentMesh`, `RightGlovesEquipmentMesh`, `PaddingEquipmentMesh`, `HotPackEquipmentMesh`, `SnowShovelEquipmentMesh`, `GoldenShovelEquipmentMesh`, `SnowDuckMakerEquipmentMesh`, `GoldenDuckMakerEquipmentMesh`를 지정한다.
+13. 캐릭터 Skeleton 또는 Mesh에 `LeftBootsSocket`, `RightBootsSocket`, `LeftGlovesSocket`, `RightGlovesSocket`, `PaddingSocket`, `HotPackSocket`, `ShovelSocket`, `DuckMakerSocket` 같은 장비 소켓을 만든다.
+14. 장비 슬롯 위치는 각 `*EquipmentAttachSocketName`, `*EquipmentRelativeLocation`, `*EquipmentRelativeRotation`, `*EquipmentRelativeScale`로 조정한다. 전용 소켓이 없으면 Attach Socket Name을 비워 Mesh 기준 상대 위치로 맞출 수 있다.
+15. 캐릭터 BP에서 소켓 이름이나 상대 위치를 바꾼 뒤 즉시 반영이 필요하면 `RefreshGiftItemEquipmentMeshes()`를 호출한다. 이 함수는 각 슬롯 컴포넌트를 현재 소켓 설정에 맞춰 다시 부착한다.
+16. 캐릭터 ABP의 `ItemInteractionAnimation`에는 선물상자를 열거나 바닥의 선물 아이템을 집는 짧은 상호작용 애니메이션을 지정한다.
 
 ## 완료 조건
 
