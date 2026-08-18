@@ -70,18 +70,6 @@ void UChatWidget::NativeTick(
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
-	const bool bChatToggleKeyDown =
-		bChatInputOpen
-		&& ChatPlayerController
-		&& ChatPlayerController->IsInputKeyDown(EKeys::Tab);
-	if (bChatToggleKeyDown
-		&& !bChatChannelToggleKeyWasDown
-		&& LastChatChannelToggleFrameNumber != GFrameCounter)
-	{
-		ToggleChatChannel();
-	}
-	bChatChannelToggleKeyWasDown = bChatToggleKeyDown;
-
 	RefreshChatVisibility();
 }
 
@@ -137,7 +125,11 @@ void UChatWidget::OpenChatInput(ESnowRumbleChatChannel InitialChannel)
 	{
 		ChatInputTextBox->SetText(FText::GetEmpty());
 		ChatInputTextBox->SetVisibility(ESlateVisibility::Visible);
-		FocusChatInputTextBox();
+		if (ChatPlayerController)
+		{
+			ChatInputTextBox->SetUserFocus(ChatPlayerController);
+		}
+		ChatInputTextBox->SetKeyboardFocus();
 	}
 	if (ChatChannelText)
 	{
@@ -146,25 +138,6 @@ void UChatWidget::OpenChatInput(ESnowRumbleChatChannel InitialChannel)
 	RefreshChatLogChrome();
 
 	OnChatInputOpenChanged(true);
-}
-
-UWidget* UChatWidget::GetChatInputFocusWidget() const
-{
-	return ChatInputTextBox ? ChatInputTextBox.Get() : nullptr;
-}
-
-void UChatWidget::FocusChatInputTextBox()
-{
-	if (!bChatInputOpen || !ChatInputTextBox)
-	{
-		return;
-	}
-
-	if (ChatPlayerController)
-	{
-		ChatInputTextBox->SetUserFocus(ChatPlayerController);
-	}
-	ChatInputTextBox->SetKeyboardFocus();
 }
 
 void UChatWidget::CloseChatInput()
@@ -236,8 +209,6 @@ ESnowRumbleChatChannel UChatWidget::GetActiveChatChannel() const
 
 void UChatWidget::ToggleChatChannel()
 {
-	LastChatChannelToggleFrameNumber = GFrameCounter;
-
 	if (!ChatPlayerController || !ChatPlayerController->IsTeamChatAvailable())
 	{
 		SetActiveChatChannel(ESnowRumbleChatChannel::All);

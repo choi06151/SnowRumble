@@ -77,18 +77,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Pickup", meta = (ClampMin = "0.0"))
 	float PickedUpDestroyDelaySeconds = 0.2f;
 
-	/** 선물상자가 아니라 맵이나 BP에 직접 배치한 개발용 Pickup의 기본 아이템 종류다. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Pickup|Placed")
-	ESnowRumbleGiftItemType DefaultItemType = ESnowRumbleGiftItemType::None;
-
-	/** 직접 배치한 개발용 Pickup의 기본 식별자다. 비워두면 DefaultItemType 이름을 사용한다. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Pickup|Placed")
-	FName DefaultItemId = NAME_None;
-
-	/** 직접 배치한 개발용 Pickup의 표시 이름이다. 비워두면 아이템 종류 이름을 사용한다. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Pickup|Placed")
-	FText DefaultDisplayName;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Pickup|Float", meta = (ClampMin = "0.0"))
 	float FloatAmplitude = 18.0f;
 
@@ -96,8 +84,6 @@ protected:
 	float FloatSpeed = 5.0f;
 
 private:
-	void InitializePlacedPickupFromDefaults();
-	FText GetFallbackDisplayNameForItemType() const;
 	void NotifyPickedUp(ASnowRumbleCharacter* Character) const;
 	FString GetCharacterDisplayName(const ASnowRumbleCharacter* Character) const;
 
