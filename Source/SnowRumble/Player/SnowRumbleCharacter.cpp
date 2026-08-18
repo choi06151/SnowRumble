@@ -114,6 +114,10 @@ ASnowRumbleCharacter::ASnowRumbleCharacter()
 	SnowballHoldPoint = CreateDefaultSubobject<USceneComponent>(TEXT("SnowballHoldPoint"));
 	SnowballHoldPoint->SetupAttachment(GetMesh(), TEXT("SnowballSocket"));
 
+	LargeSnowballHoldPoint =
+		CreateDefaultSubobject<USceneComponent>(TEXT("LargeSnowballHoldPoint"));
+	LargeSnowballHoldPoint->SetupAttachment(GetMesh(), TEXT("LargeSnowballSocket"));
+
 	OutlineComponent = CreateDefaultSubobject<UOutlineComponent>(TEXT("OutlineComponent"));
 
 	LobbyBoardWidgetInteractionComponent =
@@ -587,6 +591,22 @@ USceneComponent* ASnowRumbleCharacter::GetSnowballHoldPoint() const
 	return SnowballHoldPoint;
 }
 
+USceneComponent* ASnowRumbleCharacter::GetSnowballHoldPointForSnowball(
+	const ASnowballItem* Snowball) const
+{
+	if (Snowball && Snowball->IsFullyGrown() && LargeSnowballHoldPoint)
+	{
+		const USkeletalMeshComponent* CharacterMesh = GetMesh();
+		if (CharacterMesh
+			&& CharacterMesh->DoesSocketExist(TEXT("LargeSnowballSocket")))
+		{
+			return LargeSnowballHoldPoint;
+		}
+	}
+
+	return SnowballHoldPoint;
+}
+
 void ASnowRumbleCharacter::EnableRollingSnowballCollision(
 	const FVector& InitialLocation,
 	float CollisionRadius)
@@ -721,10 +741,36 @@ void ASnowRumbleCharacter::NotifySnowballThrowSucceeded(bool bWasLargeSnowball)
 		return;
 	}
 
+	if (GetHeldAnimationState() == ESnowRumbleHeldAnimationState::SnowDuckMaker)
+	{
+		RequestAnimationTriggerFromServer(
+			ESnowRumbleCharacterAnimTrigger::ThrowSnowDuckMaker);
+		return;
+	}
+
 	RequestAnimationTriggerFromServer(
 		bWasLargeSnowball
 			? ESnowRumbleCharacterAnimTrigger::ThrowLargeSnowball
 			: ESnowRumbleCharacterAnimTrigger::ThrowSmallSnowball);
+}
+
+void ASnowRumbleCharacter::RequestSnowballThrowReleaseFromNotify()
+{
+	if (!HasAuthority() && !IsLocallyControlled())
+	{
+		return;
+	}
+
+	USnowballEquipmentComponent* ActiveEquipmentComponent =
+		SnowballEquipmentComponent
+			? SnowballEquipmentComponent.Get()
+			: FindComponentByClass<USnowballEquipmentComponent>();
+	if (!ActiveEquipmentComponent)
+	{
+		return;
+	}
+
+	ActiveEquipmentComponent->ConfirmPendingThrowFromAnimationNotify();
 }
 
 void ASnowRumbleCharacter::NotifyItemInteractionSucceeded()
@@ -1875,12 +1921,22 @@ void ASnowRumbleCharacter::OpenEmoteRadialMenu()
 	APlayerController* PlayerController = Cast<APlayerController>(Controller);
 	if (PlayerController && EmoteRadialMenuWidget)
 	{
-		FInputModeGameAndUI InputMode;
-		InputMode.SetWidgetToFocus(EmoteRadialMenuWidget->TakeWidget());
-		InputMode.SetHideCursorDuringCapture(false);
-		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-		PlayerController->SetInputMode(InputMode);
-		PlayerController->SetShowMouseCursor(true);
+		if (ASnowRumblePlayerController* SnowRumblePlayerController =
+			Cast<ASnowRumblePlayerController>(PlayerController))
+		{
+			SnowRumblePlayerController->EnableDefaultCursorUiInput(
+				EmoteRadialMenuWidget,
+				false);
+		}
+		else
+		{
+			FInputModeGameAndUI InputMode;
+			InputMode.SetWidgetToFocus(EmoteRadialMenuWidget->TakeWidget());
+			InputMode.SetHideCursorDuringCapture(false);
+			InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			PlayerController->SetInputMode(InputMode);
+			PlayerController->SetShowMouseCursor(true);
+		}
 		PlayerController->SetIgnoreLookInput(true);
 	}
 
@@ -1899,9 +1955,17 @@ void ASnowRumbleCharacter::CloseEmoteRadialMenu()
 		if (APlayerController* PlayerController =
 			Cast<APlayerController>(Controller))
 		{
-			FInputModeGameOnly InputMode;
-			PlayerController->SetInputMode(InputMode);
-			PlayerController->SetShowMouseCursor(false);
+			if (ASnowRumblePlayerController* SnowRumblePlayerController =
+				Cast<ASnowRumblePlayerController>(PlayerController))
+			{
+				SnowRumblePlayerController->RestoreGameOnlyInput();
+			}
+			else
+			{
+				FInputModeGameOnly InputMode;
+				PlayerController->SetInputMode(InputMode);
+				PlayerController->SetShowMouseCursor(false);
+			}
 			PlayerController->SetIgnoreLookInput(false);
 		}
 	}
@@ -2033,6 +2097,18 @@ void ASnowRumbleCharacter::Move(const FInputActionValue& Value)
 	{
 		return;
 	}
+	if (const ASnowRumblePlayerController* SnowRumblePlayerController =
+		Cast<ASnowRumblePlayerController>(Controller))
+	{
+		if (SnowRumblePlayerController->IsGameplayUiInputOpen())
+		{
+			return;
+		}
+	}
+	if (Cast<ACustomizationPlayerController>(Controller))
+	{
+		return;
+	}
 
 	if (bIsInteractHeld
 		&& !bUsedInteractForRolling
@@ -2056,6 +2132,18 @@ void ASnowRumbleCharacter::Move(const FInputActionValue& Value)
 void ASnowRumbleCharacter::Look(const FInputActionValue& Value)
 {
 	if (bIsEmoteRadialMenuOpen || IsPvpMatchInputLocked())
+	{
+		return;
+	}
+	if (const ASnowRumblePlayerController* SnowRumblePlayerController =
+		Cast<ASnowRumblePlayerController>(Controller))
+	{
+		if (SnowRumblePlayerController->IsGameplayUiInputOpen())
+		{
+			return;
+		}
+	}
+	if (Cast<ACustomizationPlayerController>(Controller))
 	{
 		return;
 	}
@@ -2088,6 +2176,14 @@ void ASnowRumbleCharacter::UpdateCameraZoomInput()
 		|| bIsEmoteRadialMenuOpen)
 	{
 		return;
+	}
+	if (const ASnowRumblePlayerController* SnowRumblePlayerController =
+		Cast<ASnowRumblePlayerController>(Controller))
+	{
+		if (SnowRumblePlayerController->IsGameplayUiInputOpen())
+		{
+			return;
+		}
 	}
 
 	const APlayerController* PlayerController =
@@ -2308,6 +2404,11 @@ void ASnowRumbleCharacter::HandleActionStarted()
 
 void ASnowRumbleCharacter::HandleActionCompleted()
 {
+	if (bIsEmoteRadialMenuOpen)
+	{
+		return;
+	}
+
 	if (SnowballEquipmentComponent && SnowballEquipmentComponent->IsCharging())
 	{
 		if (IsLocallyControlled() && GetWorld())
@@ -3064,10 +3165,11 @@ bool ASnowRumbleCharacter::CanPerformGameplayAction() const
 		&& !HealthComponent->IsDead()
 		&& !bIsPickingUpItem
 		&& !bIsInteractingWithItem
+		&& !bIsEmoteRadialMenuOpen
 		&& !bTiebreakerSpectator
 		&& !IsPvpMatchInputLocked()
 		&& (!SnowRumblePlayerController
-			|| !SnowRumblePlayerController->IsChatInputOpen());
+			|| !SnowRumblePlayerController->IsGameplayUiInputOpen());
 }
 
 bool ASnowRumbleCharacter::IsDamageAllowedByTiebreaker(
@@ -3197,6 +3299,14 @@ void ASnowRumbleCharacter::RefreshPvpMatchInputLock()
 
 	const bool bShouldBlockMove = bMatchInputLocked || (bTiebreakerSpectator && bTiebreakerActive);
 	const bool bShouldBlockLook = bMatchInputLocked;
+	const ASnowRumblePlayerController* SnowRumblePlayerController =
+		Cast<ASnowRumblePlayerController>(PlayerController);
+	const bool bUiInputActive =
+		FocusedLobbyBoard
+		|| bIsEmoteRadialMenuOpen
+		|| Cast<ACustomizationPlayerController>(PlayerController)
+		|| (SnowRumblePlayerController
+			&& SnowRumblePlayerController->IsGameplayUiInputOpen());
 
 	if (bShouldBlockMove && !bPvpMatchMoveInputIgnoreApplied)
 	{
@@ -3205,7 +3315,7 @@ void ASnowRumbleCharacter::RefreshPvpMatchInputLock()
 	}
 	else if (!bShouldBlockMove
 		&& bPvpMatchMoveInputIgnoreApplied
-		&& !FocusedLobbyBoard)
+		&& !bUiInputActive)
 	{
 		PlayerController->ResetIgnoreMoveInput();
 		bPvpMatchMoveInputIgnoreApplied = false;
@@ -3218,7 +3328,7 @@ void ASnowRumbleCharacter::RefreshPvpMatchInputLock()
 	}
 	else if (!bShouldBlockLook
 		&& bPvpMatchLookInputIgnoreApplied
-		&& !FocusedLobbyBoard)
+		&& !bUiInputActive)
 	{
 		PlayerController->ResetIgnoreLookInput();
 		bPvpMatchLookInputIgnoreApplied = false;
@@ -3236,8 +3346,7 @@ void ASnowRumbleCharacter::RefreshPvpMatchInputLock()
 
 	if (!bShouldBlockMove
 		&& !bShouldBlockLook
-		&& !FocusedLobbyBoard
-		&& !Cast<ACustomizationPlayerController>(PlayerController))
+		&& !bUiInputActive)
 	{
 		PlayerController->SetInputMode(FInputModeGameOnly());
 		PlayerController->SetShowMouseCursor(false);
@@ -3254,7 +3363,17 @@ bool ASnowRumbleCharacter::IsValidEmoteIndex(int32 EmoteIndex) const
 
 bool ASnowRumbleCharacter::CanPlayEmote() const
 {
-	return CanPerformGameplayAction()
+	const ASnowRumblePlayerController* SnowRumblePlayerController =
+		Cast<ASnowRumblePlayerController>(GetController());
+	return HealthComponent
+		&& !HealthComponent->IsFrozen()
+		&& !HealthComponent->IsDead()
+		&& !bIsPickingUpItem
+		&& !bIsInteractingWithItem
+		&& !bTiebreakerSpectator
+		&& !IsPvpMatchInputLocked()
+		&& (!SnowRumblePlayerController
+			|| !SnowRumblePlayerController->IsChatInputOpen())
 		&& (!SnowballEquipmentComponent
 			|| !SnowballEquipmentComponent->IsRollingSnowball())
 		&& (!SnowballCreationComponent
@@ -3576,7 +3695,9 @@ void ASnowRumbleCharacter::ApplyMovementSpeed()
 				? GiftItemEffectComponent->GetMovementSpeedMultiplier()
 				: 1.0f;
 		MovementComponent->MaxWalkSpeed =
-			(IsPvpMatchInputLocked()
+			(Cast<ACustomizationPlayerController>(Controller)
+				? 0.0f
+				: IsPvpMatchInputLocked()
 				? 0.0f
 				: HealthComponent && HealthComponent->IsDead()
 				? 0.0f
