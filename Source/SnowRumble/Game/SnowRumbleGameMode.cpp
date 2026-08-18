@@ -7,8 +7,10 @@
 #include "../Player/SnowRumbleCharacter.h"
 #include "../Player/SnowRumbleHealthComponent.h"
 #include "../UI/SnowRumblePlayerController.h"
+#include "Components/CapsuleComponent.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerStart.h"
+#include "GameFramework/Character.h"
 #include "Engine/TargetPoint.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
@@ -1116,37 +1118,120 @@ FTransform ASnowRumbleGameMode::BuildScatteredPlayerStartTransform(
 	const FVector StartLocation = StartSpot->GetActorLocation();
 	const FRotator StartRotation = StartSpot->GetActorRotation();
 
-	FVector BestCandidateLocation = StartLocation;
-	float BestCandidateDistanceSquared = -1.0f;
+	FVector ResolvedStartLocation = StartLocation;
+	if (!TryResolveSpawnLocationOnGround(StartLocation, ResolvedStartLocation)
+		|| !IsSpawnCapsuleClear(ResolvedStartLocation))
+	{
+		ResolvedStartLocation = StartLocation;
+	}
+
+	if (PlayerStartSpawnScatterRadius <= 0.0f)
+	{
+		return FTransform(StartRotation, ResolvedStartLocation);
+	}
 
 	const int32 Attempts = FMath::Max(1, PlayerStartSpawnScatterAttempts);
 	for (int32 AttemptIndex = 0; AttemptIndex < Attempts; ++AttemptIndex)
 	{
-		const FVector CandidateLocation =
+		const FVector RawCandidateLocation =
 			StartLocation
 			+ MakeRandomHorizontalOffset(PlayerStartSpawnScatterRadius);
-		if (IsSpawnLocationFarEnough(CandidateLocation))
+		FVector CandidateLocation = RawCandidateLocation;
+		if (TryResolveSpawnLocationOnGround(
+				RawCandidateLocation,
+				CandidateLocation)
+			&& IsSpawnLocationFarEnough(CandidateLocation)
+			&& IsSpawnCapsuleClear(CandidateLocation))
 		{
 			return FTransform(StartRotation, CandidateLocation);
 		}
-
-		float ClosestUsedDistanceSquared = TNumericLimits<float>::Max();
-		for (const FVector& UsedSpawnLocation : UsedSpawnLocations)
-		{
-			const float DistanceSquared =
-				FVector::DistSquared2D(CandidateLocation, UsedSpawnLocation);
-			ClosestUsedDistanceSquared =
-				FMath::Min(ClosestUsedDistanceSquared, DistanceSquared);
-		}
-
-		if (ClosestUsedDistanceSquared > BestCandidateDistanceSquared)
-		{
-			BestCandidateDistanceSquared = ClosestUsedDistanceSquared;
-			BestCandidateLocation = CandidateLocation;
-		}
 	}
 
-	return FTransform(StartRotation, BestCandidateLocation);
+	return FTransform(StartRotation, ResolvedStartLocation);
+}
+
+bool ASnowRumbleGameMode::TryResolveSpawnLocationOnGround(
+	const FVector& CandidateLocation,
+	FVector& OutSpawnLocation) const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	float CapsuleRadius = 42.0f;
+	float CapsuleHalfHeight = 96.0f;
+	GetDefaultPawnCapsuleSize(CapsuleRadius, CapsuleHalfHeight);
+
+	const FVector TraceStart =
+		CandidateLocation + FVector::UpVector * 1000.0f;
+	const FVector TraceEnd =
+		CandidateLocation - FVector::UpVector * 3000.0f;
+
+	FHitResult GroundHit;
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(SnowRumbleSpawnGround), false);
+	if (!World->LineTraceSingleByChannel(
+			GroundHit,
+			TraceStart,
+			TraceEnd,
+			ECC_WorldStatic,
+			QueryParams)
+		|| !GroundHit.bBlockingHit)
+	{
+		return false;
+	}
+
+	OutSpawnLocation =
+		GroundHit.ImpactPoint
+		+ FVector::UpVector * (CapsuleHalfHeight + 3.0f);
+	return true;
+}
+
+bool ASnowRumbleGameMode::IsSpawnCapsuleClear(
+	const FVector& SpawnLocation) const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	float CapsuleRadius = 42.0f;
+	float CapsuleHalfHeight = 96.0f;
+	GetDefaultPawnCapsuleSize(CapsuleRadius, CapsuleHalfHeight);
+
+	const FCollisionShape CapsuleShape =
+		FCollisionShape::MakeCapsule(CapsuleRadius, CapsuleHalfHeight);
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(SnowRumbleSpawnCapsule), false);
+	return !World->OverlapBlockingTestByChannel(
+		SpawnLocation,
+		FQuat::Identity,
+		ECC_Pawn,
+		CapsuleShape,
+		QueryParams);
+}
+
+void ASnowRumbleGameMode::GetDefaultPawnCapsuleSize(
+	float& OutCapsuleRadius,
+	float& OutCapsuleHalfHeight) const
+{
+	OutCapsuleRadius = 42.0f;
+	OutCapsuleHalfHeight = 96.0f;
+
+	const ACharacter* DefaultCharacter =
+		DefaultPawnClass
+			? Cast<ACharacter>(DefaultPawnClass->GetDefaultObject())
+			: nullptr;
+	const UCapsuleComponent* Capsule =
+		DefaultCharacter ? DefaultCharacter->GetCapsuleComponent() : nullptr;
+	if (!Capsule)
+	{
+		return;
+	}
+
+	OutCapsuleRadius = Capsule->GetScaledCapsuleRadius();
+	OutCapsuleHalfHeight = Capsule->GetScaledCapsuleHalfHeight();
 }
 
 bool ASnowRumbleGameMode::IsSpawnLocationFarEnough(
