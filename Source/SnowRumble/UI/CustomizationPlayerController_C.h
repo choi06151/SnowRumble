@@ -254,6 +254,9 @@ private:
 	/** 현재 페이지와 커서 슬롯에 맞춰 표시할 소프트웨어 커서를 적용한다. */
 	void ApplyCurrentMouseCursorWidget();
 
+	/** 커스터마이징 화면에서는 마우스/UI 입력만 쓰도록 Pawn 이동과 시점 입력을 잠근다. */
+	void ApplyCustomizationInputLock();
+
 	/** 원형 페인트 커서 위젯의 표시 크기와 색을 현재 브러시에 맞춘다. */
 	void UpdatePaintMouseCursorPresentation();
 

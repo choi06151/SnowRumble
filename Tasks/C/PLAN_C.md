@@ -9,7 +9,7 @@
 
 ## 현재 집중 Task
 
-- [C-14](C-14_spawn_intro_flow.md) 팀 스폰과 시작 연출
+- [C-10](C-10_emote_revalidation.md) 이모션 재검증
 
 ## 개발 스타일
 
@@ -33,7 +33,7 @@
 | 8 | [C-08](C-08_spawn_intro_identity.md) | 팀 식별 데이터 | C-03 | 진행중 |
 | 9 | [C-09](C-09_snow_combat_completion.md) | 눈 전투 완성 | C-01, C-07 | 예정 |
 | 10 | [C-05](C-05_round_match_flow.md) | 3판 2선승 경기 흐름 | C-04, C-06 | 진행중 |
-| 11 | [C-10](C-10_emote_revalidation.md) | 이모션 재검증 | C-01, C-06, C-08 | 예정 |
+| 11 | [C-10](C-10_emote_revalidation.md) | 이모션 재검증 | C-01, C-06, C-08 | 진행중 |
 | 12 | [C-11](C-11_customization_contract.md) | 커스터마이징 데이터 계약 | C-02·기획 결정 | 진행중 |
 | 13 | [C-13](C-13_revive_contract.md) | 핫팩 부활 계약 | C-06, C-07 | 예정 |
 | 14 | [C-14](C-14_spawn_intro_flow.md) | 팀 스폰과 시작 연출 | C-03, C-04 | 예정 |
@@ -220,3 +220,6 @@
 - 2026-08-14: 사용자가 Decal 대신 지형 머티리얼을 실시간으로 파내는 눈길을 요청해 C-27을 추가하고 현재 집중 Task로 전환했다. 첫 범위는 맵 배치용 RenderTarget Manager와 발걸음 서버 검증/멀티캐스트 stamp 계약까지로 제한한다.
 - 2026-08-14: C-11 커스터마이징 페인트에서 브러시 크기 변경 시 trace 위치가 같이 밀려 보이는 문제에 대응해 커서 중심 보정을 현재 브러시 지름 기반에서 고정 hotspot 보정값 기반으로 변경했다.
 - 2026-08-14: 사용자가 PvP 시작 시 팀 소개 카메라 연출을 요청하고 랜덤 PlayerStart 스폰에서도 가능한지 확인해 C-14를 현재 집중 Task로 재개했다. 고정 CameraRig 대신 로딩창 종료 후 스폰된 팀 Pawn 위치로 로컬 임시 카메라를 계산하고, 팀 소개 종료 뒤 기존 `3, 2, 1, 시작!` 카운트다운으로 이어지게 했다.
+- 2026-08-18: C-11 커스터마이징 맵 입력 누수를 수정했다. 커스터마이징 전용 PlayerController가 프리뷰 캐릭터를 possess해도 이동/시점 입력을 잠그고, 공용 캐릭터도 `ACustomizationPlayerController` 조종 중 Move/Look과 이동속도를 차단한다.
+- 2026-08-18: C-10 이모션 재검증을 진행중으로 전환했다. Tab 이모션 메뉴가 열릴 때 `ASnowRumblePlayerController`의 기본 커서 위젯 적용 경로를 사용하도록 수정해 로비/PvP 커서 표시 문제를 보정한다.
+- 2026-08-18: C-10/C-11 변경은 `git diff --check`와 C++ 컴파일 및 `.lib` 생성까지 통과했다. 최종 링크는 실행 중인 Unreal Editor PID 10272의 DLL 잠금 `LNK1104`로 보류됐다.
