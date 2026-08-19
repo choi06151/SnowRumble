@@ -163,12 +163,12 @@ float USnowRumbleMatchSubsystem::GetMapShrinkIntervalSeconds(
 	switch (InGameSpeed)
 	{
 	case ESnowRumbleGameSpeed::Slow:
-		return 90.0f;
-	case ESnowRumbleGameSpeed::Fast:
 		return 30.0f;
+	case ESnowRumbleGameSpeed::Fast:
+		return 10.0f;
 	case ESnowRumbleGameSpeed::Normal:
 	default:
-		return 60.0f;
+		return 20.0f;
 	}
 }
 
