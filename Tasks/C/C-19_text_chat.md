@@ -54,6 +54,8 @@
   - `UChatWidget::TeamChatMessageColor`: C++가 `ChatLogScrollBox`에 추가하는 팀 채팅 메시지 행 색이다. 기본값은 하늘색이다.
   - `UChatWidget::ChatChannelFont`: `ChatChannelText`에 적용할 폰트다.
   - `UChatWidget::OpenChatInput(ESnowRumbleChatChannel InitialChannel)`: 채팅 입력창을 열고 키보드 포커스를 준다.
+  - `UChatWidget::GetChatInputFocusWidget()`: PlayerController 입력 모드가 직접 포커스할 채팅 입력 TextBox를 반환한다.
+  - `UChatWidget::FocusChatInputTextBox()`: 입력 모드 설정 직후 `ChatInputTextBox`에 사용자 포커스와 키보드 포커스를 다시 적용한다.
   - `UChatWidget::CloseChatInput()`: 채팅 입력창을 닫고 입력값을 비운다.
   - `UChatWidget::AddChatMessage(...)`: 수신 메시지를 로그에 추가한다.
   - `UChatWidget::ToggleChatChannel()`: 팀 채팅이 가능한 모드에서 전체/팀 채널을 전환한다.
@@ -89,6 +91,16 @@
 - 2026-08-10: 사용자가 로비, PvP, 추후 좀비맵에서 사용할 전체/팀 채팅을 요청해 C-19를 추가하고 구현했다.
 - 2026-08-10: 사용자가 Enter로 채팅 입력창을 다시 열 때마다 전체 채팅으로 초기화되는 문제를 보고해, Tab으로 바꾼 마지막 채널을 PvP/추후 팀 채팅 가능 모드에서 유지하도록 수정했다.
 - 2026-08-10: 사용자가 노란색은 시스템 알람용으로 남기고 팀 채팅은 하늘색으로 구분하길 원해, 팀 채팅 메시지 행 기본 색을 하늘색으로 추가했다.
+- 2026-08-18: Enter를 눌러도 `ChatInputTextBox`가 실제 키보드 포커스를 받지 못하는 회귀에 대응해, PlayerController 입력 모드 포커스 대상을 채팅 위젯 루트가 아니라 `ChatInputTextBox`로 직접 지정하고 입력 모드 설정 직후 TextBox 포커스를 재적용하게 보강했다.
+- 2026-08-18: 이모션/채팅 입력 보강은 `git diff --check`와 C++ 컴파일을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
+- 2026-08-18: Enter로 채팅창이 열린 뒤에도 WASD와 시점 입력이 캐릭터에 전달되는 문제에 대응해, 채팅 입력 open/close 동안 PlayerController의 move/look ignore를 한 쌍으로 적용하고 `ASnowRumbleCharacter::Look()`도 채팅 입력 중에는 반환하게 보강했다.
+- 2026-08-18: 채팅 입력 중 캐릭터 입력 차단 변경은 `git diff --check`와 C++ 컴파일을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
+- 2026-08-18: UI 입력이 계속 깨지는 공통 원인을 조사해 `ASnowRumbleCharacter::RefreshPvpMatchInputLock()`가 Tick마다 `GameOnly`와 숨김 커서로 되돌리는 경로를 확인했다. 채팅 입력, 이모션 메뉴, 게시판 포커스, 커스터마이징 입력이 활성인 동안에는 PvP 입력 잠금 복구가 입력 모드와 ignore counter를 덮지 않게 보강했다.
+- 2026-08-18: `RefreshPvpMatchInputLock()` UI 입력 보호 변경은 `git diff --check`와 `SnowRumbleCharacter.cpp` 컴파일을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
+- 2026-08-18: 채팅 입력 중 Tab이 팀 채팅 전환으로 도달하지 않는 경우에 대응해, 기존 `NativeOnPreviewKeyDown()` 경로를 유지하면서 `NativeTick()`에서 PlayerController의 `WasInputKeyJustPressed(EKeys::Tab)`도 확인해 채널을 전환하게 했다. 같은 프레임 중복 토글은 `LastChatChannelToggleFrameNumber`로 차단한다.
+- 2026-08-18: 채팅 Tab 전환 보강은 `git diff --check`와 C++ 컴파일을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
+- 2026-08-18: `UEditableTextBox`에 직접 key handler를 연결하는 시도는 UE 5.8 API에 없어 제거했다. 대신 채팅 입력 중 `NativeTick()`에서 `IsInputKeyDown(EKeys::Tab)`을 직접 edge-detect해 TextBox가 Tab 입력을 소비해도 채널 전환을 잡도록 변경했다.
+- 2026-08-18: 채팅 Tab edge-detect 변경은 `git diff --check`와 C++ 컴파일을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
 
 ## 수동 작업
 
@@ -137,6 +149,8 @@
 - 2026-08-10: PvP 채팅 입력창에 포커스가 있을 때 `Tab`이 TextBox에서 먼저 처리되어 채널 전환까지 도달하지 않는 문제를 수정했다. `UChatWidget::NativeOnPreviewKeyDown()`에서 입력창 포커스보다 먼저 `Tab`을 잡아 `ToggleChatChannel()`을 호출한다. 해당 변경 후 `git diff --check`가 통과했고 `ChatWidget_C.cpp` 컴파일도 통과했다. 최종 링크는 실행 중인 Unreal Editor가 `Binaries/Win64/UnrealEditor-SnowRumble.dll`을 잡고 있어 `LNK1104`로 실패했다.
 - 2026-08-10: Enter 입력 재오픈 시 `ASnowRumblePlayerController::HandleChatInputPressed()`가 항상 전체 채팅으로 열던 흐름을 수정했다. 팀 채팅 가능 모드에서는 기존 `UChatWidget::GetActiveChatChannel()` 값을 다시 사용하고, 로비처럼 팀 채팅이 불가능한 모드에서는 전체 채팅으로 고정한다. 해당 변경 후 `git diff --check -- Source/SnowRumble/UI/SnowRumblePlayerController.cpp Tasks/C/C-19_text_chat.md Tasks/C/PLAN_C.md`가 통과했고, `SnowRumblePlayerController.cpp` 컴파일도 통과했다. 최종 링크는 실행 중인 Unreal Editor가 `Binaries/Win64/UnrealEditor-SnowRumble.dll`을 잡고 있어 `LNK1104`로 실패했다.
 - 2026-08-10: `UChatWidget`에 `AllChatMessageColor`와 `TeamChatMessageColor`를 추가하고, `ChatLogScrollBox`에 추가되는 메시지 TextBlock 행 색상을 채널별로 적용했다. 팀 채팅 기본색은 하늘색 `FLinearColor(0.35, 0.85, 1.0, 1.0)`이다. 해당 변경 후 `git diff --check -- Source/SnowRumble/UI/ChatWidget_C.h Source/SnowRumble/UI/ChatWidget_C.cpp`와 `SnowRumbleEditor Win64 Development` 빌드가 통과했다.
+- 2026-08-18: Enter 입력 회귀 보강 후 `ChatWidget_C.cpp`와 `SnowRumblePlayerController.cpp` 컴파일은 통과했다. 최종 링크는 실행 중인 Unreal Editor가 `Binaries/Win64/UnrealEditor-SnowRumble.dll`을 잡고 있어 `LNK1104`로 실패했다.
+- 2026-08-18: 채팅 입력 open/close에서 `SetIgnoreMoveInput(true)`/`SetIgnoreLookInput(true)`와 `ResetIgnoreMoveInput()`/`ResetIgnoreLookInput()`를 `bChatInputIgnoringPawnInput`으로 한 번씩만 적용하게 했다. `SnowRumbleCharacter.cpp`, `SnowRumblePlayerController.cpp`, `ChatWidget_C.cpp` 컴파일은 통과했고 최종 링크는 실행 중인 Unreal Editor DLL 잠금으로 실패했다.
 
 ### 결과 확인
 
