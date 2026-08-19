@@ -96,6 +96,14 @@ void ASnowRumbleGameMode::PostLogin(APlayerController* NewPlayer)
 	TryDismissLoadingScreens();
 }
 
+void ASnowRumbleGameMode::HandleSeamlessTravelPlayer(AController*& C)
+{
+	Super::HandleSeamlessTravelPlayer(C);
+
+	BroadcastLoadingProgress();
+	TryDismissLoadingScreens();
+}
+
 void ASnowRumbleGameMode::HandleStartingNewPlayer_Implementation(
 	APlayerController* NewPlayer)
 {

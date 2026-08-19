@@ -41,5 +41,11 @@ protected:
 	TObjectPtr<UTextBlock> LoadingMessageText;
 
 private:
+	float GetTargetLoadingProgress() const;
 	void RefreshLoadingPresentation();
+
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|UI|Loading", meta = (ClampMin = "0.0"))
+	float LoadingProgressInterpSpeed = 6.0f;
+
+	float DisplayedLoadingProgress = 0.0f;
 };
