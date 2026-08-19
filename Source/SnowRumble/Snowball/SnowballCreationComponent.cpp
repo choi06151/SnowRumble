@@ -230,13 +230,20 @@ void USnowballCreationComponent::CompleteCreation()
 	SpawnParameters.Owner = Character;
 	SpawnParameters.Instigator = Character;
 	SpawnParameters.SpawnCollisionHandlingOverride =
-		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+		ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 	ASnowballItem* CreatedSnowball = World->SpawnActor<ASnowballItem>(
 		SnowballItemClass,
 		SpawnLocation,
 		FRotator::ZeroRotator,
 		SpawnParameters);
+
+	if (CreatedSnowball)
+	{
+		CreatedSnowball->IgnoreActorTemporarily(
+			Character,
+			CreatedSnowballOwnerCollisionIgnoreSeconds);
+	}
 
 	if (CreatedSnowball
 		&& Character->HasEquippedSnowDuckMaker()

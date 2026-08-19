@@ -9,6 +9,7 @@
 #include "Components/SceneComponent.h"
 #include "EngineUtils.h"
 #include "GameFramework/DamageType.h"
+#include "GameFramework/GameStateBase.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
@@ -54,9 +55,16 @@ void ASnowIslandWaterPressureActor::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	const float RoundElapsedSeconds = GetRoundElapsedSeconds();
-	CurrentWaterStage = CalculateWaterStage(RoundElapsedSeconds);
-	CurrentWaterZ = CalculateWaterZ(RoundElapsedSeconds);
+	if (bUseMapShrinkEventTiming)
+	{
+		CurrentWaterZ = CalculateEventDrivenWaterZ();
+	}
+	else
+	{
+		const float RoundElapsedSeconds = GetRoundElapsedSeconds();
+		CurrentWaterStage = CalculateWaterStage(RoundElapsedSeconds);
+		CurrentWaterZ = CalculateWaterZ(RoundElapsedSeconds);
+	}
 	ApplyWaterZ(CurrentWaterZ);
 }
 
@@ -67,6 +75,11 @@ void ASnowIslandWaterPressureActor::GetLifetimeReplicatedProps(
 
 	DOREPLIFETIME(ASnowIslandWaterPressureActor, CurrentWaterStage);
 	DOREPLIFETIME(ASnowIslandWaterPressureActor, CurrentWaterZ);
+	DOREPLIFETIME(ASnowIslandWaterPressureActor, bUseMapShrinkEventTiming);
+	DOREPLIFETIME(ASnowIslandWaterPressureActor, MapShrinkWaterStartServerTime);
+	DOREPLIFETIME(ASnowIslandWaterPressureActor, MapShrinkWaterDurationSeconds);
+	DOREPLIFETIME(ASnowIslandWaterPressureActor, MapShrinkWaterStartZ);
+	DOREPLIFETIME(ASnowIslandWaterPressureActor, MapShrinkWaterTargetZ);
 }
 
 ESnowIslandWaterPressureStage
@@ -78,6 +91,39 @@ ASnowIslandWaterPressureActor::GetCurrentWaterStage() const
 float ASnowIslandWaterPressureActor::GetCurrentWaterZ() const
 {
 	return CurrentWaterZ;
+}
+
+void ASnowIslandWaterPressureActor::StartWaterPressureFromMapShrink(
+	int32 ShrinkStage,
+	float RoundElapsedSeconds,
+	float ShrinkDurationSeconds)
+{
+	if (!HasAuthority() || ShrinkStage <= 0)
+	{
+		return;
+	}
+
+	bUseMapShrinkEventTiming = true;
+	CurrentWaterStage = CalculateWaterStageFromShrinkStage(ShrinkStage);
+	MapShrinkWaterDurationSeconds = FMath::Max(0.0f, ShrinkDurationSeconds);
+	MapShrinkWaterStartZ = CurrentWaterZ;
+	MapShrinkWaterTargetZ = CalculateWaterTargetZFromShrinkStage(ShrinkStage);
+
+	if (const UWorld* World = GetWorld())
+	{
+		const AGameStateBase* GameState = World->GetGameState();
+		MapShrinkWaterStartServerTime = GameState
+			? GameState->GetServerWorldTimeSeconds()
+			: RoundElapsedSeconds;
+	}
+	else
+	{
+		MapShrinkWaterStartServerTime = RoundElapsedSeconds;
+	}
+
+	CurrentWaterZ = CalculateEventDrivenWaterZ();
+	ApplyWaterZ(CurrentWaterZ);
+	ForceNetUpdate();
 }
 
 void ASnowIslandWaterPressureActor::OnRep_WaterPressureState()
@@ -172,6 +218,65 @@ float ASnowIslandWaterPressureActor::CalculateWaterZ(
 	return CentralFloodWaterZ
 		+ FMath::Max(0.0f, RoundElapsedSeconds - CentralFloodEndSeconds)
 		* OvertimeRiseSpeed;
+}
+
+ESnowIslandWaterPressureStage
+ASnowIslandWaterPressureActor::CalculateWaterStageFromShrinkStage(
+	int32 ShrinkStage) const
+{
+	if (ShrinkStage <= 0)
+	{
+		return ESnowIslandWaterPressureStage::Stable;
+	}
+	if (ShrinkStage == 1)
+	{
+		return ESnowIslandWaterPressureStage::OuterFlood;
+	}
+	if (ShrinkStage == 2)
+	{
+		return ESnowIslandWaterPressureStage::CentralFlood;
+	}
+	return ESnowIslandWaterPressureStage::Overtime;
+}
+
+float ASnowIslandWaterPressureActor::CalculateWaterTargetZFromShrinkStage(
+	int32 ShrinkStage) const
+{
+	if (ShrinkStage <= 1)
+	{
+		return OuterFloodWaterZ;
+	}
+	if (ShrinkStage == 2)
+	{
+		return CentralFloodWaterZ;
+	}
+
+	const float OvertimeStepSeconds =
+		FMath::Max(0.0f, MapShrinkWaterDurationSeconds);
+	return CentralFloodWaterZ
+		+ FMath::Max(0, ShrinkStage - 2)
+			* OvertimeStepSeconds
+			* OvertimeRiseSpeed;
+}
+
+float ASnowIslandWaterPressureActor::CalculateEventDrivenWaterZ() const
+{
+	if (MapShrinkWaterDurationSeconds <= 0.0f)
+	{
+		return MapShrinkWaterTargetZ;
+	}
+
+	const UWorld* World = GetWorld();
+	const AGameStateBase* GameState = World ? World->GetGameState() : nullptr;
+	const float CurrentServerTime = GameState
+		? GameState->GetServerWorldTimeSeconds()
+		: MapShrinkWaterStartServerTime;
+	const float Alpha = FMath::Clamp(
+		(CurrentServerTime - MapShrinkWaterStartServerTime)
+			/ MapShrinkWaterDurationSeconds,
+		0.0f,
+		1.0f);
+	return FMath::Lerp(MapShrinkWaterStartZ, MapShrinkWaterTargetZ, Alpha);
 }
 
 void ASnowIslandWaterPressureActor::ApplyWaterZ(float WaterZ)
@@ -326,7 +431,7 @@ bool ASnowIslandWaterPressureActor::IsCharacterSubmerged(
 	const float SampleZ = CalculateSubmersionSampleZ(
 		Character,
 		CapsuleHalfHeight);
-	return SampleZ + RequiredSubmersionDepth <= CurrentWaterZ;
+	return SampleZ <= CurrentWaterZ + RequiredSubmersionDepth;
 }
 
 void ASnowIslandWaterPressureActor::RequestHazardDamage(

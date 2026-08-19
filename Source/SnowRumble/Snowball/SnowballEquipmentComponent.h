@@ -7,6 +7,7 @@
 #include "SnowballEquipmentComponent.generated.h"
 
 class ASnowballItem;
+class ASnowRumbleCharacter;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 	FOnHeldSnowballChanged,
@@ -180,6 +181,11 @@ protected:
 	/** 현재 보유한 눈덩이 크기에 맞는 최대 충전시간을 반환한다. */
 	float GetCurrentMaximumChargeSeconds() const;
 
+	/** 굴리는 동안 서버가 눈덩이를 유지할 캐릭터 앞 위치를 계산한다. */
+	FVector BuildRollingSnowballTargetLocation(
+		const ASnowRumbleCharacter* Character,
+		const ASnowballItem* Snowball) const;
+
 	/** 서버가 검증한 카메라 Line Trace로 화면 중앙의 월드 조준점을 찾는다. */
 	bool FindServerAimTarget(
 		const FVector& ViewLocation,
@@ -256,6 +262,7 @@ protected:
 
 	double ChargeStartTime = -1.0;
 	bool bHasPendingThrow = false;
+	FVector LastRollingMovementDirection = FVector::ForwardVector;
 	FVector PendingThrowDirection = FVector::ZeroVector;
 	float PendingThrowSpeed = 0.0f;
 	float PendingThrowChargeProgress = 0.0f;

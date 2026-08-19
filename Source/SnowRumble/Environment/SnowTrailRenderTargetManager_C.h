@@ -93,6 +93,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snow Trail|Material")
 	void RefreshSnowTrailMaterialParameters();
 
+	/** 눈길 stamp 실패 원인을 Output Log에 출력할지 정한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snow Trail|Debug")
+	bool ShouldLogSnowTrailDebug() const;
+
 protected:
 	/** 눈길 마스크 RenderTarget을 에디터 지정 없이 런타임에 만들지 여부다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail")
@@ -138,6 +142,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Draw")
 	TObjectPtr<UMaterialInterface> SnowTrailStampMaterial;
 
+	/** 월드 반지름 변환값이 너무 작을 때 RT 확인과 머티리얼 마스크용으로 보장할 최소 stamp 반지름(px)이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Draw", meta = (ClampMin = "1.0"))
+	float MinimumStampRadiusPixels = 10.0f;
+
 	/** RenderTarget 갱신 때 다시 그릴 최대 stamp 개수다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail", meta = (ClampMin = "1"))
 	int32 MaxStoredStampCount = 4096;
@@ -158,6 +166,14 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
 	bool bApplySnowTrailParametersToMaterials = true;
 
+	/** SnowSurface 태그가 붙은 바닥 액터에도 RenderTarget/월드 범위 파라미터를 자동 적용한다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
+	bool bAutoApplyToSnowSurfaceTaggedActors = true;
+
+	/** 자동 머티리얼 적용 대상으로 찾을 액터 태그다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
+	FName SnowTrailMaterialAutoApplyActorTag = TEXT("SnowSurface");
+
 	/** 눈길 마스크 RenderTarget을 받는 texture parameter 이름이다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
 	FName SnowTrailRenderTargetParameterName = TEXT("SnowTrailMask");
@@ -173,6 +189,10 @@ protected:
 	/** 현재 RenderTarget에 다시 그릴 누적 stamp 목록이다. */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "SnowRumble|Snow Trail")
 	TArray<FSnowTrailStampData> SnowTrailStamps;
+
+	/** PIE 진단용 눈길 stamp 로그를 출력한다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Debug")
+	bool bLogSnowTrailDebug = false;
 
 	/** Blueprint가 stamp 요청 시 지형 머티리얼 파라미터 갱신 같은 부가 작업을 수행한다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Snow Trail")

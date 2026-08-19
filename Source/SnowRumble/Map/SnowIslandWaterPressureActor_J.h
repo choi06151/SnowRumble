@@ -44,6 +44,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snow Island Water")
 	float GetCurrentWaterZ() const;
 
+	/** PvP GameMode의 맵 축소 이벤트에 맞춰 물 상승 단계를 시작한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snow Island Water")
+	void StartWaterPressureFromMapShrink(
+		int32 ShrinkStage,
+		float RoundElapsedSeconds,
+		float ShrinkDurationSeconds);
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -116,7 +123,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Island Water|Submersion")
 	float SubmersionSampleOffsetZ = 0.0f;
 
-	/** Sample Z가 Water Surface보다 이 값 이상 아래에 있을 때 침수로 본다. */
+	/** 발바닥 기준 Sample Z가 Water Surface보다 이 값 이상 낮을 때 침수로 본다. 0이면 물이 발에 닿는 즉시 판정한다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Island Water|Submersion", meta = (ClampMin = "0.0"))
 	float RequiredSubmersionDepth = 0.0f;
 
@@ -132,6 +139,16 @@ private:
 
 	/** 현재 경기 시간에 대응하는 Water Surface World Z다. */
 	float CalculateWaterZ(float RoundElapsedSeconds) const;
+
+	/** 맵 축소 단계에 대응하는 물 상승 단계다. */
+	ESnowIslandWaterPressureStage CalculateWaterStageFromShrinkStage(
+		int32 ShrinkStage) const;
+
+	/** 맵 축소 단계가 끝났을 때 도달할 Water Surface World Z다. */
+	float CalculateWaterTargetZFromShrinkStage(int32 ShrinkStage) const;
+
+	/** 맵 축소 이벤트 기반 현재 Water Surface World Z다. */
+	float CalculateEventDrivenWaterZ() const;
 
 	/** 현재 Water Surface World Z를 기존 Water Actor에 적용한다. */
 	void ApplyWaterZ(float WaterZ);
@@ -162,6 +179,21 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_WaterPressureState)
 	float CurrentWaterZ = 0.0f;
+
+	UPROPERTY(ReplicatedUsing = OnRep_WaterPressureState)
+	bool bUseMapShrinkEventTiming = false;
+
+	UPROPERTY(ReplicatedUsing = OnRep_WaterPressureState)
+	float MapShrinkWaterStartServerTime = 0.0f;
+
+	UPROPERTY(ReplicatedUsing = OnRep_WaterPressureState)
+	float MapShrinkWaterDurationSeconds = 0.0f;
+
+	UPROPERTY(ReplicatedUsing = OnRep_WaterPressureState)
+	float MapShrinkWaterStartZ = 0.0f;
+
+	UPROPERTY(ReplicatedUsing = OnRep_WaterPressureState)
+	float MapShrinkWaterTargetZ = 0.0f;
 
 	FTimerHandle DamageTimerHandle;
 };
