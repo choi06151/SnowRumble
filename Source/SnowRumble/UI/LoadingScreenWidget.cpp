@@ -6,6 +6,7 @@
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 #include "Engine/GameInstance.h"
+#include "Math/UnrealMathUtility.h"
 #include "LoadingScreenSubsystem.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Layout/SBorder.h"
@@ -17,6 +18,7 @@ void ULoadingScreenWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	DisplayedLoadingProgress = GetTargetLoadingProgress();
 	RefreshLoadingPresentation();
 }
 
@@ -26,10 +28,20 @@ void ULoadingScreenWidget::NativeTick(
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
+	DisplayedLoadingProgress = FMath::FInterpTo(
+		DisplayedLoadingProgress,
+		GetTargetLoadingProgress(),
+		InDeltaTime,
+		LoadingProgressInterpSpeed);
 	RefreshLoadingPresentation();
 }
 
 float ULoadingScreenWidget::GetLoadingProgress() const
+{
+	return DisplayedLoadingProgress;
+}
+
+float ULoadingScreenWidget::GetTargetLoadingProgress() const
 {
 	const UGameInstance* GameInstance = GetGameInstance();
 	const ULoadingScreenSubsystem* LoadingScreenSubsystem = GameInstance

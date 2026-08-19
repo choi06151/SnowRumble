@@ -164,11 +164,11 @@ protected:
 
 	/** 눈길 RenderTarget이 덮는 월드 중심 XY를 받는 vector parameter 이름이다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
-	FName SnowTrailWorldCenterParameterName = TEXT("SnowTrailWorldCenter");
+	FName SnowTrailWorldCenterParameterName = TEXT("Position");
 
 	/** 눈길 RenderTarget 한 변의 월드 거리(cm)를 받는 scalar parameter 이름이다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
-	FName SnowTrailWorldSizeParameterName = TEXT("SnowTrailWorldSize");
+	FName SnowTrailWorldSizeParameterName = TEXT("TrailWorldSize");
 
 	/** 현재 RenderTarget에 다시 그릴 누적 stamp 목록이다. */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "SnowRumble|Snow Trail")

@@ -113,6 +113,14 @@ void ASnowmanModeGameMode::PostLogin(APlayerController* NewPlayer)
 	TryDismissLoadingScreens();
 }
 
+void ASnowmanModeGameMode::HandleSeamlessTravelPlayer(AController*& C)
+{
+	Super::HandleSeamlessTravelPlayer(C);
+
+	BroadcastLoadingProgress();
+	TryDismissLoadingScreens();
+}
+
 void ASnowmanModeGameMode::HandleStartingNewPlayer_Implementation(
 	APlayerController* NewPlayer)
 {
