@@ -8,7 +8,9 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Kismet/KismetRenderingLibrary.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
+#include "Components/PrimitiveComponent.h"
 
 ASnowTrailRenderTargetManager::ASnowTrailRenderTargetManager()
 {
@@ -95,6 +97,7 @@ void ASnowTrailRenderTargetManager::InitializeSnowTrailRenderTargetForPlay()
 	}
 	TargetRenderTarget->UpdateResource();
 
+	ApplySnowTrailMaterialParameters(TargetRenderTarget);
 	OnSnowTrailRenderTargetReady(
 		TargetRenderTarget,
 		TrailWorldCenter,
@@ -111,6 +114,90 @@ void ASnowTrailRenderTargetManager::BindSnowTrailRenderTargetUpdate()
 	SnowTrailRenderTarget->OnCanvasRenderTargetUpdate.AddUniqueDynamic(
 		this,
 		&ASnowTrailRenderTargetManager::HandleSnowTrailCanvasUpdate);
+}
+
+void ASnowTrailRenderTargetManager::ApplySnowTrailMaterialParameters(
+	UCanvasRenderTarget2D* TargetRenderTarget)
+{
+	if (!bApplySnowTrailParametersToMaterials || !TargetRenderTarget)
+	{
+		return;
+	}
+
+	AppliedSnowTrailMaterials.Reset();
+
+	const FLinearColor WorldCenterParameter(
+		TrailWorldCenter.X,
+		TrailWorldCenter.Y,
+		0.0f,
+		0.0f);
+
+	auto ApplyToComponent =
+		[this, TargetRenderTarget, WorldCenterParameter](
+			UPrimitiveComponent* TargetComponent)
+	{
+		if (!TargetComponent)
+		{
+			return;
+		}
+
+		const int32 MaterialCount = TargetComponent->GetNumMaterials();
+		for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
+		{
+			if (!TargetComponent->GetMaterial(MaterialIndex))
+			{
+				continue;
+			}
+
+			UMaterialInstanceDynamic* DynamicMaterial =
+				TargetComponent->CreateDynamicMaterialInstance(MaterialIndex);
+			if (!DynamicMaterial)
+			{
+				continue;
+			}
+
+			if (!SnowTrailRenderTargetParameterName.IsNone())
+			{
+				DynamicMaterial->SetTextureParameterValue(
+					SnowTrailRenderTargetParameterName,
+					TargetRenderTarget);
+			}
+			if (!SnowTrailWorldCenterParameterName.IsNone())
+			{
+				DynamicMaterial->SetVectorParameterValue(
+					SnowTrailWorldCenterParameterName,
+					WorldCenterParameter);
+			}
+			if (!SnowTrailWorldSizeParameterName.IsNone())
+			{
+				DynamicMaterial->SetScalarParameterValue(
+					SnowTrailWorldSizeParameterName,
+					TrailWorldSize);
+			}
+
+			AppliedSnowTrailMaterials.Add(DynamicMaterial);
+		}
+	};
+
+	for (UPrimitiveComponent* PrimitiveComponent : SnowTrailMaterialComponents)
+	{
+		ApplyToComponent(PrimitiveComponent);
+	}
+
+	for (AActor* MaterialActor : SnowTrailMaterialActors)
+	{
+		if (!MaterialActor)
+		{
+			continue;
+		}
+
+		TArray<UPrimitiveComponent*> PrimitiveComponents;
+		MaterialActor->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
+		for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
+		{
+			ApplyToComponent(PrimitiveComponent);
+		}
+	}
 }
 
 UCanvasRenderTarget2D*
@@ -287,6 +374,11 @@ TArray<FSnowTrailStampData>
 ASnowTrailRenderTargetManager::GetSnowTrailStamps() const
 {
 	return SnowTrailStamps;
+}
+
+void ASnowTrailRenderTargetManager::RefreshSnowTrailMaterialParameters()
+{
+	ApplySnowTrailMaterialParameters(EnsureSnowTrailRenderTarget());
 }
 
 void ASnowTrailRenderTargetManager::HandleSnowTrailCanvasUpdate(

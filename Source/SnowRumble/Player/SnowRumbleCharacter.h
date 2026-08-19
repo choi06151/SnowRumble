@@ -956,11 +956,11 @@ public:
 
 	/** 발 socket 위쪽에서 trace를 시작하는 높이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep", meta = (ClampMin = "0.0"))
-	float SnowFootstepTraceUpOffset = 18.0f;
+	float SnowFootstepTraceUpOffset = 80.0f;
 
 	/** 발 socket 아래로 눈 표면을 찾는 거리다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep", meta = (ClampMin = "0.0"))
-	float SnowFootstepTraceDownDistance = 70.0f;
+	float SnowFootstepTraceDownDistance = 140.0f;
 
 	/** 발걸음 효과가 너무 촘촘히 반복되지 않도록 막는 최소 간격이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep", meta = (ClampMin = "0.0"))
