@@ -4,6 +4,7 @@
 
 #include "Engine/GameInstance.h"
 #include "../Item/GiftBox_C.h"
+#include "../Map/SnowIslandWaterPressureActor_J.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "../Player/SnowRumbleHealthComponent.h"
 #include "../UI/SnowRumblePlayerController.h"
@@ -601,6 +602,16 @@ void ASnowRumbleGameMode::TriggerMapShrink()
 		MapShrinkStage,
 		SnowRumbleGameState->GetRoundElapsedSeconds(),
 		TemporaryMapShrinkDurationSeconds);
+	for (TActorIterator<ASnowIslandWaterPressureActor> It(GetWorld()); It; ++It)
+	{
+		if (ASnowIslandWaterPressureActor* WaterPressureActor = *It)
+		{
+			WaterPressureActor->StartWaterPressureFromMapShrink(
+				MapShrinkStage,
+				SnowRumbleGameState->GetRoundElapsedSeconds(),
+				TemporaryMapShrinkDurationSeconds);
+		}
+	}
 
 	GetWorldTimerManager().SetTimer(
 		MapShrinkCompletionTimerHandle,

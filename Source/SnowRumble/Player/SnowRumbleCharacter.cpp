@@ -57,6 +57,8 @@
 #include "Blueprint/UserWidget.h"
 #include "SnowRumbleUserSettingsSubsystem_C.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogSnowTrailCharacter, Log, All);
+
 ASnowRumbleCharacter::ASnowRumbleCharacter()
 {
 	GetCapsuleComponent()->InitCapsuleSize(42.0f, 96.0f);
@@ -3464,9 +3466,35 @@ bool ASnowRumbleCharacter::FindSnowFootstepSurface(
 		TraceEnd,
 		ECC_Visibility,
 		QueryParams);
-	return bHit
+	const bool bHitSnowSurface = bHit
 		&& OutFootstepHit.GetActor()
 		&& OutFootstepHit.GetActor()->ActorHasTag(SnowFootstepSurfaceTag);
+	if (!bHitSnowSurface)
+	{
+		if (const ASnowTrailRenderTargetManager* SnowTrailManager =
+			ASnowTrailRenderTargetManager::FindSnowTrailManager(this))
+		{
+			if (SnowTrailManager->ShouldLogSnowTrailDebug())
+			{
+				UE_LOG(
+					LogSnowTrailCharacter,
+					Warning,
+					TEXT("[SnowTrail] Foot trace failed Character=%s Foot=%s Hit=%d HitActor=%s HasTag=%d Start=%s End=%s Tag=%s"),
+					*GetNameSafe(this),
+					*FootSocketName.ToString(),
+					bHit ? 1 : 0,
+					*GetNameSafe(OutFootstepHit.GetActor()),
+					OutFootstepHit.GetActor()
+						&& OutFootstepHit.GetActor()->ActorHasTag(SnowFootstepSurfaceTag)
+							? 1
+							: 0,
+					*TraceStart.ToCompactString(),
+					*TraceEnd.ToCompactString(),
+					*SnowFootstepSurfaceTag.ToString());
+			}
+		}
+	}
+	return bHitSnowSurface;
 }
 
 bool ASnowRumbleCharacter::FindSnowFootstepSurfaceAtLocation(
@@ -3505,9 +3533,35 @@ bool ASnowRumbleCharacter::FindSnowFootstepSurfaceAtLocation(
 		TraceEnd,
 		ECC_Visibility,
 		QueryParams);
-	return bHit
+	const bool bHitSnowSurface = bHit
 		&& OutFootstepHit.GetActor()
 		&& OutFootstepHit.GetActor()->ActorHasTag(SnowFootstepSurfaceTag);
+	if (!bHitSnowSurface)
+	{
+		if (const ASnowTrailRenderTargetManager* SnowTrailManager =
+			ASnowTrailRenderTargetManager::FindSnowTrailManager(this))
+		{
+			if (SnowTrailManager->ShouldLogSnowTrailDebug())
+			{
+				UE_LOG(
+					LogSnowTrailCharacter,
+					Warning,
+					TEXT("[SnowTrail] Location trace failed Character=%s Location=%s Hit=%d HitActor=%s HasTag=%d Start=%s End=%s Tag=%s"),
+					*GetNameSafe(this),
+					*FootstepLocation.ToCompactString(),
+					bHit ? 1 : 0,
+					*GetNameSafe(OutFootstepHit.GetActor()),
+					OutFootstepHit.GetActor()
+						&& OutFootstepHit.GetActor()->ActorHasTag(SnowFootstepSurfaceTag)
+							? 1
+							: 0,
+					*TraceStart.ToCompactString(),
+					*TraceEnd.ToCompactString(),
+					*SnowFootstepSurfaceTag.ToString());
+			}
+		}
+	}
+	return bHitSnowSurface;
 }
 
 void ASnowRumbleCharacter::UpdateDistanceBasedSnowTrail(float DeltaSeconds)
@@ -3628,6 +3682,21 @@ void ASnowRumbleCharacter::ServerRequestSnowTrailStamp_Implementation(
 			FootstepLocation,
 			GetActorLocation()) > FMath::Square(MaxDistance))
 	{
+		if (const ASnowTrailRenderTargetManager* SnowTrailManager =
+			ASnowTrailRenderTargetManager::FindSnowTrailManager(this))
+		{
+			if (SnowTrailManager->ShouldLogSnowTrailDebug())
+			{
+				UE_LOG(
+					LogSnowTrailCharacter,
+					Warning,
+					TEXT("[SnowTrail] Server rejected stamp: client location too far Character=%s FootLocation=%s ActorLocation=%s MaxDistance=%.1f"),
+					*GetNameSafe(this),
+					*FootstepLocation.ToCompactString(),
+					*GetActorLocation().ToCompactString(),
+					MaxDistance);
+			}
+		}
 		return;
 	}
 
@@ -3636,6 +3705,19 @@ void ASnowRumbleCharacter::ServerRequestSnowTrailStamp_Implementation(
 		FootstepLocation,
 		ServerFootstepHit))
 	{
+		if (const ASnowTrailRenderTargetManager* SnowTrailManager =
+			ASnowTrailRenderTargetManager::FindSnowTrailManager(this))
+		{
+			if (SnowTrailManager->ShouldLogSnowTrailDebug())
+			{
+				UE_LOG(
+					LogSnowTrailCharacter,
+					Warning,
+					TEXT("[SnowTrail] Server rejected stamp: no SnowSurface Character=%s FootLocation=%s"),
+					*GetNameSafe(this),
+					*FootstepLocation.ToCompactString());
+			}
+		}
 		return;
 	}
 
@@ -3660,12 +3742,23 @@ void ASnowRumbleCharacter::MulticastStampSnowTrail_Implementation(
 		return;
 	}
 
-	SnowTrailManager->StampSnowTrailAtWorldLocation(
+	const bool bStamped = SnowTrailManager->StampSnowTrailAtWorldLocation(
 		FootstepLocation,
 		FootstepNormal.GetSafeNormal(),
 		RadiusWorld,
 		FootSocketName,
 		this);
+	if (!bStamped && SnowTrailManager->ShouldLogSnowTrailDebug())
+	{
+		UE_LOG(
+			LogSnowTrailCharacter,
+			Warning,
+			TEXT("[SnowTrail] Multicast stamp failed Character=%s Location=%s Radius=%.1f Foot=%s"),
+			*GetNameSafe(this),
+			*FootstepLocation.ToCompactString(),
+			RadiusWorld,
+			*FootSocketName.ToString());
+	}
 }
 
 void ASnowRumbleCharacter::RequestAnimationTriggerFromServer(

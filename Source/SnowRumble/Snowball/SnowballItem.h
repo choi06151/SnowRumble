@@ -68,6 +68,9 @@ public:
 	/** 현재 성장 크기가 적용된 굴리기 충돌 반지름을 반환한다. */
 	float GetRollingCollisionRadius() const;
 
+	/** 생성 직후 지정 Actor와 잠시 충돌하지 않도록 한다. */
+	void IgnoreActorTemporarily(AActor* ActorToIgnore, float DurationSeconds);
+
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
 	ESnowballItemState GetItemState() const;
 
@@ -115,6 +118,10 @@ protected:
 
 	/** 서버에서 처음 확인한 투척 충돌의 피해, 이펙트와 제거를 처리한다. */
 	void HandleThrownImpact(AActor* OtherActor, const FHitResult& Hit);
+
+	/** 임시 충돌 무시가 끝난 Actor를 다시 충돌 대상으로 복구한다. */
+	void RestoreTemporarilyIgnoredActor(
+		TWeakObjectPtr<AActor> IgnoredActor);
 
 	/** 서버가 확정한 충돌 이펙트를 모든 참가자 화면에서 재생한다. */
 	UFUNCTION(NetMulticast, Reliable)
@@ -190,4 +197,8 @@ protected:
 	float AccumulatedRollingDistance = 0.0f;
 	bool bHasProcessedThrownImpact = false;
 	float CurrentThrowChargeProgress = 0.0f;
+
+	TSet<TWeakObjectPtr<AActor>> TemporarilyIgnoredActors;
+	ECollisionResponse CachedPawnCollisionResponse = ECR_Block;
+	bool bTemporarilyIgnoringPawnCollision = false;
 };

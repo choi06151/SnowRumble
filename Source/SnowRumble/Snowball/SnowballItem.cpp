@@ -8,11 +8,14 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
+#include "TimerManager.h"
 
 ASnowballItem::ASnowballItem()
 {
 	bReplicates = true;
 	SetReplicateMovement(true);
+	NetUpdateFrequency = 30.0f;
+	MinNetUpdateFrequency = 15.0f;
 
 	CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComponent"));
 	CollisionComponent->InitSphereRadius(18.0f);
@@ -126,6 +129,43 @@ bool ASnowballItem::DropToGround()
 	RefreshStatePresentation();
 	ForceNetUpdate();
 	return true;
+}
+
+void ASnowballItem::IgnoreActorTemporarily(
+	AActor* ActorToIgnore,
+	float DurationSeconds)
+{
+	if (!HasAuthority()
+		|| !CollisionComponent
+		|| !ActorToIgnore
+		|| DurationSeconds <= 0.0f)
+	{
+		return;
+	}
+
+	TemporarilyIgnoredActors.Add(ActorToIgnore);
+	CollisionComponent->IgnoreActorWhenMoving(ActorToIgnore, true);
+	if (!bTemporarilyIgnoringPawnCollision)
+	{
+		CachedPawnCollisionResponse =
+			CollisionComponent->GetCollisionResponseToChannel(ECC_Pawn);
+		bTemporarilyIgnoringPawnCollision = true;
+		CollisionComponent->SetCollisionResponseToChannel(
+			ECC_Pawn,
+			ECR_Ignore);
+	}
+
+	FTimerHandle RestoreTimerHandle;
+	FTimerDelegate RestoreDelegate;
+	RestoreDelegate.BindUObject(
+		this,
+		&ASnowballItem::RestoreTemporarilyIgnoredActor,
+		TWeakObjectPtr<AActor>(ActorToIgnore));
+	GetWorldTimerManager().SetTimer(
+		RestoreTimerHandle,
+		RestoreDelegate,
+		DurationSeconds,
+		false);
 }
 
 bool ASnowballItem::TryStartRolling(ASnowRumbleCharacter* NewRoller)
@@ -544,6 +584,26 @@ void ASnowballItem::HandleThrownImpact(
 	MulticastPlayImpactEffect(ImpactPoint, ImpactNormal);
 
 	Destroy();
+}
+
+void ASnowballItem::RestoreTemporarilyIgnoredActor(
+	TWeakObjectPtr<AActor> IgnoredActor)
+{
+	AActor* ActorToRestore = IgnoredActor.Get();
+	if (!CollisionComponent || !ActorToRestore)
+	{
+		return;
+	}
+
+	TemporarilyIgnoredActors.Remove(IgnoredActor);
+	CollisionComponent->IgnoreActorWhenMoving(ActorToRestore, false);
+	if (TemporarilyIgnoredActors.IsEmpty() && bTemporarilyIgnoringPawnCollision)
+	{
+		CollisionComponent->SetCollisionResponseToChannel(
+			ECC_Pawn,
+			CachedPawnCollisionResponse);
+		bTemporarilyIgnoringPawnCollision = false;
+	}
 }
 
 void ASnowballItem::MulticastPlayImpactEffect_Implementation(
