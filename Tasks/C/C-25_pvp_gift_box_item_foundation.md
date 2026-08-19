@@ -26,6 +26,10 @@ PvP 라운드 중 서버가 맵에 배치된 후보 지점에서 선물상자를
 - [x] 모닥불 키트는 보유하지 않고 획득 즉시 캐릭터 앞에 서버 권한 모닥불을 설치한다.
 - [x] 캐릭터에 장비 외형 슬롯 MeshComponent를 추가하고 아이템 효과 복제 상태에 따라 부츠, 장갑, 패딩, 핫팩, 눈삽, 눈오리 제작기 슬롯을 표시한다.
 - [x] 선물상자 열기와 선물 아이템 획득 성공 시 캐릭터 아이템 상호작용 애니메이션 상태를 복제한다.
+- [x] 눈오리 제작기 또는 황금 눈오리 제작기를 장착한 상태에서 좌클릭 눈 제작 완료 시 생성된 눈덩이를 즉시 손에 장착하고, 이후 좌클릭만으로도 충전·투척할 수 있게 기존 서버 권한 눈덩이 흐름을 재사용한다.
+- [x] 눈오리 제작기를 장착한 캐릭터가 눈덩이를 던질 때 작은/큰 눈덩이 트리거보다 `ThrowSnowDuckMaker` 애니메이션 트리거를 우선 요청한다.
+- [x] 눈오리 제작기 장착 중 눈덩이를 들면 `SnowDuckBallSocket`에 우선 부착하고, 해당 소켓이 없으면 기존 작은/큰 눈덩이 소켓으로 fallback한다.
+- [x] 모닥불 Blueprint가 불꽃과 회복 범위 VFX를 연결할 수 있도록 `FireVfxComponent`와 `HealRadiusVfxComponent`를 제공하고, 모닥불이 꺼지면 자동으로 비활성화한다.
 
 ## 작업 배정
 
@@ -40,7 +44,7 @@ PvP 라운드 중 서버가 맵에 배치된 후보 지점에서 선물상자를
 ## 공용 계약과 인계
 
 - 제공받을 계약: C-05 PvP 라운드 시간과 종료 상태, C-22 상호작용 안내 UI 경로, 기존 PlayerController 개인 알림/이벤트 로그 경로
-- 제공할 계약: `AGiftBox`, `AGiftBoxItemPickup`, `UGiftItemEffectComponent`, `ACampfire`, `ESnowRumbleGiftBoxGrade::Red`/`Gold`, `FSnowRumbleGiftBoxReward::PickupClass`, `AGiftBox::CanInteractWith()`, `AGiftBox::TryOpen()`, `AGiftBox::TakeDamage()`, `AGiftBox::OnGiftBoxGradeChanged()`, `AGiftBox::OnGiftBoxLanded()`, `AGiftBox::OnGiftBoxOpened()`, `AGiftBoxItemPickup::DefaultItemType`, `AGiftBoxItemPickup::DefaultItemId`, `AGiftBoxItemPickup::DefaultDisplayName`, `AGiftBoxItemPickup::TryPickup()`, `AGiftBoxItemPickup::OnItemDataChanged()`, `AGiftBoxItemPickup::OnItemPickedUp()`, `UGiftItemEffectComponent::ApplyGiftItemFromServer()`, `UGiftItemEffectComponent::HasHotPack()`, `UGiftItemEffectComponent::HasBoots()`, `UGiftItemEffectComponent::HasPadding()`, `UGiftItemEffectComponent::HasGloves()`, `UGiftItemEffectComponent::GetSnowShovelDurability()`, `UGiftItemEffectComponent::GetEquippedShovelItemType()`, `UGiftItemEffectComponent::GetEquippedDuckMakerItemType()`, `ASnowRumbleCharacter::ApplyGiftBoxItemEffectFromServer()`, `ASnowRumbleCharacter::NotifyItemInteractionSucceeded()`, `ASnowRumbleCharacter::IsInteractingWithItem()`, `ASnowRumbleGameMode::GiftBoxClass`, `GiftBoxSpawnPointTag`, `FirstGiftBoxSpawnDelaySeconds`, `GiftBoxSpawnIntervalSeconds`, `GoldGiftBoxSpawnChance`
+- 제공할 계약: `AGiftBox`, `AGiftBoxItemPickup`, `UGiftItemEffectComponent`, `ACampfire`, `ESnowRumbleGiftBoxGrade::Red`/`Gold`, `FSnowRumbleGiftBoxReward::PickupClass`, `AGiftBox::CanInteractWith()`, `AGiftBox::TryOpen()`, `AGiftBox::TakeDamage()`, `AGiftBox::OnGiftBoxGradeChanged()`, `AGiftBox::OnGiftBoxLanded()`, `AGiftBox::OnGiftBoxOpened()`, `AGiftBoxItemPickup::DefaultItemType`, `AGiftBoxItemPickup::DefaultItemId`, `AGiftBoxItemPickup::DefaultDisplayName`, `AGiftBoxItemPickup::TryPickup()`, `AGiftBoxItemPickup::OnItemDataChanged()`, `AGiftBoxItemPickup::OnItemPickedUp()`, `UGiftItemEffectComponent::ApplyGiftItemFromServer()`, `UGiftItemEffectComponent::HasHotPack()`, `UGiftItemEffectComponent::HasBoots()`, `UGiftItemEffectComponent::HasPadding()`, `UGiftItemEffectComponent::HasGloves()`, `UGiftItemEffectComponent::GetSnowShovelDurability()`, `UGiftItemEffectComponent::GetEquippedShovelItemType()`, `UGiftItemEffectComponent::GetEquippedDuckMakerItemType()`, `ASnowRumbleCharacter::ApplyGiftBoxItemEffectFromServer()`, `ASnowRumbleCharacter::NotifyItemInteractionSucceeded()`, `ASnowRumbleCharacter::IsInteractingWithItem()`, `ASnowRumbleCharacter::HasEquippedSnowDuckMaker()`, `USnowballEquipmentComponent::EquipCreatedSnowballFromServer()`, `ACampfire::FireVfxComponent`, `ACampfire::HealRadiusVfxComponent`, `ASnowRumbleGameMode::GiftBoxClass`, `GiftBoxSpawnPointTag`, `FirstGiftBoxSpawnDelaySeconds`, `GiftBoxSpawnIntervalSeconds`, `GoldGiftBoxSpawnChance`
 - 인계 대상: 사용자/S/J는 PvP 맵에 선물상자 Spawn Point용 `TargetPoint`를 배치한다. `GiftBoxSpawnPointTag` 기본값은 `GiftBoxSpawn`이며, 해당 태그가 붙은 TargetPoint가 없으면 맵의 모든 TargetPoint를 후보로 사용한다. 사용자/S는 `AGiftBox` 기반 선물상자 Blueprint 모델·낙하 표현·개봉 연출을 연결한다.
 
 ## 범위 밖
@@ -82,6 +86,8 @@ PvP 라운드 중 서버가 맵에 배치된 후보 지점에서 선물상자를
 - 2026-08-12: 아이템 상호작용 애니메이션 연동 변경은 `git diff --check`와 UHT/C++ 컴파일을 통과했다. 최종 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
 - 2026-08-18: 개발 테스트용으로 선물상자에서 spawn되지 않고 직접 배치한 `AGiftBoxItemPickup`도 먹을 수 있게 했다. 서버 BeginPlay에서 `ItemType`이 `None`이면 `DefaultItemType`, `DefaultItemId`, `DefaultDisplayName`으로 초기화한다.
 - 2026-08-18: 직접 배치 아이템 Pickup 기본값 변경은 `git diff --check`, UHT, C++ 컴파일과 `.lib` 생성을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
+- 2026-08-19: 눈오리 제작기를 장착하고 좌클릭해도 눈 생성과 공격이 이어지지 않는 문제를 수정했다. `USnowballCreationComponent::CompleteCreation()`은 눈오리 제작기 장착 상태에서 생성한 눈덩이를 `USnowballEquipmentComponent::EquipCreatedSnowballFromServer()`로 즉시 손에 장착하고, `USnowballEquipmentComponent::CanThrowHeldSnowball()`은 눈오리 제작기 장착 중 좌클릭 단독 충전·투척을 허용한다. `ASnowRumbleCharacter::NotifySnowballThrowSucceeded()`는 `ASnowRumbleCharacter::HasEquippedSnowDuckMaker()` 기준으로 `ThrowSnowDuckMaker` 트리거를 우선 요청한다. `ASnowRumbleCharacter::GetSnowballHoldPointForSnowball()`은 눈오리 제작기 장착 중 `SnowDuckBallSocket`을 우선 사용한다. `git diff --check`와 충돌 표식 검색은 통과했고, `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 보류됐다.
+- 2026-08-19: 모닥불 Blueprint VFX 연결용으로 `ACampfire`에 `FireVfxComponent`와 `HealRadiusVfxComponent`를 추가했다. 두 Niagara 컴포넌트는 모닥불 활성 중 켜지고, `RemainingHitPoints`가 0이 되면 `RefreshCampfirePresentation()`에서 꺼진다. `git diff --check`와 충돌 표식 검색은 통과했고, `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 보류됐다.
 
 ## 수동 작업 (구현 후 구체화)
 
@@ -95,9 +101,9 @@ PvP 라운드 중 서버가 맵에 배치된 후보 지점에서 선물상자를
 8. PvP 맵마다 레벨 담당자가 `TargetPoint`를 배치한다. 선물상자 전용 후보만 쓰려면 Actor Tag에 `GiftBoxSpawn`을 추가한다.
 9. 필요하면 `FirstGiftBoxSpawnDelaySeconds`, `GiftBoxSpawnIntervalSeconds`, `GiftBoxSpawnHeightOffset`, `GoldGiftBoxSpawnChance`를 조정한다.
 10. 효과 상태 UI나 외형 표시가 필요하면 캐릭터의 `GiftItemEffectComponent`에서 `HasHotPack()`, `GetSnowShovelDurability()` 같은 읽기 함수를 사용한다.
-11. 모닥불 표현을 바꾸려면 `ACampfire`를 부모로 하는 Blueprint를 만들고 `CampfireMeshComponent`, `OnCampfireStateChanged(NewRemainingHitPoints, bExtinguished)`에 모델·불꽃·연기·꺼짐 연출을 연결한 뒤 캐릭터 Blueprint의 `GiftItemEffectComponent`에서 `CampfireClass`에 지정한다.
+11. 모닥불 표현을 바꾸려면 `ACampfire`를 부모로 하는 Blueprint를 만들고 `CampfireMeshComponent`, `FireVfxComponent`, `HealRadiusVfxComponent`, `OnCampfireStateChanged(NewRemainingHitPoints, bExtinguished)`에 모델·불꽃·연기·회복 범위·꺼짐 연출을 연결한 뒤 캐릭터 Blueprint의 `GiftItemEffectComponent`에서 `CampfireClass`에 지정한다.
 12. 캐릭터 Blueprint에서 `LeftBootsEquipmentMesh`, `RightBootsEquipmentMesh`, `LeftGlovesEquipmentMesh`, `RightGlovesEquipmentMesh`, `PaddingEquipmentMesh`, `HotPackEquipmentMesh`, `SnowShovelEquipmentMesh`, `GoldenShovelEquipmentMesh`, `SnowDuckMakerEquipmentMesh`, `GoldenDuckMakerEquipmentMesh`를 지정한다.
-13. 캐릭터 Skeleton 또는 Mesh에 `LeftBootsSocket`, `RightBootsSocket`, `LeftGlovesSocket`, `RightGlovesSocket`, `PaddingSocket`, `HotPackSocket`, `ShovelSocket`, `DuckMakerSocket` 같은 장비 소켓을 만든다.
+13. 캐릭터 Skeleton 또는 Mesh에 `LeftBootsSocket`, `RightBootsSocket`, `LeftGlovesSocket`, `RightGlovesSocket`, `PaddingSocket`, `HotPackSocket`, `ShovelSocket`, `DuckMakerSocket`, `SnowDuckBallSocket` 같은 장비 소켓을 만든다.
 14. 장비 슬롯 위치는 각 `*EquipmentAttachSocketName`, `*EquipmentRelativeLocation`, `*EquipmentRelativeRotation`, `*EquipmentRelativeScale`로 조정한다. 전용 소켓이 없으면 Attach Socket Name을 비워 Mesh 기준 상대 위치로 맞출 수 있다.
 15. 캐릭터 BP에서 소켓 이름이나 상대 위치를 바꾼 뒤 즉시 반영이 필요하면 `RefreshGiftItemEquipmentMeshes()`를 호출한다. 이 함수는 각 슬롯 컴포넌트를 현재 소켓 설정에 맞춰 다시 부착한다.
 16. 캐릭터 ABP의 `ItemInteractionAnimation`에는 선물상자를 열거나 바닥의 선물 아이템을 집는 짧은 상호작용 애니메이션을 지정한다.
@@ -124,10 +130,14 @@ PvP 라운드 중 서버가 맵에 배치된 후보 지점에서 선물상자를
 - [ ] 핫초코 또는 붕어빵 획득 시 서버 기준 HP가 최대 HP를 넘지 않고 35 회복되는지 확인한다.
 - [ ] 에너지 드링크 획득 후 5초 동안 눈덩이 피해를 받지 않고, 5초 뒤 다시 피해를 받는지 확인한다.
 - [ ] 부츠 획득 후 이동속도가 증가하고, 패딩 획득 후 받는 눈덩이 피해가 감소하는지 확인한다.
-- [ ] 장갑 획득 후 눈덩이 제작 시간이 짧아지고, 눈오리 제작기 또는 황금 눈오리 제작기 획득 후 던진 눈덩이 피해가 증가하는지 확인한다.
+- [ ] 장갑 획득 후 눈덩이 제작 시간이 짧아지고, 눈오리 제작기 또는 황금 눈오리 제작기 획득 후 좌클릭 눈 제작 완료 시 생성된 눈덩이가 즉시 손에 장착되는지 확인한다.
+- [ ] 눈오리 제작기 또는 황금 눈오리 제작기 장착 중 눈덩이를 들면 캐릭터 Skeleton 또는 Mesh의 `SnowDuckBallSocket` 위치에 붙는지 확인한다.
+- [ ] 눈오리 제작기 또는 황금 눈오리 제작기를 장착한 상태에서 장착된 눈덩이를 좌클릭만으로 충전·투척하면 `ThrowSnowDuckMaker` 애니메이션과 피해 증가가 적용되는지 확인한다.
 - [ ] 황금 붕어빵 획득 후 30초 동안 초당 2씩 회복되는지 확인한다.
 - [ ] 일반 핫팩을 처음 획득하면 `HasHotPack()` 상태가 켜지고, 이미 장착 중일 때 다른 일반 핫팩 Pickup 획득이 실패해 Pickup이 남는지 확인한다.
 - [ ] 황금 핫팩 획득 시 보유 핫팩으로 누적되지 않고, 같은 팀의 얼음 상태 아군이 즉시 50% HP로 부활하는지 확인한다.
 - [ ] 모닥불 키트 획득 시 캐릭터 앞 지면에 모닥불이 설치되고, 범위 안의 플레이어가 팀과 무관하게 초당 HP 4씩 회복되는지 확인한다.
+- [ ] 모닥불 Blueprint의 `FireVfxComponent`와 `HealRadiusVfxComponent`에 연결한 VFX가 설치 직후 보이고, 회복 범위 VFX가 `HealRadius` 기준 크기로 표시되는지 확인한다.
 - [ ] 모닥불이 눈덩이 등 피해를 5회 받으면 꺼지고 잠시 뒤 사라지는지 확인한다.
+- [ ] 모닥불이 꺼질 때 `FireVfxComponent`와 `HealRadiusVfxComponent`가 비활성화되는지 확인한다.
 - [ ] 부츠, 장갑, 패딩, 일반 핫팩, 눈삽/황금 눈삽, 눈오리 제작기/황금 눈오리 제작기를 획득할 때 호스트와 클라이언트 양쪽 화면에서 해당 슬롯 Mesh가 표시되는지 확인한다.

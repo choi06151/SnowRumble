@@ -48,6 +48,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
 	ASnowballItem* GetHeldSnowball() const;
 
+	/** 서버가 새로 만든 눈덩이를 즉시 손에 장착한다. */
+	bool EquipCreatedSnowballFromServer(ASnowballItem* CreatedSnowball);
+
 	/** 현재 최대 성장 큰 눈덩이를 들고 있는지 확인한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
 	bool IsHoldingLargeSnowball() const;

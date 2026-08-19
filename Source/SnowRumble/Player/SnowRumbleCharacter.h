@@ -235,6 +235,9 @@ public:
 	/** 현재 아이템 효과 기준 눈덩이 피해 배율을 반환한다. */
 	float GetSnowballDamageMultiplier() const;
 
+	/** 현재 눈오리 제작기 또는 황금 눈오리 제작기를 장착 중인지 확인한다. */
+	bool HasEquippedSnowDuckMaker() const;
+
 	/** 보유 장비가 바뀌면 스프린트와 현재 최대 이동속도를 다시 적용한다. */
 	void RefreshHeldEquipmentMovementState();
 
@@ -667,6 +670,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball")
 	TObjectPtr<USceneComponent> LargeSnowballHoldPoint;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball")
+	TObjectPtr<USceneComponent> SnowDuckBallHoldPoint;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Interaction")
 	TObjectPtr<UOutlineComponent> OutlineComponent;

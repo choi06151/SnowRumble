@@ -119,7 +119,7 @@ void USnowballCreationComponent::ServerStartCreatingSnowball_Implementation(
 	FVector_NetQuantizeNormal ViewDirection)
 {
 	ASnowRumbleCharacter* Character = Cast<ASnowRumbleCharacter>(GetOwner());
-	const USnowballEquipmentComponent* Equipment =
+	USnowballEquipmentComponent* Equipment =
 		Character
 			? Character->FindComponentByClass<USnowballEquipmentComponent>()
 			: nullptr;
@@ -194,7 +194,7 @@ void USnowballCreationComponent::OnRep_IsCreating()
 void USnowballCreationComponent::CompleteCreation()
 {
 	ASnowRumbleCharacter* Character = Cast<ASnowRumbleCharacter>(GetOwner());
-	const USnowballEquipmentComponent* Equipment =
+	USnowballEquipmentComponent* Equipment =
 		Character
 			? Character->FindComponentByClass<USnowballEquipmentComponent>()
 			: nullptr;
@@ -232,11 +232,21 @@ void USnowballCreationComponent::CompleteCreation()
 	SpawnParameters.SpawnCollisionHandlingOverride =
 		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
-	World->SpawnActor<ASnowballItem>(
+	ASnowballItem* CreatedSnowball = World->SpawnActor<ASnowballItem>(
 		SnowballItemClass,
 		SpawnLocation,
 		FRotator::ZeroRotator,
 		SpawnParameters);
+
+	if (CreatedSnowball
+		&& Character->HasEquippedSnowDuckMaker()
+		&& Equipment
+		&& Equipment->EquipCreatedSnowballFromServer(CreatedSnowball))
+	{
+		SetCreatingState(false);
+		Character->ForceNetUpdate();
+		return;
+	}
 
 	SetCreatingState(false);
 	Character->ForceNetUpdate();

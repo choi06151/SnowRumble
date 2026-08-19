@@ -111,6 +111,34 @@ ASnowballItem* USnowballEquipmentComponent::GetHeldSnowball() const
 	return HeldSnowball;
 }
 
+bool USnowballEquipmentComponent::EquipCreatedSnowballFromServer(
+	ASnowballItem* CreatedSnowball)
+{
+	ASnowRumbleCharacter* Character = Cast<ASnowRumbleCharacter>(GetOwner());
+	if (!Character
+		|| !Character->HasAuthority()
+		|| Character->IsFrozen()
+		|| Character->IsPickingUpItem()
+		|| HasHeldSnowball()
+		|| !CreatedSnowball)
+	{
+		return false;
+	}
+
+	if (!CreatedSnowball->TrySetHeldBy(
+		Character,
+		Character->GetSnowballHoldPointForSnowball(CreatedSnowball)))
+	{
+		return false;
+	}
+
+	HeldSnowball = CreatedSnowball;
+	Character->NotifySnowballPickupSucceeded(IsHoldingLargeSnowball());
+	OnRep_HeldSnowball();
+	Character->ForceNetUpdate();
+	return true;
+}
+
 bool USnowballEquipmentComponent::IsHoldingLargeSnowball() const
 {
 	return HeldSnowball
@@ -198,7 +226,13 @@ bool USnowballEquipmentComponent::IsAiming() const
 
 bool USnowballEquipmentComponent::CanThrowHeldSnowball() const
 {
-	return HasHeldSnowball() && bIsAiming && !bHasPendingThrow;
+	const ASnowRumbleCharacter* Character =
+		Cast<ASnowRumbleCharacter>(GetOwner());
+	const bool bCanUseDuckMakerDirectly =
+		Character && Character->HasEquippedSnowDuckMaker();
+	return HasHeldSnowball()
+		&& (bIsAiming || bCanUseDuckMakerDirectly)
+		&& !bHasPendingThrow;
 }
 
 void USnowballEquipmentComponent::StartCharging()

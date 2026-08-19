@@ -7,6 +7,7 @@
 #include "Campfire_C.generated.h"
 
 class ASnowRumbleCharacter;
+class UNiagaraComponent;
 class USphereComponent;
 class UStaticMeshComponent;
 
@@ -44,6 +45,9 @@ protected:
 	/** 모닥불이 꺼졌을 때 서버와 클라이언트 표현을 갱신한다. */
 	void ExtinguishCampfire();
 
+	/** 현재 내구도와 꺼짐 상태에 맞춰 C++ 기본 컴포넌트 표현을 갱신한다. */
+	void RefreshCampfirePresentation();
+
 	UFUNCTION()
 	void OnRep_RemainingHitPoints();
 
@@ -52,6 +56,12 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Campfire")
 	TObjectPtr<UStaticMeshComponent> CampfireMeshComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Campfire|VFX")
+	TObjectPtr<UNiagaraComponent> FireVfxComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Campfire|VFX")
+	TObjectPtr<UNiagaraComponent> HealRadiusVfxComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Campfire", meta = (ClampMin = "0.0"))
 	float HealRadius = 320.0f;
