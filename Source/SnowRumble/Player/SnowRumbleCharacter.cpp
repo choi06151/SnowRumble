@@ -3443,11 +3443,14 @@ bool ASnowRumbleCharacter::FindSnowFootstepSurface(
 	const FVector SocketLocation = GetMesh()->DoesSocketExist(FootSocketName)
 		? GetMesh()->GetSocketLocation(FootSocketName)
 		: GetActorLocation();
+	const float TraceUpOffset = FMath::Max(80.0f, SnowFootstepTraceUpOffset);
+	const float TraceDownDistance =
+		FMath::Max(140.0f, SnowFootstepTraceDownDistance);
 	const FVector TraceStart =
-		SocketLocation + FVector::UpVector * SnowFootstepTraceUpOffset;
+		SocketLocation + FVector::UpVector * TraceUpOffset;
 	const FVector TraceEnd =
 		SocketLocation
-		- FVector::UpVector * SnowFootstepTraceDownDistance;
+		- FVector::UpVector * TraceDownDistance;
 
 	FCollisionQueryParams QueryParams(
 		SCENE_QUERY_STAT(SnowFootstepTrace),
@@ -3481,11 +3484,14 @@ bool ASnowRumbleCharacter::FindSnowFootstepSurfaceAtLocation(
 		return false;
 	}
 
+	const float TraceUpOffset = FMath::Max(80.0f, SnowFootstepTraceUpOffset);
+	const float TraceDownDistance =
+		FMath::Max(140.0f, SnowFootstepTraceDownDistance);
 	const FVector TraceStart =
-		FootstepLocation + FVector::UpVector * SnowFootstepTraceUpOffset;
+		FootstepLocation + FVector::UpVector * TraceUpOffset;
 	const FVector TraceEnd =
 		FootstepLocation
-		- FVector::UpVector * SnowFootstepTraceDownDistance;
+		- FVector::UpVector * TraceDownDistance;
 
 	FCollisionQueryParams QueryParams(
 		SCENE_QUERY_STAT(SnowFootstepLocationTrace),

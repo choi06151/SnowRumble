@@ -10,6 +10,8 @@ class ASnowRumbleCharacter;
 class UCanvas;
 class UCanvasRenderTarget2D;
 class UMaterialInterface;
+class UMaterialInstanceDynamic;
+class UPrimitiveComponent;
 
 USTRUCT(BlueprintType)
 struct FSnowTrailStampData
@@ -87,6 +89,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snow Trail")
 	TArray<FSnowTrailStampData> GetSnowTrailStamps() const;
 
+	/** 현재 RenderTarget/월드 범위 값을 지정된 지형 머티리얼에 다시 적용한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snow Trail|Material")
+	void RefreshSnowTrailMaterialParameters();
+
 protected:
 	/** 눈길 마스크 RenderTarget을 에디터 지정 없이 런타임에 만들지 여부다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail")
@@ -140,6 +146,30 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail")
 	TObjectPtr<UCanvasRenderTarget2D> SnowTrailRenderTarget;
 
+	/** BeginPlay 때 눈길 RenderTarget 파라미터를 자동으로 넣을 액터 목록이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
+	TArray<TObjectPtr<AActor>> SnowTrailMaterialActors;
+
+	/** BeginPlay 때 눈길 RenderTarget 파라미터를 자동으로 넣을 지형/메쉬 컴포넌트 목록이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
+	TArray<TObjectPtr<UPrimitiveComponent>> SnowTrailMaterialComponents;
+
+	/** 지정한 컴포넌트 머티리얼에 RenderTarget/월드 범위 파라미터를 자동 적용할지 정한다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
+	bool bApplySnowTrailParametersToMaterials = true;
+
+	/** 눈길 마스크 RenderTarget을 받는 texture parameter 이름이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
+	FName SnowTrailRenderTargetParameterName = TEXT("SnowTrailMask");
+
+	/** 눈길 RenderTarget이 덮는 월드 중심 XY를 받는 vector parameter 이름이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
+	FName SnowTrailWorldCenterParameterName = TEXT("Position");
+
+	/** 눈길 RenderTarget 한 변의 월드 거리(cm)를 받는 scalar parameter 이름이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
+	FName SnowTrailWorldSizeParameterName = TEXT("TrailWorldSize");
+
 	/** 현재 RenderTarget에 다시 그릴 누적 stamp 목록이다. */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "SnowRumble|Snow Trail")
 	TArray<FSnowTrailStampData> SnowTrailStamps;
@@ -187,6 +217,10 @@ private:
 	/** 에디터 지정 또는 런타임 생성 RenderTarget에 Canvas 갱신 콜백을 연결한다. */
 	void BindSnowTrailRenderTargetUpdate();
 
+	/** 지정한 지형/메쉬 머티리얼에 RenderTarget, 중심, 크기 파라미터를 반영한다. */
+	void ApplySnowTrailMaterialParameters(
+		UCanvasRenderTarget2D* TargetRenderTarget);
+
 	UFUNCTION()
 	void HandleSnowTrailCanvasUpdate(
 		UCanvas* Canvas,
@@ -201,4 +235,7 @@ private:
 		const FSnowTrailStampData& StampData) const;
 
 	TMap<TWeakObjectPtr<ASnowRumbleCharacter>, FVector> LastStampLocationByCharacter;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> AppliedSnowTrailMaterials;
 };
