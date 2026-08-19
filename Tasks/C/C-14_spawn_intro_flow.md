@@ -12,6 +12,7 @@
 ## 구현 항목
 
 - [ ] 서버가 팀에 맞는 시작 지점을 선택한다.
+- [x] PlayerStart 주변 분산 스폰이 바닥과 캡슐 충돌 검증을 통과한 위치만 사용한다.
 - [ ] 라운드 시작 5초 동안 이동과 전투 행동을 제한한다.
 - [x] 로컬 카메라가 팀원을 보여줄 시작·종료 상태를 제공한다.
 - [ ] 맵 담당자가 배치할 팀 시작 지점 요구사항을 제공한다.
@@ -58,6 +59,9 @@
 - 2026-08-14: 모든 플레이어 접속 후 로딩창이 닫히고 팀 소개 카메라가 시작되기 전 의미 없는 화면이 보이는 구간을 검정 화면에서 페이드 아웃되게 조정했다. `ASnowRumbleGameMode`가 로딩창 종료 직후 `ClientStartPvpIntroFadeOut()`을 호출하고, 클라이언트는 `PlayerCameraManager->StartCameraFade(1 -> 0)`로 처리한다.
 - 2026-08-14: 팀 소개 카메라가 영화처럼 위아래 letterbox를 갖도록 인트로용 임시 `ACameraActor`의 `UCameraComponent`에 `ConstrainAspectRatio`를 켜고 `PvpIntroCinematicAspectRatio` 기본값 2.39를 적용했다. 일반 플레이 카메라는 인트로 카메라 종료 후 자기 Pawn으로 돌아가므로 영향받지 않는다.
 - 2026-08-14: 시작 시퀀스 재생 조건을 첫 정규 PvP 진입과 단판 승부전 진입으로 제한했다. `ShouldPlayMatchIntroSequence()`는 활성 매치의 `CurrentRoundNumber <= 1` 또는 `IsTiebreakerActive()`일 때만 true를 반환하며, 일반 2라운드/3라운드 맵 이동에서는 팀 소개와 검정 페이드를 건너뛰고 기존 카운트다운만 시작한다.
+- 2026-08-18: PvP 맵 이동 후 건물 내부나 빈 공간에 스폰되는 원인을 `ASnowRumbleGameMode::BuildScatteredPlayerStartTransform()`가 `PlayerStart` 주변 900cm 랜덤 오프셋을 바닥·충돌 검증 없이 사용하는 경로로 확인했다.
+- 2026-08-18: PvP 분산 스폰 후보는 이제 월드 정적 바닥 trace로 캡슐 높이를 보정하고, Pawn 캡슐 overlap 검증과 기존 스폰 위치 간격 검증을 모두 통과할 때만 사용한다. 유효 후보가 없으면 더 이상 임의 후보를 쓰지 않고 원래 `PlayerStart` 위치로 fallback한다.
+- 2026-08-18: PvP 분산 스폰 안전성 변경은 `git diff --check`, UHT, `SnowRumbleGameMode.cpp` 컴파일을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
 
 ## 수동 작업 (구현 후 구체화)
 
@@ -78,6 +82,7 @@
 - 2026-08-14: 인트로 전 검정 페이드 아웃 추가 후 다시 빌드했다. 첫 빌드는 `PlayerCameraManager` include 경로를 수정했고, 재빌드는 UHT, C++ 컴파일, `.lib` 생성까지 통과했다. 최종 DLL 링크만 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
 - 2026-08-14: 팀 소개 카메라 letterbox 설정 추가 후 다시 빌드했다. UHT, C++ 컴파일, `.lib` 생성까지 통과했고 최종 DLL 링크만 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
 - 2026-08-14: 시작 시퀀스 재생 조건 제한 후 다시 빌드했다. UHT, C++ 컴파일, `.lib` 생성까지 통과했고 최종 DLL 링크만 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
+- 2026-08-18: PvP 분산 스폰 위치 안전성 보강 후 다시 빌드했다. UHT와 `SnowRumbleGameMode.cpp` 컴파일은 통과했고, 최종 DLL 링크만 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
 
 ### 결과 확인 (구현 후 구체화)
 
@@ -85,3 +90,5 @@
 - [ ] 팀 소개 중 이동·시점·공격 입력이 반응하지 않는다.
 - [ ] 팀 소개가 끝난 뒤 기존 `3`, `2`, `1`, `시작!` 카운트다운이 표시된다.
 - [ ] `시작!` 이후 view target이 자기 Pawn으로 돌아오고 조작이 풀린다.
+- [ ] PvP 맵에서 플레이어가 PlayerStart 주변 건물 내부·공중·벽 안이 아니라 바닥 위의 충돌 없는 위치에 스폰된다.
+- [ ] 유효한 분산 후보가 없을 때는 이상한 랜덤 위치 대신 원래 PlayerStart 위치에서 스폰된다.

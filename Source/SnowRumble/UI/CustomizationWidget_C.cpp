@@ -148,7 +148,10 @@ FReply UCustomizationWidget::NativeOnMouseWheel(
 
 void UCustomizationWidget::HandlePaintModeButtonClicked()
 {
-	SetCustomizationPage(ESnowRumbleCustomizationPage::PaintMode);
+	SetCustomizationPage(
+		CurrentCustomizationPage == ESnowRumbleCustomizationPage::PaintMode
+			? ESnowRumbleCustomizationPage::Main
+			: ESnowRumbleCustomizationPage::PaintMode);
 }
 
 void UCustomizationWidget::HandleHatModeButtonClicked()
