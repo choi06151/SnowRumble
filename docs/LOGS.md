@@ -228,3 +228,34 @@
 - 2026-08-18: C-24 눈덩이 던지기 실제 발사 시점을 몽타주 Notify 기반으로 변경함. `UAnimNotify_SnowballThrowRelease`를 Throw 몽타주 손 이탈 프레임에 배치하면 서버 pending throw가 기존 `ASnowballItem::Throw()`로 확정됨. UHT와 C++ 컴파일, `.lib` 생성은 통과했고 최종 DLL 링크는 실행 중인 Unreal Editor 잠금 `LNK1104`로 보류됨.
 - 2026-08-18: C-24 큰 눈덩이 전용 부착 위치를 추가함. 작은 눈은 `SnowballSocket`, 최대 성장 큰 눈은 `LargeSnowballSocket` 기준으로 붙고, 큰 눈 소켓이 없으면 기존 작은 눈 소켓으로 fallback함.
 - 2026-08-18: C-24 큰 눈덩이 소켓 변경은 `git diff --check`, UHT, C++ 컴파일과 `.lib` 생성을 통과함. 최종 DLL 링크는 실행 중인 Unreal Editor 잠금 `LNK1104`로 보류됨.
+
+## docs/PLANS.md 최근 통합 로그 보관 - 2026-08-19
+
+- 2026-08-19: C-21 로비 ESC/F10 메뉴 커서와 카메라 입력 누수를 보강함. 로비 ESC/옵션 메뉴는 하드웨어 기본 커서와 `UIOnly` 입력 모드를 명시하고, `IsGameplayUiInputOpen()` 공용 조회로 캐릭터 Move/Look/Zoom/GameplayAction 경로를 차단함.
+- 2026-08-19: C-21 로비 ESC/F10 커서와 카메라 입력 차단 변경은 `git diff --check`, UHT, C++ 컴파일을 통과함. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됨.
+- 2026-08-18: C-11 `PaintModeButton`을 토글로 변경함. 메인 화면에서는 색칠하기 화면으로 전환하고, 색칠하기 화면에서 다시 누르면 `CustomizationContentSwitcher` 0번 메인 화면으로 돌아감.
+- 2026-08-18: C-11 `PaintModeButton` 토글 변경은 `git diff --check`와 C++ 컴파일을 통과함. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됨.
+- 2026-08-18: C-11 페인트 UV seam 튐 완화값 `PaintPointMaxDistance`를 추가함. 연속 UV 점 거리가 기본 `0.08`보다 크면 기존 stroke를 끊고 새 stroke로 시작해 관절/UV 섬 사이에 긴 직선이 그려지지 않게 함.
+- 2026-08-18: C-11 UV seam 튐 완화 변경은 `git diff --check`와 C++ 컴파일을 통과함. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됨.
+- 2026-08-18: C-11 커스터마이징 프리뷰 캐릭터 고정을 보강함. `ACustomizationPlayerController` 입력 잠금이 CharacterMovement 속도, 중력, MovementMode를 함께 막아 프리뷰 캐릭터가 중력으로 떨어지지 않게 함.
+- 2026-08-18: C-11 프리뷰 고정 변경은 `git diff --check`와 C++ 컴파일을 통과함. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됨.
+- 2026-08-18: C-24 상체 조준 pose를 장착별로 분리함. `ESnowRumbleUpperBodyAnimState::Aim` 단일 상태 대신 `SmallSnowballAim`, `LargeSnowballAim`, `SnowShovelAim`, `SnowDuckMakerAim`을 AnimBP에 제공함.
+- 2026-08-18: C-24 장착별 조준 pose 변경은 `git diff --check`, UHT, C++ 컴파일과 `.lib` 생성을 통과함. 최종 DLL 링크는 실행 중인 Unreal Editor 잠금 `LNK1104`로 보류됨.
+- 2026-08-18: C-24 상체 충전 pose도 장착별로 분리함. `ChargeSnowball` 단일 상태 대신 `SmallSnowballCharge`, `LargeSnowballCharge`, `SnowShovelCharge`, `SnowDuckMakerCharge`를 AnimBP에 제공함.
+- 2026-08-18: C-24 장착별 충전 pose 변경은 `git diff --check`, UHT, C++ 컴파일과 `.lib` 생성을 통과함. 최종 DLL 링크는 실행 중인 Unreal Editor 잠금 `LNK1104`로 보류됨.
+- 2026-08-18: C-25 개발 테스트용 직접 배치 아이템 Pickup 기본값을 추가함. `AGiftBoxItemPickup`은 선물상자 spawn 없이 배치되어도 `DefaultItemType`이 지정돼 있으면 서버 BeginPlay에서 아이템 데이터로 초기화됨.
+- 2026-08-18: C-25 직접 배치 아이템 Pickup 기본값 변경은 `git diff --check`, UHT, C++ 컴파일과 `.lib` 생성을 통과함. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됨.
+- 2026-08-18: C-24 `OnAnimationTriggerRequested` 던지기 trigger에 눈오리 제작기 전용 `ThrowSnowDuckMaker`를 추가함. 눈오리 제작기 장착 중 던지기 성공 시 작은/큰 눈덩이 trigger 대신 눈오리 제작기 trigger를 보냄.
+- 2026-08-18: C-24 눈오리 제작기 던지기 trigger 변경은 `git diff --check`, UHT, C++ 컴파일과 `.lib` 생성을 통과함. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됨.
+- 2026-08-18: C-10 인게임 이모션 메뉴의 마우스 커서와 입력 집중 경로를 보강함. 이모션 메뉴는 커스텀 커서 위젯을 우회해 기본 하드웨어 커서를 강제로 사용하고, 메뉴가 열린 동안 캐릭터 게임 액션과 좌클릭 release 처리를 막음. 채팅 채널 전환 Tab 바인딩은 유지하며 채팅창이 열려 있을 때만 채널 전환을 처리함.
+- 2026-08-18: C-10 Tab 이모션 커서와 입력 집중 변경은 `git diff --check`, C++ 컴파일과 `.lib` 생성을 통과함. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됨.
+- 2026-08-18: C-10/C-19 입력 회귀를 추가 보강함. 이모션 UI 입력 전환 시 click/hover 이벤트를 명시적으로 켜고, 채팅 Enter 입력은 `ChatInputTextBox`를 입력 모드 포커스 대상으로 직접 지정한 뒤 TextBox 포커스를 재적용함.
+- 2026-08-18: C-10/C-19 입력 회귀 보강은 `git diff --check`와 C++ 컴파일을 통과함. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됨.
+- 2026-08-18: C-19 채팅 입력 중 WASD와 시점 입력이 캐릭터에 전달되는 문제를 보강함. 채팅 입력 open/close 동안 PlayerController move/look ignore를 한 쌍으로 적용하고, 캐릭터 `Look()`도 채팅 입력 중에는 반환함.
+- 2026-08-18: C-19 채팅 입력 차단 변경은 `git diff --check`와 C++ 컴파일을 통과함. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됨.
+- 2026-08-18: C-19 UI 입력 회귀의 공통 원인을 `ASnowRumbleCharacter::RefreshPvpMatchInputLock()`의 매 Tick `GameOnly`/커서 숨김 복구 경로로 확인함. 채팅 입력, 이모션 메뉴, 게시판 포커스, 커스터마이징 입력이 활성인 동안에는 PvP 입력 잠금 복구가 UI 입력 모드를 덮지 않게 보강함.
+- 2026-08-18: C-19 UI 입력 보호 변경은 `git diff --check`와 `SnowRumbleCharacter.cpp` 컴파일을 통과함. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됨.
+- 2026-08-18: C-10 이모션 버튼 클릭이 실행되지 않는 원인을 `CanPlayEmote()`가 열린 이모션 메뉴 상태를 차단하는 경로로 확인하고, 이모션 실행 조건을 일반 게임 액션 조건과 분리함.
+- 2026-08-18: C-19 채팅 입력 중 Tab 전환이 TextBox 포커스에서 누락되는 경우를 보강함. 기존 preview key 경로와 함께 `NativeTick()`에서 PlayerController Tab just-pressed를 확인하고 같은 프레임 중복 토글을 막음.
+- 2026-08-18: C-10/C-19 이모션 실행 조건과 채팅 Tab 전환 보강은 `git diff --check`와 C++ 컴파일을 통과함. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됨.
+- 2026-08-18: C-19 채팅 Tab 전환 보강을 `IsInputKeyDown(EKeys::Tab)` edge-detect 방식으로 조정함. `UEditableTextBox` 직접 key handler는 UE 5.8 API에 없어 사용하지 않음.

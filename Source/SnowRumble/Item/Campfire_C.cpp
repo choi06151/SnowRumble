@@ -9,6 +9,7 @@
 #include "Engine/OverlapResult.h"
 #include "Engine/World.h"
 #include "Net/UnrealNetwork.h"
+#include "NiagaraComponent.h"
 
 ACampfire::ACampfire()
 {
@@ -33,6 +34,16 @@ ACampfire::ACampfire()
 	CampfireMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	CampfireMeshComponent->SetCollisionObjectType(ECC_WorldDynamic);
 	CampfireMeshComponent->SetCollisionResponseToAllChannels(ECR_Block);
+
+	FireVfxComponent =
+		CreateDefaultSubobject<UNiagaraComponent>(TEXT("FireVfxComponent"));
+	FireVfxComponent->SetupAttachment(CampfireMeshComponent);
+	FireVfxComponent->SetAutoActivate(true);
+
+	HealRadiusVfxComponent =
+		CreateDefaultSubobject<UNiagaraComponent>(TEXT("HealRadiusVfxComponent"));
+	HealRadiusVfxComponent->SetupAttachment(HealRadiusComponent);
+	HealRadiusVfxComponent->SetAutoActivate(true);
 }
 
 void ACampfire::BeginPlay()
@@ -44,6 +55,7 @@ void ACampfire::BeginPlay()
 	{
 		HealRadiusComponent->SetSphereRadius(FMath::Max(0.0f, HealRadius));
 	}
+	RefreshCampfirePresentation();
 	OnCampfireStateChanged(RemainingHitPoints, false);
 }
 
@@ -152,7 +164,23 @@ void ACampfire::ExtinguishCampfire()
 	ForceNetUpdate();
 }
 
+void ACampfire::RefreshCampfirePresentation()
+{
+	const bool bExtinguished = RemainingHitPoints <= 0;
+	if (FireVfxComponent)
+	{
+		FireVfxComponent->SetActive(!bExtinguished, true);
+	}
+	if (HealRadiusVfxComponent)
+	{
+		HealRadiusVfxComponent->SetActive(!bExtinguished, true);
+		HealRadiusVfxComponent->SetWorldScale3D(
+			FVector::OneVector * FMath::Max(0.0f, HealRadius) / 100.0f);
+	}
+}
+
 void ACampfire::OnRep_RemainingHitPoints()
 {
+	RefreshCampfirePresentation();
 	OnCampfireStateChanged(RemainingHitPoints, RemainingHitPoints <= 0);
 }

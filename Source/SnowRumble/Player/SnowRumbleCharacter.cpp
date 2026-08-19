@@ -118,6 +118,10 @@ ASnowRumbleCharacter::ASnowRumbleCharacter()
 		CreateDefaultSubobject<USceneComponent>(TEXT("LargeSnowballHoldPoint"));
 	LargeSnowballHoldPoint->SetupAttachment(GetMesh(), TEXT("LargeSnowballSocket"));
 
+	SnowDuckBallHoldPoint =
+		CreateDefaultSubobject<USceneComponent>(TEXT("SnowDuckBallHoldPoint"));
+	SnowDuckBallHoldPoint->SetupAttachment(GetMesh(), TEXT("SnowDuckBallSocket"));
+
 	OutlineComponent = CreateDefaultSubobject<UOutlineComponent>(TEXT("OutlineComponent"));
 
 	LobbyBoardWidgetInteractionComponent =
@@ -385,6 +389,18 @@ ESnowballCarryState ASnowRumbleCharacter::GetSnowballCarryState() const
 
 ESnowRumbleHeldAnimationState ASnowRumbleCharacter::GetHeldAnimationState() const
 {
+	if (GiftItemEffectComponent)
+	{
+		switch (GiftItemEffectComponent->GetEquippedDuckMakerItemType())
+		{
+		case ESnowRumbleGiftItemType::SnowDuckMaker:
+		case ESnowRumbleGiftItemType::GoldenDuckMaker:
+			return ESnowRumbleHeldAnimationState::SnowDuckMaker;
+		default:
+			break;
+		}
+	}
+
 	switch (GetSnowballCarryState())
 	{
 	case ESnowballCarryState::SmallSnowball:
@@ -406,14 +422,6 @@ ESnowRumbleHeldAnimationState ASnowRumbleCharacter::GetHeldAnimationState() cons
 			break;
 		}
 
-		switch (GiftItemEffectComponent->GetEquippedDuckMakerItemType())
-		{
-		case ESnowRumbleGiftItemType::SnowDuckMaker:
-		case ESnowRumbleGiftItemType::GoldenDuckMaker:
-			return ESnowRumbleHeldAnimationState::SnowDuckMaker;
-		default:
-			break;
-		}
 	}
 
 	return ESnowRumbleHeldAnimationState::BareHands;
@@ -594,9 +602,17 @@ USceneComponent* ASnowRumbleCharacter::GetSnowballHoldPoint() const
 USceneComponent* ASnowRumbleCharacter::GetSnowballHoldPointForSnowball(
 	const ASnowballItem* Snowball) const
 {
+	const USkeletalMeshComponent* CharacterMesh = GetMesh();
+	if (HasEquippedSnowDuckMaker()
+		&& SnowDuckBallHoldPoint
+		&& CharacterMesh
+		&& CharacterMesh->DoesSocketExist(TEXT("SnowDuckBallSocket")))
+	{
+		return SnowDuckBallHoldPoint;
+	}
+
 	if (Snowball && Snowball->IsFullyGrown() && LargeSnowballHoldPoint)
 	{
-		const USkeletalMeshComponent* CharacterMesh = GetMesh();
 		if (CharacterMesh
 			&& CharacterMesh->DoesSocketExist(TEXT("LargeSnowballSocket")))
 		{
@@ -741,7 +757,7 @@ void ASnowRumbleCharacter::NotifySnowballThrowSucceeded(bool bWasLargeSnowball)
 		return;
 	}
 
-	if (GetHeldAnimationState() == ESnowRumbleHeldAnimationState::SnowDuckMaker)
+	if (HasEquippedSnowDuckMaker())
 	{
 		RequestAnimationTriggerFromServer(
 			ESnowRumbleCharacterAnimTrigger::ThrowSnowDuckMaker);
@@ -831,6 +847,23 @@ float ASnowRumbleCharacter::GetSnowballDamageMultiplier() const
 	return GiftItemEffectComponent
 		? GiftItemEffectComponent->GetSnowballDamageMultiplier()
 		: 1.0f;
+}
+
+bool ASnowRumbleCharacter::HasEquippedSnowDuckMaker() const
+{
+	if (!GiftItemEffectComponent)
+	{
+		return false;
+	}
+
+	switch (GiftItemEffectComponent->GetEquippedDuckMakerItemType())
+	{
+	case ESnowRumbleGiftItemType::SnowDuckMaker:
+	case ESnowRumbleGiftItemType::GoldenDuckMaker:
+		return true;
+	default:
+		return false;
+	}
 }
 
 float ASnowRumbleCharacter::TakeDamage(
