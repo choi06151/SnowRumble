@@ -220,12 +220,13 @@ void USnowballCreationComponent::CompleteCreation()
 	const FVector ForwardLocation =
 		Character->GetActorLocation()
 		+ Character->GetActorForwardVector() * CreationForwardDistance;
-	const FVector SpawnLocation =
+	const FVector SurfaceSpawnPoint =
 		FVector::PointPlaneProject(
 			ForwardLocation,
 			CreationSurfacePoint,
-			CreationSurfaceNormal)
-		+ CreationSurfaceNormal * 20.0f;
+			CreationSurfaceNormal);
+	const FVector SpawnLocation =
+		SurfaceSpawnPoint + CreationSurfaceNormal.GetSafeNormal() * 20.0f;
 	FActorSpawnParameters SpawnParameters;
 	SpawnParameters.Owner = Character;
 	SpawnParameters.Instigator = Character;
@@ -240,6 +241,9 @@ void USnowballCreationComponent::CompleteCreation()
 
 	if (CreatedSnowball)
 	{
+		CreatedSnowball->SettleOnGroundFromSurface(
+			SurfaceSpawnPoint,
+			CreationSurfaceNormal);
 		CreatedSnowball->IgnoreActorTemporarily(
 			Character,
 			CreatedSnowballOwnerCollisionIgnoreSeconds);

@@ -45,6 +45,7 @@ HP 0인 플레이어가 60초 동안 부활 가능한 얼음 상태가 되고 �
 ## 기존 구현 인수
 - `USnowRumbleHealthComponent`가 `MaxHealth`, `CurrentHealth`, `bIsFrozen`을 서버 권한으로 관리하고 복제한다.
 - `OnHealthChanged`, `OnFrozenChanged`, `ASnowRumbleCharacter::IsFrozen`, `TakeDamage`가 현재 HP·얼기 연결 지점이다.
+- `ASnowRumbleCharacter::ClientRequestLocalDamageFeedback(float AppliedDamage, FVector DamageCauserLocation)`는 실제 HP 피해가 적용된 캐릭터의 소유 클라이언트에서만 호출되는 로컬 피격 화면 연출 경로다. C++ 기본값으로 파란 camera fade와 짧은 camera boom 흔들림을 재생하고, `OnLocalDamageFeedbackRequested` Blueprint 이벤트는 추가 사운드·위젯 연출용 선택 확장 지점으로 남긴다.
 - 기존 얼기 상태는 HP 0에서 즉시 확정되는 프로토타입이며, 60초 부활 가능 얼음·사망·관전·팀 전멸 상태는 아직 없다.
 
 ## 결정 필요
@@ -54,6 +55,7 @@ HP 0인 플레이어가 60초 동안 부활 가능한 얼음 상태가 되고 �
 
 - 얼음 상태 UI가 필요하면 `ASnowRumbleCharacter::GetFrozenSecondsRemaining()` 값을 초 단위로 표시한다.
 - 사망 표현이 필요하면 `ASnowRumbleCharacter::IsDead()` 또는 `USnowRumbleHealthComponent::OnDeathChanged`를 읽어 WBP/Animation Blueprint/VFX에서 연결한다.
+- 피격 화면 연출 기본값은 C++에서 `DamageFeedbackTintDuration`, `DamageFeedbackTintAlpha`, `DamageFeedbackTintColor`, `DamageFeedbackCameraShakeDuration`, `DamageFeedbackCameraShakeAmplitude`, `DamageFeedbackCameraShakeFrequency`로 조정한다. `OnLocalDamageFeedbackRequested`는 추가 사운드·위젯 효과가 필요할 때만 구현한다.
 
 ## 완료 조건
 ### 에이전트 확인
@@ -70,6 +72,7 @@ HP 0인 플레이어가 60초 동안 부활 가능한 얼음 상태가 되고 �
 ### 검증 메모
 
 - 2026-08-10: `USnowRumbleHealthComponent`가 HP 0에서 서버 권한으로 60초 얼음 타이머를 시작하고, 만료 시 얼음 상태를 해제한 뒤 `bIsDead`를 복제하게 했다. `ASnowRumbleCharacter`는 사망 상태에서 이동·행동·조준·점프를 중지한다. 핫팩 부활 연결을 위해 `ReviveFromFrozen(0.5f)` 계약을 제공한다. `git diff --check`는 통과했고 관련 C++ 컴파일도 통과했지만, 실행 중인 Unreal Editor가 `UnrealEditor-SnowRumble.dll`을 잡고 있어 최종 링크는 `LNK1104`로 실패했다. 에디터 종료 후 재빌드 확인이 필요하다.
+- 2026-08-19: 실제 HP 피해가 적용된 경우 `ASnowRumbleCharacter::ClientRequestLocalDamageFeedback()`이 피해 받은 캐릭터의 소유 클라이언트에만 호출되고, C++에서 파란 camera fade와 짧은 camera boom 흔들림을 재생하게 했다. `OnLocalDamageFeedbackRequested(AppliedDamage, DamageCauserLocation)` Blueprint 이벤트는 추가 연출 확장용으로 유지한다.
 
 ### 결과 확인
 
@@ -77,3 +80,4 @@ HP 0인 플레이어가 60초 동안 부활 가능한 얼음 상태가 되고 �
 - [ ] 얼음 상태에서 60초 동안 이동, 점프, 조준, 공격, 상호작용이 동작하지 않는다.
 - [ ] 얼음 상태에서 60초가 지나면 `IsDead()`가 true가 되고 계속 행동할 수 없다.
 - [ ] 핫팩 부활 구현 전에는 60초 안에 자동 회복되지 않는다.
+- [ ] 피해를 받은 플레이어 화면에만 파란 피격 화면 이펙트와 카메라 흔들림이 재생되고, 공격자나 다른 클라이언트 화면에는 재생되지 않는다.

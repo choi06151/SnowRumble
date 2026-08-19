@@ -127,6 +127,38 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Island Water|Submersion", meta = (ClampMin = "0.0"))
 	float RequiredSubmersionDepth = 0.0f;
 
+	/** 침수 중인 캐릭터를 수면 근처로 약하게 띄울지 정한다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Island Water|Buoyancy")
+	bool bApplyWaterBuoyancy = true;
+
+	/** Capsule 하단이 수면보다 이 정도 아래에 머물도록 부력을 적용한다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Island Water|Buoyancy", meta = (ClampMin = "0.0"))
+	float BuoyancyTargetSubmersionDepth = 45.0f;
+
+	/** 수면 목표 높이와 현재 침수 sample 차이에 곱할 상승 보정 강도다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Island Water|Buoyancy", meta = (ClampMin = "0.0"))
+	float BuoyancyCorrectionSpeed = 3.5f;
+
+	/** 부력 적용 시 보장할 최소 상승 속도다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Island Water|Buoyancy", meta = (ClampMin = "0.0"))
+	float BuoyancyMinimumUpwardVelocity = 80.0f;
+
+	/** 부력 적용 시 허용할 최대 상승 속도다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Island Water|Buoyancy", meta = (ClampMin = "0.0"))
+	float BuoyancyMaximumUpwardVelocity = 360.0f;
+
+	/** 물속에서 일정한 부력 위에 약한 통통 튀는 상승 펄스를 더할지 정한다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Island Water|Buoyancy")
+	bool bApplyWaterBounce = true;
+
+	/** 물속 통통 튐이 1초에 반복되는 횟수다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Island Water|Buoyancy", meta = (ClampMin = "0.0"))
+	float WaterBounceFrequency = 1.35f;
+
+	/** 물속 통통 튐으로 추가할 최대 상승 속도다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Island Water|Buoyancy", meta = (ClampMin = "0.0"))
+	float WaterBounceUpwardVelocity = 120.0f;
+
 private:
 	/** 지정 Actor에서 움직일 Water Component를 찾는다. */
 	USceneComponent* ResolveWaterComponent(AActor* WaterActor) const;
@@ -163,6 +195,11 @@ private:
 
 	/** Character가 현재 물에 잠긴 상태인지 서버 기준으로 판정한다. */
 	bool IsCharacterSubmerged(const ASnowRumbleCharacter* Character) const;
+
+	/** 침수 중인 Character가 수면 근처에서 둥둥 뜨도록 서버 이동 속도를 보정한다. */
+	void ApplyWaterBuoyancyToCharacter(
+		ASnowRumbleCharacter* Character,
+		float SubmersionSampleZ) const;
 
 	/** 기존 Damage 시스템으로 Hazard Damage를 요청한다. C-07 완료 후 이 함수 내부만 교체한다. */
 	void RequestHazardDamage(AActor* Target, float DamageAmount);

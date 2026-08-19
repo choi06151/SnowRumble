@@ -10,6 +10,7 @@
 #include "EngineUtils.h"
 #include "GameFramework/DamageType.h"
 #include "GameFramework/GameStateBase.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
@@ -330,6 +331,8 @@ void ASnowIslandWaterPressureActor::HandleDamageTimerElapsed()
 		const bool bSubmerged = IsCharacterSubmerged(Character);
 		const bool bIsFrozen = Character->IsFrozen();
 		const bool bIsDead = Character->IsDead();
+		Character->SetWaterSubmergedFromServer(
+			bSubmerged && !bIsFrozen && !bIsDead);
 		const USnowRumbleHealthComponent* HealthComponent =
 			Character->FindComponentByClass<USnowRumbleHealthComponent>();
 		const float HealthBefore = HealthComponent
@@ -345,6 +348,7 @@ void ASnowIslandWaterPressureActor::HandleDamageTimerElapsed()
 		{
 			SubmersionState.TimeSinceExitSeconds = 0.0f;
 			SubmersionState.DamageProgressSeconds += DamageCheckIntervalSeconds;
+			ApplyWaterBuoyancyToCharacter(Character, SampleZ);
 
 			if (SubmersionState.DamageProgressSeconds >= DamageApplyIntervalSeconds)
 			{
@@ -432,6 +436,66 @@ bool ASnowIslandWaterPressureActor::IsCharacterSubmerged(
 		Character,
 		CapsuleHalfHeight);
 	return SampleZ <= CurrentWaterZ + RequiredSubmersionDepth;
+}
+
+void ASnowIslandWaterPressureActor::ApplyWaterBuoyancyToCharacter(
+	ASnowRumbleCharacter* Character,
+	float SubmersionSampleZ) const
+{
+	if (!bApplyWaterBuoyancy || !Character)
+	{
+		return;
+	}
+
+	UCharacterMovementComponent* MovementComponent =
+		Character->GetCharacterMovement();
+	if (!MovementComponent)
+	{
+		return;
+	}
+
+	const float TargetSampleZ =
+		CurrentWaterZ - FMath::Max(0.0f, BuoyancyTargetSubmersionDepth);
+	const float HeightError = TargetSampleZ - SubmersionSampleZ;
+	if (HeightError <= KINDA_SMALL_NUMBER)
+	{
+		return;
+	}
+
+	const float MaximumUpwardVelocity =
+		FMath::Max(0.0f, BuoyancyMaximumUpwardVelocity);
+	const float MinimumUpwardVelocity =
+		FMath::Min(
+			FMath::Max(0.0f, BuoyancyMinimumUpwardVelocity),
+			MaximumUpwardVelocity);
+	const float DesiredUpwardVelocity = FMath::Clamp(
+		HeightError * FMath::Max(0.0f, BuoyancyCorrectionSpeed),
+		MinimumUpwardVelocity,
+		MaximumUpwardVelocity);
+
+	float BounceUpwardVelocity = 0.0f;
+	if (bApplyWaterBounce
+		&& WaterBounceFrequency > 0.0f
+		&& WaterBounceUpwardVelocity > 0.0f)
+	{
+		const UWorld* World = GetWorld();
+		const float CurrentTime = World ? World->GetTimeSeconds() : 0.0f;
+		const float CharacterPhase =
+			static_cast<float>(Character->GetUniqueID() % 100) * 0.137f;
+		const float BounceAlpha = FMath::Max(
+			0.0f,
+			FMath::Sin(
+				(CurrentTime * WaterBounceFrequency + CharacterPhase)
+				* UE_TWO_PI));
+		BounceUpwardVelocity = BounceAlpha * WaterBounceUpwardVelocity;
+	}
+
+	FVector NewVelocity = MovementComponent->Velocity;
+	NewVelocity.Z = FMath::Max(
+		NewVelocity.Z,
+		DesiredUpwardVelocity + BounceUpwardVelocity);
+	MovementComponent->Velocity = NewVelocity;
+	Character->StopJumping();
 }
 
 void ASnowIslandWaterPressureActor::RequestHazardDamage(

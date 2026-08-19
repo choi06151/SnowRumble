@@ -54,6 +54,11 @@ public:
 	/** 서버가 굴리기 충돌 프록시의 확정 위치로 눈덩이를 무충돌 이동한다. */
 	void MoveRollingSnowball(const FVector& TargetLocation);
 
+	/** 서버가 확인한 눈 표면에 눈덩이를 물리 낙하 없이 고정한다. */
+	void SettleOnGroundFromSurface(
+		const FVector& SurfacePoint,
+		const FVector& SurfaceNormal);
+
 	/** 서버가 마지막 확인 위치부터 실제 이동한 거리를 성장값에 누적한다. */
 	void UpdateRollingGrowth();
 
@@ -99,6 +104,9 @@ protected:
 
 	/** 현재 상태와 보유자를 사용해 로컬 액터 부착과 충돌을 적용한다. */
 	void RefreshStatePresentation();
+
+	/** 서버가 현재 위치 아래 바닥을 찾아 눈덩이를 안정적으로 올려놓는다. */
+	bool TrySettleOnGroundBelow(AActor* ActorToIgnore);
 
 	/** 초기 크기를 기준으로 현재 성장값의 Actor Scale을 적용한다. */
 	void ApplyGrowthScale();
@@ -177,6 +185,15 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Growth", meta = (ClampMin = "1.0"))
 	float DistanceForMaximumGrowth = 1000.0f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Grounding", meta = (ClampMin = "0.0"))
+	float GroundSettleTraceUpDistance = 120.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Grounding", meta = (ClampMin = "0.0"))
+	float GroundSettleTraceDownDistance = 500.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Grounding", meta = (ClampMin = "0.0"))
+	float GroundSettleExtraClearance = 0.5f;
+
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemState, Category = "SnowRumble|Snowball")
 	ESnowballItemState ItemState = ESnowballItemState::Ground;
 
@@ -190,7 +207,7 @@ protected:
 	float GrowthProgress = 0.0f;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_IsSettledOnGround, Category = "SnowRumble|Snowball")
-	bool bIsSettledOnGround = false;
+	bool bIsSettledOnGround = true;
 
 	FVector InitialActorScale = FVector::OneVector;
 	FVector LastRollingLocation = FVector::ZeroVector;

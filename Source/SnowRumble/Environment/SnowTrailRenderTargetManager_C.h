@@ -162,6 +162,14 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
 	TArray<TObjectPtr<UPrimitiveComponent>> SnowTrailMaterialComponents;
 
+	/** 지정된 머티리얼 대상 Bounds에서 눈길 월드 중심과 크기를 자동 계산할지 정한다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
+	bool bAutoFitTrailWorldAreaFromMaterialBounds = false;
+
+	/** Bounds 기반 자동 계산 시 지형 가장자리에 더할 여유 거리(cm)다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material", meta = (ClampMin = "0.0"))
+	float TrailWorldBoundsPadding = 500.0f;
+
 	/** 지정한 컴포넌트 머티리얼에 RenderTarget/월드 범위 파라미터를 자동 적용할지 정한다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
 	bool bApplySnowTrailParametersToMaterials = true;
@@ -185,6 +193,22 @@ protected:
 	/** 눈길 RenderTarget 한 변의 월드 거리(cm)를 받는 scalar parameter 이름이다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
 	FName SnowTrailWorldSizeParameterName = TEXT("TrailWorldSize");
+
+	/** 맵별 Landscape 머티리얼 UV 차이를 보정할 배율이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
+	FVector2D SnowTrailUVScale = FVector2D(1.0f, 1.0f);
+
+	/** 맵별 Landscape 머티리얼 UV 차이를 보정할 오프셋이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
+	FVector2D SnowTrailUVOffset = FVector2D::ZeroVector;
+
+	/** 머티리얼에서 눈길 UV의 U축을 뒤집을지 정한다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
+	bool bSnowTrailFlipU = false;
+
+	/** 머티리얼에서 눈길 UV의 V축을 뒤집을지 정한다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
+	bool bSnowTrailFlipV = false;
 
 	/** 현재 RenderTarget에 다시 그릴 누적 stamp 목록이다. */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "SnowRumble|Snow Trail")
@@ -233,6 +257,14 @@ private:
 
 	/** 게임 시작 시 RenderTarget을 런타임 상태에 맞게 준비한다. */
 	void InitializeSnowTrailRenderTargetForPlay();
+
+	/** 지정한 지형/메쉬 대상의 Bounds를 기준으로 눈길 월드 범위를 갱신한다. */
+	bool UpdateTrailWorldAreaFromMaterialBounds();
+
+	/** 자동 범위 계산에 사용할 컴포넌트 Bounds를 누적한다. */
+	bool AccumulateTrailMaterialComponentBounds(
+		UPrimitiveComponent* TargetComponent,
+		FBox& InOutBounds) const;
 
 	/** 에디터 지정 또는 런타임 생성 RenderTarget에 Canvas 갱신 콜백을 연결한다. */
 	void BindSnowTrailRenderTargetUpdate();

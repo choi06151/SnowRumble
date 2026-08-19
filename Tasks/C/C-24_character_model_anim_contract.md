@@ -67,6 +67,7 @@
   - `UAnimNotify_SnowballThrowRelease`: 던지기 몽타주에서 실제 눈덩이가 손을 떠나는 프레임에 배치하는 AnimNotify. Notify가 호출되면 `ASnowRumbleCharacter::RequestSnowballThrowReleaseFromNotify()`를 거쳐 서버 pending throw를 실제 `ASnowballItem::Throw()`로 확정한다.
   - `ASnowRumbleCharacter::LargeSnowballHoldPoint`: 최대 성장 큰 눈덩이 전용 부착 위치 컴포넌트. 캐릭터 Mesh의 `LargeSnowballSocket`에 붙으며, 소켓이 없으면 기존 `SnowballSocket` 기반 `SnowballHoldPoint`를 사용한다.
   - `ASnowRumbleCharacter::GetSnowballHoldPointForSnowball(const ASnowballItem*)`: 눈덩이 성장 상태에 따라 작은 눈은 `SnowballHoldPoint`, 최대 성장 큰 눈은 `LargeSnowballHoldPoint`를 반환한다.
+  - `ASnowRumbleCharacter::ScarfMeshComponent`: 목도리 StaticMesh 부착 슬롯. 기본 `ScarfSocket`에 붙고, `ScarfMesh`, `ScarfAttachSocketName`, `ScarfRelativeLocation`, `ScarfRelativeRotation`, `ScarfRelativeScale`로 Blueprint에서 모델과 위치를 조정한다. 목도리 Material은 `ScarfTeamColorParameterName` 기본 `TeamColor` Vector Parameter로 현재 팀 색을 받는다.
 - 인계 대상: 사용자/S. 새 ABP는 `USnowRumbleCharacterAnimInstance`를 부모로 만들고, Anim Graph에서 지속 상태는 enum별 Sequence Player로 직접 연결한다. 줍기·던지기·피격 같은 순간 동작은 `OnAnimationTriggerRequested` 이벤트에서 Montage로 재생한다.
 
 ## 범위 밖
@@ -107,6 +108,7 @@
 - 2026-08-18: 장착별 충전 pose 변경은 `git diff --check`, UHT, C++ 컴파일과 `.lib` 생성을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
 - 2026-08-18: `OnAnimationTriggerRequested`의 던지기 one-shot trigger에 눈오리 제작기 전용 `ThrowSnowDuckMaker`를 추가했다. 눈오리 제작기를 장착한 상태에서 던지기 성공 trigger가 발생하면 작은/큰 눈덩이 trigger 대신 눈오리 제작기 trigger를 보낸다.
 - 2026-08-18: 눈오리 제작기 던지기 trigger 변경은 `git diff --check`, UHT, C++ 컴파일과 `.lib` 생성을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
+- 2026-08-19: 캐릭터 목도리 표현용 `ScarfMeshComponent`를 StaticMesh 슬롯으로 추가했다. 기본 부착 소켓은 `ScarfSocket`이며, `BP_SnowRumbleCharacter`에서 목도리 StaticMesh와 상대 Transform을 조정한다. 목도리 Dynamic Material에는 현재 팀 색을 `TeamColor` Vector Parameter로 적용한다.
 
 ## 수동 작업
 
@@ -128,6 +130,7 @@
 - 새 모델 머티리얼에 C-11의 `BodyColor` Vector Parameter와 `PaintTexture` Texture Parameter를 연결하거나, BP의 파라미터 이름을 실제 머티리얼 이름에 맞춘다.
 - 새 모델 머리 높이가 다르면 `OverheadNameRelativeLocation`을 조정한다.
 - 새 Skeleton에는 작은 눈용 `SnowballSocket`과 큰 눈용 `LargeSnowballSocket`을 만든다. 큰 눈 소켓은 큰 눈 Hold/Throw 몽타주에서 양손 또는 몸 앞 위치에 맞게 조정한다.
+- 새 Skeleton 또는 캐릭터 Mesh에는 목도리용 `ScarfSocket`을 목/가슴 사이에 만들고, `BP_SnowRumbleCharacter`에서 `ScarfMesh`, `ScarfAttachSocketName`, `ScarfRelativeLocation`, `ScarfRelativeRotation`, `ScarfRelativeScale`을 조정한다. 목도리 Material에는 기본 이름 `TeamColor`의 Vector Parameter를 만들거나, 실제 파라미터 이름에 맞게 `ScarfTeamColorParameterName`을 바꾼다.
 
 ## 완료 조건
 
@@ -139,6 +142,7 @@
 - [x] 이동·상체·전체 몸 액션 파생 상태 enum 추가
 - [x] 선물 아이템 상호작용과 피격 반응 상태·trigger 추가
 - [x] one-shot 애니메이션 trigger enum과 AnimBP 이벤트 추가
+- [x] 목도리 StaticMesh 부착 컴포넌트와 `ScarfSocket`, 팀 색 머티리얼 파라미터 조정값 추가
 - [x] 현재 Task 문서가 실제 구현 기준으로 갱신됨
 - [x] 로컬 정적 점검과 C++ 컴파일 통과. 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류
 - [x] 역할·소유권·담당자 이니셜 규칙 위반 없음
@@ -151,3 +155,4 @@
 - [ ] `BP_SnowRumbleCharacter`에 새 SkeletalMesh와 새 ABP를 지정하면 PIE에서 캐릭터가 스폰된다.
 - [ ] 걷기, 달리기, 점프/낙하, 조준, 눈덩이 보유, 눈덩이 제작, 굴리기, 아이템 획득, 얼음, 사망 상태가 ABP 변수로 갱신된다.
 - [ ] 새 모델에서도 이름표, 팀 색, 커스터마이징 머티리얼, 눈덩이 손 부착 위치가 깨지지 않는다.
+- [ ] 새 모델의 `ScarfSocket`에 목도리 StaticMesh가 붙고 팀 변경 시 목도리 Material 색이 현재 팀 색으로 바뀐다.
