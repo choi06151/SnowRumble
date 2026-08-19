@@ -14,5 +14,6 @@ enum class ESnowRumbleCharacterAnimTrigger : uint8
 	ItemInteraction,
 	ThrowSmallSnowball,
 	ThrowLargeSnowball,
+	ThrowSnowDuckMaker,
 	HitReact
 };
