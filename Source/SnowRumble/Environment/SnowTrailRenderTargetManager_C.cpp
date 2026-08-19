@@ -193,6 +193,15 @@ void ASnowTrailRenderTargetManager::ApplySnowTrailMaterialParameters(
 			DynamicMaterial->SetVectorParameterValue(
 				TEXT("TrailWorldCenter"),
 				WorldCenterParameter);
+			DynamicMaterial->SetVectorParameterValue(
+				TEXT("Middle"),
+				WorldCenterParameter);
+			DynamicMaterial->SetVectorParameterValue(
+				TEXT("TrailMiddle"),
+				WorldCenterParameter);
+			DynamicMaterial->SetVectorParameterValue(
+				TEXT("SnowTrailMiddle"),
+				WorldCenterParameter);
 			if (!SnowTrailWorldSizeParameterName.IsNone())
 			{
 				DynamicMaterial->SetScalarParameterValue(
@@ -204,6 +213,15 @@ void ASnowTrailRenderTargetManager::ApplySnowTrailMaterialParameters(
 				TrailWorldSize);
 			DynamicMaterial->SetScalarParameterValue(
 				TEXT("TrailWorldSize"),
+				TrailWorldSize);
+			DynamicMaterial->SetScalarParameterValue(
+				TEXT("Size"),
+				TrailWorldSize);
+			DynamicMaterial->SetScalarParameterValue(
+				TEXT("WorldSize"),
+				TrailWorldSize);
+			DynamicMaterial->SetScalarParameterValue(
+				TEXT("TrailSize"),
 				TrailWorldSize);
 
 			AppliedSnowTrailMaterials.Add(DynamicMaterial);
