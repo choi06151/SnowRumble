@@ -20,6 +20,7 @@
 - [x] 360초 이후 연장전에는 `OvertimeRiseSpeed` 값에 따라 물을 계속 상승시킬 수 있게 한다.
 - [x] 서버에서 Character Capsule 하단 기준으로 침수 여부를 판정한다.
 - [x] 침수 중인 플레이어에게 Character별 유효 침수시간 1초가 누적될 때마다 8 Damage를 1회 적용한다.
+- [x] 침수 중인 플레이어가 물속에서 약하게 떠오르도록 서버에서 부력 이동 보정을 적용하고, 물속에서는 점프 입력을 차단한다.
 - [x] Damage는 `UGameplayStatics::ApplyDamage`를 통해 기존 `ASnowRumbleCharacter::TakeDamage()`와 `USnowRumbleHealthComponent::ApplyDamage()` 흐름을 재사용한다.
 - [x] Damage 호출은 `RequestHazardDamage(AActor* Target, float DamageAmount)` 한 함수에 격리해 C-07 공용 Damage 계약 완료 후 교체 지점을 명확히 둔다.
 - [x] 물 상태 표현에 필요한 최소 상태만 복제하고 HP는 기존 HealthComponent 복제를 사용한다.
@@ -83,6 +84,8 @@
 - 2026-08-13: 기존 HP/Damage/동결/사망/라운드 종료 흐름을 재사용하고, C-07 완료 전에는 `RequestHazardDamage()` 내부에서 기존 `UGameplayStatics::ApplyDamage` 경로를 사용하기로 정리했다.
 - 2026-08-13: Water Damage는 전역 Timer 순간 판정이 아니라 서버 0.1초 체크에서 Character별 `DamageProgressSeconds`를 누적하고 1초마다 8 Damage를 1회 적용하는 방식으로 조정했다. `ExitGraceSeconds` 기본값은 0.5초다.
 - 2026-08-13: Runtime Water는 실제 `Water` 하나만 제어하고 `Water2`/`Water3`는 목표 World Z 참고용으로만 사용하기로 정리했다. 물 상승과 침수 판정은 World Z 기준이다.
+- 2026-08-19: 최재원(C) 통합 보정으로 침수 중인 캐릭터에 서버 부력 보정을 추가했다. `bApplyWaterBuoyancy`, `BuoyancyTargetSubmersionDepth`, `BuoyancyCorrectionSpeed`, `BuoyancyMinimumUpwardVelocity`, `BuoyancyMaximumUpwardVelocity`로 물속 둥둥 뜨는 정도를 조정하고, `ASnowRumbleCharacter::SetWaterSubmergedFromServer()` 복제 상태로 물속 점프 입력을 차단한다.
+- 2026-08-19: 물속에서 조금 더 통통 튀는 느낌을 주기 위해 `bApplyWaterBounce`, `WaterBounceFrequency`, `WaterBounceUpwardVelocity`를 추가했다. 기본 부력 속도 위에 서버 시간 기반 상승 펄스를 더하며, 캐릭터별 위상을 조금 달리해 여러 플레이어가 같은 박자로 튀지 않게 했다.
 
 ## 구현 현황
 
@@ -95,6 +98,7 @@
 - Water 이동은 X/Y를 유지하고 Z만 갱신한다.
 - 침수 판정은 서버에서 Character Capsule 하단 Sample Z와 현재 Water Z를 비교한다.
 - Water Damage는 캐릭터별 침수 상태를 따로 누적하고, 1초의 유효 침수마다 기존 Damage 경로로 8 Damage를 적용한다.
+- 침수 중인 캐릭터는 서버에서 수면 근처 목표 높이까지 Z 속도를 보정해 물에 둥둥 뜨는 느낌을 주며, 물속 상태가 복제된 동안 점프 입력은 무시된다.
 - 캐릭터별 누적 상태는 `SubmersionStates`에 저장하며, 유효 침수 progress와 이탈 시간만 관리한다.
 - Damage 호출은 `UGameplayStatics::ApplyDamage()`에서 기존 `ASnowRumbleCharacter::TakeDamage()`와 `USnowRumbleHealthComponent::ApplyDamage()`로 이어진다. 별도의 HP 시스템, J 전용 HealthComponent, 별도 HP replication은 만들지 않았다.
 
@@ -123,6 +127,14 @@
 | `DamageApplyIntervalSeconds` | `1.0` | Damage 1회 적용에 필요한 유효 침수 시간. |
 | `DamagePerTick` | `8.0` | 유효 침수 1회마다 적용하는 Damage 값. |
 | `ExitGraceSeconds` | `0.5` | 물 밖으로 나간 뒤 침수 progress를 유지하는 grace 시간. |
+| `bApplyWaterBuoyancy` | `true` | 침수 중인 캐릭터에게 서버 부력 보정을 적용할지 여부. |
+| `BuoyancyTargetSubmersionDepth` | `45.0` | Capsule 하단이 수면 아래 유지될 목표 깊이. |
+| `BuoyancyCorrectionSpeed` | `3.5` | 목표 높이까지 올라가는 보정 강도. |
+| `BuoyancyMinimumUpwardVelocity` | `80.0` | 부력 적용 시 최소 상승 속도. |
+| `BuoyancyMaximumUpwardVelocity` | `360.0` | 부력 적용 시 최대 상승 속도. |
+| `bApplyWaterBounce` | `true` | 기본 부력 위에 통통 튀는 상승 펄스를 추가할지 여부. |
+| `WaterBounceFrequency` | `1.35` | 물속 통통 튐 반복 속도. |
+| `WaterBounceUpwardVelocity` | `120.0` | 통통 튐으로 추가되는 최대 상승 속도. |
 
 ## 구현 결정 및 주의사항
 
@@ -152,7 +164,8 @@
 7. 첫 기능 검증에서는 `StableEndSeconds`/`OuterFloodEndSeconds`/`CentralFloodEndSeconds`를 5/10/15초처럼 줄여 테스트한다.
 8. 물 상승과 침수 Damage 확인 후 시간값을 기본 240/300/360초로 되돌린다.
 9. 침수 Sample Offset, Required Submersion Depth, Damage Check Interval, Damage Apply Interval, Exit Grace, Damage Per Tick을 확인한다. 기본값은 0.1초 체크, 1초 누적마다 8 Damage, Exit Grace 0.5초다.
-10. 필요할 때만 얇은 Blueprint Child를 만들어 Material, Niagara/VFX, Sound, 시각 경고와 디자인 프리셋을 연결한다.
+10. 물속 움직임이 너무 튀면 `BuoyancyMaximumUpwardVelocity`, `BuoyancyCorrectionSpeed`, `WaterBounceUpwardVelocity`를 낮추고, 너무 밋밋하면 `WaterBounceFrequency`나 `WaterBounceUpwardVelocity`를 조금 올린다. 너무 가라앉으면 `BuoyancyTargetSubmersionDepth`를 낮추거나 `BuoyancyMinimumUpwardVelocity`를 올린다.
+11. 필요할 때만 얇은 Blueprint Child를 만들어 Material, Niagara/VFX, Sound, 시각 경고와 디자인 프리셋을 연결한다.
 
 ## 완료 조건
 
@@ -164,6 +177,7 @@
 - [x] 0~240 / 240~300 / 300~360 / 연장전 단계 계산 완료
 - [x] 서버 침수 판정 완료
 - [x] 1초마다 8 Damage 적용 완료
+- [x] 침수 중 서버 부력 보정과 점프 차단 상태 복제 추가
 - [x] 기존 Damage/HP 흐름 재사용 확인
 - [x] HP 중복 변수와 별도 HP replication 없음
 - [x] Level Blueprint 또는 Blueprint Event Graph에 핵심 Gameplay 중복 없음
@@ -178,6 +192,7 @@
 - [ ] 360초 이후에는 연장전 속도로 추가 상승한다.
 - [ ] 물에 잠기지 않은 플레이어는 Damage를 받지 않는다.
 - [ ] 물에 잠긴 플레이어는 서버 기준 1초마다 8 Damage를 받는다.
+- [ ] 물에 잠긴 플레이어는 수면 근처에서 약하게 떠오르고 점프 입력이 동작하지 않는다.
 - [ ] 클라이언트 HUD의 HP는 기존 `CurrentHealth` 복제로 감소한다.
 - [ ] HP가 0이 되면 기존 얼기/사망/라운드 종료 흐름이 동작한다.
 - [ ] 호스트와 클라이언트에서 물 위치 표현과 Damage 결과가 어긋나지 않는다.

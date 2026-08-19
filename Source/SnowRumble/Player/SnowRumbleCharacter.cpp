@@ -151,6 +151,13 @@ ASnowRumbleCharacter::ASnowRumbleCharacter()
 	HatMeshComponent->SetGenerateOverlapEvents(false);
 	HatMeshComponent->SetVisibility(false);
 
+	ScarfMeshComponent =
+		CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ScarfMeshComponent"));
+	ScarfMeshComponent->SetupAttachment(GetMesh(), TEXT("ScarfSocket"));
+	ScarfMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	ScarfMeshComponent->SetGenerateOverlapEvents(false);
+	ScarfMeshComponent->SetVisibility(false);
+
 	LeftBootsMeshComponent =
 		CreateDefaultSubobject<UStaticMeshComponent>(
 			TEXT("LeftBootsMeshComponent"));
@@ -242,6 +249,7 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 			TargetCameraOffset,
 			DeltaSeconds,
 			CameraPositionInterpSpeed);
+		CameraBoom->SocketOffset += CalculateLocalDamageCameraShakeOffset();
 		CameraBoom->TargetArmLength = FMath::FInterpTo(
 			CameraBoom->TargetArmLength,
 			bUseAimCameraPresentation
@@ -837,6 +845,19 @@ void ASnowRumbleCharacter::SetTiebreakerSpectatorFromServer(
 	ForceNetUpdate();
 }
 
+void ASnowRumbleCharacter::SetWaterSubmergedFromServer(
+	bool bNewWaterSubmerged)
+{
+	if (!HasAuthority() || bWaterSubmerged == bNewWaterSubmerged)
+	{
+		return;
+	}
+
+	bWaterSubmerged = bNewWaterSubmerged;
+	OnRep_WaterSubmerged();
+	ForceNetUpdate();
+}
+
 float ASnowRumbleCharacter::GetSnowballCreationDurationMultiplier() const
 {
 	return GiftItemEffectComponent
@@ -899,6 +920,10 @@ float ASnowRumbleCharacter::TakeDamage(
 	if (AppliedDamage > 0.0f)
 	{
 		StartHitReactAnimationState();
+		const FVector DamageCauserLocation = DamageCauser
+			? DamageCauser->GetActorLocation()
+			: GetActorLocation();
+		ClientRequestLocalDamageFeedback(AppliedDamage, DamageCauserLocation);
 	}
 
 	return AppliedDamage;
@@ -909,6 +934,7 @@ void ASnowRumbleCharacter::OnConstruction(const FTransform& Transform)
 	Super::OnConstruction(Transform);
 
 	RefreshOverheadNameplateComponentSettings();
+	RefreshScarfMesh();
 	RefreshGiftItemEquipmentMeshes();
 }
 
@@ -966,6 +992,7 @@ void ASnowRumbleCharacter::BeginPlay()
 	BindCustomizationToPlayerState();
 	RefreshOverheadPlayerName();
 	RefreshCustomizationFromPlayerState();
+	RefreshScarfMesh();
 	RefreshGiftItemEquipmentMeshes();
 	RefreshPvpMatchInputLock();
 }
@@ -1092,6 +1119,57 @@ void ASnowRumbleCharacter::RefreshCustomizationHatMesh()
 
 	HatMeshComponent->SetStaticMesh(HatMesh);
 	HatMeshComponent->SetVisibility(HatMesh != nullptr, true);
+}
+
+void ASnowRumbleCharacter::RefreshScarfMesh()
+{
+	if (!ScarfMeshComponent)
+	{
+		return;
+	}
+
+	if (USkeletalMeshComponent* CharacterMesh = GetMesh())
+	{
+		const FName AttachSocketName = ScarfAttachSocketName.IsNone()
+			? NAME_None
+			: ScarfAttachSocketName;
+		ScarfMeshComponent->AttachToComponent(
+			CharacterMesh,
+			FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+			AttachSocketName);
+	}
+
+	ScarfMeshComponent->SetRelativeLocation(ScarfRelativeLocation);
+	ScarfMeshComponent->SetRelativeRotation(ScarfRelativeRotation);
+	ScarfMeshComponent->SetRelativeScale3D(ScarfRelativeScale);
+	ScarfMeshComponent->SetStaticMesh(ScarfMesh);
+	ScarfMeshComponent->SetVisibility(ScarfMesh != nullptr, true);
+	ScarfDynamicMaterial = ScarfMesh
+		? ScarfMeshComponent->CreateDynamicMaterialInstance(0)
+		: nullptr;
+	RefreshScarfTeamColorMaterial();
+}
+
+void ASnowRumbleCharacter::RefreshScarfTeamColorMaterial()
+{
+	if (!ScarfMeshComponent || !ScarfMesh || ScarfTeamColorParameterName.IsNone())
+	{
+		return;
+	}
+
+	if (!ScarfDynamicMaterial)
+	{
+		ScarfDynamicMaterial =
+			ScarfMeshComponent->CreateDynamicMaterialInstance(0);
+	}
+	if (!ScarfDynamicMaterial)
+	{
+		return;
+	}
+
+	ScarfDynamicMaterial->SetVectorParameterValue(
+		ScarfTeamColorParameterName,
+		GetOverheadTeamColor());
 }
 
 void ASnowRumbleCharacter::HandleGiftItemEffectsChanged()
@@ -1543,6 +1621,7 @@ void ASnowRumbleCharacter::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ASnowRumbleCharacter, bIsInteractingWithItem);
 	DOREPLIFETIME(ASnowRumbleCharacter, bIsHitReacting);
 	DOREPLIFETIME(ASnowRumbleCharacter, bTiebreakerSpectator);
+	DOREPLIFETIME(ASnowRumbleCharacter, bWaterSubmerged);
 }
 
 void ASnowRumbleCharacter::PossessedBy(AController* NewController)
@@ -1655,6 +1734,8 @@ void ASnowRumbleCharacter::RefreshOverheadPlayerName()
 	{
 		NameplateWidget->SetObservedCharacter(this);
 	}
+
+	RefreshScarfTeamColorMaterial();
 }
 
 void ASnowRumbleCharacter::RefreshCustomizationFromPlayerState()
@@ -2255,6 +2336,7 @@ void ASnowRumbleCharacter::UpdateCameraZoomInput()
 void ASnowRumbleCharacter::StartJump()
 {
 	if (CanPerformGameplayAction()
+		&& !bWaterSubmerged
 		&& (!SnowballEquipmentComponent
 			|| !SnowballEquipmentComponent->IsRollingSnowball()))
 	{
@@ -3761,6 +3843,74 @@ void ASnowRumbleCharacter::MulticastStampSnowTrail_Implementation(
 	}
 }
 
+void ASnowRumbleCharacter::ClientRequestLocalDamageFeedback_Implementation(
+	float AppliedDamage,
+	FVector_NetQuantize DamageCauserLocation)
+{
+	if (APlayerController* PlayerController =
+		Cast<APlayerController>(GetController()))
+	{
+		if (PlayerController->PlayerCameraManager)
+		{
+			PlayerController->PlayerCameraManager->StartCameraFade(
+				FMath::Clamp(DamageFeedbackTintAlpha, 0.0f, 1.0f),
+				0.0f,
+				FMath::Max(0.01f, DamageFeedbackTintDuration),
+				DamageFeedbackTintColor,
+				false,
+				false);
+		}
+	}
+
+	if (const UWorld* World = GetWorld())
+	{
+		const double CurrentTime = World->GetTimeSeconds();
+		LocalDamageCameraShakeStartTime = CurrentTime;
+		LocalDamageCameraShakeEndTime =
+			CurrentTime + FMath::Max(0.01f, DamageFeedbackCameraShakeDuration);
+	}
+
+	OnLocalDamageFeedbackRequested(AppliedDamage, DamageCauserLocation);
+}
+
+FVector ASnowRumbleCharacter::CalculateLocalDamageCameraShakeOffset() const
+{
+	const UWorld* World = GetWorld();
+	if (!World
+		|| LocalDamageCameraShakeEndTime <= LocalDamageCameraShakeStartTime
+		|| DamageFeedbackCameraShakeAmplitude <= 0.0f
+		|| DamageFeedbackCameraShakeFrequency <= 0.0f)
+	{
+		return FVector::ZeroVector;
+	}
+
+	const double CurrentTime = World->GetTimeSeconds();
+	if (CurrentTime >= LocalDamageCameraShakeEndTime)
+	{
+		return FVector::ZeroVector;
+	}
+
+	const double Duration =
+		LocalDamageCameraShakeEndTime - LocalDamageCameraShakeStartTime;
+	const float Elapsed = static_cast<float>(
+		CurrentTime - LocalDamageCameraShakeStartTime);
+	const float NormalizedTime = FMath::Clamp(
+		Duration > KINDA_SMALL_NUMBER
+			? Elapsed / static_cast<float>(Duration)
+			: 1.0f,
+		0.0f,
+		1.0f);
+	const float FadeOut = 1.0f - NormalizedTime;
+	const float Phase =
+		Elapsed * DamageFeedbackCameraShakeFrequency * UE_TWO_PI;
+	const float Amplitude = DamageFeedbackCameraShakeAmplitude * FadeOut;
+
+	return FVector(
+		FMath::Sin(Phase * 1.31f) * Amplitude * 0.25f,
+		FMath::Sin(Phase) * Amplitude,
+		FMath::Cos(Phase * 1.73f) * Amplitude * 0.65f);
+}
+
 void ASnowRumbleCharacter::RequestAnimationTriggerFromServer(
 	ESnowRumbleCharacterAnimTrigger Trigger)
 {
@@ -4011,4 +4161,12 @@ void ASnowRumbleCharacter::OnRep_TiebreakerSpectator()
 	RefreshPvpMatchInputLock();
 	RefreshTiebreakerSpectatorViewTarget();
 	ApplyMovementSpeed();
+}
+
+void ASnowRumbleCharacter::OnRep_WaterSubmerged()
+{
+	if (bWaterSubmerged)
+	{
+		StopJumping();
+	}
 }

@@ -229,6 +229,9 @@ public:
 	/** 서버가 단판 승부 비참가자를 관전자 상태로 전환한다. */
 	void SetTiebreakerSpectatorFromServer(bool bNewTiebreakerSpectator);
 
+	/** 서버가 물 침수 중 점프 차단 상태를 갱신한다. */
+	void SetWaterSubmergedFromServer(bool bNewWaterSubmerged);
+
 	/** 현재 아이템 효과 기준 눈덩이 제작 시간 배율을 반환한다. */
 	float GetSnowballCreationDurationMultiplier() const;
 
@@ -247,6 +250,12 @@ public:
 		FDamageEvent const& DamageEvent,
 		AController* EventInstigator,
 		AActor* DamageCauser) override;
+
+	/** 로컬 화면에서만 피격 화면 이펙트와 카메라 흔들림을 재생한다. */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Damage")
+	void OnLocalDamageFeedbackRequested(
+		float AppliedDamage,
+		FVector DamageCauserLocation);
 
 	/** 머리 위 이름표 WBP가 표시할 닉네임을 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Identity")
@@ -441,6 +450,15 @@ protected:
 
 	void RefreshCustomizationHatMesh();
 
+	/** 목도리 Mesh를 캐릭터 Mesh 소켓에 붙이고 표시 상태를 갱신한다. */
+	void RefreshScarfMesh();
+
+	/** 현재 팀 색을 목도리 Dynamic Material에 반영한다. */
+	void RefreshScarfTeamColorMaterial();
+
+	/** 로컬 피격 카메라 흔들림 오프셋을 계산한다. */
+	FVector CalculateLocalDamageCameraShakeOffset() const;
+
 	UFUNCTION()
 	void HandleGiftItemEffectsChanged();
 
@@ -575,6 +593,12 @@ protected:
 		FName FootSocketName,
 		float RadiusWorld);
 
+	/** 실제 피해를 받은 소유 클라이언트에 로컬 피격 표현을 요청한다. */
+	UFUNCTION(Client, Reliable)
+	void ClientRequestLocalDamageFeedback(
+		float AppliedDamage,
+		FVector_NetQuantize DamageCauserLocation);
+
 	/** 서버가 소유 클라이언트의 이모션 선택을 검사하고 확정한다. */
 	UFUNCTION(Server, Reliable)
 	void ServerRequestPlayEmote(int32 EmoteIndex);
@@ -619,6 +643,10 @@ public:
 	UFUNCTION()
 	void OnRep_TiebreakerSpectator();
 
+	/** 복제된 물 침수 상태에 따라 점프 입력을 정리한다. */
+	UFUNCTION()
+	void OnRep_WaterSubmerged();
+
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Input")
 	void OnInteractInput(bool bPressed);
 
@@ -652,6 +680,24 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Health")
 	TObjectPtr<USnowRumbleHealthComponent> HealthComponent;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage Feedback", meta = (ClampMin = "0.01"))
+	float DamageFeedbackTintDuration = 0.22f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage Feedback", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float DamageFeedbackTintAlpha = 0.38f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage Feedback")
+	FLinearColor DamageFeedbackTintColor = FLinearColor(0.45f, 0.78f, 1.0f, 1.0f);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage Feedback", meta = (ClampMin = "0.01"))
+	float DamageFeedbackCameraShakeDuration = 0.24f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage Feedback", meta = (ClampMin = "0.0"))
+	float DamageFeedbackCameraShakeAmplitude = 18.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage Feedback", meta = (ClampMin = "0.0"))
+	float DamageFeedbackCameraShakeFrequency = 34.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Effect")
 	TObjectPtr<UGiftItemEffectComponent> GiftItemEffectComponent;
@@ -725,6 +771,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Customization|Hat")
 	TObjectPtr<UStaticMeshComponent> HatMeshComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Customization|Scarf")
+	TObjectPtr<UStaticMeshComponent> ScarfMeshComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual")
 	TObjectPtr<UStaticMeshComponent> LeftBootsMeshComponent;
@@ -890,6 +939,27 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Hat")
 	FVector CustomizationHatRelativeScale = FVector::OneVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Scarf")
+	TObjectPtr<UStaticMesh> ScarfMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Scarf")
+	FName ScarfAttachSocketName = TEXT("ScarfSocket");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Scarf")
+	FName ScarfTeamColorParameterName = TEXT("TeamColor");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Scarf")
+	FVector ScarfRelativeLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Scarf")
+	FRotator ScarfRelativeRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Scarf")
+	FVector ScarfRelativeScale = FVector::OneVector;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> ScarfDynamicMaterial;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
 	TObjectPtr<UInputMappingContext> PlayerMappingContext;
@@ -1103,12 +1173,17 @@ public:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_TiebreakerSpectator, Category = "SnowRumble|Match")
 	bool bTiebreakerSpectator = false;
 
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_WaterSubmerged, Category = "SnowRumble|Movement")
+	bool bWaterSubmerged = false;
+
 	float DefaultFieldOfView = 90.0f;
 	FVector DefaultCameraSocketOffset = FVector::ZeroVector;
 	float DefaultCameraArmLength = 400.0f;
 	float DesiredCameraArmLength = 400.0f;
 	float CameraShoulderSide = 1.0f;
 	double PostThrowAimCameraEndTime = -1.0;
+	double LocalDamageCameraShakeStartTime = -1.0;
+	double LocalDamageCameraShakeEndTime = -1.0;
 	double LastSnowFootstepEffectTime = -1.0;
 	double LastSnowTrailStampServerTime = -1.0;
 

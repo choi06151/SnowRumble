@@ -91,6 +91,8 @@ ASnowTrailRenderTargetManager::EnsureSnowTrailRenderTarget()
 
 void ASnowTrailRenderTargetManager::InitializeSnowTrailRenderTargetForPlay()
 {
+	UpdateTrailWorldAreaFromMaterialBounds();
+
 	if (!bAutoCreateRenderTarget && !SnowTrailRenderTarget)
 	{
 		return;
@@ -121,6 +123,131 @@ void ASnowTrailRenderTargetManager::InitializeSnowTrailRenderTargetForPlay()
 		TrailWorldSize);
 }
 
+bool ASnowTrailRenderTargetManager::UpdateTrailWorldAreaFromMaterialBounds()
+{
+	if (!bAutoFitTrailWorldAreaFromMaterialBounds)
+	{
+		return false;
+	}
+
+	FBox CombinedBounds(ForceInit);
+	bool bHasValidBounds = false;
+	auto AccumulateActorBounds =
+		[this, &CombinedBounds, &bHasValidBounds](AActor* TargetActor)
+	{
+		if (!TargetActor)
+		{
+			return;
+		}
+
+		TArray<UPrimitiveComponent*> PrimitiveComponents;
+		TargetActor->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
+		for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
+		{
+			bHasValidBounds |= AccumulateTrailMaterialComponentBounds(
+				PrimitiveComponent,
+				CombinedBounds);
+		}
+	};
+
+	for (UPrimitiveComponent* PrimitiveComponent : SnowTrailMaterialComponents)
+	{
+		bHasValidBounds |= AccumulateTrailMaterialComponentBounds(
+			PrimitiveComponent,
+			CombinedBounds);
+	}
+
+	for (AActor* MaterialActor : SnowTrailMaterialActors)
+	{
+		AccumulateActorBounds(MaterialActor);
+	}
+
+	if (bAutoApplyToSnowSurfaceTaggedActors
+		&& !SnowTrailMaterialAutoApplyActorTag.IsNone())
+	{
+		UWorld* World = GetWorld();
+		if (World)
+		{
+			for (TActorIterator<AActor> It(World); It; ++It)
+			{
+				AActor* TaggedActor = *It;
+				if (TaggedActor
+					&& TaggedActor->ActorHasTag(
+						SnowTrailMaterialAutoApplyActorTag))
+				{
+					AccumulateActorBounds(TaggedActor);
+				}
+			}
+		}
+	}
+
+	if (!bHasValidBounds || !CombinedBounds.IsValid)
+	{
+		if (bLogSnowTrailDebug)
+		{
+			UE_LOG(
+				LogSnowTrail,
+				Warning,
+				TEXT("[SnowTrail] Auto-fit skipped: no valid material bounds Manager=%s"),
+				*GetNameSafe(this));
+		}
+		return false;
+	}
+
+	const FVector BoundsCenter = CombinedBounds.GetCenter();
+	const FVector BoundsExtent = CombinedBounds.GetExtent();
+	const float SafePadding = FMath::Max(0.0f, TrailWorldBoundsPadding);
+	const float FittedWorldSize = FMath::Max(
+		FMath::Max(BoundsExtent.X * 2.0f, BoundsExtent.Y * 2.0f)
+			+ SafePadding * 2.0f,
+		100.0f);
+
+	TrailWorldCenter = FVector2D(BoundsCenter.X, BoundsCenter.Y);
+	TrailWorldSize = FittedWorldSize;
+
+	if (bLogSnowTrailDebug)
+	{
+		UE_LOG(
+			LogSnowTrail,
+			Log,
+			TEXT("[SnowTrail] Auto-fit bounds Manager=%s Center=(%.1f, %.1f) Size=%.1f Padding=%.1f BoundsMin=%s BoundsMax=%s"),
+			*GetNameSafe(this),
+			TrailWorldCenter.X,
+			TrailWorldCenter.Y,
+			TrailWorldSize,
+			SafePadding,
+			*CombinedBounds.Min.ToCompactString(),
+			*CombinedBounds.Max.ToCompactString());
+	}
+	return true;
+}
+
+bool ASnowTrailRenderTargetManager::AccumulateTrailMaterialComponentBounds(
+	UPrimitiveComponent* TargetComponent,
+	FBox& InOutBounds) const
+{
+	if (!TargetComponent)
+	{
+		return false;
+	}
+
+	const FBoxSphereBounds& ComponentBounds = TargetComponent->Bounds;
+	const FVector BoundsExtent = ComponentBounds.BoxExtent;
+	if (BoundsExtent.X <= 0.0f || BoundsExtent.Y <= 0.0f)
+	{
+		return false;
+	}
+
+	const FBox ComponentBox = ComponentBounds.GetBox();
+	if (!ComponentBox.IsValid)
+	{
+		return false;
+	}
+
+	InOutBounds += ComponentBox;
+	return true;
+}
+
 void ASnowTrailRenderTargetManager::BindSnowTrailRenderTargetUpdate()
 {
 	if (!SnowTrailRenderTarget)
@@ -148,10 +275,26 @@ void ASnowTrailRenderTargetManager::ApplySnowTrailMaterialParameters(
 		TrailWorldCenter.Y,
 		0.0f,
 		0.0f);
+	const FLinearColor UVScaleParameter(
+		SnowTrailUVScale.X,
+		SnowTrailUVScale.Y,
+		0.0f,
+		0.0f);
+	const FLinearColor UVOffsetParameter(
+		SnowTrailUVOffset.X,
+		SnowTrailUVOffset.Y,
+		0.0f,
+		0.0f);
 	TSet<UPrimitiveComponent*> AppliedComponents;
 
 	auto ApplyToComponent =
-		[this, TargetRenderTarget, WorldCenterParameter, &AppliedComponents](
+		[
+			this,
+			TargetRenderTarget,
+			WorldCenterParameter,
+			UVScaleParameter,
+			UVOffsetParameter,
+			&AppliedComponents](
 			UPrimitiveComponent* TargetComponent)
 	{
 		if (!TargetComponent || AppliedComponents.Contains(TargetComponent))
@@ -223,6 +366,30 @@ void ASnowTrailRenderTargetManager::ApplySnowTrailMaterialParameters(
 			DynamicMaterial->SetScalarParameterValue(
 				TEXT("TrailSize"),
 				TrailWorldSize);
+			DynamicMaterial->SetVectorParameterValue(
+				TEXT("SnowTrailUVScale"),
+				UVScaleParameter);
+			DynamicMaterial->SetVectorParameterValue(
+				TEXT("TrailUVScale"),
+				UVScaleParameter);
+			DynamicMaterial->SetVectorParameterValue(
+				TEXT("SnowTrailUVOffset"),
+				UVOffsetParameter);
+			DynamicMaterial->SetVectorParameterValue(
+				TEXT("TrailUVOffset"),
+				UVOffsetParameter);
+			DynamicMaterial->SetScalarParameterValue(
+				TEXT("SnowTrailFlipU"),
+				bSnowTrailFlipU ? 1.0f : 0.0f);
+			DynamicMaterial->SetScalarParameterValue(
+				TEXT("TrailFlipU"),
+				bSnowTrailFlipU ? 1.0f : 0.0f);
+			DynamicMaterial->SetScalarParameterValue(
+				TEXT("SnowTrailFlipV"),
+				bSnowTrailFlipV ? 1.0f : 0.0f);
+			DynamicMaterial->SetScalarParameterValue(
+				TEXT("TrailFlipV"),
+				bSnowTrailFlipV ? 1.0f : 0.0f);
 
 			AppliedSnowTrailMaterials.Add(DynamicMaterial);
 		}
