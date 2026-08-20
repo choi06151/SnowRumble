@@ -50,6 +50,7 @@
 | 25 | [C-25](C-25_pvp_gift_box_item_foundation.md) | PvP 선물상자와 아이템 기본 계약 | C-01, C-05, C-22 | 진행중 |
 | 26 | [C-26](C-26_snow_footstep_effect.md) | 눈 밟힘 효과 계약 | C-01 | 진행중 |
 | 27 | [C-27](C-27_snow_trail_render_target.md) | 눈길 RenderTarget 계약 | C-26 | 진행중 |
+| 28 | [C-28](C-28_player_grab_control_rig_foundation.md) | 플레이어 잡기와 Control Rig 기본틀 | C-24 | 진행중 |
 
 ## 통합 변경 요청
 
@@ -253,3 +254,15 @@
 - 2026-08-19: 사용자 요청에 따라 `Content/Maps/L_MainMenu.umap`과 `Content/Maps/L_Lobby.umap`은 `origin/S` 버전으로 반영했다. Unreal Editor 파일 잠금 해제 후 두 맵이 `origin/S`와 일치함을 확인했고, `git diff --check`와 충돌 마커 검색을 통과했다.
 - 2026-08-19: C-25 눈오리 제작기 좌클릭 연동을 보강했다. 눈오리 제작기 장착 중 좌클릭 제작 완료 시 생성된 눈덩이를 즉시 손에 장착하고, 장착된 눈덩이는 우클릭 조준 없이 좌클릭만으로 충전·투척할 수 있으며, 던지기 성공 시 `ThrowSnowDuckMaker` 애니메이션 트리거를 우선 요청한다. 눈오리 제작기 장착 중 눈덩이 부착 위치는 `SnowDuckBallSocket`을 우선 사용한다. `git diff --check`와 충돌 표식 검색은 통과했고, `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 보류됐다.
 - 2026-08-19: C-25 모닥불 VFX 연결을 보강했다. `ACampfire`에 `FireVfxComponent`와 `HealRadiusVfxComponent`를 추가했고, 모닥불 활성 중 켜지고 꺼지면 자동 비활성화되게 했다. `git diff --check`와 충돌 표식 검색은 통과했고, `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 보류됐다.
+- 2026-08-20: C-24 작은 눈덩이 던지기 trigger를 지상/공중으로 분리했다. 서버가 작은 눈덩이 투척 성공 시 캐릭터가 공중이면 `ThrowSmallSnowballInAir`, 지상이면 기존 `ThrowSmallSnowball`을 보내며, 큰 눈덩이와 눈오리 제작기 trigger는 기존 흐름을 유지한다.
+- 2026-08-20: C-28 플레이어 잡기와 Control Rig 기본틀을 추가했다. 빈손 좌클릭은 잡기 reach를 시작하고, `UPlayerGrabComponent`가 서버 trace 검증과 Physics Constraint 연결 지점을 제공하며, AnimBP는 잡기 상태와 좌우 손 목표 위치를 읽을 수 있다.
+- 2026-08-20: C-28 손 접촉 붙음 상태를 확장했다. 서버가 플레이어 Mesh와 벽·월드 오브젝트 접촉을 확정해 붙은 위치를 복제하고, 플레이어를 잡으면 잡힌 캐릭터의 이동·점프·일반 행동을 해제 전까지 잠근다. UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됐다.
+- 2026-08-20: C-28 잡힌 캐릭터 느낌을 보강했다. 잡힌 대상은 이동 입력·점프·일반 행동만 차단하고 MovementComponent는 유지하며, 서버가 잡은 손 위치 쪽으로 속도를 보간해 몸이 끌려오는 tether를 적용한다. UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됐다.
+- 2026-08-20: C-28 벽잡기 매달림 tether를 추가했다. 월드 표면에 손이 붙으면 잡는 캐릭터의 이동 입력·점프·일반 행동을 차단하고, 붙은 손 위치 기준 뒤·아래 오프셋으로 몸을 유지한다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-20: C-28 벽잡기 중 이동 입력을 허용하도록 조정했다. `Move()`는 벽잡기 중에도 통과하고, 월드 tether는 현재 입력 속도를 일부 유지한 뒤 붙은 손 위치로 돌아가는 보정 속도를 섞는다. UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됐다.
+- 2026-08-20: C-28 벽잡기 중 몸 회전 제한을 추가했다. 벽잡기 시작 시 이동 방향/컨트롤러 yaw 회전을 끄고, 서버 Tick에서 캐릭터 yaw를 붙은 손 위치 쪽으로 보간해 뒤돌아 보지 않게 한다. UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됐다.
+- 2026-08-20: C-28 플레이어에게 잡힌 캐릭터도 이동 입력을 허용하되 잡힌 손 위치로 돌아가는 보정 속도를 섞고, 몸 방향을 잡힌 손 위치 쪽으로 보간하게 조정했다. UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됐다.
+- 2026-08-20: C-28 카메라 상하 시점에 따른 spine Control Rig 보정 계약을 추가했다. `ASnowRumbleCharacter`와 `USnowRumbleCharacterAnimInstance`가 `ViewPitchDegrees`와 `ViewPitchAlpha`를 제공하고, `ViewPitchAlpha`는 아래 0, 정면 0.5, 위 1의 Lerp 값이며 정규화 범위는 `ViewPitchAlphaRangeDegrees`로 조정한다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-21: C-28 빈손 좌클릭 입력 우선순위를 조정했다. `ViewPitchAlpha`가 `SnowCreationPreferredViewPitchAlpha` 이하일 때는 잡기 reach를 시작하지 않고 기존 눈 제작 경로로 내려가며, 정면 이상을 볼 때는 잡기 reach를 우선한다. UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됐다.
+- 2026-08-21: C-28 카메라 좌우 시점에 따른 spine Control Rig 보정 계약을 추가했다. `ASnowRumbleCharacter`와 `USnowRumbleCharacterAnimInstance`가 `ViewYawDegrees`와 `ViewYawAlpha`를 제공하고, `ViewYawAlpha`는 왼쪽 -0.5, 정면 0, 오른쪽 0.5의 Lerp 값이며 정규화 범위는 `ViewYawAlphaRangeDegrees`로 조정한다. UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됐다.
+- 2026-08-21: C-28 잡기 상태 우클릭 연타 회귀를 보강했다. 벽잡기 또는 잡힌 상태에서는 조준 해제 이벤트가 들어와도 잡기용 회전 잠금이 유지되게 해 tether와 이동 방향 회전이 충돌하지 않도록 했다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.

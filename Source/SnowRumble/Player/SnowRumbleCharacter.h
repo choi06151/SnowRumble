@@ -23,6 +23,7 @@ class UMaterialInstanceDynamic;
 class UOverheadNameplateWidget;
 class UNiagaraComponent;
 class UOutlineComponent;
+class UPlayerGrabComponent;
 class USceneComponent;
 class USphereComponent;
 class UStaticMesh;
@@ -154,6 +155,76 @@ public:
 	/** Animation Blueprint에서 피격 반응 중인지 확인한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
 	bool IsHitReacting() const;
+
+	/** Animation Blueprint와 Control Rig에서 팔 뻗기 잡기 상태인지 확인한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	bool IsGrabReaching() const;
+
+	/** Animation Blueprint와 Control Rig에서 현재 다른 캐릭터를 잡았는지 확인한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	bool IsGrabbingCharacter() const;
+
+	/** Animation Blueprint와 Control Rig에서 손이 캐릭터나 월드에 붙었는지 확인한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	bool IsGrabAttached() const;
+
+	/** Animation Blueprint와 Control Rig에서 벽이나 월드 오브젝트에 매달린 상태인지 확인한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	bool IsHangingFromWorldGrab() const;
+
+	/** Animation Blueprint와 Control Rig에서 이 캐릭터가 다른 캐릭터에게 잡혔는지 확인한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	bool IsGrabbedByCharacter() const;
+
+	/** Control Rig가 붙은 손을 고정할 월드 위치를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	FVector GetGrabAttachedWorldLocation() const;
+
+	/** Control Rig가 사용할 오른손 잡기 목표 월드 위치를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	FVector GetRightHandGrabTargetLocation() const;
+
+	/** Control Rig가 사용할 왼손 잡기 목표 월드 위치를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	FVector GetLeftHandGrabTargetLocation() const;
+
+	/** 잡기 손 IK와 AnimDynamics 보간에 사용할 0~1 alpha를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	float GetGrabReachAlpha() const;
+
+	/** Control Rig spine 보정에 사용할 현재 시점 pitch 각도를 -180~180 범위로 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
+	float GetViewPitchDegrees() const;
+
+	/** Control Rig spine 보정에 사용할 현재 시점 pitch를 0~1 값으로 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
+	float GetViewPitchAlpha() const;
+
+	/** Control Rig spine 보정에 사용할 현재 시점 yaw 차이를 -180~180 범위로 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
+	float GetViewYawDegrees() const;
+
+	/** Control Rig spine 보정에 사용할 현재 시점 yaw 차이를 -0.5~0.5 값으로 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
+	float GetViewYawAlpha() const;
+
+	/** 잡기 컴포넌트가 서버와 로컬에서 잡기 reach를 시작할 수 있는지 확인한다. */
+	bool CanStartPlayerGrabReach() const;
+
+	/** 빈손 좌클릭에서 잡기 대신 눈 제작을 우선할 만큼 아래를 보는지 확인한다. */
+	bool ShouldPreferSnowCreationOverGrab() const;
+
+	/** 서버가 이 캐릭터를 잡힌 상태로 만들고 이동을 잠근다. */
+	void ApplyGrabbedByCharacter(ASnowRumbleCharacter* GrabbingCharacter);
+
+	/** 서버가 이 캐릭터의 잡힌 상태와 이동 잠금을 해제한다. */
+	void ClearGrabbedByCharacter(ASnowRumbleCharacter* ExpectedGrabbingCharacter);
+
+	/** 서버가 벽잡기 매달림 상태에 맞춰 입력과 이동 상태를 정리한다. */
+	void HandleWorldGrabChanged(bool bNewWorldGrab);
+
+	/** 잡기 손 목표 위치를 계산할 몸통 기준 높이를 반환한다. */
+	float GetGrabReachOriginHeight() const;
 
 	/** UI에서 사용할 0~1 정규화된 눈덩이 제작 진행도를 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
@@ -529,6 +600,9 @@ protected:
 	/** PvP 시작 잠금 상태에 맞춰 로컬 컨트롤러 입력 연결을 차단하거나 복구한다. */
 	void RefreshPvpMatchInputLock();
 
+	/** 잡힌 상태에 맞춰 이동 컴포넌트를 정지하거나 복구한다. */
+	void HandleGrabbedByCharacterChanged(bool bNewGrabbed);
+
 	/** 단판 승부 관전자면 로컬 카메라를 경기 참가자 시점으로 붙인다. */
 	void RefreshTiebreakerSpectatorViewTarget();
 
@@ -647,6 +721,10 @@ public:
 	UFUNCTION()
 	void OnRep_WaterSubmerged();
 
+	/** 복제된 잡힘 상태에 따라 이동 잠금과 복구를 적용한다. */
+	UFUNCTION()
+	void OnRep_GrabbedByCharacter();
+
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Input")
 	void OnInteractInput(bool bPressed);
 
@@ -707,6 +785,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball")
 	TObjectPtr<USnowballCreationComponent> SnowballCreationComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Grab")
+	TObjectPtr<UPlayerGrabComponent> PlayerGrabComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling")
 	TObjectPtr<USphereComponent> RollingSnowballCollision;
@@ -1150,6 +1231,15 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Interaction|UI")
 	float InteractionPromptWorldHeightOffset = 70.0f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation", meta = (ClampMin = "1.0"))
+	float ViewPitchAlphaRangeDegrees = 60.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation", meta = (ClampMin = "1.0"))
+	float ViewYawAlphaRangeDegrees = 90.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float SnowCreationPreferredViewPitchAlpha = 0.35f;
+
 	/** 로컬 플레이어가 소유한 상호작용 안내 위젯 인스턴스다. */
 	UPROPERTY(Transient)
 	TObjectPtr<UInteractionPromptWidget> InteractionPromptWidget;
@@ -1176,6 +1266,12 @@ public:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_WaterSubmerged, Category = "SnowRumble|Movement")
 	bool bWaterSubmerged = false;
 
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_GrabbedByCharacter, Category = "SnowRumble|Grab")
+	bool bIsGrabbedByCharacter = false;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Grab")
+	TObjectPtr<ASnowRumbleCharacter> GrabbedByCharacter;
+
 	float DefaultFieldOfView = 90.0f;
 	FVector DefaultCameraSocketOffset = FVector::ZeroVector;
 	float DefaultCameraArmLength = 400.0f;
@@ -1190,6 +1286,13 @@ public:
 	FTimerHandle PickupAnimationTimerHandle;
 	FTimerHandle ItemInteractionAnimationTimerHandle;
 	FTimerHandle HitReactAnimationTimerHandle;
+
+	TEnumAsByte<EMovementMode> MovementModeBeforeGrabbed = MOVE_Walking;
+	uint8 CustomMovementModeBeforeGrabbed = 0;
+	bool bOrientRotationToMovementBeforeGrabbedByCharacter = true;
+	bool bUseControllerRotationYawBeforeGrabbedByCharacter = false;
+	bool bOrientRotationToMovementBeforeWorldGrab = true;
+	bool bUseControllerRotationYawBeforeWorldGrab = false;
 
 	bool bIsInteractHeld = false;
 	bool bUsedInteractForRolling = false;

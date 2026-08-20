@@ -14,6 +14,7 @@
 #include "../Item/GiftBox_C.h"
 #include "../Item/GiftBoxItemPickup_C.h"
 #include "../Item/GiftItemEffectComponent_C.h"
+#include "PlayerGrabComponent_C.h"
 #include "../Snowball/SnowballCreationComponent.h"
 #include "../Snowball/SnowballEquipmentComponent.h"
 #include "../Snowball/SnowballItem.h"
@@ -102,6 +103,9 @@ ASnowRumbleCharacter::ASnowRumbleCharacter()
 
 	SnowballCreationComponent =
 		CreateDefaultSubobject<USnowballCreationComponent>(TEXT("SnowballCreationComponent"));
+
+	PlayerGrabComponent =
+		CreateDefaultSubobject<UPlayerGrabComponent>(TEXT("PlayerGrabComponent"));
 
 	RollingSnowballCollision =
 		CreateDefaultSubobject<USphereComponent>(TEXT("RollingSnowballCollision"));
@@ -485,6 +489,201 @@ bool ASnowRumbleCharacter::IsHitReacting() const
 	return bIsHitReacting;
 }
 
+bool ASnowRumbleCharacter::IsGrabReaching() const
+{
+	return PlayerGrabComponent && PlayerGrabComponent->IsGrabReaching();
+}
+
+bool ASnowRumbleCharacter::IsGrabbingCharacter() const
+{
+	return PlayerGrabComponent && PlayerGrabComponent->IsGrabbingCharacter();
+}
+
+bool ASnowRumbleCharacter::IsGrabAttached() const
+{
+	return PlayerGrabComponent && PlayerGrabComponent->IsGrabAttached();
+}
+
+bool ASnowRumbleCharacter::IsHangingFromWorldGrab() const
+{
+	return PlayerGrabComponent && PlayerGrabComponent->IsHangingFromWorldGrab();
+}
+
+bool ASnowRumbleCharacter::IsGrabbedByCharacter() const
+{
+	return bIsGrabbedByCharacter;
+}
+
+FVector ASnowRumbleCharacter::GetGrabAttachedWorldLocation() const
+{
+	return PlayerGrabComponent
+		? PlayerGrabComponent->GetGrabAttachedWorldLocation()
+		: FVector::ZeroVector;
+}
+
+FVector ASnowRumbleCharacter::GetRightHandGrabTargetLocation() const
+{
+	return PlayerGrabComponent
+		? PlayerGrabComponent->GetRightHandGrabTargetLocation()
+		: FVector::ZeroVector;
+}
+
+FVector ASnowRumbleCharacter::GetLeftHandGrabTargetLocation() const
+{
+	return PlayerGrabComponent
+		? PlayerGrabComponent->GetLeftHandGrabTargetLocation()
+		: FVector::ZeroVector;
+}
+
+float ASnowRumbleCharacter::GetGrabReachAlpha() const
+{
+	return PlayerGrabComponent
+		? PlayerGrabComponent->GetGrabReachAlpha()
+		: 0.0f;
+}
+
+float ASnowRumbleCharacter::GetViewPitchDegrees() const
+{
+	return FRotator::NormalizeAxis(GetBaseAimRotation().Pitch);
+}
+
+float ASnowRumbleCharacter::GetViewPitchAlpha() const
+{
+	const float SafeRange = FMath::Max(1.0f, ViewPitchAlphaRangeDegrees);
+	return FMath::Clamp(
+		0.5f + GetViewPitchDegrees() / (SafeRange * 2.0f),
+		0.0f,
+		1.0f);
+}
+
+float ASnowRumbleCharacter::GetViewYawDegrees() const
+{
+	return FRotator::NormalizeAxis(
+		GetBaseAimRotation().Yaw - GetActorRotation().Yaw);
+}
+
+float ASnowRumbleCharacter::GetViewYawAlpha() const
+{
+	const float SafeRange = FMath::Max(1.0f, ViewYawAlphaRangeDegrees);
+	return FMath::Clamp(
+		GetViewYawDegrees() / (SafeRange * 2.0f),
+		-0.5f,
+		0.5f);
+}
+
+bool ASnowRumbleCharacter::CanStartPlayerGrabReach() const
+{
+	return CanPerformGameplayAction()
+		&& !IsGrabbedByCharacter()
+		&& !IsAiming()
+		&& (!SnowballEquipmentComponent
+			|| !SnowballEquipmentComponent->HasHeldSnowball())
+		&& !IsChargingSnowball()
+		&& !IsCreatingSnowball()
+		&& !IsInteractingWithItem()
+		&& !IsPickingUpItem()
+		&& !IsHitReacting()
+		&& !IsDead()
+		&& !IsFrozen();
+}
+
+bool ASnowRumbleCharacter::ShouldPreferSnowCreationOverGrab() const
+{
+	return GetViewPitchAlpha() <= SnowCreationPreferredViewPitchAlpha;
+}
+
+void ASnowRumbleCharacter::ApplyGrabbedByCharacter(
+	ASnowRumbleCharacter* GrabbingCharacter)
+{
+	if (!HasAuthority() || !GrabbingCharacter || GrabbingCharacter == this)
+	{
+		return;
+	}
+
+	GrabbedByCharacter = GrabbingCharacter;
+	bIsGrabbedByCharacter = true;
+	HandleGrabbedByCharacterChanged(true);
+	ForceNetUpdate();
+}
+
+void ASnowRumbleCharacter::ClearGrabbedByCharacter(
+	ASnowRumbleCharacter* ExpectedGrabbingCharacter)
+{
+	if (!HasAuthority()
+		|| !bIsGrabbedByCharacter
+		|| (ExpectedGrabbingCharacter && GrabbedByCharacter != ExpectedGrabbingCharacter))
+	{
+		return;
+	}
+
+	bIsGrabbedByCharacter = false;
+	GrabbedByCharacter = nullptr;
+	HandleGrabbedByCharacterChanged(false);
+	ForceNetUpdate();
+}
+
+void ASnowRumbleCharacter::HandleWorldGrabChanged(bool bNewWorldGrab)
+{
+	UCharacterMovementComponent* MovementComponent = GetCharacterMovement();
+	if (!MovementComponent)
+	{
+		return;
+	}
+
+	if (bNewWorldGrab)
+	{
+		MovementModeBeforeGrabbed = MovementComponent->MovementMode;
+		CustomMovementModeBeforeGrabbed = MovementComponent->CustomMovementMode;
+		bOrientRotationToMovementBeforeWorldGrab =
+			MovementComponent->bOrientRotationToMovement;
+		bUseControllerRotationYawBeforeWorldGrab = bUseControllerRotationYaw;
+		MovementComponent->bOrientRotationToMovement = false;
+		bUseControllerRotationYaw = false;
+		bIsSprinting = false;
+		if (SnowballEquipmentComponent)
+		{
+			SnowballEquipmentComponent->SetAiming(false);
+		}
+		if (SnowballCreationComponent)
+		{
+			SnowballCreationComponent->CancelCreatingSnowball();
+		}
+		MovementComponent->StopMovementImmediately();
+		if (MovementComponent->MovementMode == MOVE_None)
+		{
+			MovementComponent->SetMovementMode(MOVE_Falling);
+		}
+		StopJumping();
+		ApplyMovementSpeed();
+		return;
+	}
+
+	if (HealthComponent
+		&& !HealthComponent->IsFrozen()
+		&& !HealthComponent->IsDead()
+		&& !bTiebreakerSpectator
+		&& !bWaterSubmerged
+		&& !bIsGrabbedByCharacter)
+	{
+		const EMovementMode RestoreMode =
+			MovementModeBeforeGrabbed == MOVE_None
+				? MOVE_Walking
+				: MovementModeBeforeGrabbed.GetValue();
+		MovementComponent->SetMovementMode(
+			RestoreMode,
+			CustomMovementModeBeforeGrabbed);
+		MovementComponent->bOrientRotationToMovement =
+			bOrientRotationToMovementBeforeWorldGrab;
+		bUseControllerRotationYaw = bUseControllerRotationYawBeforeWorldGrab;
+	}
+}
+
+float ASnowRumbleCharacter::GetGrabReachOriginHeight() const
+{
+	const UCapsuleComponent* Capsule = GetCapsuleComponent();
+	return Capsule ? Capsule->GetScaledCapsuleHalfHeight() * 0.45f : 70.0f;
+}
+
 float ASnowRumbleCharacter::GetSnowballCreationProgress() const
 {
 	return SnowballCreationComponent
@@ -777,7 +976,9 @@ void ASnowRumbleCharacter::NotifySnowballThrowSucceeded(bool bWasLargeSnowball)
 	RequestAnimationTriggerFromServer(
 		bWasLargeSnowball
 			? ESnowRumbleCharacterAnimTrigger::ThrowLargeSnowball
-			: ESnowRumbleCharacterAnimTrigger::ThrowSmallSnowball);
+			: (IsInAir()
+				? ESnowRumbleCharacterAnimTrigger::ThrowSmallSnowballInAir
+				: ESnowRumbleCharacterAnimTrigger::ThrowSmallSnowball));
 }
 
 void ASnowRumbleCharacter::RequestSnowballThrowReleaseFromNotify()
@@ -1622,6 +1823,8 @@ void ASnowRumbleCharacter::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ASnowRumbleCharacter, bIsHitReacting);
 	DOREPLIFETIME(ASnowRumbleCharacter, bTiebreakerSpectator);
 	DOREPLIFETIME(ASnowRumbleCharacter, bWaterSubmerged);
+	DOREPLIFETIME(ASnowRumbleCharacter, bIsGrabbedByCharacter);
+	DOREPLIFETIME(ASnowRumbleCharacter, GrabbedByCharacter);
 }
 
 void ASnowRumbleCharacter::PossessedBy(AController* NewController)
@@ -2209,7 +2412,10 @@ void ASnowRumbleCharacter::Move(const FInputActionValue& Value)
 {
 	const FVector2D MovementVector = Value.Get<FVector2D>();
 
-	if (!Controller || !CanPerformGameplayAction())
+	if (!Controller
+		|| (!CanPerformGameplayAction()
+			&& !IsHangingFromWorldGrab()
+			&& !IsGrabbedByCharacter()))
 	{
 		return;
 	}
@@ -2228,6 +2434,8 @@ void ASnowRumbleCharacter::Move(const FInputActionValue& Value)
 
 	if (bIsInteractHeld
 		&& !bUsedInteractForRolling
+		&& !IsHangingFromWorldGrab()
+		&& !IsGrabbedByCharacter()
 		&& !MovementVector.IsNearlyZero()
 		&& SnowballEquipmentComponent)
 	{
@@ -2499,6 +2707,18 @@ void ASnowRumbleCharacter::HandleActionStarted()
 		return;
 	}
 
+	if (!IsAiming()
+		&& (!SnowballEquipmentComponent
+			|| !SnowballEquipmentComponent->HasHeldSnowball()))
+	{
+		if (!ShouldPreferSnowCreationOverGrab() && PlayerGrabComponent)
+		{
+			PlayerGrabComponent->StartGrabReach();
+			OnActionInput(true);
+			return;
+		}
+	}
+
 	// Animation Blueprint용 IsHoldingSnowball()은 획득 연출 동안 의도적으로
 	// 지연되므로 입력 기능 분기에 사용하지 않는다. 두 요청을 모두 전달하고
 	// 서버의 실제 장비 상태가 제작 또는 충전 중 하나만 승인한다.
@@ -2523,6 +2743,13 @@ void ASnowRumbleCharacter::HandleActionCompleted()
 {
 	if (bIsEmoteRadialMenuOpen)
 	{
+		return;
+	}
+
+	if (PlayerGrabComponent && PlayerGrabComponent->IsGrabReaching())
+	{
+		PlayerGrabComponent->StopGrabReach();
+		OnActionInput(false);
 		return;
 	}
 
@@ -2906,8 +3133,91 @@ void ASnowRumbleCharacter::HandleDeathChanged(bool bIsDead)
 	ApplyMovementSpeed();
 }
 
+void ASnowRumbleCharacter::HandleGrabbedByCharacterChanged(bool bNewGrabbed)
+{
+	UCharacterMovementComponent* MovementComponent = GetCharacterMovement();
+	if (!MovementComponent)
+	{
+		return;
+	}
+
+	if (bNewGrabbed)
+	{
+		MovementModeBeforeGrabbed = MovementComponent->MovementMode;
+		CustomMovementModeBeforeGrabbed = MovementComponent->CustomMovementMode;
+		bOrientRotationToMovementBeforeGrabbedByCharacter =
+			MovementComponent->bOrientRotationToMovement;
+		bUseControllerRotationYawBeforeGrabbedByCharacter = bUseControllerRotationYaw;
+		MovementComponent->bOrientRotationToMovement = false;
+		bUseControllerRotationYaw = false;
+		bIsSprinting = false;
+		if (SnowballEquipmentComponent)
+		{
+			SnowballEquipmentComponent->SetAiming(false);
+		}
+		if (SnowballCreationComponent)
+		{
+			SnowballCreationComponent->CancelCreatingSnowball();
+		}
+		MovementComponent->StopMovementImmediately();
+		if (HealthComponent
+			&& !HealthComponent->IsFrozen()
+			&& !HealthComponent->IsDead()
+			&& !bTiebreakerSpectator
+			&& !bWaterSubmerged
+			&& MovementComponent->MovementMode == MOVE_None)
+		{
+			MovementComponent->SetMovementMode(MOVE_Walking);
+		}
+		StopJumping();
+		ApplyMovementSpeed();
+		return;
+	}
+
+	if (HealthComponent
+		&& !HealthComponent->IsFrozen()
+		&& !HealthComponent->IsDead()
+		&& !bTiebreakerSpectator
+		&& !bWaterSubmerged)
+	{
+		const EMovementMode RestoreMode =
+			MovementModeBeforeGrabbed == MOVE_None
+				? MOVE_Walking
+				: MovementModeBeforeGrabbed.GetValue();
+		MovementComponent->SetMovementMode(
+			RestoreMode,
+			CustomMovementModeBeforeGrabbed);
+		MovementComponent->bOrientRotationToMovement =
+			bOrientRotationToMovementBeforeGrabbedByCharacter;
+		bUseControllerRotationYaw = bUseControllerRotationYawBeforeGrabbedByCharacter;
+	}
+}
+
 void ASnowRumbleCharacter::HandleSnowballAimingChanged(bool bNewAiming)
 {
+	if (IsHangingFromWorldGrab() || IsGrabbedByCharacter())
+	{
+		bUseControllerRotationYaw = false;
+
+		if (UCharacterMovementComponent* MovementComponent = GetCharacterMovement())
+		{
+			MovementComponent->bOrientRotationToMovement = false;
+		}
+
+		if (bIsSprinting)
+		{
+			bIsSprinting = false;
+
+			if (!HasAuthority())
+			{
+				ServerSetSprinting(false);
+			}
+		}
+
+		ApplyMovementSpeed();
+		return;
+	}
+
 	bUseControllerRotationYaw = bNewAiming;
 
 	if (UCharacterMovementComponent* MovementComponent = GetCharacterMovement())
@@ -3284,6 +3594,8 @@ bool ASnowRumbleCharacter::CanPerformGameplayAction() const
 		&& !bIsInteractingWithItem
 		&& !bIsEmoteRadialMenuOpen
 		&& !bTiebreakerSpectator
+		&& !bIsGrabbedByCharacter
+		&& !IsHangingFromWorldGrab()
 		&& !IsPvpMatchInputLocked()
 		&& (!SnowRumblePlayerController
 			|| !SnowRumblePlayerController->IsGameplayUiInputOpen());
@@ -4169,4 +4481,9 @@ void ASnowRumbleCharacter::OnRep_WaterSubmerged()
 	{
 		StopJumping();
 	}
+}
+
+void ASnowRumbleCharacter::OnRep_GrabbedByCharacter()
+{
+	HandleGrabbedByCharacterChanged(bIsGrabbedByCharacter);
 }

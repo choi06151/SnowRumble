@@ -107,6 +107,45 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|State")
 	bool bIsHitReacting = false;
 
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	bool bIsGrabReaching = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	bool bIsGrabbingCharacter = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	bool bIsGrabAttached = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	bool bIsHangingFromWorldGrab = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	bool bIsGrabbedByCharacter = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	FVector GrabAttachedWorldLocation = FVector::ZeroVector;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	FVector RightHandGrabTargetLocation = FVector::ZeroVector;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	FVector LeftHandGrabTargetLocation = FVector::ZeroVector;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	float GrabReachAlpha = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|View")
+	float ViewPitchDegrees = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|View")
+	float ViewPitchAlpha = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|View")
+	float ViewYawDegrees = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|View")
+	float ViewYawAlpha = 0.0f;
+
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|State")
 	ESnowballCarryState SnowballCarryState = ESnowballCarryState::Normal;
 
