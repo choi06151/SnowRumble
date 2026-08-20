@@ -51,5 +51,6 @@
 - [C-23 마우스 휠 카메라 줌](C-23_camera_wheel_zoom.md)
 - [C-24 캐릭터 모델과 ABP 애니메이션 계약](C-24_character_model_anim_contract.md)
 - [C-25 PvP 선물상자와 아이템 기본 계약](C-25_pvp_gift_box_item_foundation.md)
+- [C-28 플레이어 잡기와 Control Rig 기본틀](C-28_player_grab_control_rig_foundation.md)
 
 역할 내부 상태와 우선순위는 `PLAN_C.md`, 파트 간 계약·선점과 통합 상태는 `docs/PLANS.md`를 기준으로 판단합니다.
