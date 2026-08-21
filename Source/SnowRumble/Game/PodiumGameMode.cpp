@@ -14,10 +14,10 @@
 
 namespace
 {
-constexpr const TCHAR* LobbyGameModeTravelPath =
+constexpr const TCHAR* PodiumLobbyGameModeTravelPath =
 	TEXT("/Game/Game/BP_LobbyGameMode.BP_LobbyGameMode_C");
 
-void EnsureTravelOption(FString& TravelUrl, const TCHAR* Option)
+void EnsurePodiumTravelOption(FString& TravelUrl, const TCHAR* Option)
 {
 	if (!TravelUrl.Contains(Option, ESearchCase::IgnoreCase))
 	{
@@ -25,7 +25,7 @@ void EnsureTravelOption(FString& TravelUrl, const TCHAR* Option)
 	}
 }
 
-void EnsureTravelOptionValue(
+void EnsurePodiumTravelOptionValue(
 	FString& TravelUrl,
 	const TCHAR* OptionName,
 	const FString& OptionValue)
@@ -258,8 +258,11 @@ void APodiumGameMode::ReturnToLobbyAfterPodium()
 	}
 
 	FString TravelUrl = PodiumLobbyReturnTravelUrl;
-	EnsureTravelOption(TravelUrl, TEXT("?listen"));
-	EnsureTravelOptionValue(TravelUrl, TEXT("game"), LobbyGameModeTravelPath);
+	EnsurePodiumTravelOption(TravelUrl, TEXT("?listen"));
+	EnsurePodiumTravelOptionValue(
+		TravelUrl,
+		TEXT("game"),
+		PodiumLobbyGameModeTravelPath);
 
 	if (UWorld* World = GetWorld())
 	{

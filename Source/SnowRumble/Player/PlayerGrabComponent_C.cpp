@@ -572,6 +572,8 @@ void UPlayerGrabComponent::UpdateGrabbedCharacterTether(float DeltaTime)
 	{
 		GrabConstraintComponent->SetWorldLocation(GrabAttachedWorldLocation);
 	}
+	TargetCharacter->SetGrabbedByCharacterWorldLocationFromServer(
+		GrabAttachedWorldLocation);
 	const FVector DesiredTargetLocation =
 		GrabAttachedWorldLocation + GrabbedActorLocationOffsetFromAttachedPoint;
 	const FVector CurrentTargetLocation = TargetCharacter->GetActorLocation();

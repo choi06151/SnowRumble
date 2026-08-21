@@ -80,10 +80,6 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Match", meta = (ClampMin = "0.0"))
 	float MatchStartCountdownDelaySeconds = 3.0f;
 
-	/** 서버 확정 3-2-1 카운트다운 시작 전 로딩창을 먼저 닫아둘 시간이다. */
-	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Match", meta = (ClampMin = "0.0"))
-	float LoadingScreenHideLeadTimeSeconds = 1.0f;
-
 	/** PvP 시작 전 팀 소개에서 한 팀을 보여줄 시간이다. */
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Match Intro", meta = (ClampMin = "0.0"))
 	float MatchIntroTeamShotSeconds = 2.5f;
@@ -134,11 +130,8 @@ private:
 	/** 팀 소개가 끝난 뒤 기존 시작 카운트다운을 확정한다. */
 	void FinishMatchIntroSequence();
 
-	/** 로딩창을 닫고 서버 확정 카운트다운을 시작할 준비를 한다. */
-	void PrepareConfirmedMatchCountdown();
-
 	/** 모든 클라이언트의 PvP 로딩창을 닫는다. */
-	void HideLoadingScreensBeforeCountdown();
+	void HideLoadingScreensBeforeIntro();
 
 	/** 기존 C-17 시작 카운트다운과 경기 타이머들을 시작한다. */
 	void StartConfirmedMatchCountdown();

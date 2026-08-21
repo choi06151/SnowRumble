@@ -9,7 +9,7 @@
 class UPodiumWidget;
 
 UCLASS()
-class SNOWRUMBLE_API APodiumPlayerController : public APlayerController
+class SNOWRUMBLE_API APodiumPlayerController : public APlayerController	
 {
 	GENERATED_BODY()
 

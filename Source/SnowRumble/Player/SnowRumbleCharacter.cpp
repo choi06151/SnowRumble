@@ -521,6 +521,11 @@ FVector ASnowRumbleCharacter::GetGrabAttachedWorldLocation() const
 		: FVector::ZeroVector;
 }
 
+FVector ASnowRumbleCharacter::GetGrabbedByCharacterWorldLocation() const
+{
+	return GrabbedByCharacterWorldLocation;
+}
+
 FVector ASnowRumbleCharacter::GetRightHandGrabTargetLocation() const
 {
 	return PlayerGrabComponent
@@ -602,8 +607,22 @@ void ASnowRumbleCharacter::ApplyGrabbedByCharacter(
 
 	GrabbedByCharacter = GrabbingCharacter;
 	bIsGrabbedByCharacter = true;
+	GrabbedByCharacterWorldLocation = GrabbingCharacter
+		? GrabbingCharacter->GetGrabAttachedWorldLocation()
+		: FVector::ZeroVector;
 	HandleGrabbedByCharacterChanged(true);
 	ForceNetUpdate();
+}
+
+void ASnowRumbleCharacter::SetGrabbedByCharacterWorldLocationFromServer(
+	const FVector& NewWorldLocation)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	GrabbedByCharacterWorldLocation = NewWorldLocation;
 }
 
 void ASnowRumbleCharacter::ClearGrabbedByCharacter(
@@ -618,6 +637,7 @@ void ASnowRumbleCharacter::ClearGrabbedByCharacter(
 
 	bIsGrabbedByCharacter = false;
 	GrabbedByCharacter = nullptr;
+	GrabbedByCharacterWorldLocation = FVector::ZeroVector;
 	HandleGrabbedByCharacterChanged(false);
 	ForceNetUpdate();
 }
@@ -1825,6 +1845,7 @@ void ASnowRumbleCharacter::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ASnowRumbleCharacter, bWaterSubmerged);
 	DOREPLIFETIME(ASnowRumbleCharacter, bIsGrabbedByCharacter);
 	DOREPLIFETIME(ASnowRumbleCharacter, GrabbedByCharacter);
+	DOREPLIFETIME(ASnowRumbleCharacter, GrabbedByCharacterWorldLocation);
 }
 
 void ASnowRumbleCharacter::PossessedBy(AController* NewController)
