@@ -14,6 +14,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "SnowmanModeGameState_K.h"
+#include "SnowRumbleLobbyGameMode.h"
 #include "SnowRumblePlayerState.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSnowmanMode, Log, All);
@@ -62,6 +63,7 @@ FString DescribeSnowmanPlayerState(const ASnowRumblePlayerState* PlayerState)
 		*PlayerState->GetPlayerName(),
 		PlayerState->GetPlayerId());
 }
+
 }
 
 ASnowmanModeGameMode::ASnowmanModeGameMode()
@@ -71,6 +73,7 @@ ASnowmanModeGameMode::ASnowmanModeGameMode()
 	PlayerStateClass = ASnowRumblePlayerState::StaticClass();
 	DefaultPawnClass = ASnowRumbleCharacter::StaticClass();
 	SnowmanCharacterClass = ASnowmanModeSnowmanCharacter::StaticClass();
+	LobbyReturnGameModeClass = ASnowRumbleLobbyGameMode::StaticClass();
 	bUseSeamlessTravel = true;
 
 	if (IConsoleVariable* AllowPieSeamlessTravel =
@@ -102,6 +105,8 @@ void ASnowmanModeGameMode::InitGame(
 		World->GetTimerManager().ClearTimer(
 			SnowmanRoleInitializationRetryTimerHandle);
 		World->GetTimerManager().ClearTimer(InfectionScanTimerHandle);
+		World->GetTimerManager().ClearTimer(SnowmanModeTimeLimitTimerHandle);
+		World->GetTimerManager().ClearTimer(SnowmanModeLobbyReturnTimerHandle);
 	}
 }
 
@@ -177,6 +182,29 @@ void ASnowmanModeGameMode::RestartPlayerAtPlayerStart(
 		BuildScatteredPlayerStartTransform(StartSpot);
 	UsedSpawnLocations.Add(SpawnTransform.GetLocation());
 	RestartPlayerAtTransform(NewPlayer, SpawnTransform);
+}
+
+UClass* ASnowmanModeGameMode::GetDefaultPawnClassForController_Implementation(
+	AController* InController)
+{
+	const ASnowmanModeGameState* SnowmanGameState =
+		GetGameState<ASnowmanModeGameState>();
+	const APlayerState* PlayerState =
+		InController ? InController->PlayerState : nullptr;
+	if (SnowmanGameState
+		&& PlayerState
+		&& SnowmanGameState->IsSnowmanModePlayerSnowman(PlayerState))
+	{
+		if (SnowmanCharacterClass)
+		{
+			return SnowmanCharacterClass;
+		}
+
+		return ASnowmanModeSnowmanCharacter::StaticClass();
+	}
+
+	return Super::GetDefaultPawnClassForController_Implementation(
+		InController);
 }
 
 void ASnowmanModeGameMode::TryDismissLoadingScreens()
@@ -274,6 +302,15 @@ void ASnowmanModeGameMode::StartSnowmanModeAfterCountdown()
 			InfectionScanIntervalSeconds,
 			true);
 	}
+	if (World && SnowmanModeTimeLimitSeconds > 0.0f)
+	{
+		World->GetTimerManager().SetTimer(
+			SnowmanModeTimeLimitTimerHandle,
+			this,
+			&ASnowmanModeGameMode::HandleSnowmanModeTimeLimitExpired,
+			SnowmanModeTimeLimitSeconds,
+			false);
+	}
 }
 
 void ASnowmanModeGameMode::InitializeSnowmanRoles()
@@ -359,6 +396,101 @@ void ASnowmanModeGameMode::UpdateSnowmanInfectionFlow()
 		SnowmanGameState->GetSnowmanModePlayerEntries();
 	TArray<ASnowRumbleCharacter*> SnowmanCharacters;
 	TArray<ASnowRumbleCharacter*> NormalCharacters;
+	TArray<ASnowRumblePlayerState*> ControllerlessPendingCancels;
+	static TSet<TWeakObjectPtr<ASnowRumblePlayerState>>
+		CompletingInfectionPlayerStates;
+	static TSet<TWeakObjectPtr<ASnowRumblePlayerState>>
+		ControllerLostPendingPlayerStates;
+	auto ResolveSnowmanModeEntryPlayerState =
+		[&PlayerEntries](const ASnowRumblePlayerState* PlayerState)
+		-> ASnowRumblePlayerState*
+	{
+		if (!PlayerState)
+		{
+			return nullptr;
+		}
+
+		for (const FSnowmanModePlayerEntry& Entry : PlayerEntries)
+		{
+			if (Entry.PlayerState == PlayerState)
+			{
+				return Entry.PlayerState;
+			}
+		}
+
+		const int32 PlayerId = PlayerState->GetPlayerId();
+		if (PlayerId != INDEX_NONE)
+		{
+			for (const FSnowmanModePlayerEntry& Entry : PlayerEntries)
+			{
+				if (Entry.PlayerState
+					&& Entry.PlayerState->GetPlayerId() == PlayerId)
+				{
+					return Entry.PlayerState;
+				}
+			}
+		}
+
+		const FUniqueNetIdRepl& UniqueId = PlayerState->GetUniqueId();
+		if (UniqueId.IsValid())
+		{
+			for (const FSnowmanModePlayerEntry& Entry : PlayerEntries)
+			{
+				if (Entry.PlayerState
+					&& Entry.PlayerState->GetUniqueId().IsValid()
+					&& Entry.PlayerState->GetUniqueId() == UniqueId)
+				{
+					return Entry.PlayerState;
+				}
+			}
+		}
+
+		return nullptr;
+	};
+	auto HasActiveControllerForPlayerState =
+		[](const UWorld* ScanWorld, const ASnowRumblePlayerState* PlayerState)
+	{
+		if (!ScanWorld || !PlayerState)
+		{
+			return false;
+		}
+
+		for (FConstPlayerControllerIterator It =
+				ScanWorld->GetPlayerControllerIterator();
+			It;
+			++It)
+		{
+			const APlayerController* CandidateController = It->Get();
+			const APlayerState* CandidatePlayerState =
+				CandidateController ? CandidateController->PlayerState : nullptr;
+			if (!CandidatePlayerState)
+			{
+				continue;
+			}
+
+			if (CandidatePlayerState == PlayerState)
+			{
+				return true;
+			}
+
+			const int32 PlayerId = PlayerState->GetPlayerId();
+			if (PlayerId != INDEX_NONE
+				&& CandidatePlayerState->GetPlayerId() == PlayerId)
+			{
+				return true;
+			}
+
+			const FUniqueNetIdRepl& UniqueId = PlayerState->GetUniqueId();
+			if (UniqueId.IsValid()
+				&& CandidatePlayerState->GetUniqueId().IsValid()
+				&& CandidatePlayerState->GetUniqueId() == UniqueId)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	};
 
 	for (const FSnowmanModePlayerEntry& Entry : PlayerEntries)
 	{
@@ -368,37 +500,87 @@ void ASnowmanModeGameMode::UpdateSnowmanInfectionFlow()
 			continue;
 		}
 
+		const TWeakObjectPtr<ASnowRumblePlayerState> PlayerStateKey(PlayerState);
+		if (Entry.Role != ESnowmanModePlayerRole::InfectionPending)
+		{
+			CompletingInfectionPlayerStates.Remove(PlayerStateKey);
+			ControllerLostPendingPlayerStates.Remove(PlayerStateKey);
+		}
+
 		if (bLogSnowmanInfectionDebug)
 		{
 			UE_LOG(
 				LogSnowmanMode,
 				Verbose,
-				TEXT("Infection entry: %s Role=%s Remaining=%.2f"),
+				TEXT("Infection entry: %s Role=%s Remaining=%.2f Completing=%s"),
 				*DescribeSnowmanPlayerState(PlayerState),
 				LexToString(Entry.Role),
 				SnowmanGameState->GetSnowmanModeInfectionRemainingSeconds(
-					PlayerState));
+					PlayerState),
+				CompletingInfectionPlayerStates.Contains(PlayerStateKey)
+					? TEXT("true")
+					: TEXT("false"));
 		}
 
 		if (Entry.Role == ESnowmanModePlayerRole::InfectionPending
 			&& SnowmanGameState->GetSnowmanModeInfectionRemainingSeconds(PlayerState)
 				<= 0.0f)
 		{
+			const bool bHasActiveController =
+				HasActiveControllerForPlayerState(GetWorld(), PlayerState);
+			if (!bHasActiveController)
+			{
+				if (!ControllerLostPendingPlayerStates.Contains(PlayerStateKey))
+				{
+					UE_LOG(
+						LogSnowmanMode,
+						Warning,
+						TEXT("Infection pending cleanup: controller is missing, pending state canceled safely. Player=%s"),
+						*DescribeSnowmanPlayerState(PlayerState));
+					ControllerLostPendingPlayerStates.Add(PlayerStateKey);
+				}
+				ControllerlessPendingCancels.Add(PlayerState);
+				CompletingInfectionPlayerStates.Remove(PlayerStateKey);
+				continue;
+			}
+			ControllerLostPendingPlayerStates.Remove(PlayerStateKey);
+
+			if (CompletingInfectionPlayerStates.Contains(PlayerStateKey))
+			{
+				continue;
+			}
+
+			CompletingInfectionPlayerStates.Add(PlayerStateKey);
 			if (bLogSnowmanInfectionDebug)
 			{
 				UE_LOG(
 					LogSnowmanMode,
 					Log,
-					TEXT("Infection complete: %s"),
+					TEXT("Infection pending complete: %s"),
 					*DescribeSnowmanPlayerState(PlayerState));
 			}
-			SnowmanGameState->CompleteInfectionFromServer(PlayerState);
-		}
 
-		if (SnowmanGameState->IsSnowmanModePlayerSnowman(PlayerState))
-		{
-			ConvertPlayerToSnowmanPawn(PlayerState);
+			if (ConvertPlayerToSnowmanPawn(PlayerState))
+			{
+				SnowmanGameState->CompleteInfectionFromServer(PlayerState);
+				CompletingInfectionPlayerStates.Remove(PlayerStateKey);
+			}
+			else
+			{
+				UE_LOG(
+					LogSnowmanMode,
+					Warning,
+					TEXT("Infection pending complete conversion failed once and remains Pending: %s Role=%s"),
+					*DescribeSnowmanPlayerState(PlayerState),
+					LexToString(
+						SnowmanGameState->GetSnowmanModePlayerRole(PlayerState)));
+			}
 		}
+	}
+	for (ASnowRumblePlayerState* PlayerState : ControllerlessPendingCancels)
+	{
+		SnowmanGameState->CancelControllerlessPendingFromServer(
+			PlayerState);
 	}
 
 	UWorld* World = GetWorld();
@@ -431,11 +613,18 @@ void ASnowmanModeGameMode::UpdateSnowmanInfectionFlow()
 			continue;
 		}
 
-		if (SnowmanGameState->IsSnowmanModePlayerSnowman(PlayerState))
+		ASnowRumblePlayerState* EntryPlayerState =
+			ResolveSnowmanModeEntryPlayerState(PlayerState);
+		if (!EntryPlayerState)
+		{
+			continue;
+		}
+
+		if (SnowmanGameState->IsSnowmanModePlayerSnowman(EntryPlayerState))
 		{
 			SnowmanCharacters.Add(Character);
 		}
-		else if (SnowmanGameState->GetSnowmanModePlayerRole(PlayerState)
+		else if (SnowmanGameState->GetSnowmanModePlayerRole(EntryPlayerState)
 			== ESnowmanModePlayerRole::Normal)
 		{
 			NormalCharacters.Add(Character);
@@ -449,15 +638,23 @@ void ASnowmanModeGameMode::UpdateSnowmanInfectionFlow()
 			|| CurrentTime - LastInfectionDebugSummaryTime >= 1.0)
 		{
 			LastInfectionDebugSummaryTime = CurrentTime;
+			int32 PendingCount = 0;
+			for (const FSnowmanModePlayerEntry& Entry : PlayerEntries)
+			{
+				if (Entry.Role == ESnowmanModePlayerRole::InfectionPending)
+				{
+					++PendingCount;
+				}
+			}
 			UE_LOG(
 				LogSnowmanMode,
 				Log,
-				TEXT("Infection scan summary: Entries=%d Snowmen=%d Normals=%d ContactRadius=%.1f PendingSeconds=%.1f"),
+				TEXT("Infection scan summary: Entries=%d Snowmen=%d Pending=%d Normals=%d ContactRadius=%.1f"),
 				PlayerEntries.Num(),
 				SnowmanCharacters.Num(),
+				PendingCount,
 				NormalCharacters.Num(),
-				InfectionContactRadius,
-				InfectionPendingSeconds);
+				InfectionContactRadius);
 		}
 	}
 
@@ -481,6 +678,19 @@ void ASnowmanModeGameMode::UpdateSnowmanInfectionFlow()
 				ASnowRumblePlayerState* NormalPlayerState =
 					ResolvePlayerStateForCharacter(NormalCharacter);
 				if (!NormalPlayerState)
+				{
+					continue;
+				}
+				ASnowRumblePlayerState* InfectionTargetPlayerState =
+					ResolveSnowmanModeEntryPlayerState(NormalPlayerState);
+				if (!InfectionTargetPlayerState)
+				{
+					continue;
+				}
+				const ESnowmanModePlayerRole NormalPlayerRole =
+					SnowmanGameState->GetSnowmanModePlayerRole(
+						InfectionTargetPlayerState);
+				if (NormalPlayerRole != ESnowmanModePlayerRole::Normal)
 				{
 					continue;
 				}
@@ -508,24 +718,25 @@ void ASnowmanModeGameMode::UpdateSnowmanInfectionFlow()
 				{
 					const bool bStartedInfection =
 						SnowmanGameState->StartInfectionPendingFromServer(
-						NormalPlayerState,
-						InfectionPendingSeconds);
+							InfectionTargetPlayerState,
+							InfectionPendingSeconds);
 					if (bLogSnowmanInfectionDebug)
 					{
 						UE_LOG(
 							LogSnowmanMode,
 							Log,
-							TEXT("Infection contact: Snowman=%s Normal=%s Distance=%.1f EffectiveRadius=%.1f Started=%s NormalRoleAfter=%s"),
+							TEXT("Infection contact: Snowman=%s Target=%s Distance=%.1f EffectiveRadius=%.1f Started=%s RoleAfter=%s"),
 							*DescribeSnowmanPlayerState(
 								ResolvePlayerStateForCharacter(
 									SnowmanCharacter)),
-							*DescribeSnowmanPlayerState(NormalPlayerState),
+							*DescribeSnowmanPlayerState(
+								InfectionTargetPlayerState),
 							FMath::Sqrt(DistanceSquared),
 							EffectiveContactRadius,
 							bStartedInfection ? TEXT("true") : TEXT("false"),
 							LexToString(
 								SnowmanGameState->GetSnowmanModePlayerRole(
-									NormalPlayerState)));
+									InfectionTargetPlayerState)));
 					}
 				}
 			}
@@ -533,6 +744,7 @@ void ASnowmanModeGameMode::UpdateSnowmanInfectionFlow()
 	}
 
 	ApplySnowmanMovementSpeeds();
+	EvaluateSnowmanModeEndCondition();
 }
 
 void ASnowmanModeGameMode::ApplySnowmanMovementSpeeds()
@@ -560,17 +772,163 @@ void ASnowmanModeGameMode::ApplySnowmanMovementSpeeds()
 	}
 }
 
+void ASnowmanModeGameMode::EvaluateSnowmanModeEndCondition()
+{
+	ASnowmanModeGameState* SnowmanGameState =
+		GetGameState<ASnowmanModeGameState>();
+	if (!HasAuthority()
+		|| !SnowmanGameState
+		|| SnowmanGameState->IsSnowmanModeEnded()
+		|| !SnowmanGameState->IsSnowmanModeTimerActive())
+	{
+		return;
+	}
+
+	const TArray<FSnowmanModePlayerEntry>& PlayerEntries =
+		SnowmanGameState->GetSnowmanModePlayerEntries();
+	if (PlayerEntries.IsEmpty())
+	{
+		return;
+	}
+
+	for (const FSnowmanModePlayerEntry& Entry : PlayerEntries)
+	{
+		if (!Entry.PlayerState || Entry.Role != ESnowmanModePlayerRole::Snowman)
+		{
+			return;
+		}
+	}
+
+	EndSnowmanMode(ESnowmanModeResult::SnowmanVictory);
+}
+
+void ASnowmanModeGameMode::HandleSnowmanModeTimeLimitExpired()
+{
+	ASnowmanModeGameState* SnowmanGameState =
+		GetGameState<ASnowmanModeGameState>();
+	if (!HasAuthority()
+		|| !SnowmanGameState
+		|| SnowmanGameState->IsSnowmanModeEnded())
+	{
+		return;
+	}
+
+	EndSnowmanMode(ESnowmanModeResult::SurvivorVictory);
+}
+
+void ASnowmanModeGameMode::EndSnowmanMode(ESnowmanModeResult Result)
+{
+	ASnowmanModeGameState* SnowmanGameState =
+		GetGameState<ASnowmanModeGameState>();
+	UWorld* World = GetWorld();
+	if (!HasAuthority()
+		|| !SnowmanGameState
+		|| !World
+		|| SnowmanGameState->IsSnowmanModeEnded()
+		|| Result == ESnowmanModeResult::None)
+	{
+		return;
+	}
+
+	SnowmanGameState->EndSnowmanModeFromServer(Result);
+	ApplySnowmanModeStartInputLock(true);
+	World->GetTimerManager().ClearTimer(InfectionScanTimerHandle);
+	World->GetTimerManager().ClearTimer(SnowmanModeTimeLimitTimerHandle);
+	if (SnowmanModeResultLobbyReturnDelaySeconds <= 0.0f)
+	{
+		ReturnToLobbyAfterSnowmanModeEnd();
+		return;
+	}
+
+	World->GetTimerManager().SetTimer(
+		SnowmanModeLobbyReturnTimerHandle,
+		this,
+		&ASnowmanModeGameMode::ReturnToLobbyAfterSnowmanModeEnd,
+		SnowmanModeResultLobbyReturnDelaySeconds,
+		false);
+}
+
+void ASnowmanModeGameMode::ReturnToLobbyAfterSnowmanModeEnd()
+{
+	const ASnowmanModeGameState* SnowmanGameState =
+		GetGameState<ASnowmanModeGameState>();
+	if (!HasAuthority()
+		|| !SnowmanGameState
+		|| !SnowmanGameState->IsSnowmanModeEnded()
+		|| LobbyReturnTravelUrl.IsEmpty())
+	{
+		return;
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		World->ServerTravel(BuildLobbyReturnTravelUrl(), true);
+	}
+}
+
+FString ASnowmanModeGameMode::BuildLobbyReturnTravelUrl() const
+{
+	FString TravelUrl = LobbyReturnTravelUrl;
+	if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
+	{
+		TravelUrl += TEXT("?listen");
+	}
+
+	if (LobbyReturnGameModeClass
+		&& !TravelUrl.Contains(TEXT("?game="), ESearchCase::IgnoreCase))
+	{
+		const FString GameModePath = LobbyReturnGameModeClass->GetPathName();
+		if (!GameModePath.IsEmpty())
+		{
+			TravelUrl += FString::Printf(TEXT("?game=%s"), *GameModePath);
+		}
+	}
+
+	return TravelUrl;
+}
+
 bool ASnowmanModeGameMode::ConvertPlayerToSnowmanPawn(
 	ASnowRumblePlayerState* PlayerState)
 {
-	if (!PlayerState)
+	if (!HasAuthority() || !PlayerState)
 	{
+		UE_LOG(
+			LogSnowmanMode,
+			Warning,
+			TEXT("ConvertFail: Authority or PlayerState is invalid! HasAuthority=%s Player=%s"),
+			HasAuthority() ? TEXT("true") : TEXT("false"),
+			*DescribeSnowmanPlayerState(PlayerState));
+		return false;
+	}
+	static TSet<TWeakObjectPtr<ASnowRumblePlayerState>>
+		ConvertingSnowmanPlayerStates;
+	const TWeakObjectPtr<ASnowRumblePlayerState> PlayerStateKey(PlayerState);
+	if (ConvertingSnowmanPlayerStates.Contains(PlayerStateKey))
+	{
+		if (bLogSnowmanInfectionDebug)
+		{
+			UE_LOG(
+				LogSnowmanMode,
+				Verbose,
+				TEXT("Snowman pawn conversion skipped because conversion is already in progress: %s"),
+				*DescribeSnowmanPlayerState(PlayerState));
+		}
+		UE_LOG(
+			LogSnowmanMode,
+			Warning,
+			TEXT("ConvertFail: Pawn conversion is already in progress! Player=%s"),
+			*DescribeSnowmanPlayerState(PlayerState));
 		return false;
 	}
 
 	UWorld* World = GetWorld();
 	if (!World)
 	{
+		UE_LOG(
+			LogSnowmanMode,
+			Error,
+			TEXT("ConvertFail: World is invalid! Player=%s"),
+			*DescribeSnowmanPlayerState(PlayerState));
 		return false;
 	}
 
@@ -593,62 +951,145 @@ bool ASnowmanModeGameMode::ConvertPlayerToSnowmanPawn(
 		break;
 	}
 
-	if (!PlayerController
-		|| !ExistingCharacter)
+	if (!PlayerController)
 	{
+		UE_LOG(
+			LogSnowmanMode,
+			Warning,
+			TEXT("ConvertFail: PlayerController is invalid! Player=%s"),
+			*DescribeSnowmanPlayerState(PlayerState));
 		return false;
 	}
-	if (ExistingCharacter->IsA<ASnowmanModeSnowmanCharacter>())
+	if (!ExistingCharacter)
+	{
+		UE_LOG(
+			LogSnowmanMode,
+			Warning,
+			TEXT("ConvertWarn: OldPawn is invalid; using PlayerStart fallback spawn. Player=%s Controller=%s CurrentPawn=%s"),
+			*DescribeSnowmanPlayerState(PlayerState),
+			*GetNameSafe(PlayerController),
+			*GetNameSafe(PlayerController->GetPawn()));
+	}
+	else if (ExistingCharacter->IsA<ASnowmanModeSnowmanCharacter>())
 	{
 		ApplySnowmanMovementSpeed(ExistingCharacter);
 		return true;
 	}
 
+	ConvertingSnowmanPlayerStates.Add(PlayerStateKey);
+	auto FinishPawnConversion = [PlayerStateKey](bool bResult)
+	{
+		ConvertingSnowmanPlayerStates.Remove(PlayerStateKey);
+		return bResult;
+	};
+
 	TSubclassOf<ASnowmanModeSnowmanCharacter> SpawnClass =
 		SnowmanCharacterClass;
 	if (!SpawnClass)
 	{
+		if (bLogSnowmanInfectionDebug)
+		{
+			UE_LOG(
+				LogSnowmanMode,
+				Error,
+				TEXT("SnowmanCharacterClass is empty on %s. GameModeClass=%s ConfiguredClass=None NativeClass=%s Player=%s"),
+				*GetNameSafe(this),
+				*GetPathNameSafe(GetClass()),
+				*GetPathNameSafe(ASnowmanModeSnowmanCharacter::StaticClass()),
+				*DescribeSnowmanPlayerState(PlayerState));
+		}
 		SpawnClass = ASnowmanModeSnowmanCharacter::StaticClass();
 	}
-	const UCapsuleComponent* ExistingCapsule =
-		ExistingCharacter->GetCapsuleComponent();
+	if (!SpawnClass)
+	{
+		UE_LOG(
+			LogSnowmanMode,
+			Error,
+			TEXT("ConvertFail: SnowmanCharacterClass is nullptr! GameModeClass=%s Player=%s"),
+			*GetPathNameSafe(GetClass()),
+			*DescribeSnowmanPlayerState(PlayerState));
+		UE_LOG(
+			LogSnowmanMode,
+			Error,
+			TEXT("Snowman pawn conversion failed because no spawn class is available. GameModeClass=%s Player=%s"),
+			*GetPathNameSafe(GetClass()),
+			*DescribeSnowmanPlayerState(PlayerState));
+		return FinishPawnConversion(false);
+	}
+	if (bLogSnowmanInfectionDebug)
+	{
+		UE_LOG(
+			LogSnowmanMode,
+			Log,
+			TEXT("Snowman pawn conversion spawn class resolved. GameModeClass=%s SpawnClass=%s Player=%s"),
+			*GetPathNameSafe(GetClass()),
+			*GetPathNameSafe(SpawnClass.Get()),
+			*DescribeSnowmanPlayerState(PlayerState));
+	}
+
 	const ASnowmanModeSnowmanCharacter* SnowmanDefaultObject =
 		SpawnClass.GetDefaultObject();
-	const UCapsuleComponent* SnowmanCapsule =
-		SnowmanDefaultObject ? SnowmanDefaultObject->GetCapsuleComponent() : nullptr;
-
-	const float ExistingHalfHeight =
-		ExistingCapsule ? ExistingCapsule->GetScaledCapsuleHalfHeight() : 96.0f;
-	const float SnowmanHalfHeight =
-		SnowmanCapsule ? SnowmanCapsule->GetScaledCapsuleHalfHeight() : ExistingHalfHeight;
-
-	FVector SpawnLocation = ExistingCharacter->GetActorLocation();
-	const FVector TraceStart = SpawnLocation + FVector(0.0f, 0.0f, 100.0f);
-	const FVector TraceEnd =
-		SpawnLocation - FVector(0.0f, 0.0f, ExistingHalfHeight + 500.0f);
-	FHitResult GroundHit;
-	FCollisionQueryParams GroundTraceParams(
-		SCENE_QUERY_STAT(SnowmanPawnGroundTrace),
-		false,
-		ExistingCharacter);
-	if (World->LineTraceSingleByChannel(
-			GroundHit,
-			TraceStart,
-			TraceEnd,
-			ECC_WorldStatic,
-			GroundTraceParams))
+	if (!SnowmanDefaultObject)
 	{
-		SpawnLocation.Z = GroundHit.ImpactPoint.Z + SnowmanHalfHeight + 3.0f;
-	}
-	else
-	{
-		const float ExistingFootZ =
-			ExistingCharacter->GetActorLocation().Z - ExistingHalfHeight;
-		SpawnLocation.Z = ExistingFootZ + SnowmanHalfHeight + 3.0f;
+		if (bLogSnowmanInfectionDebug)
+		{
+			UE_LOG(
+				LogSnowmanMode,
+				Warning,
+				TEXT("Snowman pawn class default object is invalid for %s"),
+				*DescribeSnowmanPlayerState(PlayerState));
+		}
+		UE_LOG(
+			LogSnowmanMode,
+			Error,
+			TEXT("ConvertFail: SnowmanCharacterClass default object is invalid! SpawnClass=%s Player=%s"),
+			*GetPathNameSafe(SpawnClass.Get()),
+			*DescribeSnowmanPlayerState(PlayerState));
+		return FinishPawnConversion(false);
 	}
 
+	if (ExistingCharacter && PlayerController->GetPawn() != ExistingCharacter)
+	{
+		UE_LOG(
+			LogSnowmanMode,
+			Warning,
+			TEXT("ConvertFail: OldPawn is invalid! Controller pawn changed before spawn. Player=%s CurrentPawn=%s ExpectedPawn=%s"),
+			*DescribeSnowmanPlayerState(PlayerState),
+			*GetNameSafe(PlayerController->GetPawn()),
+			*GetNameSafe(ExistingCharacter));
+		UE_LOG(
+			LogSnowmanMode,
+			Warning,
+			TEXT("Snowman pawn conversion aborted because controller pawn changed before spawn. Player=%s CurrentPawn=%s ExpectedPawn=%s SpawnClass=%s"),
+			*DescribeSnowmanPlayerState(PlayerState),
+			*GetNameSafe(PlayerController->GetPawn()),
+			*GetNameSafe(ExistingCharacter),
+			*GetPathNameSafe(SpawnClass.Get()));
+		return FinishPawnConversion(false);
+	}
+
+	FTransform BaseTransform = FTransform::Identity;
+	if (ExistingCharacter)
+	{
+		BaseTransform = ExistingCharacter->GetActorTransform();
+	}
+	else if (!PlayerController->GetSpawnLocation().IsNearlyZero())
+	{
+		BaseTransform = FTransform(
+			PlayerController->GetControlRotation(),
+			PlayerController->GetSpawnLocation());
+	}
+	if (!ExistingCharacter)
+	{
+		if (AActor* StartSpot = ChoosePlayerStart(PlayerController))
+		{
+			BaseTransform = BuildScatteredPlayerStartTransform(StartSpot);
+		}
+	}
+	FVector SpawnLocation = BaseTransform.GetLocation();
+	SpawnLocation.Z += 75.0f;
 	const FTransform SpawnTransform(
-		ExistingCharacter->GetActorRotation(),
+		BaseTransform.GetRotation(),
 		SpawnLocation);
 	const FRotator ControlRotation = PlayerController->GetControlRotation();
 
@@ -656,7 +1097,15 @@ bool ASnowmanModeGameMode::ConvertPlayerToSnowmanPawn(
 	SpawnParameters.Owner = PlayerController;
 	SpawnParameters.Instigator = ExistingCharacter;
 	SpawnParameters.SpawnCollisionHandlingOverride =
-		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+		ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	if (ExistingCharacter)
+	{
+		PlayerController->UnPossess();
+		ExistingCharacter->SetActorEnableCollision(false);
+		ExistingCharacter->ForceNetUpdate();
+	}
+	PlayerController->ForceNetUpdate();
 
 	ASnowmanModeSnowmanCharacter* SnowmanCharacter =
 		World->SpawnActor<ASnowmanModeSnowmanCharacter>(
@@ -665,15 +1114,101 @@ bool ASnowmanModeGameMode::ConvertPlayerToSnowmanPawn(
 			SpawnParameters);
 	if (!SnowmanCharacter)
 	{
-		return false;
+		UE_LOG(
+			LogSnowmanMode,
+			Error,
+			TEXT("ConvertFail: SpawnActor returned nullptr! (Check Collision or Transform) Player=%s SpawnClass=%s SpawnLocation=%s"),
+			*DescribeSnowmanPlayerState(PlayerState),
+			*GetPathNameSafe(SpawnClass.Get()),
+			*SpawnTransform.GetLocation().ToCompactString());
+		UE_LOG(
+			LogSnowmanMode,
+			Warning,
+			TEXT("Snowman pawn spawn failed for %s at %s. SpawnClass=%s ExistingPawn=%s"),
+			*DescribeSnowmanPlayerState(PlayerState),
+			*SpawnTransform.GetLocation().ToCompactString(),
+			*GetPathNameSafe(SpawnClass.Get()),
+			*GetNameSafe(ExistingCharacter));
+		if (ExistingCharacter)
+		{
+			ExistingCharacter->SetActorEnableCollision(true);
+			PlayerController->Possess(ExistingCharacter);
+			ExistingCharacter->ForceNetUpdate();
+		}
+		PlayerController->ForceNetUpdate();
+		return FinishPawnConversion(false);
 	}
 
-	PlayerController->UnPossess();
+	SnowmanCharacter->SetReplicates(true);
+	SnowmanCharacter->SetReplicateMovement(true);
+	SnowmanCharacter->SetOwner(PlayerController);
+	SnowmanCharacter->ForceNetUpdate();
+	PlayerController->ForceNetUpdate();
 	PlayerController->Possess(SnowmanCharacter);
+	SnowmanCharacter->ForceNetUpdate();
+	PlayerController->ForceNetUpdate();
+	if (PlayerController->GetPawn() != SnowmanCharacter)
+	{
+		SnowmanCharacter->SetActorLocation(
+			SpawnLocation + FVector(0.0f, 0.0f, 50.0f),
+			false,
+			nullptr,
+			ETeleportType::TeleportPhysics);
+		SnowmanCharacter->ForceNetUpdate();
+		PlayerController->UnPossess();
+		PlayerController->Possess(SnowmanCharacter);
+		SnowmanCharacter->ForceNetUpdate();
+		PlayerController->ForceNetUpdate();
+	}
+	if (PlayerController->GetPawn() != SnowmanCharacter)
+	{
+		UE_LOG(
+			LogSnowmanMode,
+			Error,
+			TEXT("ConvertFail: Controller Possess failed! Player=%s CurrentPawn=%s NewPawn=%s SpawnClass=%s"),
+			*DescribeSnowmanPlayerState(PlayerState),
+			*GetNameSafe(PlayerController->GetPawn()),
+			*GetNameSafe(SnowmanCharacter),
+			*GetPathNameSafe(SpawnClass.Get()));
+		UE_LOG(
+			LogSnowmanMode,
+			Warning,
+			TEXT("Snowman pawn possess failed for %s. SpawnClass=%s SnowmanPawn=%s ExistingPawn=%s"),
+			*DescribeSnowmanPlayerState(PlayerState),
+			*GetPathNameSafe(SpawnClass.Get()),
+			*GetNameSafe(SnowmanCharacter),
+			*GetNameSafe(ExistingCharacter));
+		SnowmanCharacter->Destroy();
+		if (ExistingCharacter)
+		{
+			ExistingCharacter->SetActorEnableCollision(true);
+			PlayerController->Possess(ExistingCharacter);
+			ExistingCharacter->ForceNetUpdate();
+		}
+		PlayerController->ForceNetUpdate();
+		return FinishPawnConversion(false);
+	}
+
 	PlayerController->SetControlRotation(ControlRotation);
-	ExistingCharacter->Destroy();
+	if (ExistingCharacter)
+	{
+		ExistingCharacter->Destroy();
+	}
 	ApplySnowmanMovementSpeed(SnowmanCharacter);
-	return true;
+	SnowmanCharacter->ForceNetUpdate();
+	PlayerController->ForceNetUpdate();
+	PlayerState->ForceNetUpdate();
+	if (bLogSnowmanInfectionDebug)
+	{
+		UE_LOG(
+			LogSnowmanMode,
+			Log,
+			TEXT("Snowman pawn conversion succeeded. Player=%s SnowmanPawn=%s SpawnClass=%s"),
+			*DescribeSnowmanPlayerState(PlayerState),
+			*GetNameSafe(SnowmanCharacter),
+			*GetPathNameSafe(SpawnClass.Get()));
+	}
+	return FinishPawnConversion(true);
 }
 
 void ASnowmanModeGameMode::ApplySnowmanMovementSpeed(

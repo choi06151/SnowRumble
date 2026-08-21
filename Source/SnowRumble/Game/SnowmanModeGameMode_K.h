@@ -10,8 +10,10 @@ class APlayerController;
 class AController;
 class AActor;
 class ASnowRumbleCharacter;
+class ASnowRumbleLobbyGameMode;
 class ASnowRumblePlayerState;
 class ASnowmanModeSnowmanCharacter;
+enum class ESnowmanModeResult : uint8;
 
 UCLASS()
 class SNOWRUMBLE_API ASnowmanModeGameMode : public AGameModeBase
@@ -37,6 +39,10 @@ public:
 	virtual void RestartPlayerAtPlayerStart(
 		AController* NewPlayer,
 		AActor* StartSpot) override;
+
+	/** 초기 역할이 눈사람인 플레이어는 일반 Pawn 대신 눈사람 Pawn 클래스로 스폰한다. */
+	virtual UClass* GetDefaultPawnClassForController_Implementation(
+		AController* InController) override;
 
 protected:
 	/** 눈사람 모드 제한시간이다. K-14 전까지 승패 없이 시간 상태만 제공한다. */
@@ -75,6 +81,18 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Debug")
 	bool bLogSnowmanInfectionDebug = true;
 
+	/** 눈사람 모드 결과를 보여준 뒤 로비로 복귀하기까지 기다릴 시간이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Result", meta = (ClampMin = "0.0"))
+	float SnowmanModeResultLobbyReturnDelaySeconds = 5.0f;
+
+	/** 눈사람 모드 종료 후 복귀할 로비 맵 travel URL이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Result")
+	FString LobbyReturnTravelUrl = TEXT("/Game/Maps/L_Lobby?listen");
+
+	/** 로비 복귀 시 이전 눈사람 GameMode travel 옵션이 남지 않도록 명시할 GameMode다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Result")
+	TSubclassOf<ASnowRumbleLobbyGameMode> LobbyReturnGameModeClass;
+
 private:
 	/** 대기방에서 전달받은 이번 모드 예상 접속 인원 수다. */
 	int32 ExpectedPlayerCount = 0;
@@ -103,6 +121,21 @@ private:
 
 	/** 현재 눈사람 역할에 맞춰 모든 플레이어 이동 속도를 갱신한다. */
 	void ApplySnowmanMovementSpeeds();
+
+	/** 현재 눈사람 역할과 제한시간 기준으로 모드 종료 조건을 확인한다. */
+	void EvaluateSnowmanModeEndCondition();
+
+	/** 눈사람 모드 제한시간이 끝났을 때 생존자 승리를 확정한다. */
+	void HandleSnowmanModeTimeLimitExpired();
+
+	/** 서버에서 눈사람 모드 결과를 확정하고 후속 흐름을 예약한다. */
+	void EndSnowmanMode(ESnowmanModeResult Result);
+
+	/** 결과 표시 시간이 지난 뒤 로비로 복귀한다. */
+	void ReturnToLobbyAfterSnowmanModeEnd();
+
+	/** 로비 복귀용 travel URL을 절대 이동 기준으로 안전하게 구성한다. */
+	FString BuildLobbyReturnTravelUrl() const;
 
 	/** 지정 플레이어를 눈사람 전용 Pawn으로 교체한다. */
 	bool ConvertPlayerToSnowmanPawn(ASnowRumblePlayerState* PlayerState);
@@ -135,6 +168,8 @@ private:
 
 	FTimerHandle InfectionScanTimerHandle;
 	FTimerHandle SnowmanRoleInitializationRetryTimerHandle;
+	FTimerHandle SnowmanModeTimeLimitTimerHandle;
+	FTimerHandle SnowmanModeLobbyReturnTimerHandle;
 
 	double LastInfectionDebugSummaryTime = -1.0;
 
