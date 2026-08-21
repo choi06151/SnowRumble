@@ -3,11 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Blueprint/UserWidget.h"
 #include "GameFramework/GameStateBase.h"
 #include "SnowmanModeGameState_K.generated.h"
 
 class APlayerState;
 class ASnowRumblePlayerState;
+class UTextBlock;
 
 UENUM(BlueprintType)
 enum class ESnowmanModePlayerRole : uint8
@@ -15,6 +17,14 @@ enum class ESnowmanModePlayerRole : uint8
 	Normal,
 	InfectionPending,
 	Snowman
+};
+
+UENUM(BlueprintType)
+enum class ESnowmanModeResult : uint8
+{
+	None,
+	SnowmanVictory,
+	SurvivorVictory
 };
 
 USTRUCT(BlueprintType)
@@ -33,11 +43,33 @@ struct FSnowmanModePlayerEntry
 };
 
 UCLASS()
+class SNOWRUMBLE_API USnowmanModeResultWidget : public UUserWidget
+{
+	GENERATED_BODY()
+
+public:
+	void SetResultText(const FText& InResultText);
+
+protected:
+	virtual void NativeConstruct() override;
+
+private:
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UTextBlock> ResultText;
+
+	FText CurrentResultText;
+};
+
+UCLASS()
 class SNOWRUMBLE_API ASnowmanModeGameState : public AGameStateBase
 {
 	GENERATED_BODY()
 
 public:
+	ASnowmanModeGameState();
+
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 	/** 서버가 눈사람 모드 시작 카운트다운을 확정한다. */
 	void StartSnowmanModeCountdownFromServer(float CountdownSeconds);
 
@@ -59,9 +91,31 @@ public:
 	/** 서버가 감염 대기 상태를 눈사람으로 전환한다. */
 	void CompleteInfectionFromServer(ASnowRumblePlayerState* PlayerState);
 
+	/** 서버가 컨트롤러를 잃은 감염 대기 참가자의 Pending 상태만 해제한다. */
+	bool CancelControllerlessPendingFromServer(
+		ASnowRumblePlayerState* PlayerState);
+
+	/** 서버가 눈사람 모드 결과를 확정한다. */
+	void EndSnowmanModeFromServer(ESnowmanModeResult Result);
+
 	/** 눈사람 모드 시작 전 입력 잠금 상태인지 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowman")
 	bool IsSnowmanModeInputLocked() const;
+
+	/** 눈사람 모드 결과가 확정됐는지 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowman")
+	bool IsSnowmanModeEnded() const;
+
+	/** 확정된 눈사람 모드 결과를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowman")
+	ESnowmanModeResult GetSnowmanModeResult() const;
+
+	/** HUD와 결과 화면에 표시할 눈사람 모드 결과 문구를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowman")
+	FText GetSnowmanModeResultText() const;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	TSubclassOf<class USnowmanModeResultWidget> ResultWidgetClass;
 
 	/** 눈사람 모드 시작 카운트다운 UI를 표시해야 하는지 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowman")
@@ -121,8 +175,15 @@ public:
 		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 private:
+	UFUNCTION()
+	void OnRep_SnowmanModeEnded();
+
 	int32 FindSnowmanModePlayerEntryIndex(
 		const APlayerState* PlayerState) const;
+
+	void ShowSnowmanModeResultWidget();
+
+	void RemoveSnowmanModeResultWidget();
 
 	/** 서버 동기화 시간을 기준으로 시작까지 남은 시간을 반환한다. */
 	float GetSecondsUntilSnowmanModeStart() const;
@@ -150,4 +211,13 @@ private:
 
 	UPROPERTY(Replicated)
 	TArray<FSnowmanModePlayerEntry> SnowmanModePlayerEntries;
+
+	UPROPERTY(ReplicatedUsing = OnRep_SnowmanModeEnded)
+	bool bSnowmanModeEnded = false;
+
+	UPROPERTY(Replicated)
+	ESnowmanModeResult SnowmanModeResult = ESnowmanModeResult::None;
+
+	UPROPERTY(Transient)
+	TObjectPtr<USnowmanModeResultWidget> SnowmanModeResultWidget;
 };

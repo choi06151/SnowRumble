@@ -25,7 +25,7 @@
 | --- | --- | --- | --- | --- |
 | 1 | [K-12](K-12_snowman_mode_foundation.md) | 눈사람 모드 기반 | C-04, C 공용 로딩·모드 선택 계약 확인 | 완료 |
 | 2 | [K-13](K-13_snowman_infection_flow.md) | 눈사람 이동과 감염 | K-12, C-09 또는 눈덩이 피격 계약 확인 | 완료 |
-| 3 | [K-14](K-14_snowman_mode_integration.md) | 눈사람 모드 통합 | K-12, K-13, 결과 UI·로딩 인계 확인 | 예정 |
+| 3 | [K-14](K-14_snowman_mode_integration.md) | 눈사람 모드 통합 | K-12, K-13, 결과 UI·로딩 인계 확인 | 진행중 |
 | 4 | [K-01](K-01_item_foundation.md) | 아이템 기반 | 재배정 결정 필요 | 대기 |
 | 5 | [K-03](K-03_consumables.md) | 회복·무적 소비 아이템 | 재배정 결정 필요 | 대기 |
 | 6 | [K-04](K-04_wearable_equipment.md) | 착용 장비 | 재배정 결정 필요 | 대기 |
@@ -66,3 +66,6 @@
 - 2026-08-13: K-13 실행 로그에서 접촉 거리 판정은 통과하지만 감염 시작이 false로 반환되는 문제를 확인했다. Snowman GameState의 참가자 Entry 검색은 PlayerState 포인터 외에 PlayerId/UniqueId fallback을 사용해 같은 플레이어 매칭 실패를 줄인다.
 - 2026-08-14: K-13 결과 확인 중 감염 완료 후 눈사람 BP로 전환된 캐릭터가 땅에 박혀 움직이지 못하는 문제를 반영했다. Snowman GameMode는 전환 스폰 시 기존 Pawn의 발 위치와 바닥 trace를 기준으로 새 눈사람 Capsule 높이를 보정하고, collision handling을 `AdjustIfPossibleButAlwaysSpawn`으로 변경한다.
 - 2026-08-14: 사용자가 K-13 결과 확인을 완료했다. 랜덤 시작 눈사람, 접촉 감염 대기, 10초 뒤 눈사람 전환, 전환 후 이동, 클라이언트 상태 동기화를 확인했고, 땅에 박혀 생성되는 문제는 테스트 횟수가 많지는 않지만 해결된 것으로 보인다고 판단했다. K-13을 완료로 전환하고 다음 집중 Task를 K-14로 넘긴다.
+- 2026-08-14: 사용자가 다음 Task 진행을 요청해 K-14를 진행중으로 전환했다. K-14는 눈사람 전원 감염 승리, 제한시간 종료 시 일반 플레이어 생존 승리, 결과 상태 복제와 로비 복귀 인계를 다룬다. 구현 전 결과 후 복귀 시간, 결과 문구, 제한시간 종료 직전 감염 대기 플레이어 판정을 확정한다.
+- 2026-08-19: K-14 확인 중 결과 후 로비 복귀가 로비 대기 상태가 아니라 눈사람 모드 시작처럼 3-2-1 표시를 띄우는 문제를 반영했다. Snowman GameMode 복귀 travel은 로비 GameMode를 명시하고 absolute travel로 실행해 이전 눈사람 `?game=` 옵션이 남지 않게 한다.
+- 2026-08-21: K-14 확인 중 초기 눈사람이 초기 스폰/RestartPlayer 경로에서 인간 Pawn으로 생성되는 문제와 컨트롤러 소실 Pending cleanup 경고 반복 문제를 반영했다. Snowman GameMode는 초기 역할이 `Snowman`이면 `SnowmanCharacterClass`를 기본 Pawn으로 반환하고, 컨트롤러 없는 Pending 참가자는 Entry를 삭제하지 않고 Pending 상태만 1회 해제해 참가자 목록 유실과 반복 로그를 막는다.
