@@ -120,6 +120,7 @@
 - 2026-08-18: C-14 PvP 분산 스폰 안전성 변경은 `git diff --check`, UHT, `SnowRumbleGameMode.cpp` 컴파일을 통과함. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됨.
 - 2026-08-21: C-29로 전환 URL 안정화 계약을 추가함. 로비->랜덤 PvP, PvP->포디움, 포디움->로비 이동은 코드에서 목적 GameMode를 강제하고, PvP 로딩창은 모든 예상 플레이어 접속 후 팀 소개 시퀀서 시작 직전에 닫는다.
 - 2026-08-21: C-29 로비->PvP 로딩 화면을 `MoviePlayer` 기반으로 보강함. travel 중 검은 화면 대신 Slate 로딩 화면이 전체 화면을 덮고, 맵 로드 후 기존 WBP 로딩창이 이어받아 팀 소개 시퀀서 직전까지 유지된다.
+- 2026-08-21: C-04/C-29 로딩 커스터마이징 데이터 계약을 추가함. 로비 GameMode의 `PvPLevelLoadingPresentations`가 랜덤 선택 맵별 표시명·이미지를 제공하고, 매치 시작 시 클라이언트별 같은 팀 플레이어 이름 목록을 로딩 UI에 전달한다.
 - 2026-08-19: C-25 눈오리 제작기 좌클릭 연동을 보강함. 눈오리 제작기 장착 중 좌클릭 눈 제작 완료 시 생성된 눈덩이를 즉시 손에 장착하고, 장착된 눈덩이는 우클릭 조준 없이 좌클릭만으로 충전·투척하며 `ThrowSnowDuckMaker` 애니메이션 트리거와 `SnowDuckBallSocket` 부착 위치를 사용함.
 - 2026-08-19: C-25 모닥불 VFX 연결을 보강함. `ACampfire`에 `FireVfxComponent`와 `HealRadiusVfxComponent`를 추가해 Blueprint에서 불꽃과 회복 범위 VFX를 연결할 수 있고, 모닥불이 꺼지면 두 VFX가 자동 비활성화됨.
 - 2026-08-21: C-25/J-04 모닥불과 눈섬 물 상승 연동을 추가함. `ACampfire::ExtinguishFromWater()`를 C-25 계약으로 제공하고, `ASnowIslandWaterPressureActor`가 서버 수위에 닿은 모닥불을 즉시 꺼서 회복·충돌·VFX만 비활성화하고 Actor와 Mesh는 남긴다. `git diff --check`와 충돌 표식 검색은 통과했고, `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 보류됨.

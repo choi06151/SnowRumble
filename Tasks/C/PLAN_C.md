@@ -273,3 +273,9 @@
 - 2026-08-21: J-04 눈섬 물 상승 클라이언트 표현 보정을 C 통합 경로로 처리했다. 서버 Damage는 정상이고 클라이언트 물 표현만 누락되는 증상이라 `ASnowIslandWaterPressureActor`를 항상 relevant하게 설정해 수위 복제 상태가 클라이언트에도 도달하게 했다.
 - 2026-08-21: C-25 선물상자 스폰 위치를 TargetPoint 정확한 지점에서 TargetPoint 주변 랜덤 위치로 변경했다. `ASnowRumbleGameMode::GiftBoxSpawnScatterRadius` 반경 안에서 서버가 XY 오프셋을 확정하고, 기존 `GiftBoxSpawnHeightOffset`만큼 위에서 상자를 떨어뜨린다.
 - 2026-08-21: C-29 로비->PvP 전환 로딩 화면을 보강했다. `ULoadingScreenSubsystem`이 travel 중에는 `MoviePlayer` Slate 화면으로 검은 화면을 덮고, 맵 로드 후 기존 WBP를 viewport에 다시 붙이며, progress는 travel 중 시간 기반으로 자연스럽게 90%까지 진행된다.
+- 2026-08-21: 사용자가 C-29 후속 로딩 화면 커스터마이징 방향으로 오른쪽 하단 같은 팀 플레이어 이름 목록 표시를 요청했다. 구현 시 MoviePlayer Slate 화면과 맵 로드 후 WBP 화면의 표현 범위를 먼저 확정한다.
+- 2026-08-21: 사용자가 C-29/C-04 후속 로딩 화면 커스터마이징 방향으로 랜덤 선택된 PvP 맵에 따른 이미지 설정을 요청했다. 구현 시 선택 맵 식별자와 이미지 매핑을 LoadingScreenSubsystem/WBP 중 어디에서 관리할지 먼저 확정한다.
+- 2026-08-21: C-29/C-04 로딩 커스터마이징 데이터 계약을 구현했다. `ASnowRumbleLobbyGameMode::PvPLevelLoadingPresentations`에서 맵별 표시명·이미지를 설정하고, 매치 시작 시 `ULoadingScreenSubsystem`에 선택 맵 정보와 같은 팀 플레이어 이름 목록을 전달해 MoviePlayer/WBP가 같은 데이터를 읽을 수 있게 했다.
+- 2026-08-21: C-02 Hamachi 테스트 중 방 코드 참가 재시도에서 `Session already exists, can't join twice`가 발생해 참가 실패/재시도 전에 로컬 named session을 정리하도록 `USnowRumbleSessionSubsystem`을 보강했다. `no packets received`는 별도 네트워크/방화벽 경로 문제로 남아 있다.
+- 2026-08-21: C-02 호스트 이탈 클라이언트 복귀 경로를 보강했다. 네트워크 실패 시 `BP_MainMenuGameMode`를 강제한 `L_MainMenu` URL로 이동하고, 메인메뉴에서 `호스트의 연결이 해제되었습니다.` 알람을 표시한다.
+- 2026-08-21: C-02 연결 실패 fallback이 DemoMap으로 가는 원인을 보강했다. 접속 실패 일부가 `TravelFailure`로 들어와 기존 `NetworkFailure` 핸들러를 우회할 수 있어 `OnTravelFailure`도 메인메뉴 복귀로 처리하고, `DefaultEngine.ini`의 `GameDefaultMap`/`ServerDefaultMap`을 `L_MainMenu`로 고정했다.

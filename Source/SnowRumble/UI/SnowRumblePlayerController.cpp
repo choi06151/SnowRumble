@@ -456,6 +456,26 @@ void ASnowRumblePlayerController::ClientShowLoadingScreen_Implementation()
 	}
 }
 
+void ASnowRumblePlayerController::ClientSetLoadingPresentation_Implementation(
+	const FString& MapPackageName,
+	const FText& MapDisplayName,
+	const TSoftObjectPtr<UTexture2D>& MapLoadingImage,
+	const TArray<FString>& TeamPlayerNames)
+{
+	UGameInstance* GameInstance = GetGameInstance();
+	ULoadingScreenSubsystem* LoadingScreenSubsystem = GameInstance
+		? GameInstance->GetSubsystem<ULoadingScreenSubsystem>()
+		: nullptr;
+	if (LoadingScreenSubsystem)
+	{
+		LoadingScreenSubsystem->SetLoadingPresentation(
+			MapPackageName,
+			MapDisplayName,
+			MapLoadingImage,
+			TeamPlayerNames);
+	}
+}
+
 bool ASnowRumblePlayerController::CanOpenChatInput() const
 {
 	return IsLocalController();
