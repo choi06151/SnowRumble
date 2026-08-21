@@ -7,6 +7,7 @@
 #include "../Game/SnowRumblePlayerState.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "../Player/SnowRumbleHealthComponent.h"
+#include "../UI/SnowRumblePlayerController.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/GameStateBase.h"
 #include "Net/UnrealNetwork.h"
@@ -269,6 +270,15 @@ bool UGiftItemEffectComponent::UseGoldenHotPackImmediately()
 		{
 			HealthComponent->ReviveFromFrozen(0.5f);
 		}
+	}
+
+	if (ASnowRumblePlayerController* PlayerController =
+		Cast<ASnowRumblePlayerController>(OwnerCharacter->GetController()))
+	{
+		PlayerController->ClientShowPersonalTextAlarm(NSLOCTEXT(
+			"SnowRumble",
+			"GoldenHotPackAllFrozenTeammatesRevived",
+			"얼은 팀원이 다 살아났습니다"));
 	}
 
 	return true;

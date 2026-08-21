@@ -19,6 +19,7 @@
 - 커스터마이징 UI는 WidgetSwitcher로 메인 화면과 색칠하기 화면을 전환한다.
 - 시점변경 화면은 카메라를 돌리지 않고 프리뷰 캐릭터를 좌/우 버튼 press 동안 계속 회전한다.
 - 커스터마이징 레벨의 프리뷰 캐릭터는 커마 방 전용 애니메이션 에셋을 지정하거나 현재 애니메이션을 정지 상태로 둘 수 있다.
+- 메인메뉴 레벨에서 캐릭터를 possess한 경우에도 커스터마이징 프리뷰와 같이 이동·시점 입력과 중력을 막고, 메인메뉴 전용 애니메이션을 지정한 시점에서 정지하거나 재생하며 메인메뉴 전용 Mesh 스케일을 적용할 수 있다.
 - 첫 외형 데이터는 몸 색상 `BodyColor`로 제한해 로컬 저장, 서버 복제, 캐릭터 머티리얼 적용 경로를 제공한다.
 - 메쉬 직접 드로잉 1차 범위는 커스터마이징 레벨 프리뷰에서 현재 브러시 색과 크기로 그리고, Stroke 단위 이전과 전체 초기화를 지원한다.
 - 페인트 trace는 기본적으로 몸 머티리얼 slot 0만 허용하고, 다른 slot 또는 알 수 없는 slot은 stroke 생성을 막는다.
@@ -48,6 +49,8 @@
 - [x] 좌/우 버튼을 누르고 있는 동안 프리뷰 캐릭터를 회전한다.
 - [x] 커스터마이징 레벨 프리뷰 캐릭터의 오버헤드 이름표 위젯을 숨긴다.
 - [x] 커스터마이징 레벨 프리뷰 캐릭터 전용 애니메이션 에셋과 정지 설정을 제공한다.
+- [x] 메인메뉴 레벨 캐릭터도 이동·시점 입력, 중력, MovementMode를 막고 전용 포즈 애니메이션 설정을 제공한다.
+- [x] 메인메뉴 레벨 캐릭터에만 적용할 Skeletal Mesh 스케일 설정을 제공한다.
 - [x] 로컬 플레이어의 몸 색상 선택 결과를 저장·불러온다.
 - [x] 방 참가 뒤 몸 색상 데이터를 서버가 검증해 다른 참가자에게 전달한다.
 - [x] 캐릭터 Mesh 머티리얼 파라미터에 복제된 몸 색상을 적용하는 공개 지점을 제공한다.
@@ -103,6 +106,10 @@
   - `ACustomizationPlayerController::bPausePreviewAnimation`: 커스터마이징 방에서 프리뷰 캐릭터 애니메이션을 정지 상태로 둘지 결정
   - `ACustomizationPlayerController::PreviewAnimationPositionSeconds`: 단일 애니메이션 에셋을 적용할 때 고정할 재생 위치
   - `AMainMenuPlayerController::DefaultMouseCursorWidgetClass`: 메인메뉴와 메인메뉴 옵션에서 사용할 기본 소프트웨어 마우스 커서 위젯 클래스
+  - `AMainMenuPlayerController::MainMenuPreviewAnimationAsset`: 메인메뉴에서 조종 중인 캐릭터 Mesh에 적용할 단일 애니메이션 에셋
+  - `AMainMenuPlayerController::bPauseMainMenuPreviewAnimation`: 메인메뉴 포즈 애니메이션을 정지 상태로 둘지 결정
+  - `AMainMenuPlayerController::MainMenuPreviewAnimationPositionSeconds`: 메인메뉴 포즈 애니메이션을 적용할 때 고정할 재생 위치
+  - `AMainMenuPlayerController::MainMenuPreviewMeshScale`: 메인메뉴에서만 조종 중인 캐릭터 Skeletal Mesh에 곱할 스케일
   - `ASnowRumblePlayerController::DefaultMouseCursorWidgetClass`: 로비, PvP, 채팅, ESC 메뉴 등 인게임 UI에서 사용할 기본 소프트웨어 마우스 커서 위젯 클래스
   - `ACustomizationPlayerController::DefaultMouseCursorWidgetClass`: 커스터마이징 화면에서 평소에 사용할 기본 소프트웨어 마우스 커서 위젯 클래스
   - `ACustomizationPlayerController::PaintMouseCursorWidgetClass`: 색칠하기 화면에서 사용할 원형 소프트웨어 마우스 커서 위젯 클래스
@@ -237,6 +244,8 @@
 - 2026-08-18: 위 입력 잠금 변경은 `git diff --check`와 C++ 컴파일 및 `.lib` 생성까지 통과했으나, 실행 중인 Unreal Editor PID 10272의 DLL 잠금 `LNK1104`로 최종 링크는 보류됐다.
 - 2026-08-18: 커스터마이징 프리뷰 캐릭터 입력 잠금이 CharacterMovement 속도, 중력, MovementMode까지 함께 고정하게 했다. 프리뷰 캐릭터가 공중에 있거나 지면이 없더라도 중력으로 떨어지지 않는다.
 - 2026-08-18: 위 프리뷰 고정 변경은 `git diff --check`와 C++ 컴파일을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
+- 2026-08-21: 메인메뉴 레벨에서도 possess된 캐릭터가 프리뷰처럼 고정되도록 `AMainMenuPlayerController`에 이동·시점 입력 ignore, CharacterMovement 중력·이동 모드 잠금, 단일 애니메이션 정지/재생 설정과 메인메뉴 전용 Mesh 스케일 설정을 추가했다. `ASnowRumbleCharacter`도 메인메뉴 컨트롤러 조종 중 Move/Look, HUD 생성, 이동속도 복구를 차단한다. `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-21: `bPauseMainMenuPreviewAnimation`을 꺼도 메인메뉴 애니메이션이 멈춘 상태로 남는 문제를 수정했다. pause가 꺼져 있으면 `MainMenuPreviewAnimationPositionSeconds` 위치에서 `Play(true)`로 재생을 시작한다. `git diff --check`는 통과했고, C++ 컴파일도 통과했으나 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
 - 2026-08-18: 관절/UV seam 부근에서 페인트 선이 길게 튀는 현상을 완화했다. `PaintPointMaxDistance`보다 먼 UV 점프가 나오면 현재 stroke를 저장하고 새 stroke를 시작해 RenderTarget 위에서 멀리 떨어진 UV 섬끼리 직선으로 이어지지 않게 했다.
 - 2026-08-18: UV seam 튐 완화 변경은 `git diff --check`와 C++ 컴파일을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
 - 2026-08-18: `PaintModeButton`을 토글 버튼처럼 동작하게 변경했다. 메인 화면에서는 색칠하기 화면으로 들어가고, 색칠하기 화면에서 다시 누르면 `Main` 페이지로 돌아간다.
@@ -261,6 +270,8 @@
 - hit된 컴포넌트, 머티리얼 slot, UV를 확인해야 하면 커스터마이징 PlayerController BP의 `bShowPaintHitDebug`를 켠다.
 - 커스터마이징 PlayerController BP의 `PreviewAnimationAsset`에 커마 방에서 보여줄 포즈/애니메이션 에셋을 지정한다. 비워두면 기존 애니메이션 상태를 멈춘다.
 - 프리뷰를 완전히 고정하려면 `bPausePreviewAnimation`을 켜고, 특정 프레임 포즈를 쓰려면 `PreviewAnimationPositionSeconds`를 조정한다.
+- 메인메뉴 PlayerController BP의 `MainMenuPreviewAnimationAsset`에 메인메뉴에서 보여줄 포즈/애니메이션 에셋을 지정한다. 특정 프레임을 포즈로 쓰려면 `bPauseMainMenuPreviewAnimation`을 켜고 `MainMenuPreviewAnimationPositionSeconds`를 조정한다. 애니메이션을 계속 재생하려면 `bPauseMainMenuPreviewAnimation`을 끈다. 메인메뉴에서만 캐릭터 Mesh를 키우려면 `MainMenuPreviewMeshScale`을 1보다 크게 조정한다.
+- 메인메뉴 레벨에 캐릭터를 배치하거나 스폰한 뒤 메인메뉴 PlayerController가 possess하게 구성한다. C++은 possess된 Pawn에 대해서만 입력·중력 잠금과 포즈 적용을 수행한다.
 - 레벨에 캐릭터와 카메라를 배치하고, 카메라 액터 태그에 `CustomizationCamera`를 추가한다.
 - 커스터마이징 WBP에 `CustomizationContentSwitcher`를 배치하고 자식 순서를 0 메인, 1 색칠하기 `DrawPanel`로 맞춘다.
 - 메인 화면 버튼 이름을 `PaintModeButton`, `ReturnToLobbyButton`으로 맞춘다.
@@ -294,6 +305,8 @@
 - [x] WidgetSwitcher 기반 커스터마이징 UI 전환 코드 변경 완료
 - [x] 프리뷰 캐릭터 좌/우 회전 코드 변경 완료
 - [x] 커스터마이징 프리뷰 캐릭터 애니메이션 설정 코드 변경 완료
+- [x] 메인메뉴 프리뷰 캐릭터 입력·중력 잠금과 포즈 애니메이션 설정 코드 변경 완료
+- [x] 메인메뉴 프리뷰 캐릭터 Mesh 스케일 설정 코드 변경 완료
 - [x] 몸 색상 저장·복제·머티리얼 적용 계약 완료
 - [x] 커스터마이징 레벨 검정 브러쉬 메쉬 드로잉 1차 코드 변경 완료
 - [x] 드로잉 stroke 저장·복제·로비/PvP 캐릭터 재적용 경로 완료
@@ -314,6 +327,10 @@
 - [ ] 커스터마이징 레벨에서 마우스를 움직여도 프리뷰 캐릭터 카메라가 회전하지 않고, 마우스 클릭/휠 기반 UI와 색칠하기 입력은 동작한다.
 - [ ] `CustomizationCamera` 태그가 붙은 카메라 시점으로 캐릭터가 보인다.
 - [ ] 커스터마이징 방 프리뷰 캐릭터가 지정한 `PreviewAnimationAsset`의 지정 시점 포즈로 정지한다.
+- [ ] 메인메뉴 레벨에서 possess된 캐릭터가 WASD와 마우스 이동으로 움직이거나 시점을 돌리지 않는다.
+- [ ] 메인메뉴 레벨에서 possess된 캐릭터가 중력으로 떨어지지 않고 제자리에 고정된다.
+- [ ] 메인메뉴 PlayerController BP의 `MainMenuPreviewAnimationAsset`, `bPauseMainMenuPreviewAnimation`, `MainMenuPreviewAnimationPositionSeconds` 설정에 따라 캐릭터가 원하는 프레임에 정지하거나 해당 프레임부터 재생된다.
+- [ ] 메인메뉴 PlayerController BP의 `MainMenuPreviewMeshScale`을 1보다 크게 설정하면 메인메뉴에서만 캐릭터 Mesh가 커진다.
 - [ ] `RotateLeftButton`을 누르고 있는 동안 프리뷰 캐릭터가 왼쪽으로 회전한다.
 - [ ] `RotateRightButton`을 누르고 있는 동안 프리뷰 캐릭터가 오른쪽으로 회전한다.
 - [ ] 좌/우 회전 버튼에서 손을 떼면 프리뷰 캐릭터 회전이 멈춘다.

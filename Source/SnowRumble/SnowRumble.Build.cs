@@ -10,7 +10,7 @@ public class SnowRumble : ModuleRules
 	
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "OnlineSubsystem", "UMG" });
 
-		PrivateDependencyModuleNames.AddRange(new string[] { "AppFramework", "Niagara", "OnlineSubsystemUtils", "Slate", "SlateCore" });
+		PrivateDependencyModuleNames.AddRange(new string[] { "AppFramework", "MoviePlayer", "Niagara", "OnlineSubsystemUtils", "Slate", "SlateCore" });
 
 		// Uncomment if you are using online features
 		// PrivateDependencyModuleNames.Add("OnlineSubsystem");
