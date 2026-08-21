@@ -2,7 +2,10 @@
 
 #include "MainMenuPlayerController.h"
 
+#include "Animation/AnimationAsset.h"
 #include "Blueprint/UserWidget.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "MainMenuWidget.h"
 #include "OptionsWidget_C.h"
 #include "../Online/SnowRumbleSessionSubsystem.h"
@@ -23,6 +26,8 @@ void AMainMenuPlayerController::BeginPlay()
 		}
 
 		ShowMainMenu();
+		ApplyMainMenuInputLock();
+		ApplyMainMenuPreviewAnimation();
 	}
 }
 
@@ -37,6 +42,17 @@ void AMainMenuPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason
 	HideMainMenu();
 
 	Super::EndPlay(EndPlayReason);
+}
+
+void AMainMenuPlayerController::PlayerTick(float DeltaTime)
+{
+	Super::PlayerTick(DeltaTime);
+
+	if (IsLocalController())
+	{
+		ApplyMainMenuInputLock();
+		ApplyMainMenuPreviewAnimation();
+	}
 }
 
 void AMainMenuPlayerController::ShowMainMenu()
@@ -190,4 +206,85 @@ void AMainMenuPlayerController::ApplyDefaultMouseCursorWidget()
 	SetMouseCursorWidget(EMouseCursor::Default, DefaultMouseCursorWidget);
 	DefaultMouseCursor = EMouseCursor::Default;
 	CurrentMouseCursor = EMouseCursor::Default;
+}
+
+void AMainMenuPlayerController::ApplyMainMenuInputLock()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (!IsMoveInputIgnored())
+	{
+		SetIgnoreMoveInput(true);
+	}
+	if (!IsLookInputIgnored())
+	{
+		SetIgnoreLookInput(true);
+	}
+	bShowMouseCursor = true;
+
+	APawn* ControlledPawn = GetPawn();
+	if (!ControlledPawn)
+	{
+		return;
+	}
+
+	if (UCharacterMovementComponent* MovementComponent =
+		ControlledPawn->FindComponentByClass<UCharacterMovementComponent>())
+	{
+		MovementComponent->StopMovementImmediately();
+		MovementComponent->Velocity = FVector::ZeroVector;
+		MovementComponent->GravityScale = 0.0f;
+		MovementComponent->MaxWalkSpeed = 0.0f;
+		if (MovementComponent->MovementMode != MOVE_None)
+		{
+			MovementComponent->DisableMovement();
+		}
+	}
+}
+
+void AMainMenuPlayerController::ApplyMainMenuPreviewAnimation()
+{
+	APawn* ControlledPawn = GetPawn();
+	if (!ControlledPawn)
+	{
+		LastAnimatedPreviewPawn.Reset();
+		return;
+	}
+
+	if (LastAnimatedPreviewPawn.Get() == ControlledPawn)
+	{
+		return;
+	}
+
+	LastAnimatedPreviewPawn = ControlledPawn;
+
+	TArray<USkeletalMeshComponent*> MeshComponents;
+	ControlledPawn->GetComponents(MeshComponents);
+	for (USkeletalMeshComponent* MeshComponent : MeshComponents)
+	{
+		if (!MeshComponent)
+		{
+			continue;
+		}
+
+		if (MainMenuPreviewAnimationAsset)
+		{
+			MeshComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+			MeshComponent->SetAnimation(MainMenuPreviewAnimationAsset);
+			MeshComponent->SetPosition(
+				MainMenuPreviewAnimationPositionSeconds,
+				false);
+			if (!bPauseMainMenuPreviewAnimation)
+			{
+				MeshComponent->Play(true);
+			}
+		}
+		MeshComponent->bPauseAnims = bPauseMainMenuPreviewAnimation;
+
+		const float SafeMeshScale = FMath::Max(0.01f, MainMenuPreviewMeshScale);
+		MeshComponent->SetRelativeScale3D(FVector(SafeMeshScale));
+	}
 }

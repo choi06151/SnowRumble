@@ -52,6 +52,9 @@ struct FSnowRumbleSessionInfo
 	FString GameModeName;
 
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Session")
+	FString MapName;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Session")
 	int32 CurrentPlayers = 0;
 
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Session")
@@ -155,6 +158,9 @@ private:
 
 	/** Host 맵 로드 완료 시 열린 포트를 사용해 LAN 세션 생성을 계속한다. */
 	void HandlePostLoadMap(UWorld* LoadedWorld);
+
+	/** 현재 호스트 맵을 세션 검색 광고에 반영해 메인메뉴 참가 대상을 제한한다. */
+	void UpdateAdvertisedSessionMap(UWorld* LoadedWorld);
 
 	/** 요청 상태를 저장하고 Blueprint 구독자에게 전달한다. */
 	void SetOperationState(

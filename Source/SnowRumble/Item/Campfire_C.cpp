@@ -4,6 +4,7 @@
 
 #include "../Player/SnowRumbleCharacter.h"
 #include "../Player/SnowRumbleHealthComponent.h"
+#include "../Snowball/SnowballItem.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/OverlapResult.h"
@@ -81,6 +82,16 @@ void ACampfire::InitializeCampfireFromServer(
 	ForceNetUpdate();
 }
 
+void ACampfire::ExtinguishFromWater()
+{
+	if (!HasAuthority() || RemainingHitPoints <= 0)
+	{
+		return;
+	}
+
+	ExtinguishCampfire();
+}
+
 float ACampfire::TakeDamage(
 	float DamageAmount,
 	FDamageEvent const& DamageEvent,
@@ -95,6 +106,13 @@ float ACampfire::TakeDamage(
 
 	if (!HasAuthority() || DamageAmount <= 0.0f || RemainingHitPoints <= 0)
 	{
+		return AppliedDamage;
+	}
+
+	const ASnowballItem* DamageSnowball = Cast<ASnowballItem>(DamageCauser);
+	if (DamageSnowball && DamageSnowball->IsFullyGrown())
+	{
+		ExtinguishCampfire();
 		return AppliedDamage;
 	}
 
@@ -160,7 +178,6 @@ void ACampfire::ExtinguishCampfire()
 	}
 
 	OnRep_RemainingHitPoints();
-	SetLifeSpan(ExtinguishedDestroyDelaySeconds);
 	ForceNetUpdate();
 }
 

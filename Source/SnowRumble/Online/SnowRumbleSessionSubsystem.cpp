@@ -21,11 +21,32 @@ namespace SnowRumbleSession
 	constexpr int32 MaximumPlayers = 8;
 	constexpr int32 MaximumSearchResults = 100;
 	constexpr int32 RoomCodeDigits = 6;
-	const TCHAR* HostTravelUrl = TEXT("/Game/Maps/L_Lobby?listen");
+	const TCHAR* LobbyGameModeTravelPath =
+		TEXT("/Game/Game/BP_LobbyGameMode.BP_LobbyGameMode_C");
+	const TCHAR* HostTravelUrl =
+		TEXT("/Game/Maps/L_Lobby?listen?game=/Game/Game/BP_LobbyGameMode.BP_LobbyGameMode_C");
 	const FName RoomNameSettingKey(TEXT("SNOWRUMBLE_ROOM_NAME"));
 	const FName RoomCodeSettingKey(TEXT("SNOWRUMBLE_ROOM_CODE"));
 	const FName GameModeSettingKey(TEXT("SNOWRUMBLE_GAME_MODE"));
+	const TCHAR* LobbyMapName = TEXT("L_Lobby");
 	const TCHAR* TeamPvpModeName = TEXT("TeamPvP");
+
+	FString GetSessionMapName(UWorld* World)
+	{
+		return World ? UGameplayStatics::GetCurrentLevelName(World, true) : FString();
+	}
+
+	bool IsLobbyMapName(const FString& MapName)
+	{
+		return MapName.Equals(LobbyMapName, ESearchCase::IgnoreCase)
+			|| MapName.EndsWith(TEXT("/L_Lobby"), ESearchCase::IgnoreCase);
+	}
+
+	bool IsJoinableLobbySession(const FSnowRumbleSessionInfo& SessionInfo)
+	{
+		return SessionInfo.CurrentPlayers < SessionInfo.MaxPlayers
+			&& IsLobbyMapName(SessionInfo.MapName);
+	}
 }
 
 void USnowRumbleSessionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -155,7 +176,9 @@ void USnowRumbleSessionSubsystem::HostLanSession(
 			World,
 			FName(TEXT("/Game/Maps/L_Lobby")),
 			true,
-			TEXT("listen"));
+			FString::Printf(
+				TEXT("listen?game=%s"),
+				SnowRumbleSession::LobbyGameModeTravelPath));
 		return;
 	}
 
@@ -206,7 +229,7 @@ void USnowRumbleSessionSubsystem::CreateLanSession(int32 MaxPlayers)
 		EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 	SessionSettings.Set(
 		SETTING_MAPNAME,
-		FString(TEXT("L_Lobby")),
+		FString(SnowRumbleSession::LobbyMapName),
 		EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 
 	UE_LOG(
@@ -243,16 +266,60 @@ void USnowRumbleSessionSubsystem::CreateLanSession(int32 MaxPlayers)
 
 void USnowRumbleSessionSubsystem::HandlePostLoadMap(UWorld* LoadedWorld)
 {
-	if (!bHostTravelPending
-		|| !LoadedWorld
+	if (!LoadedWorld
 		|| LoadedWorld->GetGameInstance() != GetGameInstance()
 		|| LoadedWorld->GetNetMode() != NM_ListenServer)
 	{
 		return;
 	}
 
-	bHostTravelPending = false;
-	CreateLanSession(PendingHostMaxPlayers);
+	if (bHostTravelPending)
+	{
+		bHostTravelPending = false;
+		CreateLanSession(PendingHostMaxPlayers);
+		return;
+	}
+
+	UpdateAdvertisedSessionMap(LoadedWorld);
+}
+
+void USnowRumbleSessionSubsystem::UpdateAdvertisedSessionMap(UWorld* LoadedWorld)
+{
+	IOnlineSessionPtr SessionInterface = GetSessionInterface();
+	if (!SessionInterface.IsValid())
+	{
+		return;
+	}
+
+	FNamedOnlineSession* NamedSession =
+		SessionInterface->GetNamedSession(LocalSessionName);
+	if (!NamedSession)
+	{
+		return;
+	}
+
+	const FString MapName = SnowRumbleSession::GetSessionMapName(LoadedWorld);
+	if (MapName.IsEmpty())
+	{
+		return;
+	}
+
+	FOnlineSessionSettings UpdatedSettings = NamedSession->SessionSettings;
+	UpdatedSettings.bAllowJoinInProgress =
+		SnowRumbleSession::IsLobbyMapName(MapName);
+	UpdatedSettings.Set(
+		SETTING_MAPNAME,
+		MapName,
+		EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
+
+	UE_LOG(
+		LogSnowRumbleSession,
+		Log,
+		TEXT("Updating advertised LAN session map. Map=%s AllowJoinInProgress=%d"),
+		*MapName,
+		UpdatedSettings.bAllowJoinInProgress ? 1 : 0);
+
+	SessionInterface->UpdateSession(LocalSessionName, UpdatedSettings, true);
 }
 
 void USnowRumbleSessionSubsystem::FindLanSessions()
@@ -456,6 +523,20 @@ void USnowRumbleSessionSubsystem::JoinSearchResult(
 
 	const FOnlineSessionSearchResult& SearchResult =
 		ActiveSessionSearch->SearchResults[ResultIndex];
+	FString SearchResultMapName;
+	SearchResult.Session.SessionSettings.Get(
+		SETTING_MAPNAME,
+		SearchResultMapName);
+	if (!SnowRumbleSession::IsLobbyMapName(SearchResultMapName))
+	{
+		SetOperationState(
+			Operation,
+			ESnowRumbleSessionState::Failed,
+			TEXT("대기방 상태인 세션만 참가할 수 있습니다."));
+		SetPendingMainMenuAlarmMessage(TEXT("이미 시작된 방에는 참가할 수 없습니다."));
+		return;
+	}
+
 	FString SearchResultRoomCode;
 	SearchResult.Session.SessionSettings.Get(
 		SnowRumbleSession::RoomCodeSettingKey,
@@ -606,6 +687,9 @@ void USnowRumbleSessionSubsystem::HandleFindSessionsComplete(bool bWasSuccessful
 		Session.SessionSettings.Get(
 			SnowRumbleSession::GameModeSettingKey,
 			SessionInfo.GameModeName);
+		Session.SessionSettings.Get(
+			SETTING_MAPNAME,
+			SessionInfo.MapName);
 		SessionInfo.MaxPlayers =
 			Session.SessionSettings.NumPublicConnections;
 		SessionInfo.CurrentPlayers =
@@ -614,12 +698,13 @@ void USnowRumbleSessionSubsystem::HandleFindSessionsComplete(bool bWasSuccessful
 		UE_LOG(
 			LogSnowRumbleSession,
 			Log,
-			TEXT("Search result %d: Host='%s' RoomName='%s' RoomCode=%s GameMode=%s Players=%d/%d Ping=%d"),
+			TEXT("Search result %d: Host='%s' RoomName='%s' RoomCode=%s GameMode=%s Map=%s Players=%d/%d Ping=%d"),
 			Index,
 			*SessionInfo.HostName,
 			*SessionInfo.RoomName,
 			*SessionInfo.RoomCode,
 			*SessionInfo.GameModeName,
+			*SessionInfo.MapName,
 			SessionInfo.CurrentPlayers,
 			SessionInfo.MaxPlayers,
 			SessionInfo.PingMilliseconds);
@@ -632,7 +717,7 @@ void USnowRumbleSessionSubsystem::HandleFindSessionsComplete(bool bWasSuccessful
 	{
 		for (const FSnowRumbleSessionInfo& SessionInfo : SearchResults)
 		{
-			if (SessionInfo.CurrentPlayers < SessionInfo.MaxPlayers)
+			if (SnowRumbleSession::IsJoinableLobbySession(SessionInfo))
 			{
 				JoinSearchResult(
 					SessionInfo.ResultIndex,
@@ -655,6 +740,16 @@ void USnowRumbleSessionSubsystem::HandleFindSessionsComplete(bool bWasSuccessful
 		{
 			if (NormalizeRoomCode(SessionInfo.RoomCode) == PendingJoinRoomCode)
 			{
+				if (!SnowRumbleSession::IsLobbyMapName(SessionInfo.MapName))
+				{
+					SetOperationState(
+						ESnowRumbleSessionOperation::JoinByCode,
+						ESnowRumbleSessionState::Failed,
+						TEXT("이미 시작된 방에는 참가할 수 없습니다."));
+					SetPendingMainMenuAlarmMessage(TEXT("이미 시작된 방에는 참가할 수 없습니다."));
+					return;
+				}
+
 				if (SessionInfo.CurrentPlayers >= SessionInfo.MaxPlayers)
 				{
 					SetOperationState(

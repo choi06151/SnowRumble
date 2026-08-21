@@ -67,6 +67,7 @@ private:
 	int32 ExpectedPlayerCount = 0;
 
 	bool bLoadingScreensDismissed = false;
+	bool bLoadingScreensHidden = false;
 	bool bStartCountdownStarted = false;
 	bool bMatchIntroStarted = false;
 	int32 MatchIntroTeamIndex = 0;
@@ -128,6 +129,9 @@ private:
 
 	/** 팀 소개가 끝난 뒤 기존 시작 카운트다운을 확정한다. */
 	void FinishMatchIntroSequence();
+
+	/** 모든 클라이언트의 PvP 로딩창을 닫는다. */
+	void HideLoadingScreensBeforeIntro();
 
 	/** 기존 C-17 시작 카운트다운과 경기 타이머들을 시작한다. */
 	void StartConfirmedMatchCountdown();
@@ -243,6 +247,10 @@ private:
 	/** TargetPoint 위치보다 얼마나 위에서 선물상자를 떨어뜨릴지 정한다. */
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box", meta = (ClampMin = "0.0"))
 	float GiftBoxSpawnHeightOffset = 800.0f;
+
+	/** TargetPoint 주변에서 선물상자 낙하 시작 위치를 랜덤하게 분산할 반경이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box", meta = (ClampMin = "0.0"))
+	float GiftBoxSpawnScatterRadius = 450.0f;
 
 	/** 이 태그가 붙은 TargetPoint만 우선 사용한다. 없으면 맵의 모든 TargetPoint를 사용한다. */
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box")

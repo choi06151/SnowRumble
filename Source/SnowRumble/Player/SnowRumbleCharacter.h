@@ -180,6 +180,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
 	FVector GetGrabAttachedWorldLocation() const;
 
+	/** 잡힌 플레이어 Control Rig가 목/상체 보정에 사용할 잡힌 월드 위치를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	FVector GetGrabbedByCharacterWorldLocation() const;
+
 	/** Control Rig가 사용할 오른손 잡기 목표 월드 위치를 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
 	FVector GetRightHandGrabTargetLocation() const;
@@ -216,6 +220,10 @@ public:
 
 	/** 서버가 이 캐릭터를 잡힌 상태로 만들고 이동을 잠근다. */
 	void ApplyGrabbedByCharacter(ASnowRumbleCharacter* GrabbingCharacter);
+
+	/** 서버가 잡힌 캐릭터의 AnimBP용 잡힌 월드 위치를 갱신한다. */
+	void SetGrabbedByCharacterWorldLocationFromServer(
+		const FVector& NewWorldLocation);
 
 	/** 서버가 이 캐릭터의 잡힌 상태와 이동 잠금을 해제한다. */
 	void ClearGrabbedByCharacter(ASnowRumbleCharacter* ExpectedGrabbingCharacter);
@@ -1271,6 +1279,9 @@ public:
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Grab")
 	TObjectPtr<ASnowRumbleCharacter> GrabbedByCharacter;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Grab")
+	FVector GrabbedByCharacterWorldLocation = FVector::ZeroVector;
 
 	float DefaultFieldOfView = 90.0f;
 	FVector DefaultCameraSocketOffset = FVector::ZeroVector;

@@ -21,6 +21,13 @@
 
 namespace
 {
+constexpr const TCHAR* SnowRumblePvpGameModeTravelPath =
+	TEXT("/Game/Game/BP_SnowRumblePVPGameMode.BP_SnowRumblePVPGameMode_C");
+constexpr const TCHAR* SnowRumblePodiumGameModeTravelPath =
+	TEXT("/Game/Game/BP_SnowRumblePodiumGameMode.BP_SnowRumblePodiumGameMode_C");
+constexpr const TCHAR* SnowRumbleLobbyGameModeTravelPath =
+	TEXT("/Game/Game/BP_LobbyGameMode.BP_LobbyGameMode_C");
+
 FVector MakeRandomHorizontalOffset(float Radius)
 {
 	if (Radius <= 0.0f)
@@ -36,6 +43,34 @@ FVector MakeRandomHorizontalOffset(float Radius)
 		FMath::Cos(AngleRadians) * Distance,
 		FMath::Sin(AngleRadians) * Distance,
 		0.0f);
+}
+
+void EnsureSnowRumbleTravelOption(FString& TravelUrl, const TCHAR* Option)
+{
+	if (!TravelUrl.Contains(Option, ESearchCase::IgnoreCase))
+	{
+		TravelUrl += Option;
+	}
+}
+
+void EnsureSnowRumbleTravelOptionValue(
+	FString& TravelUrl,
+	const TCHAR* OptionName,
+	const FString& OptionValue)
+{
+	if (OptionValue.IsEmpty())
+	{
+		return;
+	}
+
+	const FString OptionPrefix = FString::Printf(TEXT("%s="), OptionName);
+	if (!TravelUrl.Contains(OptionPrefix, ESearchCase::IgnoreCase))
+	{
+		TravelUrl += FString::Printf(
+			TEXT("?%s=%s"),
+			OptionName,
+			*OptionValue);
+	}
 }
 }
 
@@ -78,6 +113,7 @@ void ASnowRumbleGameMode::InitGame(
 		? 0
 		: FMath::Max(0, FCString::Atoi(*ExpectedPlayersOption));
 	bLoadingScreensDismissed = false;
+	bLoadingScreensHidden = false;
 	bStartCountdownStarted = false;
 	bMatchIntroStarted = false;
 	MatchIntroTeamIndex = 0;
@@ -136,22 +172,6 @@ void ASnowRumbleGameMode::TryDismissLoadingScreens()
 
 	bLoadingScreensDismissed = true;
 	BroadcastLoadingProgress();
-	const bool bShouldPlayMatchIntro = ShouldPlayMatchIntroSequence();
-	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
-		It;
-		++It)
-	{
-		if (ASnowRumblePlayerController* PlayerController =
-			Cast<ASnowRumblePlayerController>(It->Get()))
-		{
-			PlayerController->ClientHideLoadingScreen();
-			if (bShouldPlayMatchIntro)
-			{
-				PlayerController->ClientStartPvpIntroFadeOut(
-					MatchStartCountdownDelaySeconds);
-			}
-		}
-	}
 
 	if (!bStartCountdownStarted)
 	{
@@ -189,6 +209,7 @@ void ASnowRumbleGameMode::StartMatchIntroAfterLoading()
 	}
 
 	bMatchIntroStarted = true;
+	HideLoadingScreensBeforeIntro();
 	if (!ShouldPlayMatchIntroSequence())
 	{
 		StartConfirmedMatchCountdown();
@@ -199,7 +220,7 @@ void ASnowRumbleGameMode::StartMatchIntroAfterLoading()
 	GetActiveRoundTeams(MatchIntroTeams);
 	if (MatchIntroTeams.IsEmpty() || MatchIntroTeamShotSeconds <= 0.0f)
 	{
-		FinishMatchIntroSequence();
+		StartConfirmedMatchCountdown();
 		return;
 	}
 
@@ -280,6 +301,32 @@ void ASnowRumbleGameMode::FinishMatchIntroSequence()
 	}
 
 	StartConfirmedMatchCountdown();
+}
+
+void ASnowRumbleGameMode::HideLoadingScreensBeforeIntro()
+{
+	if (bLoadingScreensHidden)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	bLoadingScreensHidden = true;
+	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
+		It;
+		++It)
+	{
+		if (ASnowRumblePlayerController* PlayerController =
+			Cast<ASnowRumblePlayerController>(It->Get()))
+		{
+			PlayerController->ClientHideLoadingScreen();
+		}
+	}
 }
 
 void ASnowRumbleGameMode::StartConfirmedMatchCountdown()
@@ -664,6 +711,7 @@ void ASnowRumbleGameMode::SpawnGiftBox()
 
 	const FVector SpawnLocation =
 		SelectedSpawnPoint->GetActorLocation()
+		+ MakeRandomHorizontalOffset(GiftBoxSpawnScatterRadius)
 		+ FVector::UpVector * GiftBoxSpawnHeightOffset;
 	const FRotator SpawnRotation = SelectedSpawnPoint->GetActorRotation();
 
@@ -745,10 +793,11 @@ void ASnowRumbleGameMode::ReturnToLobbyAfterMatchEnd()
 	}
 
 	FString TravelUrl = LobbyReturnTravelUrl;
-	if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
-	{
-		TravelUrl += TEXT("?listen");
-	}
+	EnsureSnowRumbleTravelOption(TravelUrl, TEXT("?listen"));
+	EnsureSnowRumbleTravelOptionValue(
+		TravelUrl,
+		TEXT("game"),
+		SnowRumbleLobbyGameModeTravelPath);
 
 	MatchSubsystem->ResetPvPMatch();
 	if (UWorld* World = GetWorld())
@@ -768,10 +817,11 @@ void ASnowRumbleGameMode::TravelToPodiumAfterMatchEnd()
 		if (!LobbyReturnTravelUrl.IsEmpty())
 		{
 			FString TravelUrl = LobbyReturnTravelUrl;
-			if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
-			{
-				TravelUrl += TEXT("?listen");
-			}
+			EnsureSnowRumbleTravelOption(TravelUrl, TEXT("?listen"));
+			EnsureSnowRumbleTravelOptionValue(
+				TravelUrl,
+				TEXT("game"),
+				SnowRumbleLobbyGameModeTravelPath);
 			MatchSubsystem->ResetPvPMatch();
 			if (UWorld* World = GetWorld())
 			{
@@ -782,16 +832,17 @@ void ASnowRumbleGameMode::TravelToPodiumAfterMatchEnd()
 	}
 
 	FString TravelUrl = PodiumTravelUrl;
-	if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
-	{
-		TravelUrl += TEXT("?listen");
-	}
+	EnsureSnowRumbleTravelOption(TravelUrl, TEXT("?listen"));
+	EnsureSnowRumbleTravelOptionValue(
+		TravelUrl,
+		TEXT("game"),
+		SnowRumblePodiumGameModeTravelPath);
 	if (!TravelUrl.Contains(TEXT("ExpectedPlayers="), ESearchCase::IgnoreCase))
 	{
-		TravelUrl += FString::Printf(
-			TEXT("%sExpectedPlayers=%d"),
-			TravelUrl.Contains(TEXT("?")) ? TEXT("&") : TEXT("?"),
-			ExpectedPlayerCount);
+		EnsureSnowRumbleTravelOptionValue(
+			TravelUrl,
+			TEXT("ExpectedPlayers"),
+			FString::FromInt(ExpectedPlayerCount));
 	}
 
 	// Keep match state until podium placement completes.
@@ -1086,15 +1137,17 @@ FString ASnowRumbleGameMode::BuildPvPTravelUrl(
 	const FString& BaseTravelUrl) const
 {
 	FString TravelUrl = BaseTravelUrl;
-	if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
-	{
-		TravelUrl += TEXT("?listen");
-	}
+	EnsureSnowRumbleTravelOption(TravelUrl, TEXT("?listen"));
+	EnsureSnowRumbleTravelOptionValue(
+		TravelUrl,
+		TEXT("game"),
+		SnowRumblePvpGameModeTravelPath);
 	if (ExpectedPlayerCount > 0)
 	{
-		TravelUrl += FString::Printf(
-			TEXT("?ExpectedPlayers=%d"),
-			ExpectedPlayerCount);
+		EnsureSnowRumbleTravelOptionValue(
+			TravelUrl,
+			TEXT("ExpectedPlayers"),
+			FString::FromInt(ExpectedPlayerCount));
 	}
 	return TravelUrl;
 }

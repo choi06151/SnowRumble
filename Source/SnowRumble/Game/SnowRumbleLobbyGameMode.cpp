@@ -16,6 +16,9 @@
 
 namespace
 {
+constexpr const TCHAR* LobbyPvpGameModeTravelPath =
+	TEXT("/Game/Game/BP_SnowRumblePVPGameMode.BP_SnowRumblePVPGameMode_C");
+
 const TArray<ESnowRumbleTeam>& GetLobbyTeamChoices()
 {
 	static const TArray<ESnowRumbleTeam> TeamChoices = {
@@ -29,6 +32,34 @@ const TArray<ESnowRumbleTeam>& GetLobbyTeamChoices()
 		ESnowRumbleTeam::White
 	};
 	return TeamChoices;
+}
+
+void EnsureLobbyTravelOption(FString& TravelUrl, const TCHAR* Option)
+{
+	if (!TravelUrl.Contains(Option, ESearchCase::IgnoreCase))
+	{
+		TravelUrl += Option;
+	}
+}
+
+void EnsureLobbyTravelOptionValue(
+	FString& TravelUrl,
+	const TCHAR* OptionName,
+	const FString& OptionValue)
+{
+	if (OptionValue.IsEmpty())
+	{
+		return;
+	}
+
+	const FString OptionPrefix = FString::Printf(TEXT("%s="), OptionName);
+	if (!TravelUrl.Contains(OptionPrefix, ESearchCase::IgnoreCase))
+	{
+		TravelUrl += FString::Printf(
+			TEXT("?%s=%s"),
+			OptionName,
+			*OptionValue);
+	}
 }
 }
 
@@ -313,16 +344,18 @@ FString ASnowRumbleLobbyGameMode::BuildMatchTravelUrl(
 		return FString();
 	}
 
-	if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
-	{
-		TravelUrl += TEXT("?listen");
-	}
+	EnsureLobbyTravelOption(TravelUrl, TEXT("?listen"));
+	EnsureLobbyTravelOptionValue(
+		TravelUrl,
+		TEXT("game"),
+		LobbyPvpGameModeTravelPath);
 
 	if (ExpectedPlayerCount > 0)
 	{
-		TravelUrl += FString::Printf(
-			TEXT("?ExpectedPlayers=%d"),
-			ExpectedPlayerCount);
+		EnsureLobbyTravelOptionValue(
+			TravelUrl,
+			TEXT("ExpectedPlayers"),
+			FString::FromInt(ExpectedPlayerCount));
 	}
 	return TravelUrl;
 }
@@ -344,23 +377,17 @@ FString ASnowRumbleLobbyGameMode::BuildSnowmanModeTravelUrl(
 		return FString();
 	}
 
-	if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
-	{
-		TravelUrl += TEXT("?listen");
-	}
+	EnsureLobbyTravelOption(TravelUrl, TEXT("?listen"));
 
 	const FString GameModePath = SnowmanModeGameModeClass->GetPathName();
-	if (!GameModePath.IsEmpty()
-		&& !TravelUrl.Contains(TEXT("?game="), ESearchCase::IgnoreCase))
-	{
-		TravelUrl += FString::Printf(TEXT("?game=%s"), *GameModePath);
-	}
+	EnsureLobbyTravelOptionValue(TravelUrl, TEXT("game"), GameModePath);
 
 	if (ExpectedPlayerCount > 0)
 	{
-		TravelUrl += FString::Printf(
-			TEXT("?ExpectedPlayers=%d"),
-			ExpectedPlayerCount);
+		EnsureLobbyTravelOptionValue(
+			TravelUrl,
+			TEXT("ExpectedPlayers"),
+			FString::FromInt(ExpectedPlayerCount));
 	}
 	return TravelUrl;
 }
