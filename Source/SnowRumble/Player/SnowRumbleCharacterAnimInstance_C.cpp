@@ -2,6 +2,7 @@
 
 #include "SnowRumbleCharacterAnimInstance_C.h"
 
+#include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/PawnMovementComponent.h"
 
 void USnowRumbleCharacterAnimInstance::NativeInitializeAnimation()
@@ -67,6 +68,18 @@ void USnowRumbleCharacterAnimInstance::RefreshFromOwnerCharacter()
 	bIsGrabbedByCharacter = CachedCharacter->IsGrabbedByCharacter();
 	GrabAttachedWorldLocation =
 		CachedCharacter->GetGrabAttachedWorldLocation();
+	GrabbedByCharacterWorldLocation =
+		CachedCharacter->GetGrabbedByCharacterWorldLocation();
+	GrabbedByCharacterComponentLocation = FVector::ZeroVector;
+	if (bIsGrabbedByCharacter)
+	{
+		if (const USkeletalMeshComponent* MeshComponent = GetSkelMeshComponent())
+		{
+			GrabbedByCharacterComponentLocation =
+				MeshComponent->GetComponentTransform().InverseTransformPosition(
+					GrabbedByCharacterWorldLocation);
+		}
+	}
 	RightHandGrabTargetLocation =
 		CachedCharacter->GetRightHandGrabTargetLocation();
 	LeftHandGrabTargetLocation =
@@ -231,6 +244,8 @@ void USnowRumbleCharacterAnimInstance::ResetAnimationState()
 	bIsHangingFromWorldGrab = false;
 	bIsGrabbedByCharacter = false;
 	GrabAttachedWorldLocation = FVector::ZeroVector;
+	GrabbedByCharacterWorldLocation = FVector::ZeroVector;
+	GrabbedByCharacterComponentLocation = FVector::ZeroVector;
 	RightHandGrabTargetLocation = FVector::ZeroVector;
 	LeftHandGrabTargetLocation = FVector::ZeroVector;
 	GrabReachAlpha = 0.0f;

@@ -16,7 +16,7 @@
 
 namespace
 {
-constexpr const TCHAR* PvpGameModeTravelPath =
+constexpr const TCHAR* LobbyPvpGameModeTravelPath =
 	TEXT("/Game/Game/BP_SnowRumblePVPGameMode.BP_SnowRumblePVPGameMode_C");
 
 const TArray<ESnowRumbleTeam>& GetLobbyTeamChoices()
@@ -34,7 +34,7 @@ const TArray<ESnowRumbleTeam>& GetLobbyTeamChoices()
 	return TeamChoices;
 }
 
-void EnsureTravelOption(FString& TravelUrl, const TCHAR* Option)
+void EnsureLobbyTravelOption(FString& TravelUrl, const TCHAR* Option)
 {
 	if (!TravelUrl.Contains(Option, ESearchCase::IgnoreCase))
 	{
@@ -42,7 +42,7 @@ void EnsureTravelOption(FString& TravelUrl, const TCHAR* Option)
 	}
 }
 
-void EnsureTravelOptionValue(
+void EnsureLobbyTravelOptionValue(
 	FString& TravelUrl,
 	const TCHAR* OptionName,
 	const FString& OptionValue)
@@ -344,12 +344,15 @@ FString ASnowRumbleLobbyGameMode::BuildMatchTravelUrl(
 		return FString();
 	}
 
-	EnsureTravelOption(TravelUrl, TEXT("?listen"));
-	EnsureTravelOptionValue(TravelUrl, TEXT("game"), PvpGameModeTravelPath);
+	EnsureLobbyTravelOption(TravelUrl, TEXT("?listen"));
+	EnsureLobbyTravelOptionValue(
+		TravelUrl,
+		TEXT("game"),
+		LobbyPvpGameModeTravelPath);
 
 	if (ExpectedPlayerCount > 0)
 	{
-		EnsureTravelOptionValue(
+		EnsureLobbyTravelOptionValue(
 			TravelUrl,
 			TEXT("ExpectedPlayers"),
 			FString::FromInt(ExpectedPlayerCount));
@@ -374,14 +377,14 @@ FString ASnowRumbleLobbyGameMode::BuildSnowmanModeTravelUrl(
 		return FString();
 	}
 
-	EnsureTravelOption(TravelUrl, TEXT("?listen"));
+	EnsureLobbyTravelOption(TravelUrl, TEXT("?listen"));
 
 	const FString GameModePath = SnowmanModeGameModeClass->GetPathName();
-	EnsureTravelOptionValue(TravelUrl, TEXT("game"), GameModePath);
+	EnsureLobbyTravelOptionValue(TravelUrl, TEXT("game"), GameModePath);
 
 	if (ExpectedPlayerCount > 0)
 	{
-		EnsureTravelOptionValue(
+		EnsureLobbyTravelOptionValue(
 			TravelUrl,
 			TEXT("ExpectedPlayers"),
 			FString::FromInt(ExpectedPlayerCount));
