@@ -9,6 +9,8 @@
 #include "MainMenuWidget.h"
 #include "OptionsWidget_C.h"
 #include "../Online/SnowRumbleSessionSubsystem.h"
+#include "../Player/SnowRumbleCharacter.h"
+#include "../Player/SnowRumbleCustomizationSubsystem_C.h"
 
 void AMainMenuPlayerController::BeginPlay()
 {
@@ -28,6 +30,7 @@ void AMainMenuPlayerController::BeginPlay()
 		ShowMainMenu();
 		ApplyMainMenuInputLock();
 		ApplyMainMenuPreviewAnimation();
+		ApplyMainMenuPreviewCustomization();
 	}
 }
 
@@ -52,6 +55,7 @@ void AMainMenuPlayerController::PlayerTick(float DeltaTime)
 	{
 		ApplyMainMenuInputLock();
 		ApplyMainMenuPreviewAnimation();
+		ApplyMainMenuPreviewCustomization();
 	}
 }
 
@@ -251,6 +255,8 @@ void AMainMenuPlayerController::ApplyMainMenuPreviewAnimation()
 	if (!ControlledPawn)
 	{
 		LastAnimatedPreviewPawn.Reset();
+		LastCustomizedPreviewCharacter.Reset();
+		bHasAppliedPreviewCustomizationData = false;
 		return;
 	}
 
@@ -287,4 +293,38 @@ void AMainMenuPlayerController::ApplyMainMenuPreviewAnimation()
 		const float SafeMeshScale = FMath::Max(0.01f, MainMenuPreviewMeshScale);
 		MeshComponent->SetRelativeScale3D(FVector(SafeMeshScale));
 	}
+}
+
+void AMainMenuPlayerController::ApplyMainMenuPreviewCustomization()
+{
+	ASnowRumbleCharacter* PreviewCharacter =
+		Cast<ASnowRumbleCharacter>(GetPawn());
+	if (!PreviewCharacter)
+	{
+		LastCustomizedPreviewCharacter.Reset();
+		bHasAppliedPreviewCustomizationData = false;
+		return;
+	}
+
+	const UGameInstance* GameInstance = GetGameInstance();
+	const USnowRumbleCustomizationSubsystem* CustomizationSubsystem =
+		GameInstance
+			? GameInstance->GetSubsystem<USnowRumbleCustomizationSubsystem>()
+			: nullptr;
+	const FSnowRumbleCustomizationData CustomizationData =
+		CustomizationSubsystem
+			? CustomizationSubsystem->GetCustomizationData()
+			: USnowRumbleCustomizationSubsystem::GetDefaultCustomizationData();
+
+	if (LastCustomizedPreviewCharacter.Get() == PreviewCharacter
+		&& bHasAppliedPreviewCustomizationData
+		&& LastAppliedPreviewCustomizationData == CustomizationData)
+	{
+		return;
+	}
+
+	PreviewCharacter->ApplyCustomizationData(CustomizationData);
+	LastCustomizedPreviewCharacter = PreviewCharacter;
+	LastAppliedPreviewCustomizationData = CustomizationData;
+	bHasAppliedPreviewCustomizationData = true;
 }

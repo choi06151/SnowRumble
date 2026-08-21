@@ -246,6 +246,7 @@
 - 2026-08-18: 위 프리뷰 고정 변경은 `git diff --check`와 C++ 컴파일을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
 - 2026-08-21: 메인메뉴 레벨에서도 possess된 캐릭터가 프리뷰처럼 고정되도록 `AMainMenuPlayerController`에 이동·시점 입력 ignore, CharacterMovement 중력·이동 모드 잠금, 단일 애니메이션 정지/재생 설정과 메인메뉴 전용 Mesh 스케일 설정을 추가했다. `ASnowRumbleCharacter`도 메인메뉴 컨트롤러 조종 중 Move/Look, HUD 생성, 이동속도 복구를 차단한다. `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
 - 2026-08-21: `bPauseMainMenuPreviewAnimation`을 꺼도 메인메뉴 애니메이션이 멈춘 상태로 남는 문제를 수정했다. pause가 꺼져 있으면 `MainMenuPreviewAnimationPositionSeconds` 위치에서 `Play(true)`로 재생을 시작한다. `git diff --check`는 통과했고, C++ 컴파일도 통과했으나 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
+- 2026-08-21: 커스터마이징 결과가 로비뿐 아니라 메인메뉴 프리뷰 캐릭터에도 적용되도록 했다. `AMainMenuPlayerController`가 로컬 `USnowRumbleCustomizationSubsystem`의 데이터를 읽어 possessed `ASnowRumbleCharacter`에 `ApplyCustomizationData()`로 적용한다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
 - 2026-08-18: 관절/UV seam 부근에서 페인트 선이 길게 튀는 현상을 완화했다. `PaintPointMaxDistance`보다 먼 UV 점프가 나오면 현재 stroke를 저장하고 새 stroke를 시작해 RenderTarget 위에서 멀리 떨어진 UV 섬끼리 직선으로 이어지지 않게 했다.
 - 2026-08-18: UV seam 튐 완화 변경은 `git diff --check`와 C++ 컴파일을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
 - 2026-08-18: `PaintModeButton`을 토글 버튼처럼 동작하게 변경했다. 메인 화면에서는 색칠하기 화면으로 들어가고, 색칠하기 화면에서 다시 누르면 `Main` 페이지로 돌아간다.

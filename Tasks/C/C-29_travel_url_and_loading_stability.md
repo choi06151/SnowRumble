@@ -63,6 +63,7 @@
 - 2026-08-21: 사용자가 후속 로딩바 커스터마이징 방향으로 오른쪽 하단 같은 팀 플레이어 이름 목록 표시를 요청했다.
 - 2026-08-21: 사용자가 후속 로딩 화면 커스터마이징 방향으로 랜덤 선택된 맵에 따른 이미지 설정을 요청했다.
 - 2026-08-21: `PvPLevelLoadingPresentations`를 추가해 선택 맵별 표시명과 Texture2D 이미지를 설정할 수 있게 했다. 로비 GameMode는 매치 시작 직전 각 클라이언트에 선택 맵 정보와 같은 팀 플레이어 이름 목록을 전달하고, MoviePlayer Slate 화면은 travel 중 이를 표시한다.
+- 2026-08-21: PvP->포디움 이동 후 GameInstance 로딩 WBP가 다시 붙고 사라지지 않는 문제를 수정했다. `APodiumPlayerController`가 로컬 BeginPlay에서 `ULoadingScreenSubsystem::HideLoadingScreen()`을 호출해 포디움 UI 표시 전에 잔여 로딩창을 닫는다.
 
 ## 수동 작업
 
