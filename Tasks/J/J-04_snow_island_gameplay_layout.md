@@ -88,6 +88,7 @@
 - 2026-08-19: 최재원(C) 통합 보정으로 침수 중인 캐릭터에 서버 부력 보정을 추가했다. `bApplyWaterBuoyancy`, `BuoyancyTargetSubmersionDepth`, `BuoyancyCorrectionSpeed`, `BuoyancyMinimumUpwardVelocity`, `BuoyancyMaximumUpwardVelocity`로 물속 둥둥 뜨는 정도를 조정하고, `ASnowRumbleCharacter::SetWaterSubmergedFromServer()` 복제 상태로 물속 점프 입력을 차단한다.
 - 2026-08-19: 물속에서 조금 더 통통 튀는 느낌을 주기 위해 `bApplyWaterBounce`, `WaterBounceFrequency`, `WaterBounceUpwardVelocity`를 추가했다. 기본 부력 속도 위에 서버 시간 기반 상승 펄스를 더하며, 캐릭터별 위상을 조금 달리해 여러 플레이어가 같은 박자로 튀지 않게 했다.
 - 2026-08-21: C-25 모닥불 계약과 연동해 `ASnowIslandWaterPressureActor`가 서버 Damage Timer에서 물에 닿은 `ACampfire`를 찾아 `ExtinguishFromWater()`로 즉시 끄게 했다. 물에 닿은 모닥불은 Actor와 Mesh가 남고 회복·충돌·VFX만 비활성화된다. `git diff --check`와 충돌 표식 검색은 통과했고, `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 보류됐다.
+- 2026-08-21: 최재원(C) 통합 보정으로 클라이언트에서 물 상승 표현이 보이지 않는 문제에 대응했다. 서버 Damage는 정상이라 `ASnowIslandWaterPressureActor`의 복제 도달성 문제로 보고, 맵 배치 Actor가 모든 클라이언트에 항상 relevant하도록 설정해 맵 축소 이벤트 기반 수위 상태가 클라이언트에도 도달하게 했다.
 
 ## 구현 현황
 
@@ -154,7 +155,7 @@
 - `bLogWaterDamageDebug`를 켜면 `[WaterDamage]` 로그로 Character, 침수 여부, 침수 progress, 이탈 시간, Water/Sample Z, Frozen/Dead 여부, 적용 Damage, Damage 전후 HP를 확인할 수 있다.
 - [확인 필요] 실제 `L_SnowIsland_J.umap`에서 `ControlledWaterActor`, `OuterFloodWaterZ`, `CentralFloodWaterZ`, Water Component Mobility가 올바르게 설정되었는지 Editor에서 확인해야 한다.
 - [확인 필요] Listen Server / Client에서 물 상승과 Damage가 실제로 관찰되었다는 로그 파일은 현재 저장소와 `Saved` 검색에서 확인하지 못했다. 결과 확인 체크리스트는 아직 미완료로 유지한다.
-- [확인 필요] `ASnowIslandWaterPressureActor`는 자체 RootComponent를 생성하지 않는다. RootComponent 또는 network relevancy 관련 경고가 있었는지는 현재 코드와 Git 기록만으로 해결 완료를 확정할 수 없다.
+- 2026-08-21 C 통합 보정: `ASnowIslandWaterPressureActor`는 `bAlwaysRelevant`로 설정되어 맵 전체 환경 Actor의 수위 복제 상태가 거리 relevancy에 의해 클라이언트에서 빠지지 않게 했다.
 
 ## 수동 작업
 

@@ -248,6 +248,10 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box", meta = (ClampMin = "0.0"))
 	float GiftBoxSpawnHeightOffset = 800.0f;
 
+	/** TargetPoint 주변에서 선물상자 낙하 시작 위치를 랜덤하게 분산할 반경이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box", meta = (ClampMin = "0.0"))
+	float GiftBoxSpawnScatterRadius = 450.0f;
+
 	/** 이 태그가 붙은 TargetPoint만 우선 사용한다. 없으면 맵의 모든 TargetPoint를 사용한다. */
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box")
 	FName GiftBoxSpawnPointTag = TEXT("GiftBoxSpawn");

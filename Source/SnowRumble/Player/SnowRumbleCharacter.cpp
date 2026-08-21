@@ -22,6 +22,7 @@
 #include "../UI/CustomizationPlayerController_C.h"
 #include "../UI/InteractionPromptWidget_C.h"
 #include "../UI/MainHUDWidget.h"
+#include "../UI/MainMenuPlayerController.h"
 #include "../UI/OverheadNameplateWidget_C.h"
 #include "../UI/SnowRumblePlayerController.h"
 #include "SnowRumbleCharacterAnimInstance_C.h"
@@ -2066,7 +2067,8 @@ void ASnowRumbleCharacter::EnsureMainHUDWidget()
 		return;
 	}
 
-	if (Cast<ACustomizationPlayerController>(Controller))
+	if (Cast<ACustomizationPlayerController>(Controller)
+		|| Cast<AMainMenuPlayerController>(Controller))
 	{
 		return;
 	}
@@ -2448,7 +2450,8 @@ void ASnowRumbleCharacter::Move(const FInputActionValue& Value)
 			return;
 		}
 	}
-	if (Cast<ACustomizationPlayerController>(Controller))
+	if (Cast<ACustomizationPlayerController>(Controller)
+		|| Cast<AMainMenuPlayerController>(Controller))
 	{
 		return;
 	}
@@ -2488,7 +2491,8 @@ void ASnowRumbleCharacter::Look(const FInputActionValue& Value)
 			return;
 		}
 	}
-	if (Cast<ACustomizationPlayerController>(Controller))
+	if (Cast<ACustomizationPlayerController>(Controller)
+		|| Cast<AMainMenuPlayerController>(Controller))
 	{
 		return;
 	}
@@ -2710,6 +2714,19 @@ void ASnowRumbleCharacter::HandleAimCompleted()
 {
 	if (SnowballEquipmentComponent)
 	{
+		if (SnowballEquipmentComponent->IsCharging())
+		{
+			if (IsLocallyControlled() && GetWorld())
+			{
+				PostThrowAimCameraEndTime =
+					GetWorld()->GetTimeSeconds() + PostThrowCameraHoldSeconds;
+			}
+
+			SnowballEquipmentComponent->ReleaseChargedSnowball();
+			OnAimInput(false);
+			return;
+		}
+
 		SnowballEquipmentComponent->SetAiming(false);
 	}
 	OnAimInput(false);
@@ -3755,6 +3772,7 @@ void ASnowRumbleCharacter::RefreshPvpMatchInputLock()
 		FocusedLobbyBoard
 		|| bIsEmoteRadialMenuOpen
 		|| Cast<ACustomizationPlayerController>(PlayerController)
+		|| Cast<AMainMenuPlayerController>(PlayerController)
 		|| (SnowRumblePlayerController
 			&& SnowRumblePlayerController->IsGameplayUiInputOpen());
 
@@ -4311,6 +4329,7 @@ void ASnowRumbleCharacter::ApplyMovementSpeed()
 				: 1.0f;
 		MovementComponent->MaxWalkSpeed =
 			(Cast<ACustomizationPlayerController>(Controller)
+				|| Cast<AMainMenuPlayerController>(Controller)
 				? 0.0f
 				: IsPvpMatchInputLocked()
 				? 0.0f

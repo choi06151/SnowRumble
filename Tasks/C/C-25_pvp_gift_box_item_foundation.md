@@ -11,7 +11,7 @@ PvP 라운드 중 서버가 맵에 배치된 후보 지점에서 선물상자를
 
 ## 구현 항목
 
-- [x] PvP GameMode가 라운드 시작 후 지정 간격마다 맵의 `TargetPoint` 후보 중 하나를 서버에서 골라 선물상자를 공중 스폰한다.
+- [x] PvP GameMode가 라운드 시작 후 지정 간격마다 맵의 `TargetPoint` 후보 중 하나를 서버에서 고르고, 해당 기준점 주변 랜덤 위치에서 선물상자를 공중 스폰한다.
 - [x] 선물상자는 서버 권한 Actor로 복제되고, Blueprint가 모델·VFX·사운드와 낙하 표현을 연결할 수 있는 C++ 부모를 제공한다.
 - [x] 상자 생성 시 모든 플레이어에게 `산타가 선물을 흘렸다네` 문구를 표시한다.
 - [x] 로컬 플레이어가 상자 근처에 있으면 기존 상호작용 안내 UI에 `E - 선물상자`를 표시한다.
@@ -48,7 +48,7 @@ PvP 라운드 중 서버가 맵에 배치된 후보 지점에서 선물상자를
 ## 공용 계약과 인계
 
 - 제공받을 계약: C-05 PvP 라운드 시간과 종료 상태, C-22 상호작용 안내 UI 경로, 기존 PlayerController 개인 알림/이벤트 로그 경로
-- 제공할 계약: `AGiftBox`, `AGiftBoxItemPickup`, `UGiftItemEffectComponent`, `ACampfire`, `ESnowRumbleGiftBoxGrade::Red`/`Gold`, `FSnowRumbleGiftBoxReward::PickupClass`, `AGiftBox::CanInteractWith()`, `AGiftBox::TryOpen()`, `AGiftBox::TakeDamage()`, `AGiftBox::GradeVfxComponent`, `AGiftBox::RedGiftBoxEffect`, `AGiftBox::GoldGiftBoxEffect`, `AGiftBox::OnGiftBoxGradeChanged()`, `AGiftBox::OnGiftBoxLanded()`, `AGiftBox::OnGiftBoxOpened()`, `AGiftBoxItemPickup::DefaultItemType`, `AGiftBoxItemPickup::DefaultItemId`, `AGiftBoxItemPickup::DefaultDisplayName`, `AGiftBoxItemPickup::PickedUpEffect`, `AGiftBoxItemPickup::PickedUpEffectLocationOffset`, `AGiftBoxItemPickup::TryPickup()`, `AGiftBoxItemPickup::OnItemDataChanged()`, `AGiftBoxItemPickup::OnItemPickedUp()`, `UGiftItemEffectComponent::ApplyGiftItemFromServer()`, `UGiftItemEffectComponent::HasHotPack()`, `UGiftItemEffectComponent::HasBoots()`, `UGiftItemEffectComponent::HasPadding()`, `UGiftItemEffectComponent::HasGloves()`, `UGiftItemEffectComponent::GetSnowShovelDurability()`, `UGiftItemEffectComponent::GetEquippedShovelItemType()`, `UGiftItemEffectComponent::GetEquippedDuckMakerItemType()`, `ASnowRumbleCharacter::ApplyGiftBoxItemEffectFromServer()`, `ASnowRumbleCharacter::NotifyItemInteractionSucceeded()`, `ASnowRumbleCharacter::IsInteractingWithItem()`, `ASnowRumbleCharacter::HasEquippedSnowDuckMaker()`, `USnowballEquipmentComponent::EquipCreatedSnowballFromServer()`, `ACampfire::ExtinguishFromWater()`, `ACampfire::FireVfxComponent`, `ACampfire::HealRadiusVfxComponent`, `ASnowRumbleGameMode::GiftBoxClass`, `GiftBoxSpawnPointTag`, `FirstGiftBoxSpawnDelaySeconds`, `GiftBoxSpawnIntervalSeconds`, `GoldGiftBoxSpawnChance`
+- 제공할 계약: `AGiftBox`, `AGiftBoxItemPickup`, `UGiftItemEffectComponent`, `ACampfire`, `ESnowRumbleGiftBoxGrade::Red`/`Gold`, `FSnowRumbleGiftBoxReward::PickupClass`, `AGiftBox::CanInteractWith()`, `AGiftBox::TryOpen()`, `AGiftBox::TakeDamage()`, `AGiftBox::GradeVfxComponent`, `AGiftBox::RedGiftBoxEffect`, `AGiftBox::GoldGiftBoxEffect`, `AGiftBox::OnGiftBoxGradeChanged()`, `AGiftBox::OnGiftBoxLanded()`, `AGiftBox::OnGiftBoxOpened()`, `AGiftBoxItemPickup::DefaultItemType`, `AGiftBoxItemPickup::DefaultItemId`, `AGiftBoxItemPickup::DefaultDisplayName`, `AGiftBoxItemPickup::PickedUpEffect`, `AGiftBoxItemPickup::PickedUpEffectLocationOffset`, `AGiftBoxItemPickup::TryPickup()`, `AGiftBoxItemPickup::OnItemDataChanged()`, `AGiftBoxItemPickup::OnItemPickedUp()`, `UGiftItemEffectComponent::ApplyGiftItemFromServer()`, `UGiftItemEffectComponent::HasHotPack()`, `UGiftItemEffectComponent::HasBoots()`, `UGiftItemEffectComponent::HasPadding()`, `UGiftItemEffectComponent::HasGloves()`, `UGiftItemEffectComponent::GetSnowShovelDurability()`, `UGiftItemEffectComponent::GetEquippedShovelItemType()`, `UGiftItemEffectComponent::GetEquippedDuckMakerItemType()`, `ASnowRumbleCharacter::ApplyGiftBoxItemEffectFromServer()`, `ASnowRumbleCharacter::NotifyItemInteractionSucceeded()`, `ASnowRumbleCharacter::IsInteractingWithItem()`, `ASnowRumbleCharacter::HasEquippedSnowDuckMaker()`, `USnowballEquipmentComponent::EquipCreatedSnowballFromServer()`, `ACampfire::ExtinguishFromWater()`, `ACampfire::FireVfxComponent`, `ACampfire::HealRadiusVfxComponent`, `ASnowRumbleGameMode::GiftBoxClass`, `GiftBoxSpawnPointTag`, `FirstGiftBoxSpawnDelaySeconds`, `GiftBoxSpawnIntervalSeconds`, `GiftBoxSpawnHeightOffset`, `GiftBoxSpawnScatterRadius`, `GoldGiftBoxSpawnChance`
 - 인계 대상: 사용자/S/J는 PvP 맵에 선물상자 Spawn Point용 `TargetPoint`를 배치한다. `GiftBoxSpawnPointTag` 기본값은 `GiftBoxSpawn`이며, 해당 태그가 붙은 TargetPoint가 없으면 맵의 모든 TargetPoint를 후보로 사용한다. 사용자/S는 `AGiftBox` 기반 선물상자 Blueprint 모델·낙하 표현·개봉 연출을 연결한다.
 
 ## 범위 밖
@@ -97,6 +97,7 @@ PvP 라운드 중 서버가 맵에 배치된 후보 지점에서 선물상자를
 - 2026-08-21: 모닥불이 `ASnowballItem::IsFullyGrown()`인 완성 큰눈에 맞으면 남은 내구도와 관계없이 즉시 꺼지도록 했다. 작은눈은 기존처럼 1회당 내구도 1만 감소한다. `git diff --check`와 충돌 표식 검색은 통과했고, `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 보류됐다.
 - 2026-08-21: 눈섬 물 상승 수위가 모닥불 위치에 닿으면 모닥불이 즉시 꺼지도록 `ACampfire::ExtinguishFromWater()`와 `ASnowIslandWaterPressureActor` 연동을 추가했다. 물이 닿아도 모닥불 Actor와 Mesh는 남고 회복·충돌·VFX만 비활성화된다. `git diff --check`와 충돌 표식 검색은 통과했고, `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 보류됐다.
 - 2026-08-21: 선물상자 등급별 VFX 연결용으로 `AGiftBox::GradeVfxComponent`, `RedGiftBoxEffect`, `GoldGiftBoxEffect`를 추가했다. 서버가 확정한 `GiftBoxGrade`가 복제되면 각 클라이언트가 빨간/황금 등급에 맞는 Niagara System을 컴포넌트에 적용하고, 상자가 열리면 등급 VFX를 비활성화한 뒤 기존 개봉 VFX를 재생한다. `git diff --check`와 충돌 표식 검색은 통과했고, `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 보류됐다.
+- 2026-08-21: 선물상자 스폰 위치를 TargetPoint 정확한 지점에서 TargetPoint 주변 랜덤 위치로 변경했다. `ASnowRumbleGameMode::GiftBoxSpawnScatterRadius` 기본값 450cm 안에서 서버가 XY 오프셋을 확정하고, 기존 `GiftBoxSpawnHeightOffset`만큼 위에서 상자를 떨어뜨린다. `git diff --check`, UHT, C++ 컴파일은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
 
 ## 수동 작업 (구현 후 구체화)
 
@@ -110,7 +111,7 @@ PvP 라운드 중 서버가 맵에 배치된 후보 지점에서 선물상자를
 8. 개발 중 아이템 Pickup BP를 맵에 직접 배치해 테스트하려면 해당 BP 또는 배치 인스턴스의 `DefaultItemType`을 원하는 아이템으로 지정한다. 필요하면 `DefaultDisplayName`도 지정한다.
 9. PvP GameMode Blueprint 또는 클래스 기본값에서 `GiftBoxClass`에 선물상자 Blueprint를 지정한다.
 10. PvP 맵마다 레벨 담당자가 `TargetPoint`를 배치한다. 선물상자 전용 후보만 쓰려면 Actor Tag에 `GiftBoxSpawn`을 추가한다.
-11. 필요하면 `FirstGiftBoxSpawnDelaySeconds`, `GiftBoxSpawnIntervalSeconds`, `GiftBoxSpawnHeightOffset`, `GoldGiftBoxSpawnChance`를 조정한다.
+11. 필요하면 `FirstGiftBoxSpawnDelaySeconds`, `GiftBoxSpawnIntervalSeconds`, `GiftBoxSpawnHeightOffset`, `GiftBoxSpawnScatterRadius`, `GoldGiftBoxSpawnChance`를 조정한다.
 12. 효과 상태 UI나 외형 표시가 필요하면 캐릭터의 `GiftItemEffectComponent`에서 `HasHotPack()`, `GetSnowShovelDurability()` 같은 읽기 함수를 사용한다.
 13. 모닥불 표현을 바꾸려면 `ACampfire`를 부모로 하는 Blueprint를 만들고 `CampfireMeshComponent`, `FireVfxComponent`, `HealRadiusVfxComponent`, `OnCampfireStateChanged(NewRemainingHitPoints, bExtinguished)`에 모델·불꽃·연기·회복 범위·꺼짐 연출을 연결한 뒤 캐릭터 Blueprint의 `GiftItemEffectComponent`에서 `CampfireClass`에 지정한다.
 14. 캐릭터 Blueprint에서 `LeftBootsEquipmentMesh`, `RightBootsEquipmentMesh`, `LeftGlovesEquipmentMesh`, `RightGlovesEquipmentMesh`, `PaddingEquipmentMesh`, `HotPackEquipmentMesh`, `SnowShovelEquipmentMesh`, `GoldenShovelEquipmentMesh`, `SnowDuckMakerEquipmentMesh`, `GoldenDuckMakerEquipmentMesh`를 지정한다.
@@ -131,7 +132,7 @@ PvP 라운드 중 서버가 맵에 배치된 후보 지점에서 선물상자를
 
 ### 결과 확인 (구현 후 구체화)
 
-- [ ] 호스트와 클라이언트로 PvP 라운드에 들어가고, 로딩/카운트다운 이후 `GiftBoxSpawn` 태그가 붙은 TargetPoint 위 공중에서 선물상자가 떨어지는지 확인한다.
+- [ ] 호스트와 클라이언트로 PvP 라운드에 들어가고, 로딩/카운트다운 이후 `GiftBoxSpawn` 태그가 붙은 TargetPoint 주변 랜덤 위치 공중에서 선물상자가 떨어지는지 확인한다.
 - [ ] 호스트와 클라이언트 화면 모두에 `산타가 선물을 흘렸다네` 문구가 표시되는지 확인한다.
 - [ ] 상자 가까이에서 `E - 선물상자` 안내가 표시되는지 확인한다.
 - [ ] 호스트가 `E`로 열었을 때 상자가 한 번만 열리고 빨간색 또는 황금색 등급 후보 중 하나의 아이템 Pickup BP가 해당 위치에 스폰되는지 확인한다.
