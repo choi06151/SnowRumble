@@ -20,6 +20,9 @@ ASnowIslandWaterPressureActor::ASnowIslandWaterPressureActor()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	bReplicates = true;
+	bAlwaysRelevant = true;
+	SetNetUpdateFrequency(10.0f);
+	SetMinNetUpdateFrequency(2.0f);
 }
 
 void ASnowIslandWaterPressureActor::BeginPlay()

@@ -711,6 +711,7 @@ void ASnowRumbleGameMode::SpawnGiftBox()
 
 	const FVector SpawnLocation =
 		SelectedSpawnPoint->GetActorLocation()
+		+ MakeRandomHorizontalOffset(GiftBoxSpawnScatterRadius)
 		+ FVector::UpVector * GiftBoxSpawnHeightOffset;
 	const FRotator SpawnRotation = SelectedSpawnPoint->GetActorRotation();
 
