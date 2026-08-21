@@ -7,6 +7,7 @@
 #include "SnowIslandWaterPressureActor_J.generated.h"
 
 class ASnowRumbleCharacter;
+class ACampfire;
 class USceneComponent;
 
 UENUM(BlueprintType)
@@ -187,6 +188,12 @@ private:
 
 	/** 서버 Damage Timer에서 침수된 플레이어를 찾아 피해를 요청한다. */
 	void HandleDamageTimerElapsed();
+
+	/** 서버 Damage Timer에서 물에 닿은 모닥불을 즉시 끈다. */
+	void ExtinguishSubmergedCampfires();
+
+	/** 모닥불 기준 위치가 현재 물에 닿았는지 서버 기준으로 판정한다. */
+	bool IsCampfireSubmerged(const ACampfire* Campfire) const;
 
 	/** Character Capsule 하단 기준 침수 Sample World Z를 계산한다. */
 	float CalculateSubmersionSampleZ(

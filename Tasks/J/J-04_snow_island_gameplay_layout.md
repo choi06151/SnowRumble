@@ -20,6 +20,7 @@
 - [x] 360초 이후 연장전에는 `OvertimeRiseSpeed` 값에 따라 물을 계속 상승시킬 수 있게 한다.
 - [x] 서버에서 Character Capsule 하단 기준으로 침수 여부를 판정한다.
 - [x] 침수 중인 플레이어에게 Character별 유효 침수시간 1초가 누적될 때마다 8 Damage를 1회 적용한다.
+- [x] 물 상승 수위가 모닥불 위치에 닿으면 `ACampfire::ExtinguishFromWater()`로 모닥불을 즉시 끈다.
 - [x] 침수 중인 플레이어가 물속에서 약하게 떠오르도록 서버에서 부력 이동 보정을 적용하고, 물속에서는 점프 입력을 차단한다.
 - [x] Damage는 `UGameplayStatics::ApplyDamage`를 통해 기존 `ASnowRumbleCharacter::TakeDamage()`와 `USnowRumbleHealthComponent::ApplyDamage()` 흐름을 재사용한다.
 - [x] Damage 호출은 `RequestHazardDamage(AActor* Target, float DamageAmount)` 한 함수에 격리해 C-07 공용 Damage 계약 완료 후 교체 지점을 명확히 둔다.
@@ -86,6 +87,7 @@
 - 2026-08-13: Runtime Water는 실제 `Water` 하나만 제어하고 `Water2`/`Water3`는 목표 World Z 참고용으로만 사용하기로 정리했다. 물 상승과 침수 판정은 World Z 기준이다.
 - 2026-08-19: 최재원(C) 통합 보정으로 침수 중인 캐릭터에 서버 부력 보정을 추가했다. `bApplyWaterBuoyancy`, `BuoyancyTargetSubmersionDepth`, `BuoyancyCorrectionSpeed`, `BuoyancyMinimumUpwardVelocity`, `BuoyancyMaximumUpwardVelocity`로 물속 둥둥 뜨는 정도를 조정하고, `ASnowRumbleCharacter::SetWaterSubmergedFromServer()` 복제 상태로 물속 점프 입력을 차단한다.
 - 2026-08-19: 물속에서 조금 더 통통 튀는 느낌을 주기 위해 `bApplyWaterBounce`, `WaterBounceFrequency`, `WaterBounceUpwardVelocity`를 추가했다. 기본 부력 속도 위에 서버 시간 기반 상승 펄스를 더하며, 캐릭터별 위상을 조금 달리해 여러 플레이어가 같은 박자로 튀지 않게 했다.
+- 2026-08-21: C-25 모닥불 계약과 연동해 `ASnowIslandWaterPressureActor`가 서버 Damage Timer에서 물에 닿은 `ACampfire`를 찾아 `ExtinguishFromWater()`로 즉시 끄게 했다. 물에 닿은 모닥불은 Actor와 Mesh가 남고 회복·충돌·VFX만 비활성화된다. `git diff --check`와 충돌 표식 검색은 통과했고, `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 보류됐다.
 
 ## 구현 현황
 
@@ -98,6 +100,7 @@
 - Water 이동은 X/Y를 유지하고 Z만 갱신한다.
 - 침수 판정은 서버에서 Character Capsule 하단 Sample Z와 현재 Water Z를 비교한다.
 - Water Damage는 캐릭터별 침수 상태를 따로 누적하고, 1초의 유효 침수마다 기존 Damage 경로로 8 Damage를 적용한다.
+- 모닥불 침수는 캐릭터 Damage 누적과 분리해 서버 Damage Timer에서 `ACampfire` 위치 Z와 현재 Water Z를 비교하고, 물에 닿으면 즉시 `ACampfire::ExtinguishFromWater()`를 호출한다.
 - 침수 중인 캐릭터는 서버에서 수면 근처 목표 높이까지 Z 속도를 보정해 물에 둥둥 뜨는 느낌을 주며, 물속 상태가 복제된 동안 점프 입력은 무시된다.
 - 캐릭터별 누적 상태는 `SubmersionStates`에 저장하며, 유효 침수 progress와 이탈 시간만 관리한다.
 - Damage 호출은 `UGameplayStatics::ApplyDamage()`에서 기존 `ASnowRumbleCharacter::TakeDamage()`와 `USnowRumbleHealthComponent::ApplyDamage()`로 이어진다. 별도의 HP 시스템, J 전용 HealthComponent, 별도 HP replication은 만들지 않았다.
@@ -192,6 +195,7 @@
 - [ ] 360초 이후에는 연장전 속도로 추가 상승한다.
 - [ ] 물에 잠기지 않은 플레이어는 Damage를 받지 않는다.
 - [ ] 물에 잠긴 플레이어는 서버 기준 1초마다 8 Damage를 받는다.
+- [ ] 물 상승 수위가 설치된 모닥불 위치에 닿으면 모닥불이 즉시 꺼지고 사라지지는 않는다.
 - [ ] 물에 잠긴 플레이어는 수면 근처에서 약하게 떠오르고 점프 입력이 동작하지 않는다.
 - [ ] 클라이언트 HUD의 HP는 기존 `CurrentHealth` 복제로 감소한다.
 - [ ] HP가 0이 되면 기존 얼기/사망/라운드 종료 흐름이 동작한다.

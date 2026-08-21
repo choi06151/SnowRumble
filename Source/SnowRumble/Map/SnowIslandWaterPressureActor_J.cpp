@@ -3,6 +3,7 @@
 #include "SnowIslandWaterPressureActor_J.h"
 
 #include "../Game/SnowRumbleGameState_C.h"
+#include "../Item/Campfire_C.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "../Player/SnowRumbleHealthComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -297,15 +298,20 @@ void ASnowIslandWaterPressureActor::HandleDamageTimerElapsed()
 {
 	if (!HasAuthority()
 		|| CurrentWaterStage == ESnowIslandWaterPressureStage::Stable
-		|| DamagePerTick <= 0.0f
-		|| DamageCheckIntervalSeconds <= 0.0f
-		|| DamageApplyIntervalSeconds <= 0.0f)
+		|| DamageCheckIntervalSeconds <= 0.0f)
 	{
 		return;
 	}
 
 	UWorld* World = GetWorld();
 	if (!World)
+	{
+		return;
+	}
+
+	ExtinguishSubmergedCampfires();
+
+	if (DamagePerTick <= 0.0f || DamageApplyIntervalSeconds <= 0.0f)
 	{
 		return;
 	}
@@ -401,6 +407,36 @@ void ASnowIslandWaterPressureActor::HandleDamageTimerElapsed()
 			It.RemoveCurrent();
 		}
 	}
+}
+
+void ASnowIslandWaterPressureActor::ExtinguishSubmergedCampfires()
+{
+	UWorld* World = GetWorld();
+	if (!HasAuthority() || !World)
+	{
+		return;
+	}
+
+	for (TActorIterator<ACampfire> It(World); It; ++It)
+	{
+		ACampfire* Campfire = *It;
+		if (IsValid(Campfire) && IsCampfireSubmerged(Campfire))
+		{
+			Campfire->ExtinguishFromWater();
+		}
+	}
+}
+
+bool ASnowIslandWaterPressureActor::IsCampfireSubmerged(
+	const ACampfire* Campfire) const
+{
+	if (!Campfire)
+	{
+		return false;
+	}
+
+	return Campfire->GetActorLocation().Z
+		<= CurrentWaterZ + RequiredSubmersionDepth;
 }
 
 float ASnowIslandWaterPressureActor::CalculateSubmersionSampleZ(

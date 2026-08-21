@@ -61,12 +61,23 @@ void UPlayerGrabComponent::TickComponent(
 	FVector AttachedWorldLocation = FVector::ZeroVector;
 	ESnowRumbleGrabAttachmentType AttachmentType =
 		ESnowRumbleGrabAttachmentType::None;
+	const UWorld* World = GetWorld();
+	const bool bAllowWorldAttachment =
+		World
+		&& World->GetTimeSeconds() - GrabReachStartedTimeSeconds
+			>= WorldGrabMinReachHoldSeconds
+		&& CurrentGrabReachAlpha >= MinGrabReachAlphaForAttachment;
+	if (CurrentGrabReachAlpha < MinGrabReachAlphaForAttachment)
+	{
+		return;
+	}
 	if (FindGrabCandidate(
 		TargetCharacter,
 		TargetMesh,
 		TargetBoneName,
 		AttachedWorldLocation,
-		AttachmentType))
+		AttachmentType,
+		bAllowWorldAttachment))
 	{
 		if (AttachmentType == ESnowRumbleGrabAttachmentType::Character)
 		{
@@ -110,6 +121,10 @@ void UPlayerGrabComponent::StartGrabReach()
 	}
 
 	bIsGrabReaching = true;
+	if (const UWorld* World = GetWorld())
+	{
+		GrabReachStartedTimeSeconds = World->GetTimeSeconds();
+	}
 	OnRep_IsGrabReaching();
 
 	if (Character->HasAuthority())
@@ -130,6 +145,7 @@ void UPlayerGrabComponent::StopGrabReach()
 	}
 
 	bIsGrabReaching = false;
+	GrabReachStartedTimeSeconds = 0.0;
 	OnRep_IsGrabReaching();
 	ClearGrabConstraint();
 
@@ -198,6 +214,10 @@ void UPlayerGrabComponent::ServerStartGrabReach_Implementation()
 	}
 
 	bIsGrabReaching = true;
+	if (const UWorld* World = GetWorld())
+	{
+		GrabReachStartedTimeSeconds = World->GetTimeSeconds();
+	}
 	OnRep_IsGrabReaching();
 	if (AActor* Owner = GetOwner())
 	{
@@ -208,6 +228,7 @@ void UPlayerGrabComponent::ServerStartGrabReach_Implementation()
 void UPlayerGrabComponent::ServerStopGrabReach_Implementation()
 {
 	bIsGrabReaching = false;
+	GrabReachStartedTimeSeconds = 0.0;
 	OnRep_IsGrabReaching();
 	ClearGrabConstraint();
 	if (AActor* Owner = GetOwner())
@@ -252,7 +273,8 @@ bool UPlayerGrabComponent::FindGrabCandidate(
 	USkeletalMeshComponent*& OutMesh,
 	FName& OutBoneName,
 	FVector& OutAttachedWorldLocation,
-	ESnowRumbleGrabAttachmentType& OutAttachmentType) const
+	ESnowRumbleGrabAttachmentType& OutAttachmentType,
+	bool bAllowWorldAttachment) const
 {
 	OutCharacter = nullptr;
 	OutMesh = nullptr;
@@ -302,9 +324,24 @@ bool UPlayerGrabComponent::FindGrabCandidate(
 			Cast<ASnowRumbleCharacter>(Hit.GetActor());
 		if (!HitCharacter)
 		{
-			if (Hit.bBlockingHit && Hit.GetActor() && Hit.GetActor() != Character)
+			const FVector ImpactPoint =
+				Hit.ImpactPoint.IsNearlyZero() ? Hit.Location : Hit.ImpactPoint;
+			const float AttachHeightFromActor =
+				ImpactPoint.Z - Character->GetActorLocation().Z;
+			const bool bVerticalEnoughSurface =
+				FMath::Abs(Hit.ImpactNormal.GetSafeNormal().Z)
+					<= WorldGrabMaxSurfaceNormalZ;
+			const bool bReachableHeight =
+				AttachHeightFromActor >= WorldGrabMinAttachHeightFromActor
+				&& AttachHeightFromActor <= WorldGrabMaxAttachHeightFromActor;
+			if (bAllowWorldAttachment
+				&& Hit.bBlockingHit
+				&& Hit.GetActor()
+				&& Hit.GetActor() != Character
+				&& bVerticalEnoughSurface
+				&& bReachableHeight)
 			{
-				OutAttachedWorldLocation = Hit.ImpactPoint;
+				OutAttachedWorldLocation = ImpactPoint;
 				OutAttachmentType = ESnowRumbleGrabAttachmentType::World;
 				return true;
 			}
