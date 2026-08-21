@@ -189,6 +189,15 @@ private:
 		ENetworkFailure::Type FailureType,
 		const FString& ErrorString);
 
+	/** 접속 URL 해석 실패 같은 travel 실패를 메인메뉴 알림으로 변환한다. */
+	void HandleTravelFailure(
+		UWorld* World,
+		ETravelFailure::Type FailureType,
+		const FString& ErrorString);
+
+	/** 세션 연결 실패 또는 호스트 이탈 후 메인메뉴로 복귀한다. */
+	void ReturnToMainMenuAfterSessionFailure(const FString& AlarmMessage);
+
 	/** 등록된 세션 생성 완료 델리게이트를 해제한다. */
 	void ClearCreateSessionDelegate();
 
@@ -197,6 +206,9 @@ private:
 
 	/** 등록된 세션 참가 완료 델리게이트를 해제한다. */
 	void ClearJoinSessionDelegate();
+
+	/** 실패한 참가 시도 뒤 남은 로컬 named session을 정리한다. */
+	void DestroyLocalSessionIfPresent(const TCHAR* Reason);
 
 	/** UI 입력 또는 세션 광고용 방 코드를 정규화한다. */
 	FString NormalizeRoomCode(const FString& RoomCode) const;
@@ -212,6 +224,7 @@ private:
 	FDelegateHandle JoinSessionCompleteHandle;
 	FDelegateHandle PostLoadMapHandle;
 	FDelegateHandle NetworkFailureHandle;
+	FDelegateHandle TravelFailureHandle;
 
 	FName LocalSessionName;
 	int32 PendingHostMaxPlayers = 8;
