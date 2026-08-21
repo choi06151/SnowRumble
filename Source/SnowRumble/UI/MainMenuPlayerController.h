@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "../Player/SnowRumbleCustomizationData_C.h"
 #include "GameFramework/PlayerController.h"
 #include "MainMenuPlayerController.generated.h"
 
@@ -10,6 +11,7 @@ class UAnimationAsset;
 class UMainMenuWidget;
 class UOptionsWidget;
 class UUserWidget;
+class ASnowRumbleCharacter;
 
 UCLASS(Blueprintable)
 class SNOWRUMBLE_API AMainMenuPlayerController : public APlayerController
@@ -90,6 +92,9 @@ private:
 	/** 메인메뉴 캐릭터에 원하는 포즈/애니메이션 정지 상태와 Mesh 스케일을 적용한다. */
 	void ApplyMainMenuPreviewAnimation();
 
+	/** 로컬 커스터마이징 결과를 메인메뉴 프리뷰 캐릭터에 적용한다. */
+	void ApplyMainMenuPreviewCustomization();
+
 	UPROPERTY(Transient)
 	TObjectPtr<UMainMenuWidget> MainMenuWidget;
 
@@ -101,4 +106,10 @@ private:
 
 	UPROPERTY(Transient)
 	TWeakObjectPtr<APawn> LastAnimatedPreviewPawn;
+
+	UPROPERTY(Transient)
+	TWeakObjectPtr<ASnowRumbleCharacter> LastCustomizedPreviewCharacter;
+
+	FSnowRumbleCustomizationData LastAppliedPreviewCustomizationData;
+	bool bHasAppliedPreviewCustomizationData = false;
 };

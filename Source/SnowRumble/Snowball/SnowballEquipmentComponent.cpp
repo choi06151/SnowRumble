@@ -244,16 +244,14 @@ void USnowballEquipmentComponent::ReleaseChargedSnowball()
 		return;
 	}
 
-	const UCameraComponent* FollowCamera =
-		OwningPawn->FindComponentByClass<UCameraComponent>();
-	const FVector ViewLocation =
-		FollowCamera
-			? FollowCamera->GetComponentLocation()
-			: OwningPawn->GetPawnViewLocation();
-	const FVector ViewDirection =
-		FollowCamera
-			? FollowCamera->GetForwardVector()
-			: OwningPawn->GetBaseAimRotation().Vector();
+	FVector ViewLocation = FVector::ZeroVector;
+	FVector ViewDirection = FVector::ForwardVector;
+	if (!BuildCurrentThrowView(ViewLocation, ViewDirection))
+	{
+		CancelCharging();
+		return;
+	}
+
 	if (OwningPawn->HasAuthority())
 	{
 		ServerReleaseChargedSnowball_Implementation(
@@ -275,13 +273,22 @@ void USnowballEquipmentComponent::ConfirmPendingThrowFromAnimationNotify()
 		return;
 	}
 
-	if (OwningPawn->HasAuthority())
+	FVector ViewLocation = FVector::ZeroVector;
+	FVector ViewDirection = FVector::ForwardVector;
+	if (!BuildCurrentThrowView(ViewLocation, ViewDirection))
 	{
-		ServerConfirmPendingThrowFromAnimationNotify_Implementation();
 		return;
 	}
 
-	ServerConfirmPendingThrowFromAnimationNotify();
+	if (OwningPawn->HasAuthority())
+	{
+		ServerConfirmPendingThrowFromAnimationNotify_Implementation(
+			ViewLocation,
+			ViewDirection);
+		return;
+	}
+
+	ServerConfirmPendingThrowFromAnimationNotify(ViewLocation, ViewDirection);
 }
 
 void USnowballEquipmentComponent::CancelCharging()
@@ -524,25 +531,21 @@ void USnowballEquipmentComponent::ServerReleaseChargedSnowball_Implementation(
 		CancelCharging();
 		return;
 	}
-	const FVector FinalThrowDirection =
-		bThrowingLargeSnowball
-			? (AimDirection
-				+ FVector::UpVector * LargeSnowballArcLift).GetSafeNormal()
-			: AimDirection;
 
 	SetChargingState(false);
 
 	bHasPendingThrow = true;
-	PendingThrowDirection = FinalThrowDirection;
 	PendingThrowSpeed = ThrowSpeed;
 	PendingThrowChargeProgress = ChargeProgress;
 	Character->NotifySnowballThrowSucceeded(bThrowingLargeSnowball);
 	Character->ForceNetUpdate();
 }
 
-void USnowballEquipmentComponent::ServerConfirmPendingThrowFromAnimationNotify_Implementation()
+void USnowballEquipmentComponent::ServerConfirmPendingThrowFromAnimationNotify_Implementation(
+	FVector_NetQuantize ViewLocation,
+	FVector_NetQuantizeNormal ViewDirection)
 {
-	ExecutePendingThrowFromServer();
+	ExecutePendingThrowFromServer(ViewLocation, ViewDirection);
 }
 
 void USnowballEquipmentComponent::ServerCancelCharging_Implementation()
@@ -756,21 +759,76 @@ bool USnowballEquipmentComponent::FindServerAimTarget(
 	return true;
 }
 
-void USnowballEquipmentComponent::ExecutePendingThrowFromServer()
+bool USnowballEquipmentComponent::BuildCurrentThrowView(
+	FVector& OutViewLocation,
+	FVector& OutViewDirection) const
+{
+	const APawn* OwningPawn = Cast<APawn>(GetOwner());
+	if (!OwningPawn)
+	{
+		return false;
+	}
+
+	const UCameraComponent* FollowCamera =
+		OwningPawn->FindComponentByClass<UCameraComponent>();
+	OutViewLocation =
+		FollowCamera
+			? FollowCamera->GetComponentLocation()
+			: OwningPawn->GetPawnViewLocation();
+	OutViewDirection =
+		FollowCamera
+			? FollowCamera->GetForwardVector()
+			: OwningPawn->GetBaseAimRotation().Vector();
+	return !OutViewLocation.ContainsNaN()
+		&& !OutViewDirection.ContainsNaN()
+		&& !OutViewDirection.IsNearlyZero();
+}
+
+void USnowballEquipmentComponent::ExecutePendingThrowFromServer(
+	const FVector& ViewLocation,
+	const FVector& ViewDirection)
 {
 	ASnowRumbleCharacter* Character = Cast<ASnowRumbleCharacter>(GetOwner());
 	if (!Character
 		|| !Character->HasAuthority()
 		|| Character->IsFrozen()
 		|| !bHasPendingThrow
-		|| !HeldSnowball)
+		|| !HeldSnowball
+		|| ViewLocation.ContainsNaN()
+		|| ViewDirection.ContainsNaN()
+		|| FVector::DistSquared(
+			ViewLocation,
+			Character->GetActorLocation())
+			> FMath::Square(MaximumAimViewOriginDistance)
+		|| FVector::DotProduct(
+			ViewDirection.GetSafeNormal(),
+			Character->GetBaseAimRotation().Vector()) < 0.7f)
+	{
+		ClearPendingThrow();
+		return;
+	}
+
+	FVector AimTarget = FVector::ZeroVector;
+	if (!FindServerAimTarget(ViewLocation, ViewDirection, AimTarget))
+	{
+		ClearPendingThrow();
+		return;
+	}
+
+	const FVector AimDirection =
+		(AimTarget - HeldSnowball->GetActorLocation()).GetSafeNormal();
+	if (AimDirection.IsNearlyZero())
 	{
 		ClearPendingThrow();
 		return;
 	}
 
 	ASnowballItem* SnowballToThrow = HeldSnowball;
-	const FVector ThrowDirection = PendingThrowDirection;
+	const FVector ThrowDirection =
+		IsHoldingLargeSnowball()
+			? (AimDirection
+				+ FVector::UpVector * LargeSnowballArcLift).GetSafeNormal()
+			: AimDirection;
 	const float ThrowSpeed = PendingThrowSpeed;
 	const float ThrowChargeProgress = PendingThrowChargeProgress;
 
@@ -794,7 +852,6 @@ void USnowballEquipmentComponent::ExecutePendingThrowFromServer()
 void USnowballEquipmentComponent::ClearPendingThrow()
 {
 	bHasPendingThrow = false;
-	PendingThrowDirection = FVector::ZeroVector;
 	PendingThrowSpeed = 0.0f;
 	PendingThrowChargeProgress = 0.0f;
 }
