@@ -279,3 +279,6 @@
 - 2026-08-21: C-02 Hamachi 테스트 중 방 코드 참가 재시도에서 `Session already exists, can't join twice`가 발생해 참가 실패/재시도 전에 로컬 named session을 정리하도록 `USnowRumbleSessionSubsystem`을 보강했다. `no packets received`는 별도 네트워크/방화벽 경로 문제로 남아 있다.
 - 2026-08-21: C-02 호스트 이탈 클라이언트 복귀 경로를 보강했다. 네트워크 실패 시 `BP_MainMenuGameMode`를 강제한 `L_MainMenu` URL로 이동하고, 메인메뉴에서 `호스트의 연결이 해제되었습니다.` 알람을 표시한다.
 - 2026-08-21: C-02 연결 실패 fallback이 DemoMap으로 가는 원인을 보강했다. 접속 실패 일부가 `TravelFailure`로 들어와 기존 `NetworkFailure` 핸들러를 우회할 수 있어 `OnTravelFailure`도 메인메뉴 복귀로 처리하고, `DefaultEngine.ini`의 `GameDefaultMap`/`ServerDefaultMap`을 `L_MainMenu`로 고정했다.
+- 2026-08-21: C-11 메인메뉴 프리뷰 커스터마이징 적용을 보강했다. 로비와 동일하게 로컬 `USnowRumbleCustomizationSubsystem` 데이터를 메인메뉴 possessed 캐릭터에 적용해 색, 모자, 페인트 stroke 결과가 메인메뉴에서도 보이게 했다.
+- 2026-08-21: C-29 포디움 진입 시 잔여 로딩 WBP 제거를 보강했다. 포디움 PlayerController는 공용 PvP PlayerController가 아니므로 별도로 `ULoadingScreenSubsystem::HideLoadingScreen()`을 호출해 포디움 화면에서 로딩창이 남지 않게 한다.
+- 2026-08-22: C-24/C-09 눈덩이 Notify 투척 조준을 보강했다. 입력 release 때 저장한 방향을 쓰지 않고, `UAnimNotify_SnowballThrowRelease` 시점의 로컬 카메라 위치·방향을 서버로 보내 최종 trace와 투척 방향을 다시 계산한다. `git diff --check`, UHT, C++ 컴파일과 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor의 DLL 잠금 `LNK1104`로 보류됐다.

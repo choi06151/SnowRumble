@@ -131,3 +131,4 @@
 - 2026-08-21: C-11 메인메뉴 프리뷰 캐릭터 고정을 추가함. 메인메뉴 PlayerController BP는 `MainMenuPreviewAnimationAsset`, `bPauseMainMenuPreviewAnimation`, `MainMenuPreviewAnimationPositionSeconds`, `MainMenuPreviewMeshScale`로 possess된 캐릭터 포즈와 Mesh 스케일을 지정할 수 있고, C++은 이동·시점 입력과 중력·MovementMode를 막는다. `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드가 성공함.
 - 2026-08-21: J-04 눈섬 물 상승 클라이언트 표현 누락을 보강함. 서버 Damage는 정상이고 클라이언트 물 위치 표현만 누락되는 증상이라 `ASnowIslandWaterPressureActor`를 항상 relevant하게 설정해 수위 복제 상태가 클라이언트에도 도달하게 했다.
 - 2026-08-21: C-25 선물상자 스폰 위치를 TargetPoint 주변 랜덤 위치로 변경함. `ASnowRumbleGameMode::GiftBoxSpawnScatterRadius` 반경 안에서 서버가 XY 오프셋을 확정하고, 기존 높이 오프셋으로 공중 낙하 스폰한다.
+- 2026-08-22: C-24/C-09 눈덩이 Notify 투척 조준을 보강함. 입력 release 때 저장한 방향이 아니라 `UAnimNotify_SnowballThrowRelease` 시점의 로컬 카메라 위치·방향을 서버 RPC로 보내 최종 trace와 투척 방향을 다시 계산하게 했다.

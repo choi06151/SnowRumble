@@ -1004,7 +1004,7 @@ void ASnowRumbleCharacter::NotifySnowballThrowSucceeded(bool bWasLargeSnowball)
 
 void ASnowRumbleCharacter::RequestSnowballThrowReleaseFromNotify()
 {
-	if (!HasAuthority() && !IsLocallyControlled())
+	if (!IsLocallyControlled())
 	{
 		return;
 	}
