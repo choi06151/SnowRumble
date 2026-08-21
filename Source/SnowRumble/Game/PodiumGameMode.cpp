@@ -12,6 +12,40 @@
 #include "GameFramework/PlayerStart.h"
 #include "Kismet/GameplayStatics.h"
 
+namespace
+{
+constexpr const TCHAR* LobbyGameModeTravelPath =
+	TEXT("/Game/Game/BP_LobbyGameMode.BP_LobbyGameMode_C");
+
+void EnsureTravelOption(FString& TravelUrl, const TCHAR* Option)
+{
+	if (!TravelUrl.Contains(Option, ESearchCase::IgnoreCase))
+	{
+		TravelUrl += Option;
+	}
+}
+
+void EnsureTravelOptionValue(
+	FString& TravelUrl,
+	const TCHAR* OptionName,
+	const FString& OptionValue)
+{
+	if (OptionValue.IsEmpty())
+	{
+		return;
+	}
+
+	const FString OptionPrefix = FString::Printf(TEXT("%s="), OptionName);
+	if (!TravelUrl.Contains(OptionPrefix, ESearchCase::IgnoreCase))
+	{
+		TravelUrl += FString::Printf(
+			TEXT("?%s=%s"),
+			OptionName,
+			*OptionValue);
+	}
+}
+}
+
 APodiumGameMode::APodiumGameMode()
 {
 	PlayerControllerClass = APodiumPlayerController::StaticClass();
@@ -224,10 +258,8 @@ void APodiumGameMode::ReturnToLobbyAfterPodium()
 	}
 
 	FString TravelUrl = PodiumLobbyReturnTravelUrl;
-	if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
-	{
-		TravelUrl += TEXT("?listen");
-	}
+	EnsureTravelOption(TravelUrl, TEXT("?listen"));
+	EnsureTravelOptionValue(TravelUrl, TEXT("game"), LobbyGameModeTravelPath);
 
 	if (UWorld* World = GetWorld())
 	{

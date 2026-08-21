@@ -93,7 +93,8 @@
 - 2026-08-21: 빈손 좌클릭 입력 우선순위를 조정했다. `ViewPitchAlpha`가 `SnowCreationPreferredViewPitchAlpha` 이하일 때는 잡기 reach를 시작하지 않고 기존 눈 제작 경로로 내려가며, 정면 이상을 볼 때는 기존처럼 잡기 reach를 우선한다. UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
 - 2026-08-21: 카메라 좌우 시점에 따른 spine Control Rig 보정 계약을 추가했다. `ASnowRumbleCharacter`가 `ViewYawDegrees`와 `ViewYawAlpha`를 제공하고, `USnowRumbleCharacterAnimInstance`가 같은 값을 AnimBP 읽기 전용 값으로 갱신한다. `ViewYawAlpha`는 왼쪽 -0.5, 정면 0, 오른쪽 0.5의 Lerp 값이며 `ViewYawAlphaRangeDegrees`로 정규화 범위를 조정한다. UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
 - 2026-08-21: 벽잡기 또는 플레이어에게 잡힌 상태에서 우클릭 조준 해제 이벤트가 들어와도 잡기용 회전 잠금이 풀리지 않게 보강했다. 우클릭 연타로 `bOrientRotationToMovement`가 다시 켜져 tether 방향과 캐릭터 회전이 충돌하는 경로를 차단한다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
-- 2026-08-21: 보행 중 빈손 좌클릭 연타 시 월드 붙음 tether가 즉시 확정되어 캐릭터가 위로 튀는 회귀를 보강했다. `WorldGrabMinReachHoldSeconds` 이전에는 캐릭터 잡기 후보만 허용하고, 월드 붙음은 `WorldGrabMaxSurfaceNormalZ`, `WorldGrabMinAttachHeightFromActor`, `WorldGrabMaxAttachHeightFromActor` 조건을 통과한 수직 벽 계열 표면에서만 확정한다. 추가로 서버 잡기 확정 자체가 `MinGrabReachAlphaForAttachment` 이상일 때만 진행되도록 해 손이 올라가는 중 좌클릭 연타로 tether가 먼저 걸리는 경로를 막았다. `git diff --check`와 충돌 표식 검색은 통과했고, `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 보류됐다.
+- 2026-08-21: 보행 중 빈손 좌클릭 연타 시 월드 붙음 tether가 즉시 확정되어 캐릭터가 위로 튀는 회귀를 보강했다. `WorldGrabMinReachHoldSeconds` 이전에는 캐릭터 잡기 후보만 허용하고, 월드 붙음은 `WorldGrabMaxSurfaceNormalZ`, `WorldGrabMinAttachHeightFromActor`, `WorldGrabMaxAttachHeightFromActor` 조건을 통과한 수직 벽 계열 표면에서만 확정한다. 추가로 서버 잡기 확정 자체가 `MinGrabReachAlphaForAttachment` 이상일 때만 진행되도록 해 손이 올라가는 중 좌클릭 연타로 tether가 먼저 걸리는 경로를 막았다. 이후에도 남는 launch를 막기 위해 `WorldGrabTetherMaxUpwardSpeed`로 월드 tether 상승 보정 속도를 제한하고, 월드 잡기 해제 시 잔여 상승 속도를 제거한다. `git diff --check`와 충돌 표식 검색은 통과했고, `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 보류됐다.
+- 2026-08-21: 플레이어를 잡았을 때 잡힌 캐릭터가 잡는 캐릭터의 가상 reach 위치가 아니라 실제 잡는 손 bone/socket 위치를 기준으로 끌려오게 보강했다. `BuildHandGrabAnchorLocation()`이 `RightGrabHandBoneName`/`LeftGrabHandBoneName`의 Mesh 월드 위치를 우선 사용하고, 없을 때만 기존 `BuildHandGrabTargetLocation()`으로 fallback한다.
 
 ## 수동 작업
 
@@ -108,9 +109,10 @@
 - 팔이 계속 흐느적거려야 하면 Control Rig 뒤에 약한 AnimDynamics를 두되, `GrabReachAlpha`가 높을 때 alpha를 낮춘다.
 - 캐릭터 Physics Asset에 `hand_r`, `hand_l`과 잡힐 몸통/팔/머리 부위의 physics body를 설정한다.
 - 필요하면 `BP_SnowRumbleCharacter`에서 `PlayerGrabComponent`의 `GrabReachForwardDistance`, `GrabReachUpOffset`, `GrabReachSideOffset`, `GrabTraceRadius`를 모델 팔 길이에 맞춘다.
-- 보행 중 좌클릭으로 잡기 확정이 너무 민감하면 `MinGrabReachAlphaForAttachment` 또는 `WorldGrabMinReachHoldSeconds`를 올린다. 벽잡기가 너무 잘 안 잡히면 `MinGrabReachAlphaForAttachment`를 낮추거나 `WorldGrabMaxSurfaceNormalZ`, `WorldGrabMinAttachHeightFromActor`/`WorldGrabMaxAttachHeightFromActor` 범위를 조정한다.
+- 보행 중 좌클릭으로 잡기 확정이 너무 민감하면 `MinGrabReachAlphaForAttachment` 또는 `WorldGrabMinReachHoldSeconds`를 올린다. 벽잡기가 너무 잘 안 잡히면 `MinGrabReachAlphaForAttachment`를 낮추거나 `WorldGrabMaxSurfaceNormalZ`, `WorldGrabMinAttachHeightFromActor`/`WorldGrabMaxAttachHeightFromActor` 범위를 조정한다. 월드 잡기 중 위로 끌리는 힘이 강하면 `WorldGrabTetherMaxUpwardSpeed`를 낮춘다.
 - 손 올림/내림 속도는 `PlayerGrabComponent`의 `GrabReachRaiseInterpSpeed`, `GrabReachLowerInterpSpeed`로 조정한다.
 - 잡힌 몸이 따라오는 느낌은 `PlayerGrabComponent`의 `GrabTetherSlackDistance`, `GrabTetherPullStrength`, `GrabTetherMaxPullSpeed`, `GrabTetherVelocityDamping`으로 조정한다. 더 팽팽하게 붙이려면 slack을 낮추고 pull strength를 올린다.
+- 잡힌 몸이 따라오는 기준점은 `RightGrabHandBoneName`/`LeftGrabHandBoneName`의 실제 Mesh bone/socket 위치다. 손끝 socket을 따로 만들면 해당 이름으로 바꿔 더 끝부분 기준으로 끌 수 있고, 현재 기본값은 `hand_r`/`hand_l`이다.
 - 잡힌 플레이어의 입력감은 `GrabbedCharacterInputVelocityRetention`으로 조정한다. 낮출수록 잡은 손 위치에 더 강하게 묶이고, 높일수록 잡힌 플레이어 이동 입력이 더 잘 먹는다.
 - 잡힌 플레이어가 잡힌 손 위치를 바라보는 속도는 `GrabbedCharacterFacingInterpSpeed`로 조정한다.
 - 벽 매달림 위치는 `WorldGrabBodyBackOffset`, `WorldGrabBodyDownOffset`으로 조정하고, 매달림 강도는 `WorldGrabTetherSlackDistance`, `WorldGrabTetherPullStrength`, `WorldGrabTetherMaxPullSpeed`로 조정한다. 이동 입력이 너무 잘 먹으면 `WorldGrabInputVelocityRetention`을 낮추고, 입력감이 너무 죽으면 올린다.

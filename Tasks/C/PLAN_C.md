@@ -51,6 +51,7 @@
 | 26 | [C-26](C-26_snow_footstep_effect.md) | 눈 밟힘 효과 계약 | C-01 | 진행중 |
 | 27 | [C-27](C-27_snow_trail_render_target.md) | 눈길 RenderTarget 계약 | C-26 | 진행중 |
 | 28 | [C-28](C-28_player_grab_control_rig_foundation.md) | 플레이어 잡기와 Control Rig 기본틀 | C-24 | 진행중 |
+| 29 | [C-29](C-29_travel_url_and_loading_stability.md) | 전환 URL과 PvP 로딩 안정화 | C-04, C-05, C-17 | 진행중 |
 
 ## 통합 변경 요청
 
@@ -266,3 +267,4 @@
 - 2026-08-21: C-28 빈손 좌클릭 입력 우선순위를 조정했다. `ViewPitchAlpha`가 `SnowCreationPreferredViewPitchAlpha` 이하일 때는 잡기 reach를 시작하지 않고 기존 눈 제작 경로로 내려가며, 정면 이상을 볼 때는 잡기 reach를 우선한다. UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됐다.
 - 2026-08-21: C-28 카메라 좌우 시점에 따른 spine Control Rig 보정 계약을 추가했다. `ASnowRumbleCharacter`와 `USnowRumbleCharacterAnimInstance`가 `ViewYawDegrees`와 `ViewYawAlpha`를 제공하고, `ViewYawAlpha`는 왼쪽 -0.5, 정면 0, 오른쪽 0.5의 Lerp 값이며 정규화 범위는 `ViewYawAlphaRangeDegrees`로 조정한다. UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됐다.
 - 2026-08-21: C-28 잡기 상태 우클릭 연타 회귀를 보강했다. 벽잡기 또는 잡힌 상태에서는 조준 해제 이벤트가 들어와도 잡기용 회전 잠금이 유지되게 해 tether와 이동 방향 회전이 충돌하지 않도록 했다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-21: C-29 전환 안정화 Task를 추가했다. 로비->랜덤 PvP, PvP->포디움, 포디움->로비 travel URL에 목적 GameMode를 강제하고, PvP 로딩창은 모든 예상 플레이어 접속 후 3-2-1 카운트다운 1초 전에 닫히도록 조정했다.

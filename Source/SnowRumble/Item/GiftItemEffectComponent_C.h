@@ -123,7 +123,7 @@ protected:
 	float GoldenSnowDuckMakerDamageMultiplier = 1.25f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Golden Fish Bread", meta = (ClampMin = "0.0"))
-	float GoldenFishBreadHealPerSecond = 2.0f;
+	float GoldenFishBreadHealPerSecond = 10.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Golden Fish Bread", meta = (ClampMin = "0.0"))
 	float GoldenFishBreadDurationSeconds = 30.0f;

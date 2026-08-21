@@ -131,6 +131,9 @@ protected:
 	/** 팔 뻗기 목표 위치를 캐릭터 기준으로 계산한다. */
 	FVector BuildHandGrabTargetLocation(ESnowRumbleGrabHand Hand) const;
 
+	/** 실제 Mesh 손 bone/socket 위치를 우선 사용해 잡힌 대상을 끌 기준점을 계산한다. */
+	FVector BuildHandGrabAnchorLocation(ESnowRumbleGrabHand Hand) const;
+
 	ASnowRumbleCharacter* GetOwnerCharacter() const;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_IsGrabReaching, Category = "SnowRumble|Grab")
@@ -175,6 +178,12 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Trace", meta = (ClampMin = "0.0"))
 	float GrabTraceForwardDistance = 22.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Trace|Debug")
+	bool bDrawGrabTraceDebug = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Trace|Debug", meta = (ClampMin = "0.0"))
+	float GrabTraceDebugDrawSeconds = 0.05f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Trace", meta = (ClampMin = "0.0"))
 	float WorldGrabMinReachHoldSeconds = 0.15f;
@@ -229,6 +238,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0"))
 	float WorldGrabTetherMaxPullSpeed = 620.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0"))
+	float WorldGrabTetherMaxUpwardSpeed = 120.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float WorldGrabInputVelocityRetention = 0.55f;

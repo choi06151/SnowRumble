@@ -95,9 +95,9 @@ void AGiftBox::BeginPlay()
 	if (GoldBoxRewards.IsEmpty())
 	{
 		GoldBoxRewards.Add({
-			ESnowRumbleGiftItemType::HotPack,
-			TEXT("HotPack"),
-			NSLOCTEXT("SnowRumble", "GiftRewardHotPack", "핫팩"),
+			ESnowRumbleGiftItemType::GoldenHotPack,
+			TEXT("GoldenHotPack"),
+			NSLOCTEXT("SnowRumble", "GiftRewardGoldenHotPack", "황금 핫팩"),
 			nullptr});
 		GoldBoxRewards.Add({
 			ESnowRumbleGiftItemType::GoldenShovel,
