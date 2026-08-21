@@ -31,63 +31,40 @@ void USnowballEquipmentComponent::TickComponent(
 	}
 
 	if (Character->IsFrozen()
-		|| Character->IsPickingUpItem()
-		|| FVector::DistSquared2D(
-			Character->GetActorLocation(),
-			RollingSnowball->GetActorLocation())
-			> FMath::Square(MaximumRollingSeparation))
+		|| Character->IsPickingUpItem())
 	{
 		ServerStopRollingSnowball_Implementation();
 		return;
 	}
 
 	const FVector MovementDirection = Character->GetVelocity().GetSafeNormal2D();
-	if (MovementDirection.IsNearlyZero())
+	if (!MovementDirection.IsNearlyZero())
 	{
-		return;
+		LastRollingMovementDirection = MovementDirection;
 	}
 
 	const float RollingCollisionRadius =
 		RollingSnowball->GetRollingCollisionRadius();
-	const float MinimumRollingDistance =
-		Character->GetCapsuleComponent()->GetScaledCapsuleRadius()
-		+ RollingCollisionRadius
-		+ 2.0f;
-	const float EffectiveRollingDistance =
-		FMath::Max(RollingDistance, MinimumRollingDistance);
-	FVector TargetLocation =
-		Character->GetActorLocation()
-		+ MovementDirection * EffectiveRollingDistance;
-	TargetLocation.Z = RollingSnowball->GetActorLocation().Z;
+	const FVector TargetLocation =
+		BuildRollingSnowballTargetLocation(Character, RollingSnowball);
 
 	FHitResult RollingHit;
-	const bool bBlockedByObstacle =
+	bool bBlockedByObstacle =
 		Character->MoveRollingSnowballCollision(
 			TargetLocation,
 			RollingCollisionRadius,
 			RollingHit);
-	RollingSnowball->MoveRollingSnowball(
-		Character->GetRollingSnowballCollisionLocation());
 	if (bBlockedByObstacle)
 	{
-		FVector PushDirection = (
-			Character->GetActorLocation()
-			- RollingSnowball->GetActorLocation()).GetSafeNormal2D();
-		if (PushDirection.IsNearlyZero())
-		{
-			PushDirection = RollingHit.ImpactNormal.GetSafeNormal2D();
-		}
-		if (PushDirection.IsNearlyZero())
-		{
-			PushDirection = -MovementDirection;
-		}
-
-		Character->AddActorWorldOffset(
-			PushDirection * RollingObstaclePushSpeed * DeltaTime,
-			true);
+		Character->EnableRollingSnowballCollision(
+			TargetLocation,
+			RollingCollisionRadius);
+		bBlockedByObstacle = false;
 	}
-
+	RollingSnowball->MoveRollingSnowball(
+		Character->GetRollingSnowballCollisionLocation());
 	RollingSnowball->UpdateRollingGrowth();
+	RollingSnowball->ForceNetUpdate();
 }
 
 void USnowballEquipmentComponent::TryPickupSnowball()
@@ -109,6 +86,34 @@ bool USnowballEquipmentComponent::HasHeldSnowball() const
 ASnowballItem* USnowballEquipmentComponent::GetHeldSnowball() const
 {
 	return HeldSnowball;
+}
+
+bool USnowballEquipmentComponent::EquipCreatedSnowballFromServer(
+	ASnowballItem* CreatedSnowball)
+{
+	ASnowRumbleCharacter* Character = Cast<ASnowRumbleCharacter>(GetOwner());
+	if (!Character
+		|| !Character->HasAuthority()
+		|| Character->IsFrozen()
+		|| Character->IsPickingUpItem()
+		|| HasHeldSnowball()
+		|| !CreatedSnowball)
+	{
+		return false;
+	}
+
+	if (!CreatedSnowball->TrySetHeldBy(
+		Character,
+		Character->GetSnowballHoldPointForSnowball(CreatedSnowball)))
+	{
+		return false;
+	}
+
+	HeldSnowball = CreatedSnowball;
+	Character->NotifySnowballPickupSucceeded(IsHoldingLargeSnowball());
+	OnRep_HeldSnowball();
+	Character->ForceNetUpdate();
+	return true;
 }
 
 bool USnowballEquipmentComponent::IsHoldingLargeSnowball() const
@@ -198,7 +203,13 @@ bool USnowballEquipmentComponent::IsAiming() const
 
 bool USnowballEquipmentComponent::CanThrowHeldSnowball() const
 {
-	return HasHeldSnowball() && bIsAiming;
+	const ASnowRumbleCharacter* Character =
+		Cast<ASnowRumbleCharacter>(GetOwner());
+	const bool bCanUseDuckMakerDirectly =
+		Character && Character->HasEquippedSnowDuckMaker();
+	return HasHeldSnowball()
+		&& (bIsAiming || bCanUseDuckMakerDirectly)
+		&& !bHasPendingThrow;
 }
 
 void USnowballEquipmentComponent::StartCharging()
@@ -255,6 +266,24 @@ void USnowballEquipmentComponent::ReleaseChargedSnowball()
 	ServerReleaseChargedSnowball(ViewLocation, ViewDirection);
 }
 
+void USnowballEquipmentComponent::ConfirmPendingThrowFromAnimationNotify()
+{
+	APawn* OwningPawn = Cast<APawn>(GetOwner());
+	if (!OwningPawn
+		|| (!OwningPawn->HasAuthority() && !OwningPawn->IsLocallyControlled()))
+	{
+		return;
+	}
+
+	if (OwningPawn->HasAuthority())
+	{
+		ServerConfirmPendingThrowFromAnimationNotify_Implementation();
+		return;
+	}
+
+	ServerConfirmPendingThrowFromAnimationNotify();
+}
+
 void USnowballEquipmentComponent::CancelCharging()
 {
 	APawn* OwningPawn = Cast<APawn>(GetOwner());
@@ -265,6 +294,7 @@ void USnowballEquipmentComponent::CancelCharging()
 		return;
 	}
 
+	ClearPendingThrow();
 	SetChargingState(false);
 
 	if (!OwningPawn->HasAuthority())
@@ -401,10 +431,10 @@ void USnowballEquipmentComponent::ServerTryPickupSnowball_Implementation()
 
 	if (PickupCandidate->TrySetHeldBy(
 		Character,
-		Character->GetSnowballHoldPoint()))
+		Character->GetSnowballHoldPointForSnowball(PickupCandidate)))
 	{
 		HeldSnowball = PickupCandidate;
-		Character->NotifyItemPickupSucceeded();
+		Character->NotifySnowballPickupSucceeded(IsHoldingLargeSnowball());
 		OnRep_HeldSnowball();
 		Character->ForceNetUpdate();
 	}
@@ -500,27 +530,24 @@ void USnowballEquipmentComponent::ServerReleaseChargedSnowball_Implementation(
 				+ FVector::UpVector * LargeSnowballArcLift).GetSafeNormal()
 			: AimDirection;
 
-	ASnowballItem* SnowballToThrow = HeldSnowball;
 	SetChargingState(false);
 
-	if (!SnowballToThrow
-		|| !SnowballToThrow->Throw(
-			FinalThrowDirection,
-			ThrowSpeed,
-			ChargeProgress))
-	{
-		return;
-	}
-
-	HeldSnowball = nullptr;
-	bIsAiming = false;
-	OnRep_HeldSnowball();
-	OnRep_IsAiming();
+	bHasPendingThrow = true;
+	PendingThrowDirection = FinalThrowDirection;
+	PendingThrowSpeed = ThrowSpeed;
+	PendingThrowChargeProgress = ChargeProgress;
+	Character->NotifySnowballThrowSucceeded(bThrowingLargeSnowball);
 	Character->ForceNetUpdate();
+}
+
+void USnowballEquipmentComponent::ServerConfirmPendingThrowFromAnimationNotify_Implementation()
+{
+	ExecutePendingThrowFromServer();
 }
 
 void USnowballEquipmentComponent::ServerCancelCharging_Implementation()
 {
+	ClearPendingThrow();
 	SetChargingState(false);
 
 	if (AActor* OwningActor = GetOwner())
@@ -542,6 +569,7 @@ void USnowballEquipmentComponent::ServerDropHeldSnowball_Implementation()
 
 	SetChargingState(false);
 	SetAiming(false);
+	ClearPendingThrow();
 
 	ASnowballItem* SnowballToDrop = HeldSnowball;
 	if (!SnowballToDrop || !SnowballToDrop->DropToGround())
@@ -577,7 +605,23 @@ void USnowballEquipmentComponent::ServerStartRollingSnowball_Implementation()
 	Character->EnableRollingSnowballCollision(
 		RollingSnowball->GetActorLocation(),
 		RollingSnowball->GetRollingCollisionRadius());
+	LastRollingMovementDirection =
+		Character->GetActorForwardVector().GetSafeNormal2D();
+	if (LastRollingMovementDirection.IsNearlyZero())
+	{
+		LastRollingMovementDirection = FVector::ForwardVector;
+	}
+	const FVector InitialTargetLocation =
+		BuildRollingSnowballTargetLocation(Character, RollingSnowball);
+	FHitResult InitialRollingHit;
+	Character->MoveRollingSnowballCollision(
+		InitialTargetLocation,
+		RollingSnowball->GetRollingCollisionRadius(),
+		InitialRollingHit);
+	RollingSnowball->MoveRollingSnowball(
+		Character->GetRollingSnowballCollisionLocation());
 	Character->ForceNetUpdate();
+	RollingSnowball->ForceNetUpdate();
 }
 
 void USnowballEquipmentComponent::ServerStopRollingSnowball_Implementation()
@@ -639,6 +683,43 @@ float USnowballEquipmentComponent::GetCurrentMaximumChargeSeconds() const
 		: MaximumChargeSeconds;
 }
 
+FVector USnowballEquipmentComponent::BuildRollingSnowballTargetLocation(
+	const ASnowRumbleCharacter* Character,
+	const ASnowballItem* Snowball) const
+{
+	if (!Character || !Snowball)
+	{
+		return FVector::ZeroVector;
+	}
+
+	FVector RollingDirection = LastRollingMovementDirection.GetSafeNormal2D();
+	if (RollingDirection.IsNearlyZero())
+	{
+		RollingDirection = Character->GetActorForwardVector().GetSafeNormal2D();
+	}
+	if (RollingDirection.IsNearlyZero())
+	{
+		RollingDirection = FVector::ForwardVector;
+	}
+
+	const UCapsuleComponent* CapsuleComponent =
+		Character->GetCapsuleComponent();
+	const float CharacterRadius = CapsuleComponent
+		? CapsuleComponent->GetScaledCapsuleRadius()
+		: 0.0f;
+	const float RollingCollisionRadius = Snowball->GetRollingCollisionRadius();
+	const float MinimumRollingDistance =
+		CharacterRadius + RollingCollisionRadius + 2.0f;
+	const float EffectiveRollingDistance =
+		FMath::Max(RollingDistance, MinimumRollingDistance);
+
+	FVector TargetLocation =
+		Character->GetActorLocation()
+		+ RollingDirection * EffectiveRollingDistance;
+	TargetLocation.Z = Snowball->GetActorLocation().Z;
+	return TargetLocation;
+}
+
 bool USnowballEquipmentComponent::FindServerAimTarget(
 	const FVector& ViewLocation,
 	const FVector& ViewDirection,
@@ -673,6 +754,49 @@ bool USnowballEquipmentComponent::FindServerAimTarget(
 		QueryParams);
 	OutAimTarget = bHit ? AimHit.ImpactPoint : TraceEnd;
 	return true;
+}
+
+void USnowballEquipmentComponent::ExecutePendingThrowFromServer()
+{
+	ASnowRumbleCharacter* Character = Cast<ASnowRumbleCharacter>(GetOwner());
+	if (!Character
+		|| !Character->HasAuthority()
+		|| Character->IsFrozen()
+		|| !bHasPendingThrow
+		|| !HeldSnowball)
+	{
+		ClearPendingThrow();
+		return;
+	}
+
+	ASnowballItem* SnowballToThrow = HeldSnowball;
+	const FVector ThrowDirection = PendingThrowDirection;
+	const float ThrowSpeed = PendingThrowSpeed;
+	const float ThrowChargeProgress = PendingThrowChargeProgress;
+
+	ClearPendingThrow();
+
+	if (!SnowballToThrow->Throw(
+		ThrowDirection,
+		ThrowSpeed,
+		ThrowChargeProgress))
+	{
+		return;
+	}
+
+	HeldSnowball = nullptr;
+	bIsAiming = false;
+	OnRep_HeldSnowball();
+	OnRep_IsAiming();
+	Character->ForceNetUpdate();
+}
+
+void USnowballEquipmentComponent::ClearPendingThrow()
+{
+	bHasPendingThrow = false;
+	PendingThrowDirection = FVector::ZeroVector;
+	PendingThrowSpeed = 0.0f;
+	PendingThrowChargeProgress = 0.0f;
 }
 
 void USnowballEquipmentComponent::SetChargingState(bool bNewCharging)

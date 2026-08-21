@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "../Player/SnowRumbleCustomizationData_C.h"
 #include "Blueprint/UserWidget.h"
+#include "Styling/SlateTypes.h"
 #include "CustomizationWidget_C.generated.h"
 
 class ACustomizationPlayerController;
@@ -41,7 +42,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization")
 	ESnowRumbleCustomizationPage GetCurrentCustomizationPage() const;
 
-	/** WBP 색상 버튼이나 컬러 피커가 프리뷰 몸 색을 바꿀 때 호출한다. */
+	/** WBP 색상 버튼이 프리뷰 몸 색을 바꿀 때 호출한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
 	void SetPreviewBodyColor(FLinearColor NewBodyColor);
 
@@ -100,17 +101,44 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
 	TObjectPtr<UButton> HatModeButton;
 
-	/** 색칠하기 페이지에서 언리얼 기본 컬러 피커를 여는 버튼이다. */
+	/** 이전 WBP 호환용 선택 버튼이다. 새 팔레트 UI에서는 배치하지 않는다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
 	TObjectPtr<UButton> BrushColorButton;
 
-	/** 현재 브러시 색을 보여주는 Border다. */
+	/** 이전 WBP 호환용 현재 색 Border다. 새 팔레트 UI에서는 배치하지 않는다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
 	TObjectPtr<UBorder> BrushColorPreviewBorder;
 
-	/** 현재 브러시 색을 보여주는 Image다. Border 대신 이 이름을 써도 된다. */
+	/** 이전 WBP 호환용 현재 색 Image다. 새 팔레트 UI에서는 배치하지 않는다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
 	TObjectPtr<UImage> BrushColorPreviewImage;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> RedBrushColorButton;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> OrangeBrushColorButton;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> YellowBrushColorButton;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> GreenBrushColorButton;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> BlueBrushColorButton;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> IndigoBrushColorButton;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> PurpleBrushColorButton;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> BlackBrushColorButton;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> WhiteBrushColorButton;
 
 	/** 누른 상태에서 마우스 휠로 브러시 크기를 조정하는 버튼이다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
@@ -161,6 +189,33 @@ private:
 	void HandleBrushColorButtonClicked();
 
 	UFUNCTION()
+	void HandleRedBrushColorButtonClicked();
+
+	UFUNCTION()
+	void HandleOrangeBrushColorButtonClicked();
+
+	UFUNCTION()
+	void HandleYellowBrushColorButtonClicked();
+
+	UFUNCTION()
+	void HandleGreenBrushColorButtonClicked();
+
+	UFUNCTION()
+	void HandleBlueBrushColorButtonClicked();
+
+	UFUNCTION()
+	void HandleIndigoBrushColorButtonClicked();
+
+	UFUNCTION()
+	void HandlePurpleBrushColorButtonClicked();
+
+	UFUNCTION()
+	void HandleBlackBrushColorButtonClicked();
+
+	UFUNCTION()
+	void HandleWhiteBrushColorButtonClicked();
+
+	UFUNCTION()
 	void HandleBrushSizeButtonPressed();
 
 	UFUNCTION()
@@ -199,6 +254,16 @@ private:
 	void BindCustomizationButtons();
 	void UnbindCustomizationButtons();
 	void RefreshPaintBrushPreview();
+	void SetPaintBrushColorFromPalette(FLinearColor NewBrushColor);
+	void SetPaintBrushColorFromPaletteButton(
+		UButton* Button,
+		FLinearColor FallbackColor);
+	FLinearColor GetPaletteButtonBrushColor(
+		UButton* Button,
+		FLinearColor FallbackColor);
+	void UnbindPaletteColorButton(UButton* Button);
+	void RefreshPaletteButtonSelection();
+	void SetButtonPressedVisual(UButton* Button, bool bSelected);
 	int32 GetSwitcherIndexForPage(ESnowRumbleCustomizationPage Page) const;
 
 	UPROPERTY(Transient)
@@ -208,4 +273,6 @@ private:
 		ESnowRumbleCustomizationPage::Main;
 
 	bool bIsBrushSizeButtonPressed = false;
+
+	TMap<UButton*, FButtonStyle> DefaultPaletteButtonStyles;
 };

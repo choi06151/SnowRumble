@@ -18,6 +18,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/SkinnedAsset.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerStart.h"
 #include "Kismet/GameplayStatics.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
@@ -63,6 +64,7 @@ void ACustomizationPlayerController::PlayerTick(float DeltaTime)
 
 	if (IsLocalController())
 	{
+		ApplyCustomizationInputLock();
 		UpdatePreviewRotation(DeltaTime);
 		UpdatePaintUndoInput();
 		UpdatePaintInput();
@@ -89,14 +91,16 @@ void ACustomizationPlayerController::ShowCustomizationMenu()
 	}
 	Widget->SetKeyboardFocus();
 
-	bShowMouseCursor = true;
-	EnsureMouseCursorWidgets();
-	ApplyCurrentMouseCursorWidget();
 	FInputModeGameAndUI InputMode;
 	InputMode.SetWidgetToFocus(Widget->TakeWidget());
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	InputMode.SetHideCursorDuringCapture(false);
 	SetInputMode(InputMode);
+
+	bShowMouseCursor = true;
+	ApplyCustomizationInputLock();
+	EnsureMouseCursorWidgets();
+	ApplyCurrentMouseCursorWidget();
 }
 
 void ACustomizationPlayerController::ReturnToMainMenu()
@@ -473,6 +477,7 @@ ACustomizationPlayerController::EnsurePreviewCharacter()
 				if (HasAuthority() && !Candidate->GetController())
 				{
 					Possess(Candidate);
+					ApplyCustomizationInputLock();
 				}
 				return Candidate;
 			}
@@ -488,6 +493,7 @@ ACustomizationPlayerController::EnsurePreviewCharacter()
 			if (HasAuthority() && !Candidate->GetController())
 			{
 				Possess(Candidate);
+				ApplyCustomizationInputLock();
 			}
 			return Candidate;
 		}
@@ -525,6 +531,7 @@ ACustomizationPlayerController::EnsurePreviewCharacter()
 		GetPreviewCharacterSpawnTransform());
 	CachedPreviewCharacter = SpawnedPreviewCharacter;
 	Possess(SpawnedPreviewCharacter);
+	ApplyCustomizationInputLock();
 	return SpawnedPreviewCharacter;
 }
 
@@ -862,9 +869,8 @@ bool ACustomizationPlayerController::GetPaintCursorScreenPosition(
 
 	if (bUsePaintCursorCenterTraceOffset)
 	{
-		const float CursorRadius = GetPaintCursorDiameter() * 0.5f;
-		OutMouseX += CursorRadius * ViewportScale;
-		OutMouseY += CursorRadius * ViewportScale;
+		OutMouseX += PaintCursorCenterTraceOffset.X;
+		OutMouseY += PaintCursorCenterTraceOffset.Y;
 	}
 
 	OutMouseX += PaintCursorScreenOffset.X;
@@ -1162,11 +1168,21 @@ void ACustomizationPlayerController::AddPaintPoint(
 		return;
 	}
 
-	if (!ActivePaintStroke.Points.IsEmpty()
-		&& FVector2D::Distance(ActivePaintStroke.Points.Last(), PaintUv)
-			< PaintPointMinDistance)
+	if (!ActivePaintStroke.Points.IsEmpty())
 	{
-		return;
+		const float PointDistance =
+			FVector2D::Distance(ActivePaintStroke.Points.Last(), PaintUv);
+		if (PointDistance < PaintPointMinDistance)
+		{
+			return;
+		}
+		if (PaintPointMaxDistance > 0.0f
+			&& PointDistance > PaintPointMaxDistance)
+		{
+			FinishPaintStroke();
+			BeginPaintStroke(PaintUv, MeshComponentName, MaterialIndex);
+			return;
+		}
 	}
 
 	ActivePaintStroke.Points.Add(PaintUv);
@@ -1351,19 +1367,63 @@ void ACustomizationPlayerController::ApplyCurrentMouseCursorWidget()
 		return;
 	}
 
+	bShowMouseCursor = true;
+	DefaultMouseCursor = EMouseCursor::Default;
+	CurrentMouseCursor = EMouseCursor::Default;
 	EnsureMouseCursorWidgets();
+	UpdatePaintMouseCursorPresentation();
+
+	if (!bIsPaintCursorActive)
+	{
+		SetMouseCursorWidget(EMouseCursor::Default, nullptr);
+		return;
+	}
+
 	UUserWidget* TargetCursorWidget = bIsPaintCursorActive
 		? PaintMouseCursorWidget
 		: DefaultMouseCursorWidget;
 	if (!TargetCursorWidget)
 	{
+		SetMouseCursorWidget(EMouseCursor::Default, nullptr);
 		return;
 	}
 
 	SetMouseCursorWidget(EMouseCursor::Default, TargetCursorWidget);
-	DefaultMouseCursor = EMouseCursor::Default;
-	CurrentMouseCursor = EMouseCursor::Default;
 	UpdatePaintMouseCursorPresentation();
+}
+
+void ACustomizationPlayerController::ApplyCustomizationInputLock()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (!IsMoveInputIgnored())
+	{
+		SetIgnoreMoveInput(true);
+	}
+	if (!IsLookInputIgnored())
+	{
+		SetIgnoreLookInput(true);
+	}
+	bShowMouseCursor = true;
+
+	if (APawn* ControlledPawn = GetPawn())
+	{
+		if (UCharacterMovementComponent* MovementComponent =
+			ControlledPawn->FindComponentByClass<UCharacterMovementComponent>())
+		{
+			MovementComponent->StopMovementImmediately();
+			MovementComponent->Velocity = FVector::ZeroVector;
+			MovementComponent->GravityScale = 0.0f;
+			MovementComponent->MaxWalkSpeed = 0.0f;
+			if (MovementComponent->MovementMode != MOVE_None)
+			{
+				MovementComponent->DisableMovement();
+			}
+		}
+	}
 }
 
 void ACustomizationPlayerController::UpdatePaintMouseCursorPresentation()

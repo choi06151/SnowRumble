@@ -21,7 +21,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogSnowmanMode, Log, All);
 
 namespace
 {
-FVector MakeRandomHorizontalOffset(float Radius)
+FVector MakeSnowmanModeRandomHorizontalOffset(float Radius)
 {
 	if (Radius <= 0.0f)
 	{
@@ -113,6 +113,14 @@ void ASnowmanModeGameMode::InitGame(
 void ASnowmanModeGameMode::PostLogin(APlayerController* NewPlayer)
 {
 	Super::PostLogin(NewPlayer);
+
+	BroadcastLoadingProgress();
+	TryDismissLoadingScreens();
+}
+
+void ASnowmanModeGameMode::HandleSeamlessTravelPlayer(AController*& C)
+{
+	Super::HandleSeamlessTravelPlayer(C);
 
 	BroadcastLoadingProgress();
 	TryDismissLoadingScreens();
@@ -1385,7 +1393,8 @@ FTransform ASnowmanModeGameMode::BuildScatteredPlayerStartTransform(
 	{
 		const FVector CandidateLocation =
 			StartLocation
-			+ MakeRandomHorizontalOffset(PlayerStartSpawnScatterRadius);
+			+ MakeSnowmanModeRandomHorizontalOffset(
+				PlayerStartSpawnScatterRadius);
 		if (IsSpawnLocationFarEnough(CandidateLocation))
 		{
 			return FTransform(StartRotation, CandidateLocation);
@@ -1395,7 +1404,8 @@ FTransform ASnowmanModeGameMode::BuildScatteredPlayerStartTransform(
 	return FTransform(
 		StartRotation,
 		StartLocation
-			+ MakeRandomHorizontalOffset(PlayerStartSpawnScatterRadius));
+			+ MakeSnowmanModeRandomHorizontalOffset(
+				PlayerStartSpawnScatterRadius));
 }
 
 bool ASnowmanModeGameMode::IsSpawnLocationFarEnough(

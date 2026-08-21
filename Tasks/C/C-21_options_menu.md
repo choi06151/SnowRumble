@@ -20,6 +20,7 @@
   - 옵션 메뉴에서 뒤로가기 또는 닫기 버튼으로 이전 화면 흐름으로 돌아간다.
   - 로비에서 옵션을 닫으면 로비 ESC 메뉴 또는 로비 UI 흐름으로 복귀한다.
   - 메인메뉴에서 옵션을 닫으면 메인메뉴 흐름으로 복귀한다.
+- 로비 ESC 메뉴와 로비 옵션 메뉴는 공용 UI 입력 전환 경로를 사용해 마우스 커서와 클릭/호버 이벤트를 함께 켠다.
 - 설정 저장:
   - 옵션 값은 로컬 사용자 설정으로 저장한다.
   - 네트워크로 복제하지 않는다.
@@ -77,6 +78,7 @@
 - [x] 현재 인게임 플레이어 목록 기준으로 음소거 대상 행을 동적 생성한다.
 - [x] 각 플레이어 행의 버튼으로 로컬 수동 음소거 상태를 토글한다.
 - [x] 옵션 메뉴의 카테고리와 마이크 방식 버튼은 현재 선택값이면 눌린 상태처럼 표시한다.
+- [x] 로비 ESC/F10 메뉴와 로비 옵션 메뉴를 열 때 마우스 커서가 보이게 한다.
 
 ## 작업 배정
 
@@ -215,6 +217,8 @@
 - 2026-08-11: 마이크 채널 전환 기본 키를 `M`에서 `N`으로 옮기고, `M`은 플레이어 지정 음소거 입력으로 분리했다. 캐릭터 Blueprint에는 `MicrophoneChannelToggleAction`과 `VoiceTargetMuteAction` 슬롯을 추가했고, PlayerController에는 `RequestVoiceChannelToggle()`, `RequestVoiceTargetMute()`, `OnVoiceTargetMuteRequested()` 진입점을 추가했다.
 - 2026-08-11: `M` 플레이어 지정 음소거 메뉴를 추가했다. `UVoiceMuteMenuWidget`은 현재 `GameState->PlayerArray` 기준으로 로컬 플레이어를 제외한 플레이어 행을 만들고, `UVoiceMutePlayerRowWidget`의 `MuteButton`은 로컬 수동 음소거 목록과 `GameplayMutePlayer()`/`GameplayUnmutePlayer()`를 토글한다. `FUniqueNetIdRepl::ToString()` 링크 오류를 피하도록 로컬 수동 음소거 키를 PlayerId와 이름 기반으로 바꾸고, `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
 - 2026-08-11: 키 설정 목록이 길어져 `KeyBindingListBox` 바인딩 타입을 `UPanelWidget`으로 일반화했다. 기존 VerticalBox와 새 ScrollBox 모두 같은 이름으로 바인딩해 키 설정 행을 동적으로 추가할 수 있다.
+- 2026-08-19: 로비에서 ESC/F10 메뉴가 열려도 마우스 커서가 보이지 않고 화면이 움직이는 문제를 수정했다. 로비 ESC 메뉴와 로비 옵션 메뉴는 하드웨어 기본 커서를 명시적으로 쓰고 `UIOnly` 입력 모드로 열린다. `ASnowRumblePlayerController::IsGameplayUiInputOpen()` 공용 조회를 추가하고, `ALobbyPlayerController`는 로비 ESC/옵션 메뉴가 열려 있으면 true를 반환해 캐릭터 Move/Look/Zoom/GameplayAction 경로를 차단한다.
+- 2026-08-19: 로비 ESC/F10 커서와 카메라 입력 차단 변경은 `git diff --check`, UHT, C++ 컴파일을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
 
 ## 수동 작업
 

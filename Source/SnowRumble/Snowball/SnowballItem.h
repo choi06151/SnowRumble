@@ -54,6 +54,11 @@ public:
 	/** 서버가 굴리기 충돌 프록시의 확정 위치로 눈덩이를 무충돌 이동한다. */
 	void MoveRollingSnowball(const FVector& TargetLocation);
 
+	/** 서버가 확인한 눈 표면에 눈덩이를 물리 낙하 없이 고정한다. */
+	void SettleOnGroundFromSurface(
+		const FVector& SurfacePoint,
+		const FVector& SurfaceNormal);
+
 	/** 서버가 마지막 확인 위치부터 실제 이동한 거리를 성장값에 누적한다. */
 	void UpdateRollingGrowth();
 
@@ -67,6 +72,9 @@ public:
 
 	/** 현재 성장 크기가 적용된 굴리기 충돌 반지름을 반환한다. */
 	float GetRollingCollisionRadius() const;
+
+	/** 생성 직후 지정 Actor와 잠시 충돌하지 않도록 한다. */
+	void IgnoreActorTemporarily(AActor* ActorToIgnore, float DurationSeconds);
 
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
 	ESnowballItemState GetItemState() const;
@@ -97,6 +105,9 @@ protected:
 	/** 현재 상태와 보유자를 사용해 로컬 액터 부착과 충돌을 적용한다. */
 	void RefreshStatePresentation();
 
+	/** 서버가 현재 위치 아래 바닥을 찾아 눈덩이를 안정적으로 올려놓는다. */
+	bool TrySettleOnGroundBelow(AActor* ActorToIgnore);
+
 	/** 초기 크기를 기준으로 현재 성장값의 Actor Scale을 적용한다. */
 	void ApplyGrowthScale();
 
@@ -115,6 +126,10 @@ protected:
 
 	/** 서버에서 처음 확인한 투척 충돌의 피해, 이펙트와 제거를 처리한다. */
 	void HandleThrownImpact(AActor* OtherActor, const FHitResult& Hit);
+
+	/** 임시 충돌 무시가 끝난 Actor를 다시 충돌 대상으로 복구한다. */
+	void RestoreTemporarilyIgnoredActor(
+		TWeakObjectPtr<AActor> IgnoredActor);
 
 	/** 서버가 확정한 충돌 이펙트를 모든 참가자 화면에서 재생한다. */
 	UFUNCTION(NetMulticast, Reliable)
@@ -170,6 +185,15 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Growth", meta = (ClampMin = "1.0"))
 	float DistanceForMaximumGrowth = 1000.0f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Grounding", meta = (ClampMin = "0.0"))
+	float GroundSettleTraceUpDistance = 120.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Grounding", meta = (ClampMin = "0.0"))
+	float GroundSettleTraceDownDistance = 500.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Grounding", meta = (ClampMin = "0.0"))
+	float GroundSettleExtraClearance = 0.5f;
+
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemState, Category = "SnowRumble|Snowball")
 	ESnowballItemState ItemState = ESnowballItemState::Ground;
 
@@ -183,11 +207,15 @@ protected:
 	float GrowthProgress = 0.0f;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_IsSettledOnGround, Category = "SnowRumble|Snowball")
-	bool bIsSettledOnGround = false;
+	bool bIsSettledOnGround = true;
 
 	FVector InitialActorScale = FVector::OneVector;
 	FVector LastRollingLocation = FVector::ZeroVector;
 	float AccumulatedRollingDistance = 0.0f;
 	bool bHasProcessedThrownImpact = false;
 	float CurrentThrowChargeProgress = 0.0f;
+
+	TSet<TWeakObjectPtr<AActor>> TemporarilyIgnoredActors;
+	ECollisionResponse CachedPawnCollisionResponse = ECR_Block;
+	bool bTemporarilyIgnoringPawnCollision = false;
 };

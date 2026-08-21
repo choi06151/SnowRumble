@@ -4,8 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "../Interaction/LobbyInteractionBoard_C.h"
+#include "../Item/GiftItemTypes_C.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "GameFramework/Character.h"
+#include "SnowRumbleCharacterAnimationTypes_C.h"
 #include "SnowRumbleCharacter.generated.h"
 
 class UCameraComponent;
@@ -14,12 +16,14 @@ class UInputAction;
 class UInputMappingContext;
 class UAnimMontage;
 class UEmoteRadialMenuWidget;
+class UGiftItemEffectComponent;
 class UInteractionPromptWidget;
 class UMainHUDWidget;
 class UMaterialInstanceDynamic;
 class UOverheadNameplateWidget;
 class UNiagaraComponent;
 class UOutlineComponent;
+class UPlayerGrabComponent;
 class USceneComponent;
 class USphereComponent;
 class UStaticMesh;
@@ -34,6 +38,8 @@ class UTexture;
 class UWidgetInteractionComponent;
 class UWidgetComponent;
 class AController;
+class AGiftBox;
+class AGiftBoxItemPickup;
 class ALobbyInteractionBoard;
 class ASnowballItem;
 struct FDamageEvent;
@@ -60,6 +66,16 @@ enum class ESnowRumbleTimedActionState : uint8
 	None,
 	CreatingSnowball,
 	RollingSnowball
+};
+
+UENUM(BlueprintType)
+enum class ESnowRumbleHeldAnimationState : uint8
+{
+	BareHands,
+	SmallSnowball,
+	LargeSnowball,
+	SnowShovel,
+	SnowDuckMaker
 };
 
 UCLASS()
@@ -104,6 +120,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
 	ESnowballCarryState GetSnowballCarryState() const;
 
+	/** Animation Blueprint에서 맨손, 눈덩이, 장착 도구 자세를 한 값으로 구분한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
+	ESnowRumbleHeldAnimationState GetHeldAnimationState() const;
+
 	/** Animation Blueprint에서 운반 상태와 별개인 눈덩이 행동 상태를 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
 	ESnowballActionState GetSnowballActionState() const;
@@ -128,6 +148,84 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
 	bool IsPickingUpItem() const;
 
+	/** Animation Blueprint에서 선물상자와 선물 아이템 상호작용 중인지 확인한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
+	bool IsInteractingWithItem() const;
+
+	/** Animation Blueprint에서 피격 반응 중인지 확인한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
+	bool IsHitReacting() const;
+
+	/** Animation Blueprint와 Control Rig에서 팔 뻗기 잡기 상태인지 확인한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	bool IsGrabReaching() const;
+
+	/** Animation Blueprint와 Control Rig에서 현재 다른 캐릭터를 잡았는지 확인한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	bool IsGrabbingCharacter() const;
+
+	/** Animation Blueprint와 Control Rig에서 손이 캐릭터나 월드에 붙었는지 확인한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	bool IsGrabAttached() const;
+
+	/** Animation Blueprint와 Control Rig에서 벽이나 월드 오브젝트에 매달린 상태인지 확인한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	bool IsHangingFromWorldGrab() const;
+
+	/** Animation Blueprint와 Control Rig에서 이 캐릭터가 다른 캐릭터에게 잡혔는지 확인한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	bool IsGrabbedByCharacter() const;
+
+	/** Control Rig가 붙은 손을 고정할 월드 위치를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	FVector GetGrabAttachedWorldLocation() const;
+
+	/** Control Rig가 사용할 오른손 잡기 목표 월드 위치를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	FVector GetRightHandGrabTargetLocation() const;
+
+	/** Control Rig가 사용할 왼손 잡기 목표 월드 위치를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	FVector GetLeftHandGrabTargetLocation() const;
+
+	/** 잡기 손 IK와 AnimDynamics 보간에 사용할 0~1 alpha를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	float GetGrabReachAlpha() const;
+
+	/** Control Rig spine 보정에 사용할 현재 시점 pitch 각도를 -180~180 범위로 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
+	float GetViewPitchDegrees() const;
+
+	/** Control Rig spine 보정에 사용할 현재 시점 pitch를 0~1 값으로 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
+	float GetViewPitchAlpha() const;
+
+	/** Control Rig spine 보정에 사용할 현재 시점 yaw 차이를 -180~180 범위로 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
+	float GetViewYawDegrees() const;
+
+	/** Control Rig spine 보정에 사용할 현재 시점 yaw 차이를 -0.5~0.5 값으로 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
+	float GetViewYawAlpha() const;
+
+	/** 잡기 컴포넌트가 서버와 로컬에서 잡기 reach를 시작할 수 있는지 확인한다. */
+	bool CanStartPlayerGrabReach() const;
+
+	/** 빈손 좌클릭에서 잡기 대신 눈 제작을 우선할 만큼 아래를 보는지 확인한다. */
+	bool ShouldPreferSnowCreationOverGrab() const;
+
+	/** 서버가 이 캐릭터를 잡힌 상태로 만들고 이동을 잠근다. */
+	void ApplyGrabbedByCharacter(ASnowRumbleCharacter* GrabbingCharacter);
+
+	/** 서버가 이 캐릭터의 잡힌 상태와 이동 잠금을 해제한다. */
+	void ClearGrabbedByCharacter(ASnowRumbleCharacter* ExpectedGrabbingCharacter);
+
+	/** 서버가 벽잡기 매달림 상태에 맞춰 입력과 이동 상태를 정리한다. */
+	void HandleWorldGrabChanged(bool bNewWorldGrab);
+
+	/** 잡기 손 목표 위치를 계산할 몸통 기준 높이를 반환한다. */
+	float GetGrabReachOriginHeight() const;
+
 	/** UI에서 사용할 0~1 정규화된 눈덩이 제작 진행도를 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
 	float GetSnowballCreationProgress() const;
@@ -148,12 +246,24 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Emote")
 	void RequestPlayEmote(int32 EmoteIndex);
 
+	/** AnimNotify나 Blueprint에서 발이 닿은 순간 호출해 눈 밟힘 표현을 요청한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Footstep")
+	void RequestSnowFootstepEffect(FName FootSocketName);
+
+	/** 던지기 몽타주의 AnimNotify 시점에 보류 중인 눈덩이 투척을 확정한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snowball")
+	void RequestSnowballThrowReleaseFromNotify();
+
 	/** 로컬 플레이어 화면에서 이모션 원형 메뉴를 닫고 게임 입력으로 복구한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Emote|UI")
 	void CloseEmoteRadialMenu();
 
 	/** 눈덩이를 부착할 캐릭터의 조정 가능한 장착 위치를 반환한다. */
 	USceneComponent* GetSnowballHoldPoint() const;
+
+	/** 눈덩이 크기에 맞는 캐릭터의 조정 가능한 장착 위치를 반환한다. */
+	USceneComponent* GetSnowballHoldPointForSnowball(
+		const ASnowballItem* Snowball) const;
 
 	/** 서버에서 굴리기 전용 충돌 프록시를 눈덩이 위치와 크기로 활성화한다. */
 	void EnableRollingSnowballCollision(
@@ -175,6 +285,33 @@ public:
 	/** 서버에서 아이템 획득 성공 애니메이션 상태를 시작한다. */
 	void NotifyItemPickupSucceeded();
 
+	/** 서버에서 눈덩이 획득 성공 one-shot 애니메이션을 포함해 상태를 시작한다. */
+	void NotifySnowballPickupSucceeded(bool bWasLargeSnowball);
+
+	/** 서버에서 눈덩이 던지기 성공 one-shot 애니메이션을 모든 화면에 요청한다. */
+	void NotifySnowballThrowSucceeded(bool bWasLargeSnowball);
+
+	/** 서버에서 선물상자나 선물 아이템 상호작용 성공 애니메이션 상태를 시작한다. */
+	void NotifyItemInteractionSucceeded();
+
+	/** 서버에서 선물상자 아이템 효과를 캐릭터에 적용한다. */
+	bool ApplyGiftBoxItemEffectFromServer(ESnowRumbleGiftItemType ItemType);
+
+	/** 서버가 단판 승부 비참가자를 관전자 상태로 전환한다. */
+	void SetTiebreakerSpectatorFromServer(bool bNewTiebreakerSpectator);
+
+	/** 서버가 물 침수 중 점프 차단 상태를 갱신한다. */
+	void SetWaterSubmergedFromServer(bool bNewWaterSubmerged);
+
+	/** 현재 아이템 효과 기준 눈덩이 제작 시간 배율을 반환한다. */
+	float GetSnowballCreationDurationMultiplier() const;
+
+	/** 현재 아이템 효과 기준 눈덩이 피해 배율을 반환한다. */
+	float GetSnowballDamageMultiplier() const;
+
+	/** 현재 눈오리 제작기 또는 황금 눈오리 제작기를 장착 중인지 확인한다. */
+	bool HasEquippedSnowDuckMaker() const;
+
 	/** 보유 장비가 바뀌면 스프린트와 현재 최대 이동속도를 다시 적용한다. */
 	void RefreshHeldEquipmentMovementState();
 
@@ -184,6 +321,12 @@ public:
 		FDamageEvent const& DamageEvent,
 		AController* EventInstigator,
 		AActor* DamageCauser) override;
+
+	/** 로컬 화면에서만 피격 화면 이펙트와 카메라 흔들림을 재생한다. */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Damage")
+	void OnLocalDamageFeedbackRequested(
+		float AppliedDamage,
+		FVector DamageCauserLocation);
 
 	/** 머리 위 이름표 WBP가 표시할 닉네임을 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Identity")
@@ -378,11 +521,48 @@ protected:
 
 	void RefreshCustomizationHatMesh();
 
+	/** 목도리 Mesh를 캐릭터 Mesh 소켓에 붙이고 표시 상태를 갱신한다. */
+	void RefreshScarfMesh();
+
+	/** 현재 팀 색을 목도리 Dynamic Material에 반영한다. */
+	void RefreshScarfTeamColorMaterial();
+
+	/** 로컬 피격 카메라 흔들림 오프셋을 계산한다. */
+	FVector CalculateLocalDamageCameraShakeOffset() const;
+
+	UFUNCTION()
+	void HandleGiftItemEffectsChanged();
+
+	/** 복제된 아이템 효과 상태와 소켓 설정에 맞춰 장비 외형 슬롯 Mesh를 갱신한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Item|Equipment Visual")
+	void RefreshGiftItemEquipmentMeshes();
+
+	/** 장비 외형 슬롯을 캐릭터 Mesh 소켓에 맞춰 붙이고 표시 상태를 갱신한다. */
+	void RefreshGiftItemEquipmentMeshSlot(
+		UStaticMeshComponent* SlotComponent,
+		UStaticMesh* SlotMesh,
+		FName AttachSocketName,
+		const FVector& RelativeLocation,
+		const FRotator& RelativeRotation,
+		const FVector& RelativeScale) const;
+
 	/** 로컬 플레이어가 상호작용할 가장 가까운 로비 게시판을 찾는다. */
 	ALobbyInteractionBoard* FindClosestLobbyBoardCandidate() const;
 
+	/** 로컬 플레이어가 상호작용할 가장 가까운 선물상자를 찾는다. */
+	AGiftBox* FindClosestGiftBoxCandidate() const;
+
+	/** 로컬 플레이어가 상호작용할 가장 가까운 선물상자 아이템을 찾는다. */
+	AGiftBoxItemPickup* FindClosestGiftBoxItemPickupCandidate() const;
+
 	/** 소유 플레이어가 가까운 로비 게시판 상호작용을 서버에 요청한다. */
 	void TryInteractWithLobbyBoard();
+
+	/** 소유 플레이어가 가까운 선물상자 개봉을 서버에 요청한다. */
+	void TryInteractWithGiftBox();
+
+	/** 소유 플레이어가 가까운 선물상자 아이템 획득을 서버에 요청한다. */
+	void TryPickupGiftBoxItem();
 
 	/** 로컬 플레이어 화면의 로비 게시판 카메라 포커스를 원래 캐릭터 카메라로 복구한다. */
 	void ClearLobbyBoardFocus();
@@ -390,6 +570,14 @@ protected:
 	/** 서버가 현재 위치와 상태를 검사해 로비 게시판 상호작용을 확정한다. */
 	UFUNCTION(Server, Reliable)
 	void ServerTryInteractWithLobbyBoard(ALobbyInteractionBoard* Board);
+
+	/** 서버가 현재 위치와 상태를 검사해 선물상자 개봉을 확정한다. */
+	UFUNCTION(Server, Reliable)
+	void ServerTryOpenGiftBox(AGiftBox* GiftBox);
+
+	/** 서버가 현재 위치와 상태를 검사해 선물상자 아이템 획득을 확정한다. */
+	UFUNCTION(Server, Reliable)
+	void ServerTryPickupGiftBoxItem(AGiftBoxItemPickup* Pickup);
 
 	/** 서버가 현재 포커스 대상과 버튼 액션을 검사해 게시판 이벤트를 확정한다. */
 	UFUNCTION(Server, Reliable)
@@ -412,6 +600,15 @@ protected:
 	/** PvP 시작 잠금 상태에 맞춰 로컬 컨트롤러 입력 연결을 차단하거나 복구한다. */
 	void RefreshPvpMatchInputLock();
 
+	/** 잡힌 상태에 맞춰 이동 컴포넌트를 정지하거나 복구한다. */
+	void HandleGrabbedByCharacterChanged(bool bNewGrabbed);
+
+	/** 단판 승부 관전자면 로컬 카메라를 경기 참가자 시점으로 붙인다. */
+	void RefreshTiebreakerSpectatorViewTarget();
+
+	/** 로컬 관전 카메라가 따라갈 단판 승부 참가 캐릭터를 찾는다. */
+	ASnowRumbleCharacter* FindTiebreakerSpectatorViewTarget() const;
+
 	/** 스프린트 상태에 맞는 최대 이동속도를 CharacterMovement에 적용한다. */
 	void ApplyMovementSpeed();
 
@@ -424,6 +621,58 @@ protected:
 	/** 로컬 AnimInstance에 선택된 이모션 몽타주를 재생한다. */
 	void PlayEmoteMontage(int32 EmoteIndex);
 
+	/** 지정한 발 socket 아래에서 눈 표면을 찾는다. */
+	bool FindSnowFootstepSurface(
+		FName FootSocketName,
+		FHitResult& OutFootstepHit) const;
+
+	/** 지정한 월드 위치 주변에서 눈 표면을 찾는다. */
+	bool FindSnowFootstepSurfaceAtLocation(
+		const FVector& FootstepLocation,
+		FHitResult& OutFootstepHit) const;
+
+	/** 눈 표면 위에서 이동 거리에 맞춰 연속 눈길 stamp를 요청한다. */
+	void UpdateDistanceBasedSnowTrail(float DeltaSeconds);
+
+	/** 소유 클라이언트 또는 호스트에서 서버 검증 눈길 stamp를 요청한다. */
+	void RequestSharedSnowTrailStamp(
+		const FVector& FootstepLocation,
+		const FVector& FootstepNormal,
+		FName FootSocketName);
+
+	/** 캐릭터 중심 기준으로 현재 발밑 눈 표면을 찾을 위치를 반환한다. */
+	FVector GetSnowTrailProbeLocation() const;
+
+	/** 서버 확정 애니메이션 trigger를 현재 화면의 AnimInstance로 전달한다. */
+	void RequestAnimationTriggerFromServer(
+		ESnowRumbleCharacterAnimTrigger Trigger);
+
+	/** 서버가 확정한 one-shot 애니메이션 trigger를 모든 화면에 전달한다. */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastRequestAnimationTrigger(
+		ESnowRumbleCharacterAnimTrigger Trigger);
+
+	/** 소유 클라이언트가 발걸음 위치를 서버에 보내 눈길 stamp를 요청한다. */
+	UFUNCTION(Server, Unreliable)
+	void ServerRequestSnowTrailStamp(
+		FVector_NetQuantize FootstepLocation,
+		FVector_NetQuantizeNormal FootstepNormal,
+		FName FootSocketName);
+
+	/** 서버가 검증한 눈길 stamp를 모든 클라이언트의 Manager에 전달한다. */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastStampSnowTrail(
+		FVector_NetQuantize FootstepLocation,
+		FVector_NetQuantizeNormal FootstepNormal,
+		FName FootSocketName,
+		float RadiusWorld);
+
+	/** 실제 피해를 받은 소유 클라이언트에 로컬 피격 표현을 요청한다. */
+	UFUNCTION(Client, Reliable)
+	void ClientRequestLocalDamageFeedback(
+		float AppliedDamage,
+		FVector_NetQuantize DamageCauserLocation);
+
 	/** 서버가 소유 클라이언트의 이모션 선택을 검사하고 확정한다. */
 	UFUNCTION(Server, Reliable)
 	void ServerRequestPlayEmote(int32 EmoteIndex);
@@ -431,6 +680,10 @@ protected:
 	/** 서버가 확정한 이모션 몽타주를 모든 화면에서 재생한다. */
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayEmote(int32 EmoteIndex);
+
+public:
+	/** 서버 전용 연출 흐름에서 지정한 이모션을 모든 화면에 재생한다. */
+	void PlayServerDirectedEmote(int32 EmoteIndex);
 
 	/** 서버가 소유 클라이언트의 스프린트 상태 요청을 검사하고 확정한다. */
 	UFUNCTION(Server, Reliable)
@@ -443,9 +696,34 @@ protected:
 	/** 서버에서 아이템 획득 애니메이션 상태를 종료한다. */
 	void FinishPickupAnimationState();
 
+	/** 서버에서 아이템 상호작용 애니메이션 상태를 종료한다. */
+	void FinishItemInteractionAnimationState();
+
+	/** 서버에서 피격 반응 애니메이션 상태를 시작한다. */
+	void StartHitReactAnimationState();
+
+	/** 서버에서 피격 반응 애니메이션 상태를 종료한다. */
+	void FinishHitReactAnimationState();
+
 	/** 복제된 획득 상태에 따라 이동 잠금과 복구를 적용한다. */
 	UFUNCTION()
 	void OnRep_IsPickingUpItem();
+
+	/** 복제된 아이템 상호작용 상태에 따라 이동 잠금과 복구를 적용한다. */
+	UFUNCTION()
+	void OnRep_IsInteractingWithItem();
+
+	/** 복제된 단판 승부 관전자 상태에 따라 이동 잠금과 복구를 적용한다. */
+	UFUNCTION()
+	void OnRep_TiebreakerSpectator();
+
+	/** 복제된 물 침수 상태에 따라 점프 입력을 정리한다. */
+	UFUNCTION()
+	void OnRep_WaterSubmerged();
+
+	/** 복제된 잡힘 상태에 따라 이동 잠금과 복구를 적용한다. */
+	UFUNCTION()
+	void OnRep_GrabbedByCharacter();
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Input")
 	void OnInteractInput(bool bPressed);
@@ -462,6 +740,13 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Input")
 	void OnEmoteInput(bool bPressed);
 
+	/** 눈 표면에서 발이 닿았을 때 현재 화면에서만 Niagara, Decal, Sound 같은 표현을 재생한다. */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Footstep")
+	void OnSnowFootstepEffect(
+		FName FootSocketName,
+		FVector FootstepLocation,
+		FVector FootstepNormal);
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Camera")
 	TObjectPtr<USpringArmComponent> CameraBoom;
 
@@ -474,17 +759,47 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Health")
 	TObjectPtr<USnowRumbleHealthComponent> HealthComponent;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage Feedback", meta = (ClampMin = "0.01"))
+	float DamageFeedbackTintDuration = 0.22f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage Feedback", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float DamageFeedbackTintAlpha = 0.38f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage Feedback")
+	FLinearColor DamageFeedbackTintColor = FLinearColor(0.45f, 0.78f, 1.0f, 1.0f);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage Feedback", meta = (ClampMin = "0.01"))
+	float DamageFeedbackCameraShakeDuration = 0.24f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage Feedback", meta = (ClampMin = "0.0"))
+	float DamageFeedbackCameraShakeAmplitude = 18.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage Feedback", meta = (ClampMin = "0.0"))
+	float DamageFeedbackCameraShakeFrequency = 34.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Effect")
+	TObjectPtr<UGiftItemEffectComponent> GiftItemEffectComponent;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball")
 	TObjectPtr<USnowballEquipmentComponent> SnowballEquipmentComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball")
 	TObjectPtr<USnowballCreationComponent> SnowballCreationComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Grab")
+	TObjectPtr<UPlayerGrabComponent> PlayerGrabComponent;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling")
 	TObjectPtr<USphereComponent> RollingSnowballCollision;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball")
 	TObjectPtr<USceneComponent> SnowballHoldPoint;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball")
+	TObjectPtr<USceneComponent> LargeSnowballHoldPoint;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball")
+	TObjectPtr<USceneComponent> SnowDuckBallHoldPoint;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Interaction")
 	TObjectPtr<UOutlineComponent> OutlineComponent;
@@ -538,6 +853,159 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Customization|Hat")
 	TObjectPtr<UStaticMeshComponent> HatMeshComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Customization|Scarf")
+	TObjectPtr<UStaticMeshComponent> ScarfMeshComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual")
+	TObjectPtr<UStaticMeshComponent> LeftBootsMeshComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual")
+	TObjectPtr<UStaticMeshComponent> RightBootsMeshComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual")
+	TObjectPtr<UStaticMeshComponent> LeftGlovesMeshComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual")
+	TObjectPtr<UStaticMeshComponent> RightGlovesMeshComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual")
+	TObjectPtr<UStaticMeshComponent> PaddingMeshComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual")
+	TObjectPtr<UStaticMeshComponent> HotPackMeshComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual")
+	TObjectPtr<UStaticMeshComponent> ShovelMeshComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual")
+	TObjectPtr<UStaticMeshComponent> DuckMakerMeshComponent;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Boots")
+	TObjectPtr<UStaticMesh> LeftBootsEquipmentMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Boots")
+	TObjectPtr<UStaticMesh> RightBootsEquipmentMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Boots")
+	FName LeftBootsEquipmentAttachSocketName = TEXT("LeftBootsSocket");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Boots")
+	FName RightBootsEquipmentAttachSocketName = TEXT("RightBootsSocket");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Boots")
+	FVector LeftBootsEquipmentRelativeLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Boots")
+	FVector RightBootsEquipmentRelativeLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Boots")
+	FRotator LeftBootsEquipmentRelativeRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Boots")
+	FRotator RightBootsEquipmentRelativeRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Boots")
+	FVector LeftBootsEquipmentRelativeScale = FVector::OneVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Boots")
+	FVector RightBootsEquipmentRelativeScale = FVector::OneVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Gloves")
+	TObjectPtr<UStaticMesh> LeftGlovesEquipmentMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Gloves")
+	TObjectPtr<UStaticMesh> RightGlovesEquipmentMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Gloves")
+	FName LeftGlovesEquipmentAttachSocketName = TEXT("LeftGlovesSocket");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Gloves")
+	FName RightGlovesEquipmentAttachSocketName = TEXT("RightGlovesSocket");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Gloves")
+	FVector LeftGlovesEquipmentRelativeLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Gloves")
+	FVector RightGlovesEquipmentRelativeLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Gloves")
+	FRotator LeftGlovesEquipmentRelativeRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Gloves")
+	FRotator RightGlovesEquipmentRelativeRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Gloves")
+	FVector LeftGlovesEquipmentRelativeScale = FVector::OneVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Gloves")
+	FVector RightGlovesEquipmentRelativeScale = FVector::OneVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Padding")
+	TObjectPtr<UStaticMesh> PaddingEquipmentMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Padding")
+	FName PaddingEquipmentAttachSocketName = TEXT("PaddingSocket");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Padding")
+	FVector PaddingEquipmentRelativeLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Padding")
+	FRotator PaddingEquipmentRelativeRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Padding")
+	FVector PaddingEquipmentRelativeScale = FVector::OneVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Hot Pack")
+	TObjectPtr<UStaticMesh> HotPackEquipmentMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Hot Pack")
+	FName HotPackEquipmentAttachSocketName = TEXT("HotPackSocket");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Hot Pack")
+	FVector HotPackEquipmentRelativeLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Hot Pack")
+	FRotator HotPackEquipmentRelativeRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Hot Pack")
+	FVector HotPackEquipmentRelativeScale = FVector::OneVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Shovel")
+	TObjectPtr<UStaticMesh> SnowShovelEquipmentMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Shovel")
+	TObjectPtr<UStaticMesh> GoldenShovelEquipmentMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Shovel")
+	FName ShovelEquipmentAttachSocketName = TEXT("ShovelSocket");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Shovel")
+	FVector ShovelEquipmentRelativeLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Shovel")
+	FRotator ShovelEquipmentRelativeRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Shovel")
+	FVector ShovelEquipmentRelativeScale = FVector::OneVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Duck Maker")
+	TObjectPtr<UStaticMesh> SnowDuckMakerEquipmentMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Duck Maker")
+	TObjectPtr<UStaticMesh> GoldenDuckMakerEquipmentMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Duck Maker")
+	FName DuckMakerEquipmentAttachSocketName = TEXT("DuckMakerSocket");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Duck Maker")
+	FVector DuckMakerEquipmentRelativeLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Duck Maker")
+	FRotator DuckMakerEquipmentRelativeRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Duck Maker")
+	FVector DuckMakerEquipmentRelativeScale = FVector::OneVector;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Hat")
 	TArray<TObjectPtr<UStaticMesh>> CustomizationHatMeshes;
 
@@ -552,6 +1020,27 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Hat")
 	FVector CustomizationHatRelativeScale = FVector::OneVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Scarf")
+	TObjectPtr<UStaticMesh> ScarfMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Scarf")
+	FName ScarfAttachSocketName = TEXT("ScarfSocket");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Scarf")
+	FName ScarfTeamColorParameterName = TEXT("TeamColor");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Scarf")
+	FVector ScarfRelativeLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Scarf")
+	FRotator ScarfRelativeRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Scarf")
+	FVector ScarfRelativeScale = FVector::OneVector;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> ScarfDynamicMaterial;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
 	TObjectPtr<UInputMappingContext> PlayerMappingContext;
@@ -604,6 +1093,58 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Movement", meta = (ClampMin = "0.0"))
 	float AimWalkSpeed = 300.0f;
 
+	/** 눈 밟힘 효과를 허용할 바닥 Actor 태그다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep")
+	FName SnowFootstepSurfaceTag = TEXT("SnowSurface");
+
+	/** 왼발 AnimNotify에서 이름을 넘기지 않았을 때 사용할 기본 socket 이름이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep")
+	FName LeftFootSocketName = TEXT("foot_l");
+
+	/** 오른발 AnimNotify에서 이름을 넘기지 않았을 때 사용할 기본 socket 이름이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep")
+	FName RightFootSocketName = TEXT("foot_r");
+
+	/** 발 socket 위쪽에서 trace를 시작하는 높이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep", meta = (ClampMin = "0.0"))
+	float SnowFootstepTraceUpOffset = 80.0f;
+
+	/** 발 socket 아래로 눈 표면을 찾는 거리다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep", meta = (ClampMin = "0.0"))
+	float SnowFootstepTraceDownDistance = 140.0f;
+
+	/** 발걸음 효과가 너무 촘촘히 반복되지 않도록 막는 최소 간격이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep", meta = (ClampMin = "0.0"))
+	float SnowFootstepEffectCooldown = 0.08f;
+
+	/** 눈 밟힘 위치를 서버 검증 후 지형 RenderTarget 눈길 stamp로 공유할지 정한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snow Trail")
+	bool bEnableSharedSnowTrailStamps = true;
+
+	/** 눈길 RenderTarget에 남길 기본 stamp 반지름(cm)이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snow Trail", meta = (ClampMin = "1.0"))
+	float SnowTrailStampRadius = 38.0f;
+
+	/** 서버에서 눈길 stamp 요청을 너무 자주 처리하지 않도록 막는 최소 간격이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snow Trail", meta = (ClampMin = "0.0"))
+	float SnowTrailStampServerCooldown = 0.08f;
+
+	/** 클라이언트가 보낸 발 위치가 서버 캐릭터 위치에서 허용되는 최대 거리다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snow Trail", meta = (ClampMin = "0.0"))
+	float SnowTrailStampMaxClientDistance = 260.0f;
+
+	/** AnimNotify로 눈 표면을 밟은 뒤 이동 거리 기준으로 연속 눈길 stamp를 찍을지 정한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Distance")
+	bool bEnableDistanceBasedSnowTrailStamps = true;
+
+	/** 연속 눈길 stamp를 새로 찍기 위한 최소 이동 거리(cm)다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Distance", meta = (ClampMin = "1.0"))
+	float SnowTrailDistanceStampInterval = 42.0f;
+
+	/** 이 속도보다 느리면 연속 눈길 stamp를 찍지 않는다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Distance", meta = (ClampMin = "0.0"))
+	float SnowTrailDistanceStampMinimumSpeed = 20.0f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling|Debug")
 	bool bDrawRollingSnowballCollisionDebug = true;
 
@@ -652,6 +1193,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation", meta = (ClampMin = "0.01"))
 	float PickupAnimationStateDuration = 0.6f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation", meta = (ClampMin = "0.01"))
+	float ItemInteractionAnimationStateDuration = 0.6f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation", meta = (ClampMin = "0.01"))
+	float HitReactAnimationStateDuration = 0.35f;
+
 	/** 원형 선택 UI의 8개 칸에 대응하는 이모션 몽타주 슬롯이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Emote")
 	TArray<TObjectPtr<UAnimMontage>> EmoteMontages;
@@ -684,12 +1231,22 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Interaction|UI")
 	float InteractionPromptWorldHeightOffset = 70.0f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation", meta = (ClampMin = "1.0"))
+	float ViewPitchAlphaRangeDegrees = 60.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation", meta = (ClampMin = "1.0"))
+	float ViewYawAlphaRangeDegrees = 90.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float SnowCreationPreferredViewPitchAlpha = 0.35f;
+
 	/** 로컬 플레이어가 소유한 상호작용 안내 위젯 인스턴스다. */
 	UPROPERTY(Transient)
 	TObjectPtr<UInteractionPromptWidget> InteractionPromptWidget;
 
 	bool bIsEmoteRadialMenuOpen = false;
-	bool bPvpMatchInputIgnoreApplied = false;
+	bool bPvpMatchMoveInputIgnoreApplied = false;
+	bool bPvpMatchLookInputIgnoreApplied = false;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_IsSprinting, Category = "SnowRumble|Movement")
 	bool bIsSprinting = false;
@@ -697,19 +1254,53 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_IsPickingUpItem, Category = "SnowRumble|Animation")
 	bool bIsPickingUpItem = false;
 
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_IsInteractingWithItem, Category = "SnowRumble|Animation")
+	bool bIsInteractingWithItem = false;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Animation")
+	bool bIsHitReacting = false;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_TiebreakerSpectator, Category = "SnowRumble|Match")
+	bool bTiebreakerSpectator = false;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_WaterSubmerged, Category = "SnowRumble|Movement")
+	bool bWaterSubmerged = false;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_GrabbedByCharacter, Category = "SnowRumble|Grab")
+	bool bIsGrabbedByCharacter = false;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Grab")
+	TObjectPtr<ASnowRumbleCharacter> GrabbedByCharacter;
+
 	float DefaultFieldOfView = 90.0f;
 	FVector DefaultCameraSocketOffset = FVector::ZeroVector;
 	float DefaultCameraArmLength = 400.0f;
 	float DesiredCameraArmLength = 400.0f;
 	float CameraShoulderSide = 1.0f;
 	double PostThrowAimCameraEndTime = -1.0;
+	double LocalDamageCameraShakeStartTime = -1.0;
+	double LocalDamageCameraShakeEndTime = -1.0;
+	double LastSnowFootstepEffectTime = -1.0;
+	double LastSnowTrailStampServerTime = -1.0;
 
 	FTimerHandle PickupAnimationTimerHandle;
+	FTimerHandle ItemInteractionAnimationTimerHandle;
+	FTimerHandle HitReactAnimationTimerHandle;
+
+	TEnumAsByte<EMovementMode> MovementModeBeforeGrabbed = MOVE_Walking;
+	uint8 CustomMovementModeBeforeGrabbed = 0;
+	bool bOrientRotationToMovementBeforeGrabbedByCharacter = true;
+	bool bUseControllerRotationYawBeforeGrabbedByCharacter = false;
+	bool bOrientRotationToMovementBeforeWorldGrab = true;
+	bool bUseControllerRotationYawBeforeWorldGrab = false;
 
 	bool bIsInteractHeld = false;
 	bool bUsedInteractForRolling = false;
 	bool bLobbyBoardPointerPressed = false;
 	bool bLocalSnowEffectActive = false;
+	bool bDistanceSnowTrailActive = false;
+	FVector LastDistanceSnowTrailStampLocation = FVector::ZeroVector;
+	FName LastDistanceSnowTrailFootSocketName = NAME_None;
 
 	UPROPERTY(Transient)
 	TObjectPtr<ALobbyInteractionBoard> FocusedLobbyBoard;
@@ -723,6 +1314,9 @@ protected:
 	FSnowRumbleCustomizationData AppliedCustomizationData;
 
 private:
+	/** 단판 승부 중에는 대상 팀과 공격자 팀이 모두 단판 승부 대상인지 확인한다. */
+	bool IsDamageAllowedByTiebreaker(AController* EventInstigator) const;
+
 	/** 적용된 커스터마이징 데이터의 stroke 배열로 RenderTarget을 다시 그린다. */
 	void RedrawCustomizationPaintTexture();
 

@@ -46,9 +46,16 @@
 - 같은 입력에 여러 행동이 겹칠 때의 최종 우선순위
 
 ## 수동 작업 (구현 후 구체화)
+- 눈덩이 생성 직후 바닥 아래로 꺼지는 현상을 막기 위해 `ASnowballItem` Ground 상태는 물리 낙하 대신 서버가 확인한 표면 위치에 고정한다.
+- `USnowballCreationComponent`는 제작 완료 시 눈 표면 hit normal과 눈덩이 반지름으로 생성 위치를 보정하고, 내려놓기·굴리기 종료는 현재 위치 아래 trace로 다시 바닥에 스냅한다.
+- `BP_SnowballItem`류에서 `Grounding` 카테고리의 `GroundSettleTraceUpDistance`, `GroundSettleTraceDownDistance`, `GroundSettleExtraClearance`를 맵 지형 높낮이에 맞게 미세 조정할 수 있다.
+
 ## 완료 조건
 ### 에이전트 확인
 - [ ] 기존 눈 전투 회귀 점검 완료
 - [ ] 큰 눈 광역 서버 판정 완료
 - [ ] S·K 인계 완료
 ### 결과 확인 (구현 후 구체화)
+- [ ] 호스트에서 작은 눈덩이 제작 직후 바닥 아래로 꺼지지 않고 눈 표면 위에 유지된다.
+- [ ] 호스트에서 큰 눈덩이 굴리기 종료 또는 내려놓기 후 바닥 아래로 꺼지지 않는다.
+- [ ] 클라이언트 화면에서도 같은 위치에 눈덩이가 복제되고, 줍기·던지기 동작이 유지된다.

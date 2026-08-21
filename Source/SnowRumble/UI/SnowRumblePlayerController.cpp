@@ -3,12 +3,18 @@
 #include "SnowRumblePlayerController.h"
 
 #include "Blueprint/WidgetBlueprintLibrary.h"
+#include "Blueprint/UserWidget.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "../Player/SnowRumbleUserSettingsSubsystem_C.h"
+#include "Camera/CameraActor.h"
+#include "Camera/CameraComponent.h"
 #include "ChatWidget_C.h"
 #include "Components/InputComponent.h"
+#include "Components/Widget.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/GameStateBase.h"
+#include "GameFramework/Pawn.h"
+#include "Camera/PlayerCameraManager.h"
 #include "GameFramework/PlayerState.h"
 #include "InputCoreTypes.h"
 #include "LobbyWidget.h"
@@ -63,6 +69,12 @@ void ASnowRumblePlayerController::EndPlay(
 		VoiceMuteMenuWidget->RemoveFromParent();
 		VoiceMuteMenuWidget = nullptr;
 	}
+	if (PvpIntroCameraActor)
+	{
+		PvpIntroCameraActor->Destroy();
+		PvpIntroCameraActor = nullptr;
+	}
+	GetWorldTimerManager().ClearTimer(PvpIntroCameraDestroyTimerHandle);
 	DefaultMouseCursorWidget = nullptr;
 
 	if (UGameInstance* GameInstance = GetGameInstance())
@@ -143,11 +155,12 @@ void ASnowRumblePlayerController::RebindConfiguredInputKeys()
 	if (BoundChatChannelToggleKey.IsValid()
 		&& BoundChatChannelToggleKey != BoundChatInputKey)
 	{
-		InputComponent->BindKey(
+		FInputKeyBinding& ChatChannelToggleBinding = InputComponent->BindKey(
 			BoundChatChannelToggleKey,
 			IE_Pressed,
 			this,
 			&ASnowRumblePlayerController::HandleChatChannelTogglePressed);
+		ChatChannelToggleBinding.bConsumeInput = false;
 	}
 	if (BoundMicrophonePushToTalkKey.IsValid())
 	{
@@ -183,6 +196,7 @@ void ASnowRumblePlayerController::PlayerTick(float DeltaTime)
 	if (IsLocalController())
 	{
 		RefreshGameplayVoiceMutes();
+		UpdatePvpIntroCamera(DeltaTime);
 	}
 }
 
@@ -205,15 +219,32 @@ void ASnowRumblePlayerController::OpenChatInput(
 		Widget->AddToViewport(50);
 	}
 
-	bShowMouseCursor = true;
+	SetShowMouseCursor(true);
+	bEnableClickEvents = true;
+	bEnableMouseOverEvents = true;
 	ApplyDefaultMouseCursorWidget();
+	if (!bChatInputIgnoringPawnInput)
+	{
+		SetIgnoreMoveInput(true);
+		SetIgnoreLookInput(true);
+		bChatInputIgnoringPawnInput = true;
+	}
+
+	Widget->OpenChatInput(InitialChannel);
+
 	FInputModeGameAndUI InputMode;
-	InputMode.SetWidgetToFocus(Widget->TakeWidget());
+	if (UWidget* FocusWidget = Widget->GetChatInputFocusWidget())
+	{
+		InputMode.SetWidgetToFocus(FocusWidget->TakeWidget());
+	}
+	else
+	{
+		InputMode.SetWidgetToFocus(Widget->TakeWidget());
+	}
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	InputMode.SetHideCursorDuringCapture(false);
 	SetInputMode(InputMode);
-
-	Widget->OpenChatInput(InitialChannel);
+	Widget->FocusChatInputTextBox();
 }
 
 void ASnowRumblePlayerController::CloseChatInput()
@@ -225,9 +256,59 @@ void ASnowRumblePlayerController::CloseChatInput()
 
 	if (IsLocalController())
 	{
-		bShowMouseCursor = false;
+		if (bChatInputIgnoringPawnInput)
+		{
+			ResetIgnoreMoveInput();
+			ResetIgnoreLookInput();
+			bChatInputIgnoringPawnInput = false;
+		}
+		SetShowMouseCursor(false);
 		SetInputMode(FInputModeGameOnly());
 	}
+}
+
+void ASnowRumblePlayerController::EnableDefaultCursorUiInput(
+	UUserWidget* WidgetToFocus,
+	bool bUseCustomCursorWidget)
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	SetShowMouseCursor(true);
+	bEnableClickEvents = true;
+	bEnableMouseOverEvents = true;
+	DefaultMouseCursor = EMouseCursor::Default;
+	CurrentMouseCursor = EMouseCursor::Default;
+	if (bUseCustomCursorWidget)
+	{
+		ApplyDefaultMouseCursorWidget();
+	}
+	else
+	{
+		SetMouseCursorWidget(EMouseCursor::Default, nullptr);
+	}
+
+	FInputModeGameAndUI InputMode;
+	if (WidgetToFocus)
+	{
+		InputMode.SetWidgetToFocus(WidgetToFocus->TakeWidget());
+	}
+	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	InputMode.SetHideCursorDuringCapture(false);
+	SetInputMode(InputMode);
+}
+
+void ASnowRumblePlayerController::RestoreGameOnlyInput()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	SetShowMouseCursor(false);
+	SetInputMode(FInputModeGameOnly());
 }
 
 void ASnowRumblePlayerController::SubmitChatMessage(
@@ -266,6 +347,11 @@ bool ASnowRumblePlayerController::IsTeamChatAvailable() const
 bool ASnowRumblePlayerController::IsChatInputOpen() const
 {
 	return ChatWidget && ChatWidget->IsChatInputOpen();
+}
+
+bool ASnowRumblePlayerController::IsGameplayUiInputOpen() const
+{
+	return IsChatInputOpen();
 }
 
 bool ASnowRumblePlayerController::IsMicrophoneInputActive() const
@@ -511,6 +597,142 @@ void ASnowRumblePlayerController::ClientShowPersonalTextAlarm_Implementation(
 		{
 			MainHUDWidget->ShowPersonalTextAlarm(Message);
 		}
+	}
+}
+
+void ASnowRumblePlayerController::ClientPlayPvpTeamIntroShot_Implementation(
+	ESnowRumbleTeam Team,
+	float ShotDurationSeconds)
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	const FText TeamDisplayText = GetPvpIntroTeamDisplayText(Team);
+	OnPvpTeamIntroShot(Team, TeamDisplayText, ShotDurationSeconds);
+	ClientShowPersonalTextAlarm_Implementation(TeamDisplayText);
+	if (PlayerCameraManager)
+	{
+		PlayerCameraManager->StopCameraFade();
+	}
+
+	TArray<APawn*> TeamPawns;
+	GetPvpIntroTeamPawns(Team, TeamPawns);
+
+	FTransform DollyStartTransform;
+	FTransform DollyEndTransform;
+	if (!BuildPvpIntroCameraTransform(
+		TeamPawns,
+		DollyStartTransform,
+		DollyEndTransform))
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	GetWorldTimerManager().ClearTimer(PvpIntroCameraDestroyTimerHandle);
+
+	FVector CurrentCameraLocation = FVector::ZeroVector;
+	FRotator CurrentCameraRotation = FRotator::ZeroRotator;
+	GetPlayerViewPoint(CurrentCameraLocation, CurrentCameraRotation);
+	PvpIntroCameraCurrentStartTransform =
+		FTransform(CurrentCameraRotation, CurrentCameraLocation);
+	PvpIntroCameraDollyStartTransform = DollyStartTransform;
+	PvpIntroCameraDollyEndTransform = DollyEndTransform;
+	PvpIntroCameraElapsedSeconds = 0.0f;
+	PvpIntroCameraDurationSeconds =
+		FMath::Max(0.01f, ShotDurationSeconds);
+	bPvpIntroCameraActive = true;
+
+	if (!PvpIntroCameraActor)
+	{
+		FActorSpawnParameters SpawnParameters;
+		SpawnParameters.Owner = this;
+		SpawnParameters.SpawnCollisionHandlingOverride =
+			ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		PvpIntroCameraActor = World->SpawnActor<ACameraActor>(
+			ACameraActor::StaticClass(),
+			PvpIntroCameraCurrentStartTransform,
+			SpawnParameters);
+		if (PvpIntroCameraActor)
+		{
+			if (UCameraComponent* CameraComponent =
+				PvpIntroCameraActor->GetCameraComponent())
+			{
+				CameraComponent->SetConstraintAspectRatio(true);
+				CameraComponent->SetAspectRatio(
+					FMath::Max(1.0f, PvpIntroCinematicAspectRatio));
+			}
+		}
+	}
+	else
+	{
+		PvpIntroCameraActor->SetActorTransform(
+			PvpIntroCameraCurrentStartTransform);
+	}
+
+	if (PvpIntroCameraActor)
+	{
+		SetViewTargetWithBlend(
+			PvpIntroCameraActor,
+			0.0f);
+	}
+}
+
+void ASnowRumblePlayerController::ClientStartPvpIntroFadeOut_Implementation(
+	float FadeOutSeconds)
+{
+	if (!IsLocalController() || !PlayerCameraManager)
+	{
+		return;
+	}
+
+	const float ClampedFadeOutSeconds =
+		FMath::Max(0.01f, FadeOutSeconds);
+	PlayerCameraManager->StartCameraFade(
+		1.0f,
+		0.0f,
+		ClampedFadeOutSeconds,
+		FLinearColor::Black,
+		false,
+		false);
+}
+
+void ASnowRumblePlayerController::ClientFinishPvpTeamIntro_Implementation()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (APawn* ControlledPawn = GetPawn())
+	{
+		SetViewTargetWithBlend(
+			ControlledPawn,
+			PvpIntroCameraReturnBlendSeconds);
+	}
+
+	bPvpIntroCameraActive = false;
+	if (PvpIntroCameraActor)
+	{
+		GetWorldTimerManager().SetTimer(
+			PvpIntroCameraDestroyTimerHandle,
+			[this]()
+			{
+				if (PvpIntroCameraActor)
+				{
+					PvpIntroCameraActor->Destroy();
+					PvpIntroCameraActor = nullptr;
+				}
+			},
+			PvpIntroCameraReturnBlendSeconds,
+			false);
 	}
 }
 
@@ -827,6 +1049,194 @@ void ASnowRumblePlayerController::RefreshMicrophoneInputState()
 	OnMicrophoneSettingsApplied(Mode, Volume);
 }
 
+void ASnowRumblePlayerController::UpdatePvpIntroCamera(float DeltaTime)
+{
+	if (!bPvpIntroCameraActive || !PvpIntroCameraActor)
+	{
+		return;
+	}
+
+	PvpIntroCameraElapsedSeconds =
+		FMath::Min(
+			PvpIntroCameraElapsedSeconds + DeltaTime,
+			PvpIntroCameraDurationSeconds);
+
+	const float TotalDuration =
+		FMath::Max(0.01f, PvpIntroCameraDurationSeconds);
+	const float BlendDuration =
+		FMath::Clamp(
+			PvpIntroCameraBlendSeconds,
+			0.0f,
+			TotalDuration * 0.5f);
+
+	FTransform NewTransform;
+	if (BlendDuration > 0.0f
+		&& PvpIntroCameraElapsedSeconds < BlendDuration)
+	{
+		const float BlendAlpha =
+			FMath::SmoothStep(
+				0.0f,
+				1.0f,
+				PvpIntroCameraElapsedSeconds / BlendDuration);
+		NewTransform.Blend(
+			PvpIntroCameraCurrentStartTransform,
+			PvpIntroCameraDollyStartTransform,
+			BlendAlpha);
+	}
+	else
+	{
+		const float DollyDuration =
+			FMath::Max(0.01f, TotalDuration - BlendDuration);
+		const float DollyAlpha =
+			FMath::Clamp(
+				(PvpIntroCameraElapsedSeconds - BlendDuration)
+				/ DollyDuration,
+				0.0f,
+				1.0f);
+		const float SmoothedDollyAlpha =
+			FMath::SmoothStep(0.0f, 1.0f, DollyAlpha);
+		NewTransform.Blend(
+			PvpIntroCameraDollyStartTransform,
+			PvpIntroCameraDollyEndTransform,
+			SmoothedDollyAlpha);
+	}
+
+	PvpIntroCameraActor->SetActorTransform(NewTransform);
+}
+
+void ASnowRumblePlayerController::GetPvpIntroTeamPawns(
+	ESnowRumbleTeam Team,
+	TArray<APawn*>& OutPawns) const
+{
+	OutPawns.Reset();
+
+	const UWorld* World = GetWorld();
+	const AGameStateBase* CurrentGameState =
+		World ? World->GetGameState() : nullptr;
+	if (!CurrentGameState || Team == ESnowRumbleTeam::None)
+	{
+		return;
+	}
+
+	for (APlayerState* CandidatePlayerState : CurrentGameState->PlayerArray)
+	{
+		const ASnowRumblePlayerState* SnowRumblePlayerState =
+			Cast<ASnowRumblePlayerState>(CandidatePlayerState);
+		APawn* CandidatePawn = SnowRumblePlayerState
+			? SnowRumblePlayerState->GetPawn()
+			: nullptr;
+		if (SnowRumblePlayerState
+			&& SnowRumblePlayerState->GetLobbyTeam() == Team
+			&& CandidatePawn)
+		{
+			OutPawns.Add(CandidatePawn);
+		}
+	}
+}
+
+bool ASnowRumblePlayerController::BuildPvpIntroCameraTransform(
+	const TArray<APawn*>& TeamPawns,
+	FTransform& OutStartTransform,
+	FTransform& OutEndTransform) const
+{
+	if (TeamPawns.IsEmpty())
+	{
+		return false;
+	}
+
+	FVector Center = FVector::ZeroVector;
+	FVector AverageForward = FVector::ZeroVector;
+	float MaxRadius = 0.0f;
+	int32 ValidPawnCount = 0;
+
+	for (const APawn* TeamPawn : TeamPawns)
+	{
+		if (!TeamPawn)
+		{
+			continue;
+		}
+
+		FVector Origin = FVector::ZeroVector;
+		FVector BoxExtent = FVector::ZeroVector;
+		TeamPawn->GetActorBounds(true, Origin, BoxExtent);
+		Center += Origin;
+		AverageForward += TeamPawn->GetActorForwardVector();
+		MaxRadius = FMath::Max(MaxRadius, BoxExtent.Size2D());
+		++ValidPawnCount;
+	}
+
+	if (ValidPawnCount <= 0)
+	{
+		return false;
+	}
+
+	Center /= static_cast<float>(ValidPawnCount);
+	if (AverageForward.IsNearlyZero())
+	{
+		AverageForward = GetPawn()
+			? GetPawn()->GetActorForwardVector()
+			: FVector::ForwardVector;
+	}
+	AverageForward = AverageForward.GetSafeNormal2D();
+	if (AverageForward.IsNearlyZero())
+	{
+		AverageForward = FVector::ForwardVector;
+	}
+
+	const FVector RightVector =
+		FVector::CrossProduct(FVector::UpVector, AverageForward)
+			.GetSafeNormal();
+	const FVector LookAtLocation =
+		Center + FVector::UpVector * (PvpIntroCameraHeight * 0.45f);
+	const FVector BaseCameraLocation =
+		Center
+		- AverageForward * (PvpIntroCameraDistance + MaxRadius)
+		+ RightVector * PvpIntroCameraSideOffset
+		+ FVector::UpVector * PvpIntroCameraHeight;
+	const FVector DollyOffset =
+		RightVector * (PvpIntroCameraDollyDistance * 0.5f);
+	const FVector StartCameraLocation =
+		BaseCameraLocation - DollyOffset;
+	const FVector EndCameraLocation =
+		BaseCameraLocation + DollyOffset;
+	const FRotator StartCameraRotation =
+		(LookAtLocation - StartCameraLocation).Rotation();
+	const FRotator EndCameraRotation =
+		(LookAtLocation - EndCameraLocation).Rotation();
+
+	OutStartTransform =
+		FTransform(StartCameraRotation, StartCameraLocation);
+	OutEndTransform =
+		FTransform(EndCameraRotation, EndCameraLocation);
+	return true;
+}
+
+FText ASnowRumblePlayerController::GetPvpIntroTeamDisplayText(
+	ESnowRumbleTeam Team) const
+{
+	switch (Team)
+	{
+	case ESnowRumbleTeam::Red:
+		return NSLOCTEXT("SnowRumble", "PvpIntroRedTeam", "빨간팀");
+	case ESnowRumbleTeam::Sky:
+		return NSLOCTEXT("SnowRumble", "PvpIntroSkyTeam", "하늘팀");
+	case ESnowRumbleTeam::Green:
+		return NSLOCTEXT("SnowRumble", "PvpIntroGreenTeam", "초록팀");
+	case ESnowRumbleTeam::Yellow:
+		return NSLOCTEXT("SnowRumble", "PvpIntroYellowTeam", "노란팀");
+	case ESnowRumbleTeam::Purple:
+		return NSLOCTEXT("SnowRumble", "PvpIntroPurpleTeam", "보라팀");
+	case ESnowRumbleTeam::Pink:
+		return NSLOCTEXT("SnowRumble", "PvpIntroPinkTeam", "분홍팀");
+	case ESnowRumbleTeam::Blue:
+		return NSLOCTEXT("SnowRumble", "PvpIntroBlueTeam", "파란팀");
+	case ESnowRumbleTeam::White:
+		return NSLOCTEXT("SnowRumble", "PvpIntroWhiteTeam", "하얀팀");
+	default:
+		return NSLOCTEXT("SnowRumble", "PvpIntroUnknownTeam", "팀 소개");
+	}
+}
+
 void ASnowRumblePlayerController::ServerSetVoiceSpeaking_Implementation(
 	bool bNewVoiceSpeaking)
 {
@@ -870,8 +1280,17 @@ UChatWidget* ASnowRumblePlayerController::EnsureChatWidget()
 
 void ASnowRumblePlayerController::ApplyDefaultMouseCursorWidget()
 {
-	if (!IsLocalController() || !DefaultMouseCursorWidgetClass)
+	if (!IsLocalController())
 	{
+		return;
+	}
+
+	DefaultMouseCursor = EMouseCursor::Default;
+	CurrentMouseCursor = EMouseCursor::Default;
+
+	if (!DefaultMouseCursorWidgetClass)
+	{
+		SetMouseCursorWidget(EMouseCursor::Default, nullptr);
 		return;
 	}
 
@@ -882,12 +1301,11 @@ void ASnowRumblePlayerController::ApplyDefaultMouseCursorWidget()
 	}
 	if (!DefaultMouseCursorWidget)
 	{
+		SetMouseCursorWidget(EMouseCursor::Default, nullptr);
 		return;
 	}
 
 	SetMouseCursorWidget(EMouseCursor::Default, DefaultMouseCursorWidget);
-	DefaultMouseCursor = EMouseCursor::Default;
-	CurrentMouseCursor = EMouseCursor::Default;
 }
 
 bool ASnowRumblePlayerController::ShouldReceiveChatMessage(
