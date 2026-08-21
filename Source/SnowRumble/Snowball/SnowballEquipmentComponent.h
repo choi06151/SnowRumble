@@ -7,6 +7,7 @@
 #include "SnowballEquipmentComponent.generated.h"
 
 class ASnowballItem;
+class ASnowRumbleCharacter;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 	FOnHeldSnowballChanged,
@@ -48,6 +49,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
 	ASnowballItem* GetHeldSnowball() const;
 
+	/** 서버가 새로 만든 눈덩이를 즉시 손에 장착한다. */
+	bool EquipCreatedSnowballFromServer(ASnowballItem* CreatedSnowball);
+
 	/** 현재 최대 성장 큰 눈덩이를 들고 있는지 확인한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
 	bool IsHoldingLargeSnowball() const;
@@ -78,6 +82,10 @@ public:
 	/** 소유 플레이어가 충전을 끝내고 화면 중앙 방향으로 투척을 요청한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snowball")
 	void ReleaseChargedSnowball();
+
+	/** 던지기 몽타주의 AnimNotify 시점에 서버가 보류 중인 투척을 실제 발사한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snowball")
+	void ConfirmPendingThrowFromAnimationNotify();
 
 	/** 투척 없이 진행 중인 충전을 취소한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snowball")
@@ -142,6 +150,9 @@ protected:
 		FVector_NetQuantizeNormal ViewDirection);
 
 	UFUNCTION(Server, Reliable)
+	void ServerConfirmPendingThrowFromAnimationNotify();
+
+	UFUNCTION(Server, Reliable)
 	void ServerCancelCharging();
 
 	/** 서버가 실제 보유 상태를 검사하고 캐릭터 앞에 눈덩이를 내려놓는다. */
@@ -170,11 +181,22 @@ protected:
 	/** 현재 보유한 눈덩이 크기에 맞는 최대 충전시간을 반환한다. */
 	float GetCurrentMaximumChargeSeconds() const;
 
+	/** 굴리는 동안 서버가 눈덩이를 유지할 캐릭터 앞 위치를 계산한다. */
+	FVector BuildRollingSnowballTargetLocation(
+		const ASnowRumbleCharacter* Character,
+		const ASnowballItem* Snowball) const;
+
 	/** 서버가 검증한 카메라 Line Trace로 화면 중앙의 월드 조준점을 찾는다. */
 	bool FindServerAimTarget(
 		const FVector& ViewLocation,
 		const FVector& ViewDirection,
 		FVector& OutAimTarget) const;
+
+	/** 서버가 저장해 둔 던지기 값을 사용해 실제 눈덩이 투척을 처리한다. */
+	void ExecutePendingThrowFromServer();
+
+	/** 보류 중인 던지기 값을 모두 초기화한다. */
+	void ClearPendingThrow();
 
 	void SetChargingState(bool bNewCharging);
 
@@ -239,4 +261,9 @@ protected:
 	float LargeSnowballCarryWalkSpeed = 200.0f;
 
 	double ChargeStartTime = -1.0;
+	bool bHasPendingThrow = false;
+	FVector LastRollingMovementDirection = FVector::ForwardVector;
+	FVector PendingThrowDirection = FVector::ZeroVector;
+	float PendingThrowSpeed = 0.0f;
+	float PendingThrowChargeProgress = 0.0f;
 };

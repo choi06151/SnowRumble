@@ -281,10 +281,12 @@ void UMainHUDWidget::RefreshCurrentRoundPresentation()
 		return;
 	}
 
-	CurrentRoundText->SetText(FText::Format(
-		NSLOCTEXT("SnowRumble", "CurrentRoundFormat", "라운드 {0} / {1}"),
-		FText::AsNumber(SnowRumbleGameState->GetCurrentRoundNumber()),
-		FText::AsNumber(SnowRumbleGameState->GetRoundLimit())));
+	CurrentRoundText->SetText(SnowRumbleGameState->IsTiebreakerRound()
+		? NSLOCTEXT("SnowRumble", "CurrentRoundTiebreaker", "단판승부")
+		: FText::Format(
+			NSLOCTEXT("SnowRumble", "CurrentRoundFormat", "라운드 {0} / {1}"),
+			FText::AsNumber(SnowRumbleGameState->GetCurrentRoundNumber()),
+			FText::AsNumber(SnowRumbleGameState->GetRoundLimit())));
 	CurrentRoundText->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 }
 
@@ -351,7 +353,8 @@ void UMainHUDWidget::RefreshMatchTimerPresentation()
 
 	if (MapShrinkCountdownText)
 	{
-		if (bShouldShowMatchTimers)
+		if (bShouldShowMatchTimers
+			&& !SnowRumbleGameState->IsTiebreakerRound())
 		{
 			MapShrinkCountdownText->SetText(
 				SnowRumbleGameState->GetMapShrinkCountdownText());

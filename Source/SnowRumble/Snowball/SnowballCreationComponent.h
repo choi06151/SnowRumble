@@ -79,6 +79,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Creation", meta = (ClampMin = "0.0"))
 	float CreationForwardDistance = 100.0f;
 
+	/** 생성 직후 자기 플레이어와 충돌을 무시할 시간이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Creation", meta = (ClampMin = "0.0"))
+	float CreatedSnowballOwnerCollisionIgnoreSeconds = 1.0f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Creation")
 	FName SnowSurfaceTag = TEXT("SnowSurface");
 

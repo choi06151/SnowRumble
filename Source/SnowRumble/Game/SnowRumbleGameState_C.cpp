@@ -83,6 +83,7 @@ void ASnowRumbleGameState::ApplyMatchStateFromServer(
 	RoundLimit = MatchSubsystem->GetRoundLimit();
 	GameSpeed = MatchSubsystem->GetGameSpeed();
 	bMatchEnded = MatchSubsystem->IsMatchComplete();
+	bTiebreakerRound = MatchSubsystem->IsTiebreakerActive();
 	MatchWinningTeam = bMatchEnded
 		? MatchSubsystem->GetLeadingTeam()
 		: ESnowRumbleTeam::None;
@@ -146,6 +147,11 @@ int32 ASnowRumbleGameState::GetRoundLimit() const
 bool ASnowRumbleGameState::IsMatchEnded() const
 {
 	return bMatchEnded;
+}
+
+bool ASnowRumbleGameState::IsTiebreakerRound() const
+{
+	return bTiebreakerRound;
 }
 
 ESnowRumbleTeam ASnowRumbleGameState::GetMatchWinningTeam() const
@@ -274,6 +280,7 @@ void ASnowRumbleGameState::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ASnowRumbleGameState, CurrentRoundNumber);
 	DOREPLIFETIME(ASnowRumbleGameState, RoundLimit);
 	DOREPLIFETIME(ASnowRumbleGameState, bMatchEnded);
+	DOREPLIFETIME(ASnowRumbleGameState, bTiebreakerRound);
 	DOREPLIFETIME(ASnowRumbleGameState, MatchWinningTeam);
 }
 

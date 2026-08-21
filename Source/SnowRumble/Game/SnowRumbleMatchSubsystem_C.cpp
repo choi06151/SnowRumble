@@ -9,10 +9,12 @@ void USnowRumbleMatchSubsystem::BeginPvPMatch(
 {
 	bPvPMatchActive = true;
 	bMatchComplete = false;
+	bTiebreakerActive = false;
 	CurrentRoundNumber = 1;
 	RoundLimit = NormalizeRoundLimit(InRoundLimit);
 	GameSpeed = InGameSpeed;
 	TeamRoundWins.Empty();
+	TiebreakerTeams.Empty();
 	PvPLevelPaths.Empty();
 	LastSelectedPvPLevelPath.Empty();
 
@@ -29,11 +31,13 @@ void USnowRumbleMatchSubsystem::ResetPvPMatch()
 {
 	bPvPMatchActive = false;
 	bMatchComplete = false;
+	bTiebreakerActive = false;
 	CurrentRoundNumber = 1;
 	RoundLimit = 1;
 	GameSpeed = ESnowRumbleGameSpeed::Normal;
 	PvPLevelPaths.Empty();
 	LastSelectedPvPLevelPath.Empty();
+	TiebreakerTeams.Empty();
 	TeamRoundWins.Empty();
 }
 
@@ -63,7 +67,27 @@ FString USnowRumbleMatchSubsystem::SelectNextPvPLevelPath(
 
 bool USnowRumbleMatchSubsystem::RecordRoundWin(ESnowRumbleTeam WinningTeam)
 {
-	if (!bPvPMatchActive || bMatchComplete || !IsValidTeam(WinningTeam))
+	if (!bPvPMatchActive || !IsValidTeam(WinningTeam))
+	{
+		return bMatchComplete;
+	}
+
+	if (bTiebreakerActive)
+	{
+		if (!TiebreakerTeams.Contains(WinningTeam))
+		{
+			return bMatchComplete;
+		}
+
+		int32& RoundWins = TeamRoundWins.FindOrAdd(WinningTeam);
+		++RoundWins;
+		bTiebreakerActive = false;
+		TiebreakerTeams.Empty();
+		bMatchComplete = true;
+		return bMatchComplete;
+	}
+
+	if (bMatchComplete)
 	{
 		return bMatchComplete;
 	}
@@ -77,6 +101,27 @@ bool USnowRumbleMatchSubsystem::RecordRoundWin(ESnowRumbleTeam WinningTeam)
 	}
 
 	return bMatchComplete;
+}
+
+bool USnowRumbleMatchSubsystem::StartTiebreakerForLeadingTie()
+{
+	if (!bPvPMatchActive || !bMatchComplete || bTiebreakerActive)
+	{
+		return false;
+	}
+
+	TArray<ESnowRumbleTeam> LeadingTiedTeams;
+	GetLeadingTiedTeams(LeadingTiedTeams);
+	if (LeadingTiedTeams.Num() < 2)
+	{
+		return false;
+	}
+
+	TiebreakerTeams = MoveTemp(LeadingTiedTeams);
+	bTiebreakerActive = true;
+	bMatchComplete = false;
+	CurrentRoundNumber = RoundLimit + 1;
+	return true;
 }
 
 void USnowRumbleMatchSubsystem::AdvanceToNextRound()
@@ -118,12 +163,12 @@ float USnowRumbleMatchSubsystem::GetMapShrinkIntervalSeconds(
 	switch (InGameSpeed)
 	{
 	case ESnowRumbleGameSpeed::Slow:
-		return 90.0f;
-	case ESnowRumbleGameSpeed::Fast:
 		return 30.0f;
+	case ESnowRumbleGameSpeed::Fast:
+		return 10.0f;
 	case ESnowRumbleGameSpeed::Normal:
 	default:
-		return 60.0f;
+		return 20.0f;
 	}
 }
 
@@ -141,6 +186,17 @@ int32 USnowRumbleMatchSubsystem::GetTeamRoundWinCount(
 bool USnowRumbleMatchSubsystem::IsMatchComplete() const
 {
 	return bMatchComplete;
+}
+
+bool USnowRumbleMatchSubsystem::IsTiebreakerActive() const
+{
+	return bTiebreakerActive;
+}
+
+bool USnowRumbleMatchSubsystem::IsTiebreakerTeam(
+	ESnowRumbleTeam Team) const
+{
+	return bTiebreakerActive && TiebreakerTeams.Contains(Team);
 }
 
 ESnowRumbleTeam USnowRumbleMatchSubsystem::GetLeadingTeam() const
@@ -165,6 +221,28 @@ ESnowRumbleTeam USnowRumbleMatchSubsystem::GetLeadingTeam() const
 	}
 
 	return bHasTie ? ESnowRumbleTeam::None : LeadingTeam;
+}
+
+void USnowRumbleMatchSubsystem::GetLeadingTiedTeams(
+	TArray<ESnowRumbleTeam>& OutTeams) const
+{
+	OutTeams.Reset();
+
+	int32 HighestRoundWins = 0;
+	for (const TPair<ESnowRumbleTeam, int32>& TeamRoundWin : TeamRoundWins)
+	{
+		if (TeamRoundWin.Value > HighestRoundWins)
+		{
+			HighestRoundWins = TeamRoundWin.Value;
+			OutTeams.Reset();
+			OutTeams.Add(TeamRoundWin.Key);
+		}
+		else if (TeamRoundWin.Value == HighestRoundWins
+			&& HighestRoundWins > 0)
+		{
+			OutTeams.AddUnique(TeamRoundWin.Key);
+		}
+	}
 }
 
 int32 USnowRumbleMatchSubsystem::NormalizeRoundLimit(int32 InRoundLimit) const

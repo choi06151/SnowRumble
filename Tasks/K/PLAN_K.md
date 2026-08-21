@@ -69,3 +69,4 @@
 - 2026-08-14: 사용자가 다음 Task 진행을 요청해 K-14를 진행중으로 전환했다. K-14는 눈사람 전원 감염 승리, 제한시간 종료 시 일반 플레이어 생존 승리, 결과 상태 복제와 로비 복귀 인계를 다룬다. 구현 전 결과 후 복귀 시간, 결과 문구, 제한시간 종료 직전 감염 대기 플레이어 판정을 확정한다.
 - 2026-08-19: K-14 확인 중 결과 후 로비 복귀가 로비 대기 상태가 아니라 눈사람 모드 시작처럼 3-2-1 표시를 띄우는 문제를 반영했다. Snowman GameMode 복귀 travel은 로비 GameMode를 명시하고 absolute travel로 실행해 이전 눈사람 `?game=` 옵션이 남지 않게 한다.
 - 2026-08-21: K-14 확인 중 초기 눈사람이 초기 스폰/RestartPlayer 경로에서 인간 Pawn으로 생성되는 문제와 컨트롤러 소실 Pending cleanup 경고 반복 문제를 반영했다. Snowman GameMode는 초기 역할이 `Snowman`이면 `SnowmanCharacterClass`를 기본 Pawn으로 반환하고, 컨트롤러 없는 Pending 참가자는 Entry를 삭제하지 않고 Pending 상태만 1회 해제해 참가자 목록 유실과 반복 로그를 막는다.
+- 2026-08-14: `master`에 K 브랜치를 병합한 뒤 UE unity build에서 `SnowmanModeGameMode_K.cpp`와 `SnowRumbleGameMode.cpp`의 익명 namespace helper 이름이 충돌해 컴파일이 실패하는 문제를 수정했다. K 소유 helper를 `MakeSnowmanModeRandomHorizontalOffset`으로 변경했고, `SnowRumbleEditor Win64 Development` 빌드가 성공했다.

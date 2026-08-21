@@ -36,6 +36,9 @@ public:
 	/** 서버가 라운드 승리 팀을 누적하고 매치 종료 여부를 반환한다. */
 	bool RecordRoundWin(ESnowRumbleTeam WinningTeam);
 
+	/** 정규 라운드 종료 후 공동 1등이 있으면 단판 승부 상태로 전환한다. */
+	bool StartTiebreakerForLeadingTie();
+
 	/** 다음 라운드 번호로 진행한다. */
 	void AdvanceToNextRound();
 
@@ -60,19 +63,28 @@ public:
 	/** 모든 라운드가 끝났는지 반환한다. */
 	bool IsMatchComplete() const;
 
+	/** 현재 공동 1등 단판 승부 중인지 반환한다. */
+	bool IsTiebreakerActive() const;
+
+	/** 현재 팀이 단판 승부 대상 팀인지 반환한다. */
+	bool IsTiebreakerTeam(ESnowRumbleTeam Team) const;
+
 	/** 현재 1등 팀을 반환한다. 동점이면 None을 반환한다. */
 	ESnowRumbleTeam GetLeadingTeam() const;
 
 private:
 	int32 NormalizeRoundLimit(int32 InRoundLimit) const;
 	bool IsValidTeam(ESnowRumbleTeam Team) const;
+	void GetLeadingTiedTeams(TArray<ESnowRumbleTeam>& OutTeams) const;
 
 	bool bPvPMatchActive = false;
 	bool bMatchComplete = false;
+	bool bTiebreakerActive = false;
 	int32 CurrentRoundNumber = 1;
 	int32 RoundLimit = 1;
 	ESnowRumbleGameSpeed GameSpeed = ESnowRumbleGameSpeed::Normal;
 	TArray<FString> PvPLevelPaths;
 	FString LastSelectedPvPLevelPath;
+	TArray<ESnowRumbleTeam> TiebreakerTeams;
 	TMap<ESnowRumbleTeam, int32> TeamRoundWins;
 };

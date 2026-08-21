@@ -5,9 +5,48 @@
 #include "CoreMinimal.h"
 #include "Animation/AnimInstance.h"
 #include "SnowRumbleCharacter.h"
+#include "SnowRumbleCharacterAnimationTypes_C.h"
 #include "SnowRumbleCharacterAnimInstance_C.generated.h"
 
-class UAnimSequenceBase;
+UENUM(BlueprintType)
+enum class ESnowRumbleLocomotionAnimState : uint8
+{
+	Idle,
+	Walk,
+	Sprint,
+	InAir
+};
+
+UENUM(BlueprintType)
+enum class ESnowRumbleUpperBodyAnimState : uint8
+{
+	None,
+	SmallSnowball,
+	SmallSnowballAim,
+	LargeSnowball,
+	LargeSnowballAim,
+	SnowShovel,
+	SnowShovelAim,
+	SnowDuckMaker,
+	SnowDuckMakerAim,
+	SmallSnowballCharge,
+	LargeSnowballCharge,
+	SnowShovelCharge,
+	SnowDuckMakerCharge
+};
+
+UENUM(BlueprintType)
+enum class ESnowRumbleFullBodyAnimState : uint8
+{
+	None,
+	CreateSnowball,
+	RollSnowball,
+	Pickup,
+	ItemInteraction,
+	HitReact,
+	Frozen,
+	Dead
+};
 
 UCLASS(Blueprintable)
 class SNOWRUMBLE_API USnowRumbleCharacterAnimInstance
@@ -19,9 +58,17 @@ public:
 	virtual void NativeInitializeAnimation() override;
 	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 
-	/** 현재 상태 우선순위에 맞는 주 애니메이션 슬롯을 반환한다. */
-	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
-	UAnimSequenceBase* GetPrimaryAnimation() const;
+	/** 상체 전용 pose를 현재 locomotion 위에 섞어야 하는지 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation", meta = (BlueprintThreadSafe))
+	bool HasUpperBodyOverride() const;
+
+	/** 전체 몸 action pose가 최종 pose를 덮어써야 하는지 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation", meta = (BlueprintThreadSafe))
+	bool HasFullBodyOverride() const;
+
+	/** 서버가 확정한 one-shot 동작을 ABP 몽타주/슬롯으로 재생한다. */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Animation|Trigger")
+	void OnAnimationTriggerRequested(ESnowRumbleCharacterAnimTrigger Trigger);
 
 	/** ABP가 이동 BlendSpace 등에 사용할 지상 이동 속도다. */
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|State")
@@ -55,7 +102,56 @@ public:
 	bool bIsPickingUpItem = false;
 
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|State")
+	bool bIsInteractingWithItem = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|State")
+	bool bIsHitReacting = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	bool bIsGrabReaching = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	bool bIsGrabbingCharacter = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	bool bIsGrabAttached = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	bool bIsHangingFromWorldGrab = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	bool bIsGrabbedByCharacter = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	FVector GrabAttachedWorldLocation = FVector::ZeroVector;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	FVector RightHandGrabTargetLocation = FVector::ZeroVector;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	FVector LeftHandGrabTargetLocation = FVector::ZeroVector;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	float GrabReachAlpha = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|View")
+	float ViewPitchDegrees = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|View")
+	float ViewPitchAlpha = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|View")
+	float ViewYawDegrees = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|View")
+	float ViewYawAlpha = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|State")
 	ESnowballCarryState SnowballCarryState = ESnowballCarryState::Normal;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|State")
+	ESnowRumbleHeldAnimationState HeldAnimationState =
+		ESnowRumbleHeldAnimationState::BareHands;
 
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|State")
 	ESnowballActionState SnowballActionState = ESnowballActionState::None;
@@ -70,50 +166,22 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|State")
 	float SnowballCreationProgress = 0.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation|Slots|Locomotion")
-	TObjectPtr<UAnimSequenceBase> IdleAnimation;
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Derived State")
+	ESnowRumbleLocomotionAnimState LocomotionAnimState =
+		ESnowRumbleLocomotionAnimState::Idle;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation|Slots|Locomotion")
-	TObjectPtr<UAnimSequenceBase> WalkAnimation;
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Derived State")
+	ESnowRumbleUpperBodyAnimState UpperBodyAnimState =
+		ESnowRumbleUpperBodyAnimState::None;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation|Slots|Locomotion")
-	TObjectPtr<UAnimSequenceBase> SprintAnimation;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation|Slots|Locomotion")
-	TObjectPtr<UAnimSequenceBase> JumpOrFallAnimation;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation|Slots|Aim")
-	TObjectPtr<UAnimSequenceBase> AimIdleAnimation;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation|Slots|Aim")
-	TObjectPtr<UAnimSequenceBase> AimWalkAnimation;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation|Slots|Snowball")
-	TObjectPtr<UAnimSequenceBase> SmallSnowballHoldAnimation;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation|Slots|Snowball")
-	TObjectPtr<UAnimSequenceBase> LargeSnowballHoldAnimation;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation|Slots|Snowball")
-	TObjectPtr<UAnimSequenceBase> SnowballChargeAnimation;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation|Slots|Snowball")
-	TObjectPtr<UAnimSequenceBase> CreateSnowballAnimation;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation|Slots|Snowball")
-	TObjectPtr<UAnimSequenceBase> RollSnowballAnimation;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation|Slots|Action")
-	TObjectPtr<UAnimSequenceBase> PickupAnimation;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation|Slots|Health")
-	TObjectPtr<UAnimSequenceBase> FrozenAnimation;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation|Slots|Health")
-	TObjectPtr<UAnimSequenceBase> DeadAnimation;
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Derived State")
+	ESnowRumbleFullBodyAnimState FullBodyAnimState =
+		ESnowRumbleFullBodyAnimState::None;
 
 protected:
 	void RefreshFromOwnerCharacter();
+	void RefreshDerivedAnimationStates();
+	void ResetAnimationState();
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "SnowRumble|Animation")
 	TObjectPtr<ASnowRumbleCharacter> CachedCharacter;

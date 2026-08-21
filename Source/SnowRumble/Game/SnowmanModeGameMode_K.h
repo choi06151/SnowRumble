@@ -30,6 +30,8 @@ public:
 
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 
+	virtual void HandleSeamlessTravelPlayer(AController*& C) override;
+
 	virtual void HandleStartingNewPlayer_Implementation(
 		APlayerController* NewPlayer) override;
 

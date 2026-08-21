@@ -13,6 +13,7 @@ class UChatWidget;
 class ULoadingScreenWidget;
 class UUserWidget;
 class UVoiceMuteMenuWidget;
+class ACameraActor;
 
 UCLASS(Blueprintable)
 class SNOWRUMBLE_API ASnowRumblePlayerController : public APlayerController
@@ -41,6 +42,10 @@ public:
 	/** 현재 로컬 채팅 입력창이 열려 있는지 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI|Chat")
 	bool IsChatInputOpen() const;
+
+	/** 캐릭터 게임 입력을 막아야 하는 UI가 열려 있는지 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI")
+	virtual bool IsGameplayUiInputOpen() const;
 
 	/** 현재 로컬 마이크 입력 상태가 켜져 있는지 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Voice")
@@ -83,6 +88,16 @@ public:
 	bool IsVoicePlayerManuallyMuted(
 		const ASnowRumblePlayerState* TargetPlayerState) const;
 
+	/** 로컬 UI 입력으로 전환하고 기본 커서 위젯을 표시한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Cursor")
+	void EnableDefaultCursorUiInput(
+		UUserWidget* WidgetToFocus,
+		bool bUseCustomCursorWidget = true);
+
+	/** 로컬 게임 입력으로 돌아가고 마우스 커서를 숨긴다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Cursor")
+	void RestoreGameOnlyInput();
+
 	UFUNCTION(Client, Reliable, Category = "SnowRumble|UI|Loading")
 	void ClientShowLoadingScreen();
 
@@ -98,6 +113,17 @@ public:
 	UFUNCTION(Client, Reliable, Category = "SnowRumble|UI|Personal Alarm")
 	void ClientShowPersonalTextAlarm(const FText& Message);
 
+	UFUNCTION(Client, Reliable, Category = "SnowRumble|Match Intro")
+	void ClientPlayPvpTeamIntroShot(
+		ESnowRumbleTeam Team,
+		float ShotDurationSeconds);
+
+	UFUNCTION(Client, Reliable, Category = "SnowRumble|Match Intro")
+	void ClientStartPvpIntroFadeOut(float FadeOutSeconds);
+
+	UFUNCTION(Client, Reliable, Category = "SnowRumble|Match Intro")
+	void ClientFinishPvpTeamIntro();
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -112,6 +138,12 @@ protected:
 		const FText& Message);
 	virtual void ClientShowPersonalTextAlarm_Implementation(
 		const FText& Message);
+	virtual void ClientPlayPvpTeamIntroShot_Implementation(
+		ESnowRumbleTeam Team,
+		float ShotDurationSeconds);
+	virtual void ClientStartPvpIntroFadeOut_Implementation(
+		float FadeOutSeconds);
+	virtual void ClientFinishPvpTeamIntro_Implementation();
 
 	/** 현재 상태에서 Enter 채팅 입력을 열 수 있는지 반환한다. */
 	virtual bool CanOpenChatInput() const;
@@ -133,6 +165,13 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Voice")
 	void OnVoiceTargetMuteRequested();
 
+	/** PvP 시작 팀 소개 UI를 WBP에서 표시할 수 있는 로컬 이벤트다. */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Match Intro")
+	void OnPvpTeamIntroShot(
+		ESnowRumbleTeam Team,
+		const FText& TeamDisplayText,
+		float ShotDurationSeconds);
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Loading")
 	TSubclassOf<ULoadingScreenWidget> LoadingScreenWidgetClass;
 
@@ -147,6 +186,27 @@ protected:
 	/** 로비, PvP, 채팅, ESC 메뉴 등 인게임 UI에서 공통으로 사용할 기본 마우스 커서 위젯이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Cursor")
 	TSubclassOf<UUserWidget> DefaultMouseCursorWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Match Intro", meta = (ClampMin = "0.0"))
+	float PvpIntroCameraBlendSeconds = 0.35f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Match Intro", meta = (ClampMin = "0.0"))
+	float PvpIntroCameraReturnBlendSeconds = 0.25f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Match Intro", meta = (ClampMin = "0.0"))
+	float PvpIntroCameraDistance = 650.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Match Intro", meta = (ClampMin = "0.0"))
+	float PvpIntroCameraHeight = 260.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Match Intro", meta = (ClampMin = "0.0"))
+	float PvpIntroCameraSideOffset = 420.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Match Intro", meta = (ClampMin = "0.0"))
+	float PvpIntroCameraDollyDistance = 360.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Match Intro", meta = (ClampMin = "1.0"))
+	float PvpIntroCinematicAspectRatio = 2.39f;
 
 	/** 기본 마우스 커서 위젯 슬롯을 소프트웨어 커서로 적용한다. */
 	void ApplyDefaultMouseCursorWidget();
@@ -236,6 +296,22 @@ private:
 	/** 현재 저장된 마이크 설정에 맞춰 로컬 입력 상태를 갱신한다. */
 	void RefreshMicrophoneInputState();
 
+	/** PvP 팀 소개용 임시 카메라 이동을 갱신한다. */
+	void UpdatePvpIntroCamera(float DeltaTime);
+
+	/** 현재 로컬 월드에 존재하는 특정 팀 Pawn들을 찾는다. */
+	void GetPvpIntroTeamPawns(
+		ESnowRumbleTeam Team,
+		TArray<APawn*>& OutPawns) const;
+
+	/** 팀 Pawn bounds 기준으로 시작 소개 카메라 transform을 계산한다. */
+	bool BuildPvpIntroCameraTransform(
+		const TArray<APawn*>& TeamPawns,
+		FTransform& OutStartTransform,
+		FTransform& OutEndTransform) const;
+
+	FText GetPvpIntroTeamDisplayText(ESnowRumbleTeam Team) const;
+
 	/** 채팅 위젯 인스턴스가 없으면 생성한다. */
 	UChatWidget* EnsureChatWidget();
 
@@ -255,6 +331,19 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UUserWidget> DefaultMouseCursorWidget;
+
+	UPROPERTY(Transient)
+	TObjectPtr<ACameraActor> PvpIntroCameraActor;
+
+	bool bChatInputIgnoringPawnInput = false;
+
+	FTransform PvpIntroCameraCurrentStartTransform;
+	FTransform PvpIntroCameraDollyStartTransform;
+	FTransform PvpIntroCameraDollyEndTransform;
+	float PvpIntroCameraElapsedSeconds = 0.0f;
+	float PvpIntroCameraDurationSeconds = 0.0f;
+	bool bPvpIntroCameraActive = false;
+	FTimerHandle PvpIntroCameraDestroyTimerHandle;
 
 	FKey BoundChatInputKey = EKeys::Invalid;
 	FKey BoundChatChannelToggleKey = EKeys::Invalid;

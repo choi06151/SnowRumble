@@ -77,7 +77,14 @@ bool USnowballCreationComponent::IsCreatingSnowball() const
 
 float USnowballCreationComponent::GetCreationProgress() const
 {
-	if (!bIsCreating || CreationDuration <= 0.0f)
+	const ASnowRumbleCharacter* Character =
+		Cast<ASnowRumbleCharacter>(GetOwner());
+	const float EffectiveCreationDuration =
+		CreationDuration
+		* (Character
+			? Character->GetSnowballCreationDurationMultiplier()
+			: 1.0f);
+	if (!bIsCreating || EffectiveCreationDuration <= 0.0f)
 	{
 		return 0.0f;
 	}
@@ -92,7 +99,8 @@ float USnowballCreationComponent::GetCreationProgress() const
 				: CreationStartServerTime;
 
 	return FMath::Clamp(
-		(CurrentServerTime - CreationStartServerTime) / CreationDuration,
+		(CurrentServerTime - CreationStartServerTime)
+			/ EffectiveCreationDuration,
 		0.0f,
 		1.0f);
 }
@@ -111,7 +119,7 @@ void USnowballCreationComponent::ServerStartCreatingSnowball_Implementation(
 	FVector_NetQuantizeNormal ViewDirection)
 {
 	ASnowRumbleCharacter* Character = Cast<ASnowRumbleCharacter>(GetOwner());
-	const USnowballEquipmentComponent* Equipment =
+	USnowballEquipmentComponent* Equipment =
 		Character
 			? Character->FindComponentByClass<USnowballEquipmentComponent>()
 			: nullptr;
@@ -150,11 +158,14 @@ void USnowballCreationComponent::ServerStartCreatingSnowball_Implementation(
 
 	CreationStartServerTime = World->GetTimeSeconds();
 	SetCreatingState(true);
+	const float EffectiveCreationDuration =
+		CreationDuration
+		* Character->GetSnowballCreationDurationMultiplier();
 	World->GetTimerManager().SetTimer(
 		CreationTimerHandle,
 		this,
 		&USnowballCreationComponent::CompleteCreation,
-		CreationDuration,
+		FMath::Max(0.01f, EffectiveCreationDuration),
 		false);
 	Character->ForceNetUpdate();
 }
@@ -183,7 +194,7 @@ void USnowballCreationComponent::OnRep_IsCreating()
 void USnowballCreationComponent::CompleteCreation()
 {
 	ASnowRumbleCharacter* Character = Cast<ASnowRumbleCharacter>(GetOwner());
-	const USnowballEquipmentComponent* Equipment =
+	USnowballEquipmentComponent* Equipment =
 		Character
 			? Character->FindComponentByClass<USnowballEquipmentComponent>()
 			: nullptr;
@@ -209,23 +220,44 @@ void USnowballCreationComponent::CompleteCreation()
 	const FVector ForwardLocation =
 		Character->GetActorLocation()
 		+ Character->GetActorForwardVector() * CreationForwardDistance;
-	const FVector SpawnLocation =
+	const FVector SurfaceSpawnPoint =
 		FVector::PointPlaneProject(
 			ForwardLocation,
 			CreationSurfacePoint,
-			CreationSurfaceNormal)
-		+ CreationSurfaceNormal * 20.0f;
+			CreationSurfaceNormal);
+	const FVector SpawnLocation =
+		SurfaceSpawnPoint + CreationSurfaceNormal.GetSafeNormal() * 20.0f;
 	FActorSpawnParameters SpawnParameters;
 	SpawnParameters.Owner = Character;
 	SpawnParameters.Instigator = Character;
 	SpawnParameters.SpawnCollisionHandlingOverride =
-		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+		ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	World->SpawnActor<ASnowballItem>(
+	ASnowballItem* CreatedSnowball = World->SpawnActor<ASnowballItem>(
 		SnowballItemClass,
 		SpawnLocation,
 		FRotator::ZeroRotator,
 		SpawnParameters);
+
+	if (CreatedSnowball)
+	{
+		CreatedSnowball->SettleOnGroundFromSurface(
+			SurfaceSpawnPoint,
+			CreationSurfaceNormal);
+		CreatedSnowball->IgnoreActorTemporarily(
+			Character,
+			CreatedSnowballOwnerCollisionIgnoreSeconds);
+	}
+
+	if (CreatedSnowball
+		&& Character->HasEquippedSnowDuckMaker()
+		&& Equipment
+		&& Equipment->EquipCreatedSnowballFromServer(CreatedSnowball))
+	{
+		SetCreatingState(false);
+		Character->ForceNetUpdate();
+		return;
+	}
 
 	SetCreatingState(false);
 	Character->ForceNetUpdate();

@@ -9,7 +9,7 @@
 
 ## 현재 집중 Task
 
-- [C-11](C-11_customization_contract.md) 커스터마이징 데이터 계약
+- [C-10](C-10_emote_revalidation.md) 이모션 재검증
 
 ## 개발 스타일
 
@@ -33,7 +33,7 @@
 | 8 | [C-08](C-08_spawn_intro_identity.md) | 팀 식별 데이터 | C-03 | 진행중 |
 | 9 | [C-09](C-09_snow_combat_completion.md) | 눈 전투 완성 | C-01, C-07 | 예정 |
 | 10 | [C-05](C-05_round_match_flow.md) | 3판 2선승 경기 흐름 | C-04, C-06 | 진행중 |
-| 11 | [C-10](C-10_emote_revalidation.md) | 이모션 재검증 | C-01, C-06, C-08 | 예정 |
+| 11 | [C-10](C-10_emote_revalidation.md) | 이모션 재검증 | C-01, C-06, C-08 | 진행중 |
 | 12 | [C-11](C-11_customization_contract.md) | 커스터마이징 데이터 계약 | C-02·기획 결정 | 진행중 |
 | 13 | [C-13](C-13_revive_contract.md) | 핫팩 부활 계약 | C-06, C-07 | 예정 |
 | 14 | [C-14](C-14_spawn_intro_flow.md) | 팀 스폰과 시작 연출 | C-03, C-04 | 예정 |
@@ -47,6 +47,10 @@
 | 22 | [C-22](C-22_interaction_prompt_ui.md) | 상호작용 안내 UI | C-15·기존 눈덩이 획득 | 진행중 |
 | 23 | [C-23](C-23_camera_wheel_zoom.md) | 마우스 휠 카메라 줌 | 기존 플레이어 카메라 | 진행중 |
 | 24 | [C-24](C-24_character_model_anim_contract.md) | 캐릭터 모델과 ABP 애니메이션 계약 | C-01, C-08, C-11 | 진행중 |
+| 25 | [C-25](C-25_pvp_gift_box_item_foundation.md) | PvP 선물상자와 아이템 기본 계약 | C-01, C-05, C-22 | 진행중 |
+| 26 | [C-26](C-26_snow_footstep_effect.md) | 눈 밟힘 효과 계약 | C-01 | 진행중 |
+| 27 | [C-27](C-27_snow_trail_render_target.md) | 눈길 RenderTarget 계약 | C-26 | 진행중 |
+| 28 | [C-28](C-28_player_grab_control_rig_foundation.md) | 플레이어 잡기와 Control Rig 기본틀 | C-24 | 진행중 |
 
 ## 통합 변경 요청
 
@@ -189,3 +193,76 @@
 - 2026-08-12: C-11 페인트 trace를 기본 몸 머티리얼 slot 0 전용으로 제한했다. `PaintAllowedMaterialIndex`는 기본 0, -1이면 모든 slot 허용이며, `bShowPaintHitDebug`로 hit 컴포넌트·slot·UV를 확인할 수 있다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
 - 2026-08-12: C-11 페인트 trace에 원형 커서 중심 자동 보정을 추가했다. `bUsePaintCursorCenterTraceOffset`이 켜져 있으면 현재 브러시 커서 지름의 절반만큼 trace 위치를 보정하고, `PaintCursorScreenOffset`은 마지막 미세 조정값으로 남긴다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor PID 46944의 DLL 잠금으로 최종 링크는 보류됐다.
 - 2026-08-12: C-11 모자 커스터마이징 첫 범위를 추가했다. 캐릭터 `HatMeshComponent` 빈 슬롯과 `CustomizationHatMeshes` 후보 배열을 제공하고, 커스터마이징 UI의 `HatModeButton`/`HatPreviousButton`/`HatNextButton`으로 `HatMeshIndex`를 순환·저장·복제하게 했다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됐다.
+- 2026-08-12: 사용자가 PvP 내부 아이템 기능의 첫 단계로 선물상자를 요청해 C-25를 추가하고 현재 집중 Task로 전환했다. 첫 범위는 TargetPoint 후보 기반 서버 스폰, 공중 낙하, 전체 알림, `E` 개봉, 랜덤 아이템 이름 확정과 로그/알림 계약까지로 제한한다.
+- 2026-08-12: C-25 선물상자 C++ 기반을 구현했다. `AGiftBox`는 빨간색/황금색 등급과 등급별 보상 후보, 낙하·착지·개봉 Blueprint 이벤트를 제공하고, PvP GameMode는 레벨 담당자가 배치한 `TargetPoint` 후보에서 상자를 공중 스폰한다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-12: C-25 선물상자 보상 흐름을 즉시 장착에서 아이템 Pickup 스폰 후 `E` 획득으로 변경했다. `AGiftBoxItemPickup`을 추가하고, 선물상자 `TakeDamage()`로 눈덩이 피격 개봉을 지원한다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됐다.
+- 2026-08-12: C-25 아이템 Pickup이 살짝 둥둥 떠다니도록 `FloatAmplitude`와 `FloatSpeed` 조정값을 추가했다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됐다.
+- 2026-08-12: C-25 아이템 Pickup 기본 `FloatSpeed`를 5로 변경하고, 선물상자 BP에서 같은 StaticMesh에 등급별 머티리얼을 입힐 수 있도록 `GradeMaterialIndex`, `RedGiftBoxMaterial`, `GoldGiftBoxMaterial`을 추가했다. 상자 개봉/사라짐 이펙트용 `OpenedEffect` Niagara 슬롯도 추가했다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됐다.
+- 2026-08-12: C-25 아이템 BP 내부 연결용 `ESnowRumbleGiftItemType` enum 계약을 추가했다. `FSnowRumbleGiftBoxReward::ItemType`이 `AGiftBoxItemPickup`에 복제되고, Pickup BP는 `GetItemType()` 또는 `OnItemDataChanged()`에서 기능·외형을 분기할 수 있다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-12: C-25 아이템 효과 1차 구현을 추가했다. `UGiftItemEffectComponent`가 핫팩 보유, 즉시 회복, 에너지 드링크 5초 무적, 부츠 이동속도, 패딩 피해 감소, 장갑 눈 제작 시간 감소, 눈오리 제작기 눈덩이 피해 증가, 황금 붕어빵 지속 회복, 눈삽 내구도와 모닥불 키트 보유 수를 서버 권한으로 관리한다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됐다.
+- 2026-08-12: C-25 핫팩과 모닥불 키트 정책을 사용자 결정에 맞게 변경했다. 일반 핫팩은 1개까지만 장착하고, 황금 핫팩은 획득 즉시 같은 팀의 얼음 상태 아군을 50% HP로 부활시키며, 모닥불 키트는 보유하지 않고 `ACampfire`를 캐릭터 앞에 즉시 설치한다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-12: C-25 장비 외형 슬롯을 추가했다. 캐릭터는 부츠, 장갑, 패딩, 핫팩, 눈삽, 눈오리 제작기용 고정 StaticMeshComponent를 갖고 `UGiftItemEffectComponent` 복제 상태에 따라 표시한다. UHT는 통과했으나 현재 시스템 page file 부족 `C3859/C1076`으로 C++ 컴파일 전 PCH 생성 단계에서 빌드가 보류됐다.
+- 2026-08-12: C-24 애니메이션 장착 자세 계약을 보강했다. `ESnowRumbleHeldAnimationState`/`HeldAnimationState`로 맨손, 작은 눈덩이, 큰 눈덩이, 눈삽, 눈오리 제작기를 ABP에서 한 값으로 분기할 수 있고, 빠른 연결용 `SnowShovelHoldAnimation`, `SnowDuckMakerHoldAnimation` 슬롯을 추가했다.
+- 2026-08-12: C-24/C-25 애니메이션 연동을 보강했다. 선물상자 열기와 선물 아이템 획득 성공은 `bIsInteractingWithItem`/`ItemInteractionAnimation`으로, 실제 HP 피해 피격은 `bIsHitReacting`/`HitReactAnimation`으로 ABP가 분기할 수 있다.
+- 2026-08-12: C-24/C-25 애니메이션 연동 변경은 `git diff --check`와 UHT/C++ 컴파일을 통과했다. 최종 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
+- 2026-08-13: C-24 ABP 부모 구조를 단일 `GetPrimaryAnimation()` 출력에서 이동·상체·전체 몸 액션 3계층 상태로 확장했다. `LocomotionAnimState`, `UpperBodyAnimState`, `FullBodyAnimState`와 `HasUpperBodyOverride()`/`HasFullBodyOverride()`를 제공해 ABP가 `Blend Poses by Enum`, `Layered Blend Per Bone`, `Blend Poses by Bool`로 애니메이션 슬롯을 조합하게 했다. C++ 컴파일은 통과했고, 최종 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됐다.
+- 2026-08-13: C-24에서 더 이상 Class Defaults 애니메이션 슬롯을 쓰지 않기로 결정해 `GetPrimaryAnimation()`과 `IdleAnimation` 등 슬롯 프로퍼티를 제거했다. ABP는 Anim Graph의 상태별 Sequence Player에 애니메이션 에셋을 직접 연결한다.
+- 2026-08-13: C-24에 one-shot 애니메이션 trigger 계약을 추가했다. `ESnowRumbleCharacterAnimTrigger`와 `OnAnimationTriggerRequested`로 눈덩이 줍기/던지기, 아이템 상호작용, 피격 반응을 서버 확정 후 모든 화면의 AnimBP에 전달한다. UHT와 C++ 컴파일은 통과했고, 최종 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
+- 2026-08-12: C-11 색칠하기 브러시 색 선택을 기본 컬러 피커에서 고정 팔레트 버튼으로 변경했다. WBP는 `RedBrushColorButton`, `OrangeBrushColorButton`, `YellowBrushColorButton`, `GreenBrushColorButton`, `BlueBrushColorButton`, `IndigoBrushColorButton`, `PurpleBrushColorButton`, `BlackBrushColorButton`, `WhiteBrushColorButton`만 배치하고, 선택된 색은 Pressed 스타일로 유지된다.
+- 2026-08-12: C-11 고정 팔레트 버튼 변경은 `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드를 통과했다.
+- 2026-08-12: C-11 팔레트 버튼 클릭 시 실제 브러시 색이 해당 버튼의 WBP 스타일 Normal Tint와 BackgroundColor를 기준으로 정해지게 했다.
+- 2026-08-12: C-11 버튼 tint 기반 브러시 색 변경은 `git diff --check`와 UHT/C++ 컴파일을 통과했다. 최종 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
+- 2026-08-13: C-05 정규 라운드 최종 공동 1등 처리로 단판 승부 타이브레이커를 추가했다. 공동 1등 팀만 결과 판정과 피해 적용 대상이 되며 `TiebreakerTravelUrl` 전용 PvP 맵으로 이동하고, HUD는 `단판승부` 문구와 경기 시간만 표시하며 맵 축소는 비활성화된다. 아이템 스폰은 기존 PvP와 동일하게 유지된다.
+- 2026-08-13: C-05 타이브레이커 비동점 팀은 관전자 상태로 복제해 이동·상호작용·충돌 간섭을 막고 경기 참가자 시점을 보게 했다. `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드를 통과했다.
+- 2026-08-13: C-05 매치 종료 후 포디움 레벨 이동을 추가했다. `APodiumGameMode`가 현재 매치 참가 팀만 기준으로 순위를 산정해 포디움 PlayerStart에 배치하고, `UPodiumWidget`에 결과 문구를 전달한 뒤 10초 후 매치 상태를 초기화하고 로비로 복귀한다.
+- 2026-08-13: 커스터마이징 맵에서만 마우스 커서가 사라지는 문제를 수정했다. 커스터마이징 프리뷰 캐릭터를 possess한 상태에서 공용 캐릭터 Tick이 `GameOnly`와 커서 숨김을 되돌리던 경로를 `ACustomizationPlayerController`에서는 제외하고, 기본 화면은 하드웨어 커서, PaintMode는 원형 소프트웨어 커서를 사용하게 정리했다.
+- 2026-08-13: 레벨별 GameMode/PlayerController 구조 판단에 따라 포디움은 PvP 상속을 제거했다. 결과 표시 전용 `APodiumGameMode`는 `AGameModeBase`, `APodiumPlayerController`는 `APlayerController`를 직접 상속해 PvP 전용 HUD·입력·라운드 흐름이 포디움에 섞이지 않게 했다.
+- 2026-08-14: 사용자가 눈 밟힘 효과를 요청해 C-26을 추가하고 현재 집중 Task로 전환했다. 첫 범위는 캐릭터 AnimNotify/Blueprint 호출 함수, `SnowSurface` 태그 trace, Blueprint 표현 이벤트 계약까지로 제한한다.
+- 2026-08-14: 사용자가 Decal 대신 지형 머티리얼을 실시간으로 파내는 눈길을 요청해 C-27을 추가하고 현재 집중 Task로 전환했다. 첫 범위는 맵 배치용 RenderTarget Manager와 발걸음 서버 검증/멀티캐스트 stamp 계약까지로 제한한다.
+- 2026-08-14: C-11 커스터마이징 페인트에서 브러시 크기 변경 시 trace 위치가 같이 밀려 보이는 문제에 대응해 커서 중심 보정을 현재 브러시 지름 기반에서 고정 hotspot 보정값 기반으로 변경했다.
+- 2026-08-14: 사용자가 PvP 시작 시 팀 소개 카메라 연출을 요청하고 랜덤 PlayerStart 스폰에서도 가능한지 확인해 C-14를 현재 집중 Task로 재개했다. 고정 CameraRig 대신 로딩창 종료 후 스폰된 팀 Pawn 위치로 로컬 임시 카메라를 계산하고, 팀 소개 종료 뒤 기존 `3, 2, 1, 시작!` 카운트다운으로 이어지게 했다.
+- 2026-08-18: C-11 커스터마이징 맵 입력 누수를 수정했다. 커스터마이징 전용 PlayerController가 프리뷰 캐릭터를 possess해도 이동/시점 입력을 잠그고, 공용 캐릭터도 `ACustomizationPlayerController` 조종 중 Move/Look과 이동속도를 차단한다.
+- 2026-08-18: C-10 이모션 재검증을 진행중으로 전환했다. Tab 이모션 메뉴가 열릴 때 `ASnowRumblePlayerController`의 기본 커서 위젯 적용 경로를 사용하도록 수정해 로비/PvP 커서 표시 문제를 보정한다.
+- 2026-08-18: C-10/C-11 변경은 `git diff --check`와 C++ 컴파일 및 `.lib` 생성까지 통과했다. 최종 링크는 실행 중인 Unreal Editor PID 10272의 DLL 잠금 `LNK1104`로 보류됐다.
+- 2026-08-18: C-24 눈덩이 던지기 발사 타이밍을 몽타주 Notify 기반으로 변경했다. 입력 release 시 서버가 pending throw 값을 저장하고, `UAnimNotify_SnowballThrowRelease` 호출 시 기존 `ASnowballItem::Throw()`를 실행한다. UHT와 C++ 컴파일, `.lib` 생성은 통과했고 최종 DLL 링크는 실행 중인 Unreal Editor 잠금 `LNK1104`로 보류됐다.
+- 2026-08-18: C-24 큰 눈덩이 전용 부착 위치를 추가했다. 작은 눈은 `SnowballSocket`, 최대 성장 큰 눈은 `LargeSnowballSocket` 기준으로 붙고, 큰 눈 소켓이 없으면 기존 작은 눈 소켓으로 fallback한다.
+- 2026-08-18: C-24 큰 눈덩이 소켓 변경은 `git diff --check`, UHT, C++ 컴파일과 `.lib` 생성을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor 잠금 `LNK1104`로 보류됐다.
+- 2026-08-18: C-24 상체 조준 pose를 장착별로 분리했다. `ESnowRumbleUpperBodyAnimState::Aim` 단일 상태 대신 `SmallSnowballAim`, `LargeSnowballAim`, `SnowShovelAim`, `SnowDuckMakerAim`을 AnimBP에 제공한다.
+- 2026-08-18: C-24 장착별 조준 pose 변경은 `git diff --check`, UHT, C++ 컴파일과 `.lib` 생성을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor 잠금 `LNK1104`로 보류됐다.
+- 2026-08-18: C-24 상체 충전 pose도 장착별로 분리했다. `ChargeSnowball` 단일 상태 대신 `SmallSnowballCharge`, `LargeSnowballCharge`, `SnowShovelCharge`, `SnowDuckMakerCharge`를 AnimBP에 제공한다.
+- 2026-08-18: C-24 장착별 충전 pose 변경은 `git diff --check`, UHT, C++ 컴파일과 `.lib` 생성을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor 잠금 `LNK1104`로 보류됐다.
+- 2026-08-18: C-25 개발 테스트용 직접 배치 아이템 Pickup 기본값을 추가했다. `AGiftBoxItemPickup`은 선물상자 spawn 없이 배치되어도 `DefaultItemType`이 지정돼 있으면 서버 BeginPlay에서 아이템 데이터로 초기화된다.
+- 2026-08-18: C-25 직접 배치 아이템 Pickup 기본값 변경은 `git diff --check`, UHT, C++ 컴파일과 `.lib` 생성을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
+- 2026-08-18: C-24 `OnAnimationTriggerRequested` 던지기 trigger에 눈오리 제작기 전용 `ThrowSnowDuckMaker`를 추가했다. 눈오리 제작기 장착 중 던지기 성공 시 작은/큰 눈덩이 trigger 대신 눈오리 제작기 trigger를 보낸다.
+- 2026-08-18: C-24 눈오리 제작기 던지기 trigger 변경은 `git diff --check`, UHT, C++ 컴파일과 `.lib` 생성을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
+- 2026-08-18: C-10 인게임 이모션 메뉴의 마우스 커서와 입력 집중 경로를 보강했다. 이모션 메뉴는 커스텀 커서 위젯을 우회해 기본 하드웨어 커서를 강제로 사용하고, 메뉴가 열린 동안 캐릭터 게임 액션과 좌클릭 release 처리를 막는다. 채팅 채널 전환 Tab 바인딩은 유지하며 채팅창이 열려 있을 때만 채널 전환을 처리한다.
+- 2026-08-18: C-10 Tab 이모션 커서와 입력 집중 변경은 `git diff --check`, C++ 컴파일과 `.lib` 생성을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
+- 2026-08-18: C-10/C-19 입력 회귀를 추가 보강했다. 이모션 UI 입력 전환 시 click/hover 이벤트를 명시적으로 켜고, 채팅 Enter 입력은 `ChatInputTextBox`를 입력 모드 포커스 대상으로 직접 지정한 뒤 TextBox 포커스를 재적용한다.
+- 2026-08-18: C-10/C-19 입력 회귀 보강은 `git diff --check`와 C++ 컴파일을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
+- 2026-08-18: C-19 채팅 입력 중 WASD와 시점 입력이 캐릭터에 전달되는 문제를 보강했다. 채팅 입력 open/close 동안 PlayerController move/look ignore를 한 쌍으로 적용하고, 캐릭터 `Look()`도 채팅 입력 중에는 반환한다.
+- 2026-08-18: C-19 채팅 입력 차단 변경은 `git diff --check`와 C++ 컴파일을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
+- 2026-08-18: C-19 UI 입력 회귀의 공통 원인을 `ASnowRumbleCharacter::RefreshPvpMatchInputLock()`의 매 Tick `GameOnly`/커서 숨김 복구 경로로 확인했다. 채팅 입력, 이모션 메뉴, 게시판 포커스, 커스터마이징 입력이 활성인 동안에는 PvP 입력 잠금 복구가 UI 입력 모드를 덮지 않게 보강했다.
+- 2026-08-18: C-19 UI 입력 보호 변경은 `git diff --check`와 `SnowRumbleCharacter.cpp` 컴파일을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
+- 2026-08-18: C-10 이모션 버튼 클릭이 실행되지 않는 원인을 `CanPlayEmote()`가 열린 이모션 메뉴 상태를 차단하는 경로로 확인하고, 이모션 실행 조건을 일반 게임 액션 조건과 분리했다.
+- 2026-08-18: C-19 채팅 입력 중 Tab 전환이 TextBox 포커스에서 누락되는 경우를 보강했다. 기존 preview key 경로와 함께 `NativeTick()`에서 PlayerController Tab just-pressed를 확인하고 같은 프레임 중복 토글을 막는다.
+- 2026-08-18: C-10/C-19 이모션 실행 조건과 채팅 Tab 전환 보강은 `git diff --check`와 C++ 컴파일을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
+- 2026-08-18: C-19 채팅 Tab 전환 보강을 `IsInputKeyDown(EKeys::Tab)` edge-detect 방식으로 조정했다. `UEditableTextBox` 직접 key handler는 UE 5.8 API에 없어 사용하지 않는다.
+- 2026-08-18: C-19 채팅 Tab edge-detect 변경은 `git diff --check`와 C++ 컴파일을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
+- 2026-08-18: C-14 PvP 맵 이상 위치 스폰 원인을 PlayerStart 주변 900cm 랜덤 오프셋이 바닥·충돌 검증 없이 선택되는 경로로 확인했다. 분산 후보는 바닥 trace, Pawn 캡슐 overlap, 기존 스폰 간격을 통과할 때만 쓰고, 실패 시 원래 PlayerStart 위치로 fallback한다.
+- 2026-08-18: C-14 PvP 분산 스폰 안전성 변경은 `git diff --check`, UHT, `SnowRumbleGameMode.cpp` 컴파일을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
+- 2026-08-19: 꼬인 `879ffac` revert 이후 복구 기준을 `4bc10a5 Add scarf?`로 잡고 C 코드·문서·자산 상태를 되살렸다. S 후속 변경은 C++/Config/문서와 `Content/Characters` 캐릭터·애니메이션 자산을 제외하고, 비캐릭터 UI/VFX `.uasset`만 선별 반영했다. `MainCharacter.uasset`, `WBP_MainMenu.uasset`, `WBP_CustomWidget.uasset`의 LFS 충돌 포인터를 정상 바이너리로 복구했고, `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-19: 사용자 요청에 따라 `Content/Maps/L_MainMenu.umap`과 `Content/Maps/L_Lobby.umap`은 `origin/S` 버전으로 반영했다. Unreal Editor 파일 잠금 해제 후 두 맵이 `origin/S`와 일치함을 확인했고, `git diff --check`와 충돌 마커 검색을 통과했다.
+- 2026-08-19: C-25 눈오리 제작기 좌클릭 연동을 보강했다. 눈오리 제작기 장착 중 좌클릭 제작 완료 시 생성된 눈덩이를 즉시 손에 장착하고, 장착된 눈덩이는 우클릭 조준 없이 좌클릭만으로 충전·투척할 수 있으며, 던지기 성공 시 `ThrowSnowDuckMaker` 애니메이션 트리거를 우선 요청한다. 눈오리 제작기 장착 중 눈덩이 부착 위치는 `SnowDuckBallSocket`을 우선 사용한다. `git diff --check`와 충돌 표식 검색은 통과했고, `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 보류됐다.
+- 2026-08-19: C-25 모닥불 VFX 연결을 보강했다. `ACampfire`에 `FireVfxComponent`와 `HealRadiusVfxComponent`를 추가했고, 모닥불 활성 중 켜지고 꺼지면 자동 비활성화되게 했다. `git diff --check`와 충돌 표식 검색은 통과했고, `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 보류됐다.
+- 2026-08-20: C-24 작은 눈덩이 던지기 trigger를 지상/공중으로 분리했다. 서버가 작은 눈덩이 투척 성공 시 캐릭터가 공중이면 `ThrowSmallSnowballInAir`, 지상이면 기존 `ThrowSmallSnowball`을 보내며, 큰 눈덩이와 눈오리 제작기 trigger는 기존 흐름을 유지한다.
+- 2026-08-20: C-28 플레이어 잡기와 Control Rig 기본틀을 추가했다. 빈손 좌클릭은 잡기 reach를 시작하고, `UPlayerGrabComponent`가 서버 trace 검증과 Physics Constraint 연결 지점을 제공하며, AnimBP는 잡기 상태와 좌우 손 목표 위치를 읽을 수 있다.
+- 2026-08-20: C-28 손 접촉 붙음 상태를 확장했다. 서버가 플레이어 Mesh와 벽·월드 오브젝트 접촉을 확정해 붙은 위치를 복제하고, 플레이어를 잡으면 잡힌 캐릭터의 이동·점프·일반 행동을 해제 전까지 잠근다. UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됐다.
+- 2026-08-20: C-28 잡힌 캐릭터 느낌을 보강했다. 잡힌 대상은 이동 입력·점프·일반 행동만 차단하고 MovementComponent는 유지하며, 서버가 잡은 손 위치 쪽으로 속도를 보간해 몸이 끌려오는 tether를 적용한다. UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됐다.
+- 2026-08-20: C-28 벽잡기 매달림 tether를 추가했다. 월드 표면에 손이 붙으면 잡는 캐릭터의 이동 입력·점프·일반 행동을 차단하고, 붙은 손 위치 기준 뒤·아래 오프셋으로 몸을 유지한다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-20: C-28 벽잡기 중 이동 입력을 허용하도록 조정했다. `Move()`는 벽잡기 중에도 통과하고, 월드 tether는 현재 입력 속도를 일부 유지한 뒤 붙은 손 위치로 돌아가는 보정 속도를 섞는다. UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됐다.
+- 2026-08-20: C-28 벽잡기 중 몸 회전 제한을 추가했다. 벽잡기 시작 시 이동 방향/컨트롤러 yaw 회전을 끄고, 서버 Tick에서 캐릭터 yaw를 붙은 손 위치 쪽으로 보간해 뒤돌아 보지 않게 한다. UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됐다.
+- 2026-08-20: C-28 플레이어에게 잡힌 캐릭터도 이동 입력을 허용하되 잡힌 손 위치로 돌아가는 보정 속도를 섞고, 몸 방향을 잡힌 손 위치 쪽으로 보간하게 조정했다. UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됐다.
+- 2026-08-20: C-28 카메라 상하 시점에 따른 spine Control Rig 보정 계약을 추가했다. `ASnowRumbleCharacter`와 `USnowRumbleCharacterAnimInstance`가 `ViewPitchDegrees`와 `ViewPitchAlpha`를 제공하고, `ViewPitchAlpha`는 아래 0, 정면 0.5, 위 1의 Lerp 값이며 정규화 범위는 `ViewPitchAlphaRangeDegrees`로 조정한다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-21: C-28 빈손 좌클릭 입력 우선순위를 조정했다. `ViewPitchAlpha`가 `SnowCreationPreferredViewPitchAlpha` 이하일 때는 잡기 reach를 시작하지 않고 기존 눈 제작 경로로 내려가며, 정면 이상을 볼 때는 잡기 reach를 우선한다. UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됐다.
+- 2026-08-21: C-28 카메라 좌우 시점에 따른 spine Control Rig 보정 계약을 추가했다. `ASnowRumbleCharacter`와 `USnowRumbleCharacterAnimInstance`가 `ViewYawDegrees`와 `ViewYawAlpha`를 제공하고, `ViewYawAlpha`는 왼쪽 -0.5, 정면 0, 오른쪽 0.5의 Lerp 값이며 정규화 범위는 `ViewYawAlphaRangeDegrees`로 조정한다. UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됐다.
+- 2026-08-21: C-28 잡기 상태 우클릭 연타 회귀를 보강했다. 벽잡기 또는 잡힌 상태에서는 조준 해제 이벤트가 들어와도 잡기용 회전 잠금이 유지되게 해 tether와 이동 방향 회전이 충돌하지 않도록 했다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
