@@ -119,5 +119,8 @@
 - 2026-08-18: C-14 PvP 분산 스폰 안전성 변경은 `git diff --check`, UHT, `SnowRumbleGameMode.cpp` 컴파일을 통과함. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됨.
 - 2026-08-19: C-25 눈오리 제작기 좌클릭 연동을 보강함. 눈오리 제작기 장착 중 좌클릭 눈 제작 완료 시 생성된 눈덩이를 즉시 손에 장착하고, 장착된 눈덩이는 우클릭 조준 없이 좌클릭만으로 충전·투척하며 `ThrowSnowDuckMaker` 애니메이션 트리거와 `SnowDuckBallSocket` 부착 위치를 사용함.
 - 2026-08-19: C-25 모닥불 VFX 연결을 보강함. `ACampfire`에 `FireVfxComponent`와 `HealRadiusVfxComponent`를 추가해 Blueprint에서 불꽃과 회복 범위 VFX를 연결할 수 있고, 모닥불이 꺼지면 두 VFX가 자동 비활성화됨.
+- 2026-08-21: C-25/J-04 모닥불과 눈섬 물 상승 연동을 추가함. `ACampfire::ExtinguishFromWater()`를 C-25 계약으로 제공하고, `ASnowIslandWaterPressureActor`가 서버 수위에 닿은 모닥불을 즉시 꺼서 회복·충돌·VFX만 비활성화하고 Actor와 Mesh는 남긴다. `git diff --check`와 충돌 표식 검색은 통과했고, `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 보류됨.
+- 2026-08-21: C-25 선물상자 등급별 VFX 연결을 보강함. `AGiftBox`에 `GradeVfxComponent`, `RedGiftBoxEffect`, `GoldGiftBoxEffect`를 추가해 복제된 빨간/황금 등급에 맞는 Niagara System을 각 클라이언트에서 적용하고, 상자가 열리면 등급 VFX를 비활성화함. `git diff --check`와 충돌 표식 검색은 통과했고, `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 보류됨.
+- 2026-08-21: C-28 보행 중 좌클릭 연타로 월드 잡기 tether가 즉시 확정되어 캐릭터가 위로 튀는 회귀를 보강함. 잡기 확정은 손 올림 alpha가 일정 값 이상일 때만 진행하고, 월드 붙음은 짧은 hold 시간 이후 수직 벽 계열 표면과 손 높이 범위를 통과할 때만 확정한다. `git diff --check`와 충돌 표식 검색은 통과했고, `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 보류됨.
 - 2026-08-20: C-28 잡기 손 접촉 붙음 상태를 확장함. 서버가 플레이어 Mesh와 벽·월드 오브젝트 접촉을 확정해 붙은 위치를 복제하고, 플레이어를 잡으면 잡힌 캐릭터의 이동·점프·일반 행동을 해제 전까지 잠근다. UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됨.
 - 2026-08-20: C-28 벽잡기 매달림 tether를 추가함. 월드 표면에 손이 붙으면 잡는 캐릭터의 이동 입력·점프·일반 행동을 차단하고, 붙은 손 위치 기준 뒤·아래 오프셋으로 몸을 유지한다. `SnowRumbleEditor Win64 Development` 빌드가 성공함.

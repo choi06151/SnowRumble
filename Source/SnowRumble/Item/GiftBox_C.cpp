@@ -11,6 +11,7 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "Net/UnrealNetwork.h"
+#include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "TimerManager.h"
@@ -44,6 +45,12 @@ AGiftBox::AGiftBox()
 	ProjectileMovement->ProjectileGravityScale = 1.0f;
 	ProjectileMovement->bShouldBounce = false;
 	ProjectileMovement->bRotationFollowsVelocity = false;
+
+	GradeVfxComponent =
+		CreateDefaultSubobject<UNiagaraComponent>(TEXT("GradeVfxComponent"));
+	GradeVfxComponent->SetupAttachment(GiftBoxMeshComponent);
+	GradeVfxComponent->SetAutoActivate(false);
+	GradeVfxComponent->SetVisibility(false, true);
 }
 
 void AGiftBox::BeginPlay()
@@ -232,6 +239,7 @@ void AGiftBox::GetLifetimeReplicatedProps(
 void AGiftBox::OnRep_GiftBoxGrade()
 {
 	ApplyGradeMaterial();
+	ApplyGradeEffect();
 	OnGiftBoxGradeChanged(GiftBoxGrade);
 }
 
@@ -251,6 +259,7 @@ void AGiftBox::OnRep_Opened()
 		ProjectileMovement->StopMovementImmediately();
 		ProjectileMovement->Deactivate();
 	}
+	DeactivateGradeEffect();
 
 	SpawnOpenedEffect();
 	OnGiftBoxOpened(
@@ -279,6 +288,39 @@ void AGiftBox::ApplyGradeMaterial()
 	{
 		GiftBoxMeshComponent->SetMaterial(GradeMaterialIndex, GradeMaterial);
 	}
+}
+
+void AGiftBox::ApplyGradeEffect()
+{
+	if (!GradeVfxComponent)
+	{
+		return;
+	}
+
+	UNiagaraSystem* GradeEffect =
+		GiftBoxGrade == ESnowRumbleGiftBoxGrade::Gold
+			? GoldGiftBoxEffect.Get()
+			: RedGiftBoxEffect.Get();
+	if (!GradeEffect || bOpened)
+	{
+		DeactivateGradeEffect();
+		return;
+	}
+
+	GradeVfxComponent->SetAsset(GradeEffect);
+	GradeVfxComponent->SetVisibility(true, true);
+	GradeVfxComponent->Activate(true);
+}
+
+void AGiftBox::DeactivateGradeEffect()
+{
+	if (!GradeVfxComponent)
+	{
+		return;
+	}
+
+	GradeVfxComponent->Deactivate();
+	GradeVfxComponent->SetVisibility(false, true);
 }
 
 void AGiftBox::SpawnOpenedEffect() const

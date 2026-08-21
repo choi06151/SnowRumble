@@ -106,7 +106,8 @@ protected:
 		USkeletalMeshComponent*& OutMesh,
 		FName& OutBoneName,
 		FVector& OutAttachedWorldLocation,
-		ESnowRumbleGrabAttachmentType& OutAttachmentType) const;
+		ESnowRumbleGrabAttachmentType& OutAttachmentType,
+		bool bAllowWorldAttachment) const;
 
 	/** 서버가 현재 손과 대상 Mesh를 물리 constraint로 연결한다. */
 	void AttachGrabConstraint(
@@ -175,6 +176,21 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Trace", meta = (ClampMin = "0.0"))
 	float GrabTraceForwardDistance = 22.0f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Trace", meta = (ClampMin = "0.0"))
+	float WorldGrabMinReachHoldSeconds = 0.15f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Trace", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float MinGrabReachAlphaForAttachment = 0.65f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Trace", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float WorldGrabMaxSurfaceNormalZ = 0.35f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Trace")
+	float WorldGrabMinAttachHeightFromActor = -10.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Trace")
+	float WorldGrabMaxAttachHeightFromActor = 180.0f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Socket")
 	FName RightGrabHandBoneName = TEXT("hand_r");
 
@@ -225,6 +241,9 @@ protected:
 
 	UPROPERTY(Transient)
 	float CurrentGrabReachAlpha = 0.0f;
+
+	UPROPERTY(Transient)
+	double GrabReachStartedTimeSeconds = 0.0;
 
 	UPROPERTY(Transient)
 	FVector GrabbedActorLocationOffsetFromAttachedPoint = FVector::ZeroVector;

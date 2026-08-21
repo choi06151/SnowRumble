@@ -8,6 +8,7 @@
 #include "GiftBoxItemPickup_C.generated.h"
 
 class ASnowRumbleCharacter;
+class UNiagaraSystem;
 class USphereComponent;
 class UStaticMeshComponent;
 
@@ -54,6 +55,9 @@ protected:
 	UFUNCTION()
 	void OnRep_ItemData();
 
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastPlayPickedUpEffect();
+
 	/** 아이템 정보가 정해졌을 때 Blueprint가 모델·색·텍스트를 연결한다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Item|Pickup")
 	void OnItemDataChanged(
@@ -77,6 +81,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Pickup", meta = (ClampMin = "0.0"))
 	float PickedUpDestroyDelaySeconds = 0.2f;
 
+	/** 아이템 획득 성공 시 모든 화면에서 한 번 재생할 공통 Niagara 이펙트다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Pickup|Effect")
+	TObjectPtr<UNiagaraSystem> PickedUpEffect;
+
+	/** 획득 이펙트를 Pickup 위치에서 얼마나 띄워 재생할지 조정한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Pickup|Effect")
+	FVector PickedUpEffectLocationOffset = FVector(0.0f, 0.0f, 30.0f);
+
 	/** 선물상자가 아니라 맵이나 BP에 직접 배치한 개발용 Pickup의 기본 아이템 종류다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Pickup|Placed")
 	ESnowRumbleGiftItemType DefaultItemType = ESnowRumbleGiftItemType::None;
@@ -99,6 +111,7 @@ private:
 	void InitializePlacedPickupFromDefaults();
 	FText GetFallbackDisplayNameForItemType() const;
 	void NotifyPickedUp(ASnowRumbleCharacter* Character) const;
+	void SpawnPickedUpEffect() const;
 	FString GetCharacterDisplayName(const ASnowRumbleCharacter* Character) const;
 
 	UPROPERTY(ReplicatedUsing = OnRep_ItemData)
