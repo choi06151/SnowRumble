@@ -2,7 +2,9 @@
 
 #include "PodiumPlayerController.h"
 
+#include "../UI/LoadingScreenSubsystem.h"
 #include "../UI/PodiumWidget.h"
+#include "Engine/GameInstance.h"
 #include "EngineUtils.h"
 #include "Camera/CameraActor.h"
 
@@ -13,6 +15,17 @@ APodiumPlayerController::APodiumPlayerController()
 void APodiumPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (IsLocalController())
+	{
+		UGameInstance* GameInstance = GetGameInstance();
+		if (ULoadingScreenSubsystem* LoadingScreenSubsystem = GameInstance
+			? GameInstance->GetSubsystem<ULoadingScreenSubsystem>()
+			: nullptr)
+		{
+			LoadingScreenSubsystem->HideLoadingScreen();
+		}
+	}
 
 	UWorld* World = GetWorld();
 	ACameraActor* PodiumCamActor = nullptr;
