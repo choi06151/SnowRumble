@@ -4,9 +4,9 @@
 
 #include "Animation/AnimationAsset.h"
 #include "Blueprint/UserWidget.h"
-#include "../Audio/SnowRumbleAudioHelpers.h"
+#include "../Audio/SnowRumbleBackgroundMusicSubsystem_C.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Components/AudioComponent.h"
+#include "Engine/GameInstance.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "MainMenuWidget.h"
 #include "OptionsWidget_C.h"
@@ -46,7 +46,6 @@ void AMainMenuPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason
 		OptionsWidget = nullptr;
 	}
 	DefaultMouseCursorWidget = nullptr;
-	StopBackgroundMusic();
 	HideMainMenu();
 
 	Super::EndPlay(EndPlayReason);
@@ -155,6 +154,22 @@ void AMainMenuPlayerController::TravelToCustomizationLevel()
 	}
 
 	ClientTravel(CustomizationLevelUrl, TRAVEL_Absolute);
+}
+
+void AMainMenuPlayerController::SetBackgroundMusicPreviewVolume(
+	float MasterVolume,
+	float BgmVolume)
+{
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->SetBackgroundMusicPreviewVolume(
+				MasterVolume,
+				BgmVolume);
+		}
+	}
 }
 
 UMainMenuWidget* AMainMenuPlayerController::EnsureMainMenuWidget()
@@ -341,31 +356,24 @@ void AMainMenuPlayerController::PlayBackgroundMusic()
 		return;
 	}
 
-	if (BackgroundMusicComponent.IsValid())
+	if (UGameInstance* GameInstance = GetGameInstance())
 	{
-		BackgroundMusicComponent->Stop();
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->PlayBackgroundMusic(BackgroundMusicSound);
+		}
 	}
-
-	if (!BackgroundMusicSound)
-	{
-		BackgroundMusicComponent.Reset();
-		return;
-	}
-
-	BackgroundMusicComponent = SnowRumbleAudio::SpawnSound2D(
-		this,
-		BackgroundMusicSound,
-		ESnowRumbleAudioMixChannel::BackgroundMusic,
-		1.0f,
-		1.0f,
-		true);
 }
 
 void AMainMenuPlayerController::StopBackgroundMusic()
 {
-	if (BackgroundMusicComponent.IsValid())
+	if (UGameInstance* GameInstance = GetGameInstance())
 	{
-		BackgroundMusicComponent->Stop();
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->StopBackgroundMusic();
+		}
 	}
-	BackgroundMusicComponent.Reset();
 }

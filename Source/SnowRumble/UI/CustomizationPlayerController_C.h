@@ -126,6 +126,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization|Cursor")
 	void SetPaintCursorActive(bool bNewPaintCursorActive);
 
+	/** 현재 재생 중인 배경음악의 볼륨 프리뷰를 갱신한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Audio")
+	void SetBackgroundMusicPreviewVolume(float MasterVolume, float BgmVolume);
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
