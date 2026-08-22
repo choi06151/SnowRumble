@@ -26,6 +26,9 @@ private:
 	UFUNCTION()
 	void HandleBackgroundMusicFinished();
 
-	TWeakObjectPtr<UAudioComponent> BackgroundMusicComponent;
-	TWeakObjectPtr<USoundBase> CurrentBackgroundMusicSound;
+	UPROPERTY(Transient)
+	TObjectPtr<UAudioComponent> BackgroundMusicComponent;
+
+	UPROPERTY(Transient)
+	TObjectPtr<USoundBase> CurrentBackgroundMusicSound;
 };
