@@ -2,6 +2,7 @@
 
 #include "PodiumGameMode.h"
 
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "PodiumPlayerController.h"
 #include "SnowRumbleMatchSubsystem_C.h"
 #include "SnowRumblePlayerState.h"
@@ -11,6 +12,7 @@
 #include "EngineUtils.h"
 #include "GameFramework/PlayerStart.h"
 #include "Kismet/GameplayStatics.h"
+#include "Sound/SoundBase.h"
 
 namespace
 {
@@ -57,6 +59,7 @@ void APodiumGameMode::BeginPlay()
 {
 	Super::BeginPlay();
 	SchedulePodiumSetup();
+	BroadcastBackgroundMusic();
 }
 
 void APodiumGameMode::InitGame(
@@ -80,6 +83,7 @@ void APodiumGameMode::PostLogin(APlayerController* NewPlayer)
 {
 	AGameModeBase::PostLogin(NewPlayer);
 	SchedulePodiumSetup();
+	BroadcastBackgroundMusic();
 }
 
 void APodiumGameMode::HandleStartingNewPlayer_Implementation(
@@ -87,6 +91,27 @@ void APodiumGameMode::HandleStartingNewPlayer_Implementation(
 {
 	AGameModeBase::HandleStartingNewPlayer_Implementation(NewPlayer);
 	SchedulePodiumSetup();
+	BroadcastBackgroundMusic();
+}
+
+void APodiumGameMode::BroadcastBackgroundMusic() const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
+		It;
+		++It)
+	{
+		if (APodiumPlayerController* PodiumController =
+			Cast<APodiumPlayerController>(It->Get()))
+		{
+			PodiumController->ClientPlayBackgroundMusic(BackgroundMusicSound);
+		}
+	}
 }
 
 void APodiumGameMode::SchedulePodiumSetup()

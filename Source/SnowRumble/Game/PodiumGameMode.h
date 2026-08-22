@@ -11,6 +11,7 @@ class ACameraActor;
 class APlayerStart;
 class APodiumPlayerController;
 class USnowRumbleMatchSubsystem;
+class USoundBase;
 enum class ESnowRumbleTeam : uint8;
 
 USTRUCT()
@@ -43,6 +44,9 @@ protected:
 private:
 	/** 포디움 맵 접속자가 모두 준비된 뒤 배치를 다시 시도한다. */
 	void SchedulePodiumSetup();
+
+	/** 현재 로컬 클라이언트에 포디움 배경음악을 재생하도록 지시한다. */
+	void BroadcastBackgroundMusic() const;
 
 	/** 서버가 참가 팀 순위, 캐릭터 위치, 카메라, UI 텍스트를 확정한다. */
 	void SetupPodiumFromServer();
@@ -78,6 +82,10 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Podium", meta = (ClampMin = "0.0"))
 	float PodiumSetupRetryDelaySeconds = 0.25f;
+
+	/** 포디움에서 재생할 배경음악이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Audio")
+	TObjectPtr<USoundBase> BackgroundMusicSound;
 
 	int32 ExpectedPlayerCount = 0;
 	bool bPodiumSetupComplete = false;

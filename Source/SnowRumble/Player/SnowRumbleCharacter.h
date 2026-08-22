@@ -37,6 +37,7 @@ class UCanvasRenderTarget2D;
 class UTexture;
 class UWidgetInteractionComponent;
 class UWidgetComponent;
+class USoundBase;
 class AController;
 class AGiftBox;
 class AGiftBoxItemPickup;
@@ -76,6 +77,16 @@ enum class ESnowRumbleHeldAnimationState : uint8
 	LargeSnowball,
 	SnowShovel,
 	SnowDuckMaker
+};
+
+UENUM(BlueprintType)
+enum class ESnowRumbleCharacterFeedbackSoundType : uint8
+{
+	ItemPickup,
+	SnowballPickup,
+	SnowballThrow,
+	ItemInteraction,
+	LobbyBoardInteraction
 };
 
 UCLASS()
@@ -196,6 +207,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
 	float GetGrabReachAlpha() const;
 
+	/** 잡기 제한 시간이 남은 비율을 1에서 0으로 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	float GetGrabRemainingTimeProgress() const;
+
 	/** Control Rig spine 보정에 사용할 현재 시점 pitch 각도를 -180~180 범위로 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
 	float GetViewPitchDegrees() const;
@@ -301,6 +316,9 @@ public:
 
 	/** 서버에서 선물상자나 선물 아이템 상호작용 성공 애니메이션 상태를 시작한다. */
 	void NotifyItemInteractionSucceeded();
+
+	/** 서버에서 로비 게시판 상호작용 성공 애니메이션 상태를 시작한다. */
+	void NotifyLobbyBoardInteractionSucceeded();
 
 	/** 서버에서 선물상자 아이템 효과를 캐릭터에 적용한다. */
 	bool ApplyGiftBoxItemEffectFromServer(ESnowRumbleGiftItemType ItemType);
@@ -688,6 +706,11 @@ protected:
 	/** 서버가 확정한 이모션 몽타주를 모든 화면에서 재생한다. */
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayEmote(int32 EmoteIndex);
+
+	/** 서버가 확정한 캐릭터 피드백 사운드를 모든 화면에서 재생한다. */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastPlayCharacterFeedbackSound(
+		ESnowRumbleCharacterFeedbackSoundType FeedbackSoundType);
 
 public:
 	/** 서버 전용 연출 흐름에서 지정한 이모션을 모든 화면에 재생한다. */
@@ -1206,6 +1229,24 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation", meta = (ClampMin = "0.01"))
 	float HitReactAnimationStateDuration = 0.35f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")
+	TObjectPtr<USoundBase> ItemPickupSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")
+	TObjectPtr<USoundBase> SnowballPickupSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")
+	TObjectPtr<USoundBase> SnowballThrowSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")
+	TObjectPtr<USoundBase> ItemInteractionSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")
+	TObjectPtr<USoundBase> LobbyBoardInteractionSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")
+	TObjectPtr<USoundBase> DamageSound;
 
 	/** 원형 선택 UI의 8개 칸에 대응하는 이모션 몽타주 슬롯이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Emote")

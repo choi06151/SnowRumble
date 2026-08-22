@@ -4,8 +4,10 @@
 
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "Components/Border.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/AudioComponent.h"
 #include "Components/Image.h"
 #include "Components/SizeBox.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -27,6 +29,7 @@
 #include "Widgets/Colors/SColorPicker.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "../Player/SnowRumbleCustomizationSubsystem_C.h"
+#include "Sound/SoundBase.h"
 
 void ACustomizationPlayerController::BeginPlay()
 {
@@ -41,6 +44,7 @@ void ACustomizationPlayerController::BeginPlay()
 		EnsurePaintRenderTarget();
 		ApplyCustomizationCameraView();
 		ShowCustomizationMenu();
+		PlayBackgroundMusic();
 	}
 }
 
@@ -54,6 +58,7 @@ void ACustomizationPlayerController::EndPlay(
 	}
 	DefaultMouseCursorWidget = nullptr;
 	PaintMouseCursorWidget = nullptr;
+	StopBackgroundMusic();
 
 	Super::EndPlay(EndPlayReason);
 }
@@ -613,6 +618,42 @@ void ACustomizationPlayerController::ApplyPreviewDataToCharacter()
 			PreviewCharacter->SetCustomizationPaintTexture(PaintRenderTarget);
 		}
 	}
+}
+
+void ACustomizationPlayerController::PlayBackgroundMusic()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (BackgroundMusicComponent.IsValid())
+	{
+		BackgroundMusicComponent->Stop();
+	}
+
+	if (!BackgroundMusicSound)
+	{
+		BackgroundMusicComponent.Reset();
+		return;
+	}
+
+	BackgroundMusicComponent = SnowRumbleAudio::SpawnSound2D(
+		this,
+		BackgroundMusicSound,
+		ESnowRumbleAudioMixChannel::BackgroundMusic,
+		1.0f,
+		1.0f,
+		true);
+}
+
+void ACustomizationPlayerController::StopBackgroundMusic()
+{
+	if (BackgroundMusicComponent.IsValid())
+	{
+		BackgroundMusicComponent->Stop();
+	}
+	BackgroundMusicComponent.Reset();
 }
 
 void ACustomizationPlayerController::ConfigurePreviewCharacterForPainting()

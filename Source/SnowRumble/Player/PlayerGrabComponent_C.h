@@ -73,6 +73,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
 	float GetGrabReachAlpha() const;
 
+	/** 잡기 제한 시간이 남은 비율을 1에서 0으로 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	float GetGrabRemainingTimeProgress() const;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void TickComponent(
@@ -154,6 +158,15 @@ protected:
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Grab")
 	ESnowRumbleGrabHand ActiveGrabHand = ESnowRumbleGrabHand::Right;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Grab")
+	float GrabReachStartedServerTime = 0.0f;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Grab")
+	float GrabAttachmentStartedServerTime = 0.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Limit", meta = (ClampMin = "0.0"))
+	float MaximumGrabHoldSeconds = 5.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Control Rig", meta = (ClampMin = "0.0"))
 	float GrabReachForwardDistance = 95.0f;

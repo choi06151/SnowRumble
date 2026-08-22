@@ -10,6 +10,7 @@ class ASnowRumblePlayerController;
 class ASnowRumblePlayerState;
 class UButton;
 class UTextBlock;
+class USoundBase;
 
 UCLASS(Abstract, Blueprintable)
 class SNOWRUMBLE_API UVoiceMutePlayerRowWidget : public UUserWidget
@@ -59,10 +60,14 @@ private:
 
 	void BindRowButton();
 	void UnbindRowButton();
+	void PlayRowClickSound() const;
 
 	UPROPERTY(Transient)
 	TObjectPtr<ASnowRumblePlayerState> ObservedPlayerState;
 
 	UPROPERTY(Transient)
 	TObjectPtr<ASnowRumblePlayerController> VoicePlayerController;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|UI|Voice Mute|Audio")
+	TObjectPtr<USoundBase> RowClickSound;
 };

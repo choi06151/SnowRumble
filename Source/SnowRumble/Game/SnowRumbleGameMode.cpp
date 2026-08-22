@@ -2,6 +2,7 @@
 
 #include "SnowRumbleGameMode.h"
 
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "Engine/GameInstance.h"
 #include "../Item/GiftBox_C.h"
 #include "../Map/SnowIslandWaterPressureActor_J.h"
@@ -15,6 +16,7 @@
 #include "Engine/TargetPoint.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
+#include "Sound/SoundBase.h"
 #include "SnowRumbleGameState_C.h"
 #include "SnowRumbleMatchSubsystem_C.h"
 #include "SnowRumblePlayerState.h"
@@ -98,6 +100,8 @@ void ASnowRumbleGameMode::BeginPlay()
 	{
 		SnowRumbleGameState->ApplyMatchStateFromServer(GetMatchSubsystem());
 	}
+
+	BroadcastBackgroundMusic();
 }
 
 void ASnowRumbleGameMode::InitGame(
@@ -131,6 +135,7 @@ void ASnowRumbleGameMode::PostLogin(APlayerController* NewPlayer)
 
 	BroadcastLoadingProgress();
 	TryDismissLoadingScreens();
+	BroadcastBackgroundMusic();
 }
 
 void ASnowRumbleGameMode::HandleSeamlessTravelPlayer(AController*& C)
@@ -139,6 +144,7 @@ void ASnowRumbleGameMode::HandleSeamlessTravelPlayer(AController*& C)
 
 	BroadcastLoadingProgress();
 	TryDismissLoadingScreens();
+	BroadcastBackgroundMusic();
 }
 
 void ASnowRumbleGameMode::HandleStartingNewPlayer_Implementation(
@@ -148,6 +154,27 @@ void ASnowRumbleGameMode::HandleStartingNewPlayer_Implementation(
 
 	BroadcastLoadingProgress();
 	TryDismissLoadingScreens();
+	BroadcastBackgroundMusic();
+}
+
+void ASnowRumbleGameMode::BroadcastBackgroundMusic() const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
+		It;
+		++It)
+	{
+		if (ASnowRumblePlayerController* PlayerController =
+			Cast<ASnowRumblePlayerController>(It->Get()))
+		{
+			PlayerController->ClientPlayBackgroundMusic(BackgroundMusicSound);
+		}
+	}
 }
 
 void ASnowRumbleGameMode::TryDismissLoadingScreens()
