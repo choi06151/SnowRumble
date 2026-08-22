@@ -11,6 +11,7 @@ class AActor;
 class ASnowRumbleCharacter;
 class APlayerStart;
 class UAnimationAsset;
+class UAudioComponent;
 class UCanvas;
 class UCanvasRenderTarget2D;
 class UCustomizationWidget;
@@ -18,6 +19,7 @@ class UBorder;
 class UImage;
 class USizeBox;
 class UUserWidget;
+class USoundBase;
 
 UCLASS(Blueprintable)
 class SNOWRUMBLE_API ACustomizationPlayerController : public APlayerController
@@ -124,6 +126,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization|Cursor")
 	void SetPaintCursorActive(bool bNewPaintCursorActive);
 
+	/** 현재 재생 중인 배경음악의 볼륨 프리뷰를 갱신한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Audio")
+	void SetBackgroundMusicPreviewVolume(float MasterVolume, float BgmVolume);
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -140,6 +146,10 @@ protected:
 	/** 돌아가기 버튼으로 이동할 메인메뉴 URL이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization")
 	FString MainMenuTravelUrl = TEXT("/Game/Maps/L_MainMenu");
+
+	/** 커스터마이징에서 재생할 배경음악이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")
+	TObjectPtr<USoundBase> BackgroundMusicSound;
 
 	/** 커스터마이징 화면에서 평소에 사용할 전역 기본 마우스 커서 위젯이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Cursor")
@@ -271,6 +281,12 @@ private:
 	/** 현재 조종 중인 커마용 캐릭터를 반환한다. */
 	ASnowRumbleCharacter* GetPreviewCharacter() const;
 
+	/** 커스터마이징 배경음악을 재생한다. */
+	void PlayBackgroundMusic();
+
+	/** 현재 재생 중인 커스터마이징 배경음악을 중지한다. */
+	void StopBackgroundMusic();
+
 	/** 프리뷰 캐릭터를 찾거나 없으면 스폰한다. */
 	ASnowRumbleCharacter* EnsurePreviewCharacter();
 
@@ -364,6 +380,8 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<ASnowRumbleCharacter> CachedPreviewCharacter;
+
+	TWeakObjectPtr<UAudioComponent> BackgroundMusicComponent;
 
 	TArray<FSnowRumblePaintStroke> PaintStrokes;
 	FSnowRumblePaintStroke ActivePaintStroke;

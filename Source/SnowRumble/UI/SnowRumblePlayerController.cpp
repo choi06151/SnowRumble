@@ -4,6 +4,7 @@
 
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Blueprint/UserWidget.h"
+#include "../Audio/SnowRumbleBackgroundMusicSubsystem_C.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "../Player/SnowRumbleUserSettingsSubsystem_C.h"
 #include "Camera/CameraActor.h"
@@ -20,6 +21,7 @@
 #include "LobbyWidget.h"
 #include "LoadingScreenSubsystem.h"
 #include "MainHUDWidget.h"
+#include "Sound/SoundBase.h"
 #include "VoiceMuteMenuWidget_C.h"
 
 void ASnowRumblePlayerController::BeginPlay()
@@ -436,6 +438,22 @@ void ASnowRumblePlayerController::ToggleManualVoiceMute(
 	RefreshGameplayVoiceMutes();
 }
 
+void ASnowRumblePlayerController::SetBackgroundMusicPreviewVolume(
+	float MasterVolume,
+	float BgmVolume)
+{
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->SetBackgroundMusicPreviewVolume(
+				MasterVolume,
+				BgmVolume);
+		}
+	}
+}
+
 bool ASnowRumblePlayerController::IsVoicePlayerManuallyMuted(
 	const ASnowRumblePlayerState* TargetPlayerState) const
 {
@@ -754,6 +772,27 @@ void ASnowRumblePlayerController::ClientFinishPvpTeamIntro_Implementation()
 			PvpIntroCameraReturnBlendSeconds,
 			false);
 	}
+}
+
+void ASnowRumblePlayerController::ClientPlayBackgroundMusic_Implementation(
+	USoundBase* BackgroundMusicSound)
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	PlayBackgroundMusic(BackgroundMusicSound);
+}
+
+void ASnowRumblePlayerController::ClientStopBackgroundMusic_Implementation()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	StopBackgroundMusic();
 }
 
 void ASnowRumblePlayerController::HandleChatInputPressed()
@@ -1326,6 +1365,42 @@ void ASnowRumblePlayerController::ApplyDefaultMouseCursorWidget()
 	}
 
 	SetMouseCursorWidget(EMouseCursor::Default, DefaultMouseCursorWidget);
+}
+
+void ASnowRumblePlayerController::StopBackgroundMusic()
+{
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->StopBackgroundMusic();
+		}
+	}
+}
+
+void ASnowRumblePlayerController::PlayBackgroundMusic(
+	USoundBase* BackgroundMusicSound)
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (!BackgroundMusicSound)
+	{
+		StopBackgroundMusic();
+		return;
+	}
+
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->PlayBackgroundMusic(BackgroundMusicSound);
+		}
+	}
 }
 
 bool ASnowRumblePlayerController::ShouldReceiveChatMessage(

@@ -9,7 +9,7 @@
 
 ## 현재 집중 Task
 
-- [C-10](C-10_emote_revalidation.md) 이모션 재검증
+- [C-30](C-30_audio_feedback_and_voice_mix.md) 오디오 피드백과 보이스 믹싱 계약
 
 ## 개발 스타일
 
@@ -35,23 +35,24 @@
 | 10 | [C-05](C-05_round_match_flow.md) | 3판 2선승 경기 흐름 | C-04, C-06 | 진행중 |
 | 11 | [C-10](C-10_emote_revalidation.md) | 이모션 재검증 | C-01, C-06, C-08 | 진행중 |
 | 12 | [C-11](C-11_customization_contract.md) | 커스터마이징 데이터 계약 | C-02·기획 결정 | 진행중 |
-| 13 | [C-13](C-13_revive_contract.md) | 핫팩 부활 계약 | C-06, C-07 | 예정 |
-| 14 | [C-14](C-14_spawn_intro_flow.md) | 팀 스폰과 시작 연출 | C-03, C-04 | 예정 |
-| 15 | [C-12](C-12_mvp_integration.md) | MVP 최종 통합 | 모든 파트 통합 Task | 예정 |
-| 16 | [C-16](C-16_teammate_health_hud.md) | 팀원 HP HUD | C-03·기존 HP UI | 완료 |
-| 17 | [C-17](C-17_pvp_start_countdown.md) | PvP 시작 카운트다운 | C-15·기존 HUD·캐릭터 입력 | 진행중 |
-| 18 | [C-18](C-18_steam_session_integration.md) | Steam 세션 최종 통합 | LAN 기반 MVP 흐름 안정화·Steam 테스트 환경 | 예정 |
-| 19 | [C-19](C-19_text_chat.md) | 텍스트 채팅 | C-03 팀 색·공용 PlayerController | 진행중 |
-| 20 | [C-20](C-20_event_log_ui.md) | 이벤트 로그 UI | C-03, C-06, 공용 PlayerController | 진행중 |
-| 21 | [C-21](C-21_options_menu.md) | 옵션 메뉴 | 메인메뉴·로비 ESC 메뉴 | 진행중 |
-| 22 | [C-22](C-22_interaction_prompt_ui.md) | 상호작용 안내 UI | C-15·기존 눈덩이 획득 | 진행중 |
-| 23 | [C-23](C-23_camera_wheel_zoom.md) | 마우스 휠 카메라 줌 | 기존 플레이어 카메라 | 진행중 |
-| 24 | [C-24](C-24_character_model_anim_contract.md) | 캐릭터 모델과 ABP 애니메이션 계약 | C-01, C-08, C-11 | 진행중 |
-| 25 | [C-25](C-25_pvp_gift_box_item_foundation.md) | PvP 선물상자와 아이템 기본 계약 | C-01, C-05, C-22 | 진행중 |
-| 26 | [C-26](C-26_snow_footstep_effect.md) | 눈 밟힘 효과 계약 | C-01 | 진행중 |
-| 27 | [C-27](C-27_snow_trail_render_target.md) | 눈길 RenderTarget 계약 | C-26 | 진행중 |
-| 28 | [C-28](C-28_player_grab_control_rig_foundation.md) | 플레이어 잡기와 Control Rig 기본틀 | C-24 | 진행중 |
-| 29 | [C-29](C-29_travel_url_and_loading_stability.md) | 전환 URL과 PvP 로딩 안정화 | C-04, C-05, C-17 | 진행중 |
+| 13 | [C-30](C-30_audio_feedback_and_voice_mix.md) | 오디오 피드백과 보이스 믹싱 계약 | C-21, C-24, C-25, C-26 | 진행중 |
+| 14 | [C-13](C-13_revive_contract.md) | 핫팩 부활 계약 | C-06, C-07 | 예정 |
+| 15 | [C-14](C-14_spawn_intro_flow.md) | 팀 스폰과 시작 연출 | C-03, C-04 | 예정 |
+| 16 | [C-12](C-12_mvp_integration.md) | MVP 최종 통합 | 모든 파트 통합 Task | 예정 |
+| 17 | [C-16](C-16_teammate_health_hud.md) | 팀원 HP HUD | C-03·기존 HP UI | 완료 |
+| 18 | [C-17](C-17_pvp_start_countdown.md) | PvP 시작 카운트다운 | C-15·기존 HUD·캐릭터 입력 | 진행중 |
+| 19 | [C-18](C-18_steam_session_integration.md) | Steam 세션 최종 통합 | LAN 기반 MVP 흐름 안정화·Steam 테스트 환경 | 예정 |
+| 20 | [C-19](C-19_text_chat.md) | 텍스트 채팅 | C-03 팀 색·공용 PlayerController | 진행중 |
+| 21 | [C-20](C-20_event_log_ui.md) | 이벤트 로그 UI | C-03, C-06, 공용 PlayerController | 진행중 |
+| 22 | [C-21](C-21_options_menu.md) | 옵션 메뉴 | 메인메뉴·로비 ESC 메뉴 | 진행중 |
+| 23 | [C-22](C-22_interaction_prompt_ui.md) | 상호작용 안내 UI | C-15·기존 눈덩이 획득 | 진행중 |
+| 24 | [C-23](C-23_camera_wheel_zoom.md) | 마우스 휠 카메라 줌 | 기존 플레이어 카메라 | 진행중 |
+| 25 | [C-24](C-24_character_model_anim_contract.md) | 캐릭터 모델과 ABP 애니메이션 계약 | C-01, C-08, C-11 | 진행중 |
+| 26 | [C-25](C-25_pvp_gift_box_item_foundation.md) | PvP 선물상자와 아이템 기본 계약 | C-01, C-05, C-22 | 진행중 |
+| 27 | [C-26](C-26_snow_footstep_effect.md) | 눈 밟힘 효과 계약 | C-01 | 진행중 |
+| 28 | [C-27](C-27_snow_trail_render_target.md) | 눈길 RenderTarget 계약 | C-26 | 진행중 |
+| 29 | [C-28](C-28_player_grab_control_rig_foundation.md) | 플레이어 잡기와 Control Rig 기본틀 | C-24 | 진행중 |
+| 30 | [C-29](C-29_travel_url_and_loading_stability.md) | 전환 URL과 PvP 로딩 안정화 | C-04, C-05, C-17 | 진행중 |
 
 ## 통합 변경 요청
 
@@ -282,3 +283,7 @@
 - 2026-08-21: C-11 메인메뉴 프리뷰 커스터마이징 적용을 보강했다. 로비와 동일하게 로컬 `USnowRumbleCustomizationSubsystem` 데이터를 메인메뉴 possessed 캐릭터에 적용해 색, 모자, 페인트 stroke 결과가 메인메뉴에서도 보이게 했다.
 - 2026-08-21: C-29 포디움 진입 시 잔여 로딩 WBP 제거를 보강했다. 포디움 PlayerController는 공용 PvP PlayerController가 아니므로 별도로 `ULoadingScreenSubsystem::HideLoadingScreen()`을 호출해 포디움 화면에서 로딩창이 남지 않게 한다.
 - 2026-08-22: C-24/C-09 눈덩이 Notify 투척 조준을 보강했다. 입력 release 때 저장한 방향을 쓰지 않고, `UAnimNotify_SnowballThrowRelease` 시점의 로컬 카메라 위치·방향을 서버로 보내 최종 trace와 투척 방향을 다시 계산한다. `git diff --check`, UHT, C++ 컴파일과 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor의 DLL 잠금 `LNK1104`로 보류됐다.
+- 2026-08-22: C-28 잡기 최대 유지 시간을 추가했다. `UPlayerGrabComponent::MaximumGrabHoldSeconds`가 0보다 크면 서버가 손이 캐릭터나 월드에 붙은 뒤 시간 초과 시 잡기를 자동 해제하고, 기존 `AimChargeProgressBar`는 손이 붙은 잡기 중 남은 시간을 1에서 0으로 표시한다. `git diff --check`, 충돌 표식 검색, UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor의 DLL 잠금 `LNK1104`로 보류됐다.
+- 2026-08-21: 사용자가 UI 버튼, 눈덩이, 피해, 상호작용, 보이스까지 포함한 오디오 확장을 요청해 C-30을 추가했다. 옵션의 기존 BGM/SFX/보이스 설정을 기준으로 전체 오디오 라우팅과 행동별 사운드 계약을 정리한다.
+- 2026-08-22: C-30에 맵별 배경음악 시작 지점을 추가했다. 메인메뉴와 커스터마이징은 로컬 PlayerController가, 로비·PvP·눈사람 모드·포디움은 GameMode가 각 로컬 컨트롤러에 배경음악 재생을 지시한다.
+- 2026-08-22: PvP 전환 중 배경음악이 끊기는 문제를 막기 위해 배경음악 재생 책임을 `USnowRumbleBackgroundMusicSubsystem`으로 옮기고, 컨트롤러 종료 시 정지를 제거했다. 맵 전환 후에도 같은 로컬 오디오 컴포넌트를 유지하면서 맵별 음악만 교체한다.

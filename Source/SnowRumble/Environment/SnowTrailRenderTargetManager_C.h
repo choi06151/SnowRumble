@@ -186,9 +186,13 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
 	FName SnowTrailRenderTargetParameterName = TEXT("SnowTrailMask");
 
-	/** 눈길 RenderTarget이 덮는 월드 중심 XY를 받는 vector parameter 이름이다. */
+	/** 눈길 RenderTarget이 덮는 월드 중심 X를 받는 scalar parameter 이름이다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
-	FName SnowTrailWorldCenterParameterName = TEXT("Position");
+	FName SnowTrailWorldCenterXParameterName = TEXT("PositionX");
+
+	/** 눈길 RenderTarget이 덮는 월드 중심 Y를 받는 scalar parameter 이름이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
+	FName SnowTrailWorldCenterYParameterName = TEXT("PositionY");
 
 	/** 눈길 RenderTarget 한 변의 월드 거리(cm)를 받는 scalar parameter 이름이다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")

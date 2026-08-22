@@ -11,6 +11,7 @@ class UPrimitiveComponent;
 class UProjectileMovementComponent;
 class USceneComponent;
 class USphereComponent;
+class USoundBase;
 
 UENUM(BlueprintType)
 enum class ESnowballItemState : uint8
@@ -142,6 +143,10 @@ protected:
 	void PlayImpactEffect(
 		FVector ImpactPoint,
 		FVector ImpactNormal);
+
+	/** 충돌 시 기본 사운드를 재생한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact")
+	TObjectPtr<USoundBase> ImpactSound;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball")
 	TObjectPtr<USphereComponent> CollisionComponent;

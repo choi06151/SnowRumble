@@ -4,6 +4,7 @@
 
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
+#include "../Audio/SnowRumbleBackgroundMusicSubsystem_C.h"
 #include "Components/Border.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/Image.h"
@@ -27,6 +28,7 @@
 #include "Widgets/Colors/SColorPicker.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "../Player/SnowRumbleCustomizationSubsystem_C.h"
+#include "Sound/SoundBase.h"
 
 void ACustomizationPlayerController::BeginPlay()
 {
@@ -41,6 +43,7 @@ void ACustomizationPlayerController::BeginPlay()
 		EnsurePaintRenderTarget();
 		ApplyCustomizationCameraView();
 		ShowCustomizationMenu();
+		PlayBackgroundMusic();
 	}
 }
 
@@ -415,6 +418,22 @@ void ACustomizationPlayerController::SetPaintCursorActive(
 	ApplyCurrentMouseCursorWidget();
 }
 
+void ACustomizationPlayerController::SetBackgroundMusicPreviewVolume(
+	float MasterVolume,
+	float BgmVolume)
+{
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->SetBackgroundMusicPreviewVolume(
+				MasterVolume,
+				BgmVolume);
+		}
+	}
+}
+
 void ACustomizationPlayerController::ApplyCustomizationCameraView()
 {
 	if (CustomizationCameraTag.IsNone())
@@ -611,6 +630,35 @@ void ACustomizationPlayerController::ApplyPreviewDataToCharacter()
 		if (PaintRenderTarget)
 		{
 			PreviewCharacter->SetCustomizationPaintTexture(PaintRenderTarget);
+		}
+	}
+}
+
+void ACustomizationPlayerController::PlayBackgroundMusic()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->PlayBackgroundMusic(BackgroundMusicSound);
+		}
+	}
+}
+
+void ACustomizationPlayerController::StopBackgroundMusic()
+{
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->StopBackgroundMusic();
 		}
 	}
 }

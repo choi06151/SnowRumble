@@ -9,6 +9,7 @@
 class ASnowRumblePlayerController;
 class ASnowRumblePlayerState;
 class UButton;
+class USoundBase;
 class UPanelWidget;
 class UVoiceMutePlayerRowWidget;
 
@@ -56,10 +57,14 @@ private:
 
 	void BindMenuButtons();
 	void UnbindMenuButtons();
+	void PlayMenuClickSound() const;
 	FString GetPlayerStateListSignature() const;
 
 	UPROPERTY(Transient)
 	TObjectPtr<ASnowRumblePlayerController> VoicePlayerController;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|UI|Voice Mute|Audio")
+	TObjectPtr<USoundBase> MenuClickSound;
 
 	FString CachedPlayerListSignature;
 };

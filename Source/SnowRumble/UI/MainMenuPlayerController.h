@@ -8,10 +8,12 @@
 #include "MainMenuPlayerController.generated.h"
 
 class UAnimationAsset;
+class UAudioComponent;
 class UMainMenuWidget;
 class UOptionsWidget;
 class UUserWidget;
 class ASnowRumbleCharacter;
+class USoundBase;
 
 UCLASS(Blueprintable)
 class SNOWRUMBLE_API AMainMenuPlayerController : public APlayerController
@@ -38,6 +40,10 @@ public:
 	/** 메인메뉴에서 커스터마이징 레벨로 이동한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
 	void TravelToCustomizationLevel();
+
+	/** 현재 재생 중인 배경음악의 볼륨 프리뷰를 갱신한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Audio")
+	void SetBackgroundMusicPreviewVolume(float MasterVolume, float BgmVolume);
 
 protected:
 	virtual void BeginPlay() override;
@@ -76,6 +82,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Main Menu|Preview", meta = (ClampMin = "0.01", ClampMax = "10.0"))
 	float MainMenuPreviewMeshScale = 1.0f;
 
+	/** 메인메뉴에서 재생할 배경음악이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")
+	TObjectPtr<USoundBase> BackgroundMusicSound;
+
 private:
 	/** 시작화면 위젯 인스턴스가 없으면 생성한다. */
 	UMainMenuWidget* EnsureMainMenuWidget();
@@ -95,6 +105,12 @@ private:
 	/** 로컬 커스터마이징 결과를 메인메뉴 프리뷰 캐릭터에 적용한다. */
 	void ApplyMainMenuPreviewCustomization();
 
+	/** 메인메뉴 배경음악을 재생한다. */
+	void PlayBackgroundMusic();
+
+	/** 현재 재생 중인 메인메뉴 배경음악을 중지한다. */
+	void StopBackgroundMusic();
+
 	UPROPERTY(Transient)
 	TObjectPtr<UMainMenuWidget> MainMenuWidget;
 
@@ -109,6 +125,8 @@ private:
 
 	UPROPERTY(Transient)
 	TWeakObjectPtr<ASnowRumbleCharacter> LastCustomizedPreviewCharacter;
+
+	TWeakObjectPtr<UAudioComponent> BackgroundMusicComponent;
 
 	FSnowRumbleCustomizationData LastAppliedPreviewCustomizationData;
 	bool bHasAppliedPreviewCustomizationData = false;
