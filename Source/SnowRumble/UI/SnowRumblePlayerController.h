@@ -11,6 +11,7 @@
 
 class UChatWidget;
 class ULoadingScreenWidget;
+class UTexture2D;
 class UUserWidget;
 class UVoiceMuteMenuWidget;
 class ACameraActor;
@@ -102,6 +103,13 @@ public:
 	void ClientShowLoadingScreen();
 
 	UFUNCTION(Client, Reliable, Category = "SnowRumble|UI|Loading")
+	void ClientSetLoadingPresentation(
+		const FString& MapPackageName,
+		const FText& MapDisplayName,
+		const TSoftObjectPtr<UTexture2D>& MapLoadingImage,
+		const TArray<FString>& TeamPlayerNames);
+
+	UFUNCTION(Client, Reliable, Category = "SnowRumble|UI|Loading")
 	void ClientHideLoadingScreen();
 
 	UFUNCTION(Client, Reliable, Category = "SnowRumble|UI|Loading")
@@ -130,6 +138,11 @@ protected:
 	virtual void SetupInputComponent() override;
 	virtual void PlayerTick(float DeltaTime) override;
 	virtual void ClientShowLoadingScreen_Implementation();
+	virtual void ClientSetLoadingPresentation_Implementation(
+		const FString& MapPackageName,
+		const FText& MapDisplayName,
+		const TSoftObjectPtr<UTexture2D>& MapLoadingImage,
+		const TArray<FString>& TeamPlayerNames);
 	virtual void ClientUpdateLoadingProgress_Implementation(
 		int32 LoadedPlayers,
 		int32 ExpectedPlayers);

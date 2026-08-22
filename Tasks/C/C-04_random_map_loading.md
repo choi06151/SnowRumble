@@ -12,7 +12,7 @@
 - [x] 서버가 등록된 PvP 후보 레벨 중 진입 맵을 무작위로 선택한다.
 - [x] 후보가 2개 이상이면 직전 선택 레벨을 다음 선택 후보에서 제외한다.
 - [x] 다음 라운드가 남아 있으면 같은 후보 목록에서 다음 PvP 레벨을 다시 선택해 이동한다.
-- [ ] 맵 정보와 참가자별 로딩 완료 상태를 제공한다.
+- [x] 맵 정보와 참가자별 로딩 완료 상태를 제공한다.
 - [ ] 전원 완료 또는 30초 경과 후 라운드를 시작하고 미완료 참가자를 연결 해제로 처리한다.
 
 ## 작업 배정
@@ -24,11 +24,11 @@
 
 ## 공용 계약과 인계
 - 제공받을 계약: C-03 시작 요청, S·J 맵 자산
-- 제공할 계약: `ASnowRumbleLobbyGameMode::PvPLevelCandidates`에 등록된 레벨 중 서버가 선택한 PvP travel URL, `USnowRumbleMatchSubsystem::SelectNextPvPLevelPath()` 다음 라운드 레벨 선택, 로딩 인원 진행률
+- 제공할 계약: `ASnowRumbleLobbyGameMode::PvPLevelCandidates`에 등록된 레벨 중 서버가 선택한 PvP travel URL, `USnowRumbleMatchSubsystem::SelectNextPvPLevelPath()` 다음 라운드 레벨 선택, `PvPLevelLoadingPresentations` 맵별 로딩 표시명·이미지, 로딩 인원 진행률
 - 인계 대상: S-04, S-10, J-01, J-03, C-05
 
 ## 범위 밖
-- 맵 레벨 디자인과 로딩 화면 그래픽
+- 맵 레벨 디자인과 로딩 화면 그래픽 제작
 
 ## 사전 전제
 - C-03
@@ -39,11 +39,13 @@
 ## 수동 작업
 - 로비 GameMode Blueprint 또는 해당 기본 클래스 설정에서 `PvPLevelCandidates` 배열에 PvP 후보 레벨을 추가한다.
 - 후보 레벨은 실제 travel 가능한 레벨 자산으로 지정한다. 비어 있으면 기존 `MatchTravelUrl` 값인 `/Game/LowpolyStyle/WinterEnvironment/Maps/DemoMap?listen`로 이동한다.
+- 맵별 로딩 이미지를 쓰려면 로비 GameMode Blueprint의 `PvPLevelLoadingPresentations`에 같은 레벨과 표시명, Texture2D 이미지를 등록한다.
 
 ## 완료 조건
 ### 에이전트 확인
 - [x] 서버 랜덤 PvP 레벨 선택 계약 첫 범위 완료
 - [x] 다음 라운드 랜덤 PvP 레벨 재선택 계약 제공
+- [x] 선택 맵 표시명·이미지와 같은 팀 플레이어 이름 로딩 UI 데이터 계약 제공
 - [ ] 실패·시간초과 경로 점검 완료
 - [x] S/J 후보 레벨 지정 인계 기록
 ### 결과 확인

@@ -100,6 +100,9 @@
 - 2026-08-08: 클라이언트 닉네임이 서버 화면에서 기본 PC 이름으로 남는 문제를 막기 위해 닉네임 적용 경로를 소유 클라이언트의 `ALobbyPlayerController` 서버 RPC로 변경했다.
 - 2026-08-08: 서버 `PostLogin` 후 `ALobbyPlayerController::ClientRequestApplySavedLobbyPlayerName()`으로 클라이언트 저장 닉네임 제출을 요청하는 핸드셰이크를 추가했고, 재빌드가 `Result: Succeeded`로 완료됐다.
 - 2026-08-08: 서버가 닉네임을 적용할 때 `LobbyPlayerName`과 기본 `APlayerState::PlayerName`을 함께 갱신하도록 보강했고, 재빌드가 `Result: Succeeded`로 완료됐다.
+- 2026-08-21: Hamachi 테스트 중 방 코드 참가 재시도에서 NULL OSS named session이 남아 `can't join twice`가 발생하는 로그를 확인했다. 참가 시작 전이나 참가 실패 완료 시 로컬 named session을 정리해 다음 참가 요청이 막히지 않도록 보강했다. C++ 컴파일과 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됐다.
+- 2026-08-21: 클라이언트가 참가 중 호스트 연결을 잃으면 DemoMap 등 기본 맵으로 빠지는 문제에 대응했다. 네트워크 실패 처리에서 메인메뉴 travel URL에 `BP_MainMenuGameMode`를 강제하고, 메인메뉴 진입 알림을 `호스트의 연결이 해제되었습니다.`로 표시하게 했다. C++ 컴파일과 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됐다.
+- 2026-08-21: 접속 실패 일부가 `NetworkFailure`가 아닌 `TravelFailure` 경로로 처리되고, 프로젝트 기본 맵이 PvP 테스트용 DemoMap이면 엔진 fallback이 DemoMap으로 이동하는 원인을 확인했다. `TravelFailure`도 세션 실패로 처리하고, `GameDefaultMap`과 `ServerDefaultMap`을 `L_MainMenu`로 고정해 실패 fallback도 메인메뉴가 되게 했다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
 
 ### 결과 확인
 - [ ] 호스트가 방을 만들면 `L_Lobby`로 이동하고 대기방 UI에서 6자리 방 코드를 확인할 수 있다.
