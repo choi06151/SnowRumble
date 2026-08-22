@@ -62,8 +62,8 @@ void USnowRumbleBackgroundMusicSubsystem::StopBackgroundMusic()
 		CurrentBackgroundMusicComponent->Stop();
 	}
 
-	CurrentBackgroundMusicSound.Reset();
-	BackgroundMusicComponent.Reset();
+	CurrentBackgroundMusicSound = nullptr;
+	BackgroundMusicComponent = nullptr;
 }
 
 void USnowRumbleBackgroundMusicSubsystem::SetBackgroundMusicPreviewVolume(
@@ -81,8 +81,22 @@ void USnowRumbleBackgroundMusicSubsystem::SetBackgroundMusicPreviewVolume(
 
 void USnowRumbleBackgroundMusicSubsystem::HandleBackgroundMusicFinished()
 {
-	if (CurrentBackgroundMusicSound.IsValid())
+	USoundBase* MusicToRestart = CurrentBackgroundMusicSound;
+	if (!MusicToRestart)
 	{
-		PlayBackgroundMusic(CurrentBackgroundMusicSound.Get());
+		BackgroundMusicComponent = nullptr;
+		return;
 	}
+
+	if (UAudioComponent* CurrentBackgroundMusicComponent =
+		BackgroundMusicComponent.Get())
+	{
+		CurrentBackgroundMusicComponent->OnAudioFinished.RemoveAll(this);
+	}
+
+	// 종료 콜백 프레임에서는 기존 컴포넌트가 아직 유효하거나 재생 중으로
+	// 보일 수 있으므로, 이전 컴포넌트를 먼저 비우고 같은 음원을 새로 시작한다.
+	BackgroundMusicComponent = nullptr;
+	CurrentBackgroundMusicSound = nullptr;
+	PlayBackgroundMusic(MusicToRestart);
 }
