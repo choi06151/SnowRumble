@@ -4,6 +4,7 @@
 
 #include "Engine/GameInstance.h"
 #include "GameFramework/PlayerController.h"
+#include "Misc/PackageName.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "../UI/LobbyPlayerController.h"
 #include "../UI/SnowRumblePlayerController.h"
@@ -60,6 +61,17 @@ void EnsureLobbyTravelOptionValue(
 			OptionName,
 			*OptionValue);
 	}
+}
+
+FString GetMapPackageNameFromTravelUrl(const FString& TravelUrl)
+{
+	FString MapPackageName = TravelUrl;
+	int32 OptionStartIndex = INDEX_NONE;
+	if (MapPackageName.FindChar(TEXT('?'), OptionStartIndex))
+	{
+		MapPackageName.LeftInline(OptionStartIndex);
+	}
+	return MapPackageName;
 }
 }
 
@@ -344,6 +356,7 @@ FString ASnowRumbleLobbyGameMode::BuildMatchTravelUrl(
 		return FString();
 	}
 
+	PendingMatchMapPackageName = GetMapPackageNameFromTravelUrl(TravelUrl);
 	EnsureLobbyTravelOption(TravelUrl, TEXT("?listen"));
 	EnsureLobbyTravelOptionValue(
 		TravelUrl,
@@ -377,6 +390,7 @@ FString ASnowRumbleLobbyGameMode::BuildSnowmanModeTravelUrl(
 		return FString();
 	}
 
+	PendingMatchMapPackageName = GetMapPackageNameFromTravelUrl(TravelUrl);
 	EnsureLobbyTravelOption(TravelUrl, TEXT("?listen"));
 
 	const FString GameModePath = SnowmanModeGameModeClass->GetPathName();
@@ -433,6 +447,88 @@ TArray<FString> ASnowRumbleLobbyGameMode::GetPvPLevelCandidatePaths() const
 	return CandidateLevelPaths;
 }
 
+FSnowRumbleLoadingMapPresentation
+ASnowRumbleLobbyGameMode::GetLoadingMapPresentation(
+	const FString& MapPackageName) const
+{
+	FSnowRumbleLoadingMapPresentation FallbackPresentation;
+	if (!MapPackageName.IsEmpty())
+	{
+		FallbackPresentation.DisplayName =
+			FText::FromString(FPackageName::GetShortName(MapPackageName));
+	}
+
+	for (const FSnowRumbleLoadingMapPresentation& Presentation
+		: PvPLevelLoadingPresentations)
+	{
+		const FSoftObjectPath LevelPath =
+			Presentation.Level.ToSoftObjectPath();
+		if (!LevelPath.IsValid())
+		{
+			continue;
+		}
+
+		if (LevelPath.GetLongPackageName().Equals(
+			MapPackageName,
+			ESearchCase::IgnoreCase))
+		{
+			FSnowRumbleLoadingMapPresentation Result = Presentation;
+			if (Result.DisplayName.IsEmpty())
+			{
+				Result.DisplayName = FallbackPresentation.DisplayName;
+			}
+			return Result;
+		}
+	}
+
+	return FallbackPresentation;
+}
+
+TArray<FString> ASnowRumbleLobbyGameMode::GetTeamPlayerNamesFor(
+	const ASnowRumblePlayerState* LocalPlayerState) const
+{
+	TArray<FString> TeamPlayerNames;
+	const ASnowRumbleLobbyGameState* LobbyGameState =
+		GetGameState<ASnowRumbleLobbyGameState>();
+	if (!LobbyGameState || !LocalPlayerState)
+	{
+		return TeamPlayerNames;
+	}
+
+	const ESnowRumbleTeam LocalTeam = LocalPlayerState->GetLobbyTeam();
+	for (const ASnowRumblePlayerState* CandidatePlayerState
+		: LobbyGameState->GetLobbyPlayers())
+	{
+		if (!CandidatePlayerState)
+		{
+			continue;
+		}
+
+		if (LocalTeam != ESnowRumbleTeam::None
+			&& CandidatePlayerState->GetLobbyTeam() != LocalTeam)
+		{
+			continue;
+		}
+		if (LocalTeam == ESnowRumbleTeam::None
+			&& CandidatePlayerState != LocalPlayerState)
+		{
+			continue;
+		}
+
+		FString PlayerName = CandidatePlayerState->GetLobbyPlayerName();
+		if (PlayerName.IsEmpty())
+		{
+			PlayerName = CandidatePlayerState->GetPlayerName();
+		}
+		if (!PlayerName.IsEmpty())
+		{
+			TeamPlayerNames.Add(PlayerName);
+		}
+	}
+
+	return TeamPlayerNames;
+}
+
 void ASnowRumbleLobbyGameMode::ShowMatchLoadingScreens()
 {
 	UWorld* World = GetWorld();
@@ -446,6 +542,8 @@ void ASnowRumbleLobbyGameMode::ShowMatchLoadingScreens()
 	const int32 ExpectedPlayerCount = LobbyGameState
 		? LobbyGameState->GetLobbyPlayers().Num()
 		: 0;
+	const FSnowRumbleLoadingMapPresentation LoadingMapPresentation =
+		GetLoadingMapPresentation(PendingMatchMapPackageName);
 
 	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
 		It;
@@ -454,6 +552,13 @@ void ASnowRumbleLobbyGameMode::ShowMatchLoadingScreens()
 		if (ASnowRumblePlayerController* PlayerController =
 			Cast<ASnowRumblePlayerController>(It->Get()))
 		{
+			const ASnowRumblePlayerState* LocalPlayerState =
+				PlayerController->GetPlayerState<ASnowRumblePlayerState>();
+			PlayerController->ClientSetLoadingPresentation(
+				PendingMatchMapPackageName,
+				LoadingMapPresentation.DisplayName,
+				LoadingMapPresentation.LoadingImage,
+				GetTeamPlayerNamesFor(LocalPlayerState));
 			PlayerController->ClientShowLoadingScreen();
 			PlayerController->ClientUpdateLoadingProgress(
 				0,
@@ -475,6 +580,7 @@ void ASnowRumbleLobbyGameMode::StartPendingMatchTravel()
 		{
 			bMatchTravelPending = false;
 			PendingMatchTravelUrl.Empty();
+			PendingMatchMapPackageName.Empty();
 			for (FConstPlayerControllerIterator It =
 					World->GetPlayerControllerIterator();
 				It;

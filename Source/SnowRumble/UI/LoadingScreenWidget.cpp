@@ -3,6 +3,7 @@
 #include "LoadingScreenWidget.h"
 
 #include "Blueprint/WidgetTree.h"
+#include "Components/Image.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 #include "Engine/GameInstance.h"
@@ -71,6 +72,61 @@ FText ULoadingScreenWidget::GetLoadingMessageText() const
 		"플레이어 접속 중...");
 }
 
+FString ULoadingScreenWidget::GetLoadingMapPackageName() const
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	const ULoadingScreenSubsystem* LoadingScreenSubsystem = GameInstance
+		? GameInstance->GetSubsystem<ULoadingScreenSubsystem>()
+		: nullptr;
+	return LoadingScreenSubsystem
+		? LoadingScreenSubsystem->GetLoadingMapPackageName()
+		: FString();
+}
+
+FText ULoadingScreenWidget::GetLoadingMapDisplayName() const
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	const ULoadingScreenSubsystem* LoadingScreenSubsystem = GameInstance
+		? GameInstance->GetSubsystem<ULoadingScreenSubsystem>()
+		: nullptr;
+	return LoadingScreenSubsystem
+		? LoadingScreenSubsystem->GetLoadingMapDisplayName()
+		: FText::GetEmpty();
+}
+
+UTexture2D* ULoadingScreenWidget::GetLoadingMapImage() const
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	const ULoadingScreenSubsystem* LoadingScreenSubsystem = GameInstance
+		? GameInstance->GetSubsystem<ULoadingScreenSubsystem>()
+		: nullptr;
+	return LoadingScreenSubsystem
+		? LoadingScreenSubsystem->GetLoadingMapImage()
+		: nullptr;
+}
+
+TArray<FString> ULoadingScreenWidget::GetLoadingTeamPlayerNames() const
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	const ULoadingScreenSubsystem* LoadingScreenSubsystem = GameInstance
+		? GameInstance->GetSubsystem<ULoadingScreenSubsystem>()
+		: nullptr;
+	return LoadingScreenSubsystem
+		? LoadingScreenSubsystem->GetLoadingTeamPlayerNames()
+		: TArray<FString>();
+}
+
+FText ULoadingScreenWidget::GetLoadingTeamPlayerNamesText() const
+{
+	const TArray<FString> TeamPlayerNames = GetLoadingTeamPlayerNames();
+	if (TeamPlayerNames.IsEmpty())
+	{
+		return FText::GetEmpty();
+	}
+
+	return FText::FromString(FString::Join(TeamPlayerNames, TEXT("\n")));
+}
+
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedRef<SWidget> ULoadingScreenWidget::RebuildWidget()
 {
@@ -125,5 +181,25 @@ void ULoadingScreenWidget::RefreshLoadingPresentation()
 	if (LoadingMessageText)
 	{
 		LoadingMessageText->SetText(GetLoadingMessageText());
+	}
+	if (LoadingMapImage)
+	{
+		if (UTexture2D* MapImage = GetLoadingMapImage())
+		{
+			LoadingMapImage->SetBrushFromTexture(MapImage, true);
+			LoadingMapImage->SetVisibility(ESlateVisibility::Visible);
+		}
+		else
+		{
+			LoadingMapImage->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+	if (LoadingMapNameText)
+	{
+		LoadingMapNameText->SetText(GetLoadingMapDisplayName());
+	}
+	if (LoadingTeamPlayerNamesText)
+	{
+		LoadingTeamPlayerNamesText->SetText(GetLoadingTeamPlayerNamesText());
 	}
 }
