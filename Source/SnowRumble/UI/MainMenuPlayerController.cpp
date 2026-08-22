@@ -6,7 +6,9 @@
 #include "Blueprint/UserWidget.h"
 #include "../Audio/SnowRumbleBackgroundMusicSubsystem_C.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "Engine/GameInstance.h"
+#include "GameFramework/Actor.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "MainMenuWidget.h"
 #include "OptionsWidget_C.h"
@@ -14,6 +16,27 @@
 #include "../Player/SnowRumbleCharacter.h"
 #include "../Player/SnowRumbleCustomizationSubsystem_C.h"
 #include "Sound/SoundBase.h"
+
+namespace
+{
+void DisableActorShadowCasting(AActor* Actor)
+{
+	if (!Actor)
+	{
+		return;
+	}
+
+	TArray<UPrimitiveComponent*> PrimitiveComponents;
+	Actor->GetComponents(PrimitiveComponents);
+	for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
+	{
+		if (PrimitiveComponent)
+		{
+			PrimitiveComponent->SetCastShadow(false);
+		}
+	}
+}
+}
 
 void AMainMenuPlayerController::BeginPlay()
 {
@@ -279,6 +302,8 @@ void AMainMenuPlayerController::ApplyMainMenuPreviewAnimation()
 		bHasAppliedPreviewCustomizationData = false;
 		return;
 	}
+
+	DisableActorShadowCasting(ControlledPawn);
 
 	if (LastAnimatedPreviewPawn.Get() == ControlledPawn)
 	{

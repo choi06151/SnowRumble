@@ -24,6 +24,7 @@
 #include "../UI/InteractionPromptWidget_C.h"
 #include "../UI/MainHUDWidget.h"
 #include "../UI/MainMenuPlayerController.h"
+#include "../Game/PodiumPlayerController.h"
 #include "../UI/OverheadNameplateWidget_C.h"
 #include "../UI/SnowRumblePlayerController.h"
 #include "SnowRumbleCharacterAnimInstance_C.h"
@@ -604,6 +605,11 @@ bool ASnowRumbleCharacter::CanStartPlayerGrabReach() const
 bool ASnowRumbleCharacter::ShouldPreferSnowCreationOverGrab() const
 {
 	return GetViewPitchAlpha() <= SnowCreationPreferredViewPitchAlpha;
+}
+
+bool ASnowRumbleCharacter::ShouldSuppressPvpWidgets() const
+{
+	return Cast<APodiumPlayerController>(Controller) != nullptr;
 }
 
 void ASnowRumbleCharacter::ApplyGrabbedByCharacter(
@@ -2063,7 +2069,8 @@ void ASnowRumbleCharacter::EnsureEmoteRadialMenuWidget()
 {
 	if (!IsLocallyControlled()
 		|| EmoteRadialMenuWidget
-		|| !EmoteRadialMenuWidgetClass)
+		|| !EmoteRadialMenuWidgetClass
+		|| ShouldSuppressPvpWidgets())
 	{
 		return;
 	}
@@ -2089,7 +2096,8 @@ void ASnowRumbleCharacter::EnsureMainHUDWidget()
 {
 	if (!IsLocallyControlled()
 		|| MainHUDWidget
-		|| !MainHUDWidgetClass)
+		|| !MainHUDWidgetClass
+		|| ShouldSuppressPvpWidgets())
 	{
 		return;
 	}
@@ -2126,7 +2134,8 @@ void ASnowRumbleCharacter::EnsureInteractionPromptWidget()
 {
 	if (!IsLocallyControlled()
 		|| InteractionPromptWidget
-		|| !InteractionPromptWidgetClass)
+		|| !InteractionPromptWidgetClass
+		|| ShouldSuppressPvpWidgets())
 	{
 		return;
 	}
@@ -4381,6 +4390,32 @@ void ASnowRumbleCharacter::PlayServerDirectedEmote(int32 EmoteIndex)
 	}
 
 	MulticastPlayEmote(EmoteIndex);
+}
+
+void ASnowRumbleCharacter::PlayRandomServerDirectedEmote()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	TArray<int32> ValidEmoteIndices;
+	ValidEmoteIndices.Reserve(EmoteMontages.Num());
+	for (int32 EmoteIndex = 0; EmoteIndex < EmoteMontages.Num(); ++EmoteIndex)
+	{
+		if (IsValidEmoteIndex(EmoteIndex))
+		{
+			ValidEmoteIndices.Add(EmoteIndex);
+		}
+	}
+
+	if (ValidEmoteIndices.IsEmpty())
+	{
+		return;
+	}
+
+	const int32 RandomIndex = FMath::RandHelper(ValidEmoteIndices.Num());
+	PlayServerDirectedEmote(ValidEmoteIndices[RandomIndex]);
 }
 
 void ASnowRumbleCharacter::ApplyMovementSpeed()
