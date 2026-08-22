@@ -13,6 +13,7 @@
 class ASnowRumbleCharacter;
 class ALobbyPlayerController;
 class UButton;
+class USoundBase;
 class UTextBlock;
 class UWidgetAnimation;
 
@@ -54,6 +55,8 @@ public:
 	/** WBP 버튼 OnClicked에서 수동으로 팀 색 변경 요청을 보낼 때 사용한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby Board")
 	void SubmitTeamColorFromBlueprint(ELobbyBoardTeamColor TeamColor);
+
+	void PlayBoardClickSound() const;
 
 protected:
 	/** 위젯 생성 시 선택 버튼과 닫기 버튼을 연결한다. */
@@ -230,6 +233,9 @@ protected:
 	/** WBP에 같은 이름으로 만든 예외행동 사유 표시 TextBlock이다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> InvalidActionReasonText;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Lobby Board|Audio")
+	TObjectPtr<USoundBase> BoardClickSound;
 
 private:
 	/** WBP 내부에서 이름이 일치하는 버튼을 직접 찾아 C++ 변수에 보관한다. */

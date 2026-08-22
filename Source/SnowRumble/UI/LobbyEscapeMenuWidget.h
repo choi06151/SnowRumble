@@ -8,6 +8,7 @@
 
 class ALobbyPlayerController;
 class UButton;
+class USoundBase;
 
 UCLASS(Abstract, Blueprintable)
 class SNOWRUMBLE_API ULobbyEscapeMenuWidget : public UUserWidget
@@ -70,10 +71,15 @@ private:
 	UFUNCTION()
 	void HandleBackButtonClicked();
 
+	void PlayMenuClickSound() const;
+
 	void BindMenuButtons();
 	void UnbindMenuButtons();
 	void CloseMenu();
 
 	UPROPERTY(Transient)
 	TObjectPtr<ALobbyPlayerController> LobbyPlayerController;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|UI|Lobby Escape|Audio")
+	TObjectPtr<USoundBase> MenuClickSound;
 };

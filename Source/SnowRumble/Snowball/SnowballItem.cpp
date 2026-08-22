@@ -2,6 +2,7 @@
 
 #include "SnowballItem.h"
 
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "Components/SceneComponent.h"
 #include "Components/SphereComponent.h"
@@ -680,5 +681,10 @@ void ASnowballItem::MulticastPlayImpactEffect_Implementation(
 	FVector_NetQuantize ImpactPoint,
 	FVector_NetQuantizeNormal ImpactNormal)
 {
+	SnowRumbleAudio::PlaySoundAtLocation(
+		this,
+		ImpactSound,
+		ESnowRumbleAudioMixChannel::Gameplay,
+		ImpactPoint);
 	PlayImpactEffect(ImpactPoint, ImpactNormal);
 }

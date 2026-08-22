@@ -195,15 +195,20 @@ void UMainHUDWidget::RefreshCombatHudPresentation()
 
 	const bool bShouldShowChargeBar =
 		LocalCharacter->IsChargingSnowball();
+	const bool bShouldShowGrabTimeBar =
+		!bShouldShowChargeBar
+		&& LocalCharacter->IsGrabAttached();
 	if (AimChargeProgressBar)
 	{
 		AimChargeProgressBar->SetVisibility(
-			bShouldShowChargeBar
+			(bShouldShowChargeBar || bShouldShowGrabTimeBar)
 				? ESlateVisibility::SelfHitTestInvisible
 				: ESlateVisibility::Collapsed);
 		AimChargeProgressBar->SetPercent(
 			bShouldShowChargeBar
 				? LocalCharacter->GetSnowballChargeProgress()
+				: bShouldShowGrabTimeBar
+					? LocalCharacter->GetGrabRemainingTimeProgress()
 				: 0.0f);
 	}
 }

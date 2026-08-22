@@ -2,6 +2,7 @@
 
 #include "VoiceMuteMenuWidget_C.h"
 
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "Components/Button.h"
 #include "Components/PanelWidget.h"
@@ -101,10 +102,19 @@ void UVoiceMuteMenuWidget::NativeTick(
 
 void UVoiceMuteMenuWidget::HandleCloseButtonClicked()
 {
+	PlayMenuClickSound();
 	if (VoicePlayerController)
 	{
 		VoicePlayerController->HideVoiceMuteMenu();
 	}
+}
+
+void UVoiceMuteMenuWidget::PlayMenuClickSound() const
+{
+	SnowRumbleAudio::PlaySound2D(
+		this,
+		MenuClickSound,
+		ESnowRumbleAudioMixChannel::UserInterface);
 }
 
 void UVoiceMuteMenuWidget::BindMenuButtons()

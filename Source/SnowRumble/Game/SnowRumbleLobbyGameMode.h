@@ -7,10 +7,12 @@
 #include "SnowRumbleLobbyGameMode.generated.h"
 
 class APlayerController;
+class AController;
 class AGameModeBase;
 class ASnowRumblePlayerState;
 class UTexture2D;
 class UWorld;
+class USoundBase;
 enum class ESnowRumbleTeam : uint8;
 
 USTRUCT(BlueprintType)
@@ -36,6 +38,8 @@ class SNOWRUMBLE_API ASnowRumbleLobbyGameMode : public AGameModeBase
 public:
 	ASnowRumbleLobbyGameMode();
 
+	virtual void BeginPlay() override;
+
 	/** 호스트 요청과 준비 상태를 검사한 뒤 게임방으로 이동한다. */
 	void RequestStartMatch(APlayerController* RequestingController);
 
@@ -47,6 +51,9 @@ public:
 
 protected:
 	virtual void PostLogin(APlayerController* NewPlayer) override;
+	virtual void HandleSeamlessTravelPlayer(AController*& C) override;
+	virtual void HandleStartingNewPlayer_Implementation(
+		APlayerController* NewPlayer) override;
 	virtual void Logout(AController* Exiting) override;
 
 	/** 새 참가자를 서버 기준 랜덤 팀 배정 규칙으로 배치한다. */
@@ -81,6 +88,9 @@ protected:
 	/** 현재 연결된 모든 클라이언트에 매치 로딩창 표시를 요청한다. */
 	void ShowMatchLoadingScreens();
 
+	/** 현재 로컬 클라이언트에 로비 배경음악을 재생하도록 지시한다. */
+	void BroadcastBackgroundMusic() const;
+
 	/** 로딩창 표시 RPC가 나간 다음 틱에 실제 PvP 맵 이동을 실행한다. */
 	void StartPendingMatchTravel();
 
@@ -92,6 +102,10 @@ protected:
 	/** 대기방에서 PvP 시작 시 서버가 무작위로 고를 후보 레벨이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Lobby")
 	TArray<TSoftObjectPtr<UWorld>> PvPLevelCandidates;
+
+	/** 로비에서 재생할 배경음악이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")
+	TObjectPtr<USoundBase> BackgroundMusicSound;
 
 	/** PvP 후보 레벨별 로딩 화면 표시명과 이미지다. 비어 있으면 레벨 경로 이름을 사용한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Lobby")

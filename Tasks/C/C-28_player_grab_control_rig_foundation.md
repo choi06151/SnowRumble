@@ -24,6 +24,8 @@
 - [x] 보행 중 좌클릭 연타로 바닥·천장·즉시 월드 붙음이 잘못 확정되어 캐릭터가 위로 튀는 경로를 차단한다.
 - [x] 벽·월드 오브젝트를 잡으면 잡는 캐릭터의 이동 입력은 허용하고 점프·일반 행동은 잠그며, 붙은 손 위치 기준으로 몸을 매달린 위치에 유지한다.
 - [x] 플레이어를 잡으면 잡힌 캐릭터의 이동 입력은 허용하고 점프·일반 행동은 해제 전까지 잠그며, 서버가 잡은 손 위치 쪽으로 몸을 부드럽게 끌어당긴다.
+- [x] 손이 캐릭터나 월드에 붙은 뒤 잡기 유지 시간이 최대 시간을 넘으면 서버가 자동으로 잡기를 해제한다.
+- [x] 로컬 HUD의 기존 `AimChargeProgressBar`를 손이 붙은 잡기 중 남은 시간 표시로 재사용해 1에서 0으로 줄어들게 한다.
 
 ## 작업 배정
 
@@ -32,7 +34,7 @@
 - 계약 소유자: 최재원(C)
 - 자산 수정자: C++·문서 최재원(C), Control Rig·AnimBP·Physics Asset 연결은 사용자/S
 - 생성 파일: `Source/SnowRumble/Player/PlayerGrabComponent_C.h`, `Source/SnowRumble/Player/PlayerGrabComponent_C.cpp`, `Tasks/C/C-28_player_grab_control_rig_foundation.md`
-- 변경 파일: `Source/SnowRumble/Player/SnowRumbleCharacter.h`, `Source/SnowRumble/Player/SnowRumbleCharacter.cpp`, `Source/SnowRumble/Player/SnowRumbleCharacterAnimInstance_C.h`, `Source/SnowRumble/Player/SnowRumbleCharacterAnimInstance_C.cpp`, `Tasks/C/ROLE_C.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`
+- 변경 파일: `Source/SnowRumble/Player/SnowRumbleCharacter.h`, `Source/SnowRumble/Player/SnowRumbleCharacter.cpp`, `Source/SnowRumble/Player/SnowRumbleCharacterAnimInstance_C.h`, `Source/SnowRumble/Player/SnowRumbleCharacterAnimInstance_C.cpp`, `Source/SnowRumble/UI/MainHUDWidget.h`, `Source/SnowRumble/UI/MainHUDWidget.cpp`, `Tasks/C/ROLE_C.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`
 - 공유 확인 대상: 사용자/S의 `ABP_Modeling`, Control Rig, 캐릭터 Physics Asset
 - 병합 순서: C++ 잡기 계약 반영 후 ABP/Control Rig와 Physics Asset 연결
 
@@ -52,12 +54,14 @@
   - `ASnowRumbleCharacter::GetGrabAttachedWorldLocation()`: 손이 붙은 월드 위치를 읽는다.
   - `ASnowRumbleCharacter::IsGrabbedByCharacter()`: 이 캐릭터가 다른 캐릭터에게 잡혀 이동 잠금 상태인지 읽는다.
   - `ASnowRumbleCharacter::GetGrabReachAlpha()`: 잡기 pose와 AnimDynamics 강도 보간에 사용할 0~1 값이다. 좌클릭 유지 시 1로 올라가고, 해제 시 0으로 내려간다.
+  - `ASnowRumbleCharacter::GetGrabRemainingTimeProgress()`: 손이 캐릭터나 월드에 붙은 뒤 잡기 최대 유지 시간 중 남은 비율을 1에서 0으로 반환한다.
   - `ASnowRumbleCharacter::GetViewPitchDegrees()`: 현재 시점 pitch를 -180~180 각도로 읽는다.
   - `ASnowRumbleCharacter::GetViewPitchAlpha()`: 현재 시점 pitch를 `ViewPitchAlphaRangeDegrees` 기준 0~1 값으로 읽는다. 아래를 보면 0, 정면은 0.5, 위를 보면 1이다.
   - `ASnowRumbleCharacter::GetViewYawDegrees()`: 현재 캐릭터 정면 대비 카메라 yaw 차이를 -180~180 각도로 읽는다.
   - `ASnowRumbleCharacter::GetViewYawAlpha()`: 현재 시점 yaw 차이를 `ViewYawAlphaRangeDegrees` 기준 -0.5~0.5 값으로 읽는다. 왼쪽을 보면 -0.5, 정면은 0, 오른쪽을 보면 0.5다.
   - `ASnowRumbleCharacter::ShouldPreferSnowCreationOverGrab()`: `ViewPitchAlpha`가 `SnowCreationPreferredViewPitchAlpha` 이하이면 빈손 좌클릭을 잡기 대신 눈 제작으로 보낸다.
   - `USnowRumbleCharacterAnimInstance::bIsGrabReaching`, `bIsGrabbingCharacter`, `bIsGrabAttached`, `bIsHangingFromWorldGrab`, `bIsGrabbedByCharacter`, `GrabAttachedWorldLocation`, `RightHandGrabTargetLocation`, `LeftHandGrabTargetLocation`, `GrabReachAlpha`, `ViewPitchDegrees`, `ViewPitchAlpha`, `ViewYawDegrees`, `ViewYawAlpha`: AnimBP에서 Control Rig 변수로 넘길 읽기 전용 값이다.
+  - `UMainHUDWidget::AimChargeProgressBar`: 투척 충전 중에는 기존 충전 진행도를 표시하고, 투척 충전이 아니면서 손이 붙은 잡기 중이면 `GetGrabRemainingTimeProgress()`를 표시한다.
 - 인계 대상: 사용자/S. AnimBP는 잡기 reach 중 Control Rig로 손을 목표 위치까지 올리고, 잡기 중에는 팔 AnimDynamics alpha를 낮추거나 Control Rig를 AnimDynamics 뒤에 둔다.
 
 ## 범위 밖
@@ -96,6 +100,7 @@
 - 2026-08-21: 보행 중 빈손 좌클릭 연타 시 월드 붙음 tether가 즉시 확정되어 캐릭터가 위로 튀는 회귀를 보강했다. `WorldGrabMinReachHoldSeconds` 이전에는 캐릭터 잡기 후보만 허용하고, 월드 붙음은 `WorldGrabMaxSurfaceNormalZ`, `WorldGrabMinAttachHeightFromActor`, `WorldGrabMaxAttachHeightFromActor` 조건을 통과한 수직 벽 계열 표면에서만 확정한다. 추가로 서버 잡기 확정 자체가 `MinGrabReachAlphaForAttachment` 이상일 때만 진행되도록 해 손이 올라가는 중 좌클릭 연타로 tether가 먼저 걸리는 경로를 막았다. 이후에도 남는 launch를 막기 위해 `WorldGrabTetherMaxUpwardSpeed`로 월드 tether 상승 보정 속도를 제한하고, 월드 잡기 해제 시 잔여 상승 속도를 제거한다. `git diff --check`와 충돌 표식 검색은 통과했고, `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 보류됐다.
 - 2026-08-21: 플레이어를 잡았을 때 잡힌 캐릭터가 잡는 캐릭터의 가상 reach 위치가 아니라 실제 잡는 손 bone/socket 위치를 기준으로 끌려오게 보강했다. `BuildHandGrabAnchorLocation()`이 `RightGrabHandBoneName`/`LeftGrabHandBoneName`의 Mesh 월드 위치를 우선 사용하고, 없을 때만 기존 `BuildHandGrabTargetLocation()`으로 fallback한다.
 - 2026-08-21: 잡힌 플레이어의 neck/상체 Control Rig 보정용 위치 계약을 추가했다. 잡는 손 위치를 잡힌 캐릭터의 `GrabbedByCharacterWorldLocation`으로 복제하고, `USnowRumbleCharacterAnimInstance`는 `GrabbedByCharacterWorldLocation`과 Mesh component space로 변환한 `GrabbedByCharacterComponentLocation`을 제공한다.
+- 2026-08-22: 잡기 최대 유지 시간을 추가했다. `UPlayerGrabComponent::MaximumGrabHoldSeconds`가 0보다 크면 서버가 손이 캐릭터나 월드에 붙은 시각부터 시간을 재고, 시간이 끝나면 `StopGrabReach`와 같은 해제 경로로 잡기를 자동 해제한다. 로컬 HUD는 기존 `AimChargeProgressBar`를 손이 붙은 잡기 중 남은 시간 표시로 재사용해 1에서 0으로 감소시킨다. `git diff --check`와 충돌 표식 검색은 통과했고, UHT와 C++ 컴파일 및 `.lib` 생성은 통과했으나 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
 
 ## 수동 작업
 
@@ -117,6 +122,8 @@
 - 잡힌 플레이어 neck translation 보정은 AnimBP의 `bIsGrabbedByCharacter`가 true일 때 `GrabbedByCharacterComponentLocation`을 Control Rig로 넘겨 사용한다. neck을 해당 위치에 그대로 넣기보다 현재 neck 위치에서 목표 방향으로 짧은 offset만 적용해 과도한 늘어남을 막는다.
 - 잡힌 플레이어의 입력감은 `GrabbedCharacterInputVelocityRetention`으로 조정한다. 낮출수록 잡은 손 위치에 더 강하게 묶이고, 높일수록 잡힌 플레이어 이동 입력이 더 잘 먹는다.
 - 잡힌 플레이어가 잡힌 손 위치를 바라보는 속도는 `GrabbedCharacterFacingInterpSpeed`로 조정한다.
+- 잡기 최대 유지 시간은 `BP_SnowRumbleCharacter`의 `PlayerGrabComponent`에서 `MaximumGrabHoldSeconds`로 조정한다. 0이면 시간 제한을 쓰지 않고, 기본값은 5초다. 시간은 팔 뻗기 시작이 아니라 손이 캐릭터나 월드에 붙은 순간부터 감소한다.
+- HUD의 기존 `AimChargeProgressBar`가 투척 충전과 손이 붙은 잡기의 남은 시간 표시를 함께 담당한다. 잡기 전용 위치나 색상이 필요하면 `WBP_MainHUDWidget`에서 해당 ProgressBar 스타일을 조정한다.
 - 벽 매달림 위치는 `WorldGrabBodyBackOffset`, `WorldGrabBodyDownOffset`으로 조정하고, 매달림 강도는 `WorldGrabTetherSlackDistance`, `WorldGrabTetherPullStrength`, `WorldGrabTetherMaxPullSpeed`로 조정한다. 이동 입력이 너무 잘 먹으면 `WorldGrabInputVelocityRetention`을 낮추고, 입력감이 너무 죽으면 올린다.
 - 벽잡기 중 몸이 손이 붙은 방향을 바라보는 속도는 `WorldGrabFacingInterpSpeed`로 조정한다.
 - spine pitch 반응 범위는 `BP_SnowRumbleCharacter`의 `ViewPitchAlphaRangeDegrees`로 조정한다. 기본 60도는 pitch -60도 이하를 `ViewPitchAlpha = 0`, 0도를 0.5, 60도 이상을 1로 본다.
@@ -137,6 +144,8 @@
 - [x] 플레이어·벽 붙음 상태와 붙은 위치 복제 추가
 - [x] 벽잡기 매달림 서버 tether 추가
 - [x] 잡힌 플레이어 입력 잠금과 서버 tether 이동 추가
+- [x] 잡기 최대 유지 시간과 서버 자동 해제 추가
+- [x] 기존 HUD ProgressBar의 잡기 남은 시간 표시 추가
 - [x] 현재 Task 문서가 실제 구현 기준으로 갱신됨
 - [x] `SnowRumbleEditor Win64 Development` 빌드 성공
 
@@ -157,3 +166,5 @@
 - [ ] 보행 중 빈손 좌클릭을 빠르게 연타해도 캐릭터가 공중으로 튀거나 계속 상승하지 않는다.
 - [ ] 벽이나 월드 오브젝트를 잡으면 잡는 캐릭터는 이동 입력으로 몸을 흔들 수 있지만 점프·일반 행동은 할 수 없고, 붙은 손 위치 기준으로 몸이 매달린 위치에 유지되며 몸 방향은 붙은 손 위치 쪽을 유지한다.
 - [ ] 플레이어를 잡으면 잡힌 플레이어는 이동 입력으로 몸을 흔들 수 있지만 점프·일반 행동은 할 수 없고, 잡는 사람이 움직이면 몸이 손 위치 쪽으로 끌려오며 몸 방향은 잡힌 손 위치 쪽을 유지하고, 좌클릭 해제 후 다시 자유롭게 움직일 수 있다.
+- [ ] 손이 캐릭터나 월드에 붙은 잡기를 유지하면 HUD의 기존 ProgressBar가 1에서 0으로 줄어든다.
+- [ ] 손이 붙은 뒤 `MaximumGrabHoldSeconds`가 지나면 좌클릭을 계속 누르고 있어도 잡기가 자동으로 풀리고 이동·점프·일반 행동 잠금이 복구된다.

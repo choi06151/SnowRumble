@@ -15,6 +15,7 @@ class UButton;
 class UOptionsKeyBindingRowWidget;
 class UPanelWidget;
 class USoundClass;
+class USoundBase;
 class USlider;
 class UTextBlock;
 class UWidgetSwitcher;
@@ -176,6 +177,14 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Sensitivity")
 	TObjectPtr<UTextBlock> SensitivityValueText;
 
+	/** 전체 볼륨을 조절하는 슬라이더다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Audio")
+	TObjectPtr<USlider> MasterVolumeSlider;
+
+	/** 전체 볼륨 값을 퍼센트로 표시하는 텍스트다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Audio")
+	TObjectPtr<UTextBlock> MasterVolumeValueText;
+
 	/** 배경음악 볼륨을 조절하는 슬라이더다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Audio")
 	TObjectPtr<USlider> BgmVolumeSlider;
@@ -192,6 +201,14 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Audio")
 	TObjectPtr<UTextBlock> SfxVolumeValueText;
 
+	/** 보이스 볼륨을 조절하는 슬라이더다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Audio")
+	TObjectPtr<USlider> VoiceVolumeSlider;
+
+	/** 보이스 볼륨 값을 퍼센트로 표시하는 텍스트다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Audio")
+	TObjectPtr<UTextBlock> VoiceVolumeValueText;
+
 	/** 지정하면 적용 시 배경음악 SoundClass 볼륨에 저장값을 반영한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Options|Audio")
 	TObjectPtr<USoundClass> BgmSoundClass;
@@ -199,6 +216,10 @@ protected:
 	/** 지정하면 적용 시 효과음 SoundClass 볼륨에 저장값을 반영한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Options|Audio")
 	TObjectPtr<USoundClass> SfxSoundClass;
+
+	/** 지정하면 적용 시 보이스 SoundClass 볼륨에 저장값을 반영한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Options|Audio")
+	TObjectPtr<USoundClass> VoiceSoundClass;
 
 	/** 마이크 입력 음량을 조절하는 슬라이더다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Microphone")
@@ -254,10 +275,16 @@ private:
 	void HandleSensitivitySliderValueChanged(float NewValue);
 
 	UFUNCTION()
+	void HandleMasterVolumeSliderValueChanged(float NewValue);
+
+	UFUNCTION()
 	void HandleBgmVolumeSliderValueChanged(float NewValue);
 
 	UFUNCTION()
 	void HandleSfxVolumeSliderValueChanged(float NewValue);
+
+	UFUNCTION()
+	void HandleVoiceVolumeSliderValueChanged(float NewValue);
 
 	UFUNCTION()
 	void HandleMicrophoneVolumeSliderValueChanged(float NewValue);
@@ -340,6 +367,9 @@ private:
 	/** 마이크 표시 텍스트를 현재 임시값 기준으로 갱신한다. */
 	void RefreshMicrophoneValueText();
 
+	/** 옵션 화면 버튼 클릭 사운드를 재생한다. */
+	void PlayOptionsClickSound() const;
+
 	/** 버튼 기본 스타일을 보관한 뒤 선택 상태에서는 Pressed 스타일을 유지한다. */
 	void SetButtonSelectedVisual(UButton* Button, bool bSelected);
 
@@ -371,9 +401,13 @@ private:
 
 	float PendingMouseSensitivity = 1.0f;
 
+	float PendingMasterVolume = 1.0f;
+
 	float PendingBgmVolume = 1.0f;
 
 	float PendingSfxVolume = 1.0f;
+
+	float PendingVoiceVolume = 1.0f;
 
 	float PendingMicrophoneVolume = 1.0f;
 
@@ -389,4 +423,7 @@ private:
 	bool bHasPendingOptionChanges = false;
 
 	TMap<UButton*, FButtonStyle> DefaultButtonStyles;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|UI|Options|Audio")
+	TObjectPtr<USoundBase> ButtonClickSound;
 };

@@ -3,6 +3,7 @@
 #include "SnowRumbleCharacter.h"
 
 #include "SnowRumbleHealthComponent.h"
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "../Game/SnowmanModeGameState_K.h"
 #include "../Game/SnowRumbleGameState_C.h"
 #include "../Game/SnowRumbleLobbyGameState.h"
@@ -548,6 +549,13 @@ float ASnowRumbleCharacter::GetGrabReachAlpha() const
 		: 0.0f;
 }
 
+float ASnowRumbleCharacter::GetGrabRemainingTimeProgress() const
+{
+	return PlayerGrabComponent
+		? PlayerGrabComponent->GetGrabRemainingTimeProgress()
+		: 0.0f;
+}
+
 float ASnowRumbleCharacter::GetViewPitchDegrees() const
 {
 	return FRotator::NormalizeAxis(GetBaseAimRotation().Pitch);
@@ -937,6 +945,8 @@ void ASnowRumbleCharacter::NotifyItemPickupSucceeded()
 		return;
 	}
 
+	MulticastPlayCharacterFeedbackSound(
+		ESnowRumbleCharacterFeedbackSoundType::ItemPickup);
 	bIsPickingUpItem = true;
 	OnRep_IsPickingUpItem();
 
@@ -960,6 +970,8 @@ void ASnowRumbleCharacter::NotifySnowballPickupSucceeded(bool bWasLargeSnowball)
 		return;
 	}
 
+	MulticastPlayCharacterFeedbackSound(
+		ESnowRumbleCharacterFeedbackSoundType::SnowballPickup);
 	bIsPickingUpItem = true;
 	OnRep_IsPickingUpItem();
 
@@ -994,6 +1006,8 @@ void ASnowRumbleCharacter::NotifySnowballThrowSucceeded(bool bWasLargeSnowball)
 		return;
 	}
 
+	MulticastPlayCharacterFeedbackSound(
+		ESnowRumbleCharacterFeedbackSoundType::SnowballThrow);
 	RequestAnimationTriggerFromServer(
 		bWasLargeSnowball
 			? ESnowRumbleCharacterAnimTrigger::ThrowLargeSnowball
@@ -1028,6 +1042,8 @@ void ASnowRumbleCharacter::NotifyItemInteractionSucceeded()
 		return;
 	}
 
+	MulticastPlayCharacterFeedbackSound(
+		ESnowRumbleCharacterFeedbackSoundType::ItemInteraction);
 	bIsInteractingWithItem = true;
 	OnRep_IsInteractingWithItem();
 
@@ -1044,6 +1060,17 @@ void ASnowRumbleCharacter::NotifyItemInteractionSucceeded()
 	RequestAnimationTriggerFromServer(
 		ESnowRumbleCharacterAnimTrigger::ItemInteraction);
 	ForceNetUpdate();
+}
+
+void ASnowRumbleCharacter::NotifyLobbyBoardInteractionSucceeded()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	MulticastPlayCharacterFeedbackSound(
+		ESnowRumbleCharacterFeedbackSoundType::LobbyBoardInteraction);
 }
 
 bool ASnowRumbleCharacter::ApplyGiftBoxItemEffectFromServer(
@@ -4221,6 +4248,11 @@ void ASnowRumbleCharacter::ClientRequestLocalDamageFeedback_Implementation(
 			CurrentTime + FMath::Max(0.01f, DamageFeedbackCameraShakeDuration);
 	}
 
+	SnowRumbleAudio::PlaySoundAtLocation(
+		this,
+		DamageSound,
+		ESnowRumbleAudioMixChannel::Gameplay,
+		DamageCauserLocation);
 	OnLocalDamageFeedbackRequested(AppliedDamage, DamageCauserLocation);
 }
 
@@ -4307,6 +4339,38 @@ void ASnowRumbleCharacter::ServerRequestPlayEmote_Implementation(int32 EmoteInde
 void ASnowRumbleCharacter::MulticastPlayEmote_Implementation(int32 EmoteIndex)
 {
 	PlayEmoteMontage(EmoteIndex);
+}
+
+void ASnowRumbleCharacter::MulticastPlayCharacterFeedbackSound_Implementation(
+	ESnowRumbleCharacterFeedbackSoundType FeedbackSoundType)
+{
+	USoundBase* FeedbackSound = nullptr;
+	switch (FeedbackSoundType)
+	{
+	case ESnowRumbleCharacterFeedbackSoundType::ItemPickup:
+		FeedbackSound = ItemPickupSound;
+		break;
+	case ESnowRumbleCharacterFeedbackSoundType::SnowballPickup:
+		FeedbackSound = SnowballPickupSound;
+		break;
+	case ESnowRumbleCharacterFeedbackSoundType::SnowballThrow:
+		FeedbackSound = SnowballThrowSound;
+		break;
+	case ESnowRumbleCharacterFeedbackSoundType::ItemInteraction:
+		FeedbackSound = ItemInteractionSound;
+		break;
+	case ESnowRumbleCharacterFeedbackSoundType::LobbyBoardInteraction:
+		FeedbackSound = LobbyBoardInteractionSound;
+		break;
+	default:
+		break;
+	}
+
+	SnowRumbleAudio::PlaySoundAtLocation(
+		this,
+		FeedbackSound,
+		ESnowRumbleAudioMixChannel::Gameplay,
+		GetActorLocation());
 }
 
 void ASnowRumbleCharacter::PlayServerDirectedEmote(int32 EmoteIndex)

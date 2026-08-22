@@ -4,13 +4,16 @@
 
 #include "Animation/AnimationAsset.h"
 #include "Blueprint/UserWidget.h"
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/AudioComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "MainMenuWidget.h"
 #include "OptionsWidget_C.h"
 #include "../Online/SnowRumbleSessionSubsystem.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "../Player/SnowRumbleCustomizationSubsystem_C.h"
+#include "Sound/SoundBase.h"
 
 void AMainMenuPlayerController::BeginPlay()
 {
@@ -31,6 +34,7 @@ void AMainMenuPlayerController::BeginPlay()
 		ApplyMainMenuInputLock();
 		ApplyMainMenuPreviewAnimation();
 		ApplyMainMenuPreviewCustomization();
+		PlayBackgroundMusic();
 	}
 }
 
@@ -42,6 +46,7 @@ void AMainMenuPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason
 		OptionsWidget = nullptr;
 	}
 	DefaultMouseCursorWidget = nullptr;
+	StopBackgroundMusic();
 	HideMainMenu();
 
 	Super::EndPlay(EndPlayReason);
@@ -327,4 +332,40 @@ void AMainMenuPlayerController::ApplyMainMenuPreviewCustomization()
 	LastCustomizedPreviewCharacter = PreviewCharacter;
 	LastAppliedPreviewCustomizationData = CustomizationData;
 	bHasAppliedPreviewCustomizationData = true;
+}
+
+void AMainMenuPlayerController::PlayBackgroundMusic()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (BackgroundMusicComponent.IsValid())
+	{
+		BackgroundMusicComponent->Stop();
+	}
+
+	if (!BackgroundMusicSound)
+	{
+		BackgroundMusicComponent.Reset();
+		return;
+	}
+
+	BackgroundMusicComponent = SnowRumbleAudio::SpawnSound2D(
+		this,
+		BackgroundMusicSound,
+		ESnowRumbleAudioMixChannel::BackgroundMusic,
+		1.0f,
+		1.0f,
+		true);
+}
+
+void AMainMenuPlayerController::StopBackgroundMusic()
+{
+	if (BackgroundMusicComponent.IsValid())
+	{
+		BackgroundMusicComponent->Stop();
+	}
+	BackgroundMusicComponent.Reset();
 }

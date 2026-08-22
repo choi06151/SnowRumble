@@ -9,6 +9,7 @@
 
 class UButton;
 class UEditableTextBox;
+class USoundBase;
 class UTextBlock;
 class UWidget;
 class UWidgetAnimation;
@@ -172,6 +173,8 @@ private:
 		const FText& Text,
 		ETextCommit::Type CommitMethod);
 
+	void PlayMenuClickSound() const;
+
 	void BindMenuButtons();
 	void UnbindMenuButtons();
 	void SetRoomCodeJoinPanelVisible(bool bVisible);
@@ -187,4 +190,7 @@ private:
 	void RefreshJoinButtonEnabled();
 
 	static const TArray<FSnowRumbleSessionInfo> EmptyResults;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|UI|Main Menu|Audio")
+	TObjectPtr<USoundBase> MenuClickSound;
 };
