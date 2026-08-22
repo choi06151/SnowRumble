@@ -43,6 +43,14 @@ void USnowRumbleBackgroundMusicSubsystem::PlayBackgroundMusic(
 		1.0f,
 		1.0f,
 		true);
+	if (UAudioComponent* CurrentBackgroundMusicComponent =
+		BackgroundMusicComponent.Get())
+	{
+		CurrentBackgroundMusicSound = BackgroundMusicSound;
+		CurrentBackgroundMusicComponent->OnAudioFinished.AddUniqueDynamic(
+			this,
+			&USnowRumbleBackgroundMusicSubsystem::HandleBackgroundMusicFinished);
+	}
 }
 
 void USnowRumbleBackgroundMusicSubsystem::StopBackgroundMusic()
@@ -50,9 +58,11 @@ void USnowRumbleBackgroundMusicSubsystem::StopBackgroundMusic()
 	if (UAudioComponent* CurrentBackgroundMusicComponent =
 		BackgroundMusicComponent.Get())
 	{
+		CurrentBackgroundMusicComponent->OnAudioFinished.RemoveAll(this);
 		CurrentBackgroundMusicComponent->Stop();
 	}
 
+	CurrentBackgroundMusicSound.Reset();
 	BackgroundMusicComponent.Reset();
 }
 
@@ -66,5 +76,13 @@ void USnowRumbleBackgroundMusicSubsystem::SetBackgroundMusicPreviewVolume(
 		CurrentBackgroundMusicComponent->SetVolumeMultiplier(
 			FMath::Clamp(MasterVolume, 0.0f, 1.0f)
 			* FMath::Clamp(BgmVolume, 0.0f, 1.0f));
+	}
+}
+
+void USnowRumbleBackgroundMusicSubsystem::HandleBackgroundMusicFinished()
+{
+	if (CurrentBackgroundMusicSound.IsValid())
+	{
+		PlayBackgroundMusic(CurrentBackgroundMusicSound.Get());
 	}
 }

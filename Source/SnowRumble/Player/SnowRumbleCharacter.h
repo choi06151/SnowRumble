@@ -418,6 +418,9 @@ protected:
 	/** 마우스 휠 입력으로 로컬 카메라 줌 목표 거리를 조정한다. */
 	void UpdateCameraZoomInput();
 
+	/** 포디움 전용 컨트롤러일 때 PvP HUD와 원형 메뉴 생성을 막는다. */
+	bool ShouldSuppressPvpWidgets() const;
+
 	/** 점프 입력이 시작되면 캐릭터 점프를 요청한다. */
 	void StartJump();
 
@@ -715,6 +718,9 @@ protected:
 public:
 	/** 서버 전용 연출 흐름에서 지정한 이모션을 모든 화면에 재생한다. */
 	void PlayServerDirectedEmote(int32 EmoteIndex);
+
+	/** 서버가 승리 연출 등에 사용할 랜덤 이모션을 하나 재생한다. */
+	void PlayRandomServerDirectedEmote();
 
 	/** 서버가 소유 클라이언트의 스프린트 상태 요청을 검사하고 확정한다. */
 	UFUNCTION(Server, Reliable)

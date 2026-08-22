@@ -503,6 +503,13 @@ void ASnowRumbleGameMode::EvaluateRoundEndCondition()
 			WinningTeam,
 			MatchSubsystem);
 
+		if (MatchSubsystem
+			&& MatchSubsystem->IsMatchComplete()
+			&& !PodiumTravelUrl.IsEmpty())
+		{
+			PlayWinningTeamEmotes(WinningTeam);
+		}
+
 		if (bStartedTiebreaker)
 		{
 			FTimerHandle TiebreakerTravelTimerHandle;
@@ -534,6 +541,31 @@ void ASnowRumbleGameMode::EvaluateRoundEndCondition()
 				false);
 		}
 		return;
+	}
+}
+
+void ASnowRumbleGameMode::PlayWinningTeamEmotes(ESnowRumbleTeam WinningTeam) const
+{
+	if (!HasAuthority() || !IsValidRoundTeam(WinningTeam))
+	{
+		return;
+	}
+
+	for (APlayerState* PlayerState : GameState->PlayerArray)
+	{
+		const ASnowRumblePlayerState* SnowRumblePlayerState =
+			Cast<ASnowRumblePlayerState>(PlayerState);
+		if (!SnowRumblePlayerState
+			|| SnowRumblePlayerState->GetLobbyTeam() != WinningTeam)
+		{
+			continue;
+		}
+
+		if (ASnowRumbleCharacter* Character =
+			Cast<ASnowRumbleCharacter>(SnowRumblePlayerState->GetPawn()))
+		{
+			Character->PlayRandomServerDirectedEmote();
+		}
 	}
 }
 
@@ -875,12 +907,15 @@ void ASnowRumbleGameMode::TravelToPodiumAfterMatchEnd()
 	// Keep match state until podium placement completes.
 	if (UWorld* World = GetWorld())
 	{
-		for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+		for (FConstPlayerControllerIterator It =
+			World->GetPlayerControllerIterator();
+			It;
+			++It)
 		{
-			if (ASnowRumblePlayerController* PlayerController = Cast<ASnowRumblePlayerController>(It->Get()))
+			if (ASnowRumblePlayerController* PlayerController =
+				Cast<ASnowRumblePlayerController>(It->Get()))
 			{
-				PlayerController->ClientShowLoadingScreen();
-				PlayerController->ClientUpdateLoadingProgress(0, ExpectedPlayerCount);
+				PlayerController->ClientHideLoadingScreen();
 			}
 		}
 
