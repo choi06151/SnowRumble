@@ -153,6 +153,9 @@ private:
 	/** 매치 종료 후 포디엄으로 서버가 이동하는 함수(헤더에 선언되어야 함). */
 	void TravelToPodiumAfterMatchEnd();
 
+	/** 매치 승리 팀의 플레이어들에게 랜덤 승리 이모션을 재생한다. */
+	void PlayWinningTeamEmotes(ESnowRumbleTeam WinningTeam) const;
+
 	/** 다음 맵 축소 타이머를 예약한다. */
 	void ScheduleNextMapShrink();
 

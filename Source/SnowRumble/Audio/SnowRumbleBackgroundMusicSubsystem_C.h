@@ -23,5 +23,9 @@ public:
 	void SetBackgroundMusicPreviewVolume(float MasterVolume, float BgmVolume);
 
 private:
+	UFUNCTION()
+	void HandleBackgroundMusicFinished();
+
 	TWeakObjectPtr<UAudioComponent> BackgroundMusicComponent;
+	TWeakObjectPtr<USoundBase> CurrentBackgroundMusicSound;
 };

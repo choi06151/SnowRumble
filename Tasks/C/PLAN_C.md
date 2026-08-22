@@ -217,6 +217,7 @@
 - 2026-08-13: C-05 정규 라운드 최종 공동 1등 처리로 단판 승부 타이브레이커를 추가했다. 공동 1등 팀만 결과 판정과 피해 적용 대상이 되며 `TiebreakerTravelUrl` 전용 PvP 맵으로 이동하고, HUD는 `단판승부` 문구와 경기 시간만 표시하며 맵 축소는 비활성화된다. 아이템 스폰은 기존 PvP와 동일하게 유지된다.
 - 2026-08-13: C-05 타이브레이커 비동점 팀은 관전자 상태로 복제해 이동·상호작용·충돌 간섭을 막고 경기 참가자 시점을 보게 했다. `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드를 통과했다.
 - 2026-08-13: C-05 매치 종료 후 포디움 레벨 이동을 추가했다. `APodiumGameMode`가 현재 매치 참가 팀만 기준으로 순위를 산정해 포디움 PlayerStart에 배치하고, `UPodiumWidget`에 결과 문구를 전달한 뒤 10초 후 매치 상태를 초기화하고 로비로 복귀한다.
+- 2026-08-22: 포디움 구조를 1등팀 전용으로 바꿨다. `APodiumGameMode`는 승리 팀만 `Podium_Team1`~`Podium_Team4` 위치에 스폰하고, `APodiumPlayerController`는 `UPodiumWinnerWidget` 기반 전용 WBP에 승리 팀명과 로비 복귀 카운트다운만 전달한다. 포디움에서는 `MainHUDWidget`, 이모션 원형 메뉴, 상호작용 안내 위젯을 띄우지 않고, 캐릭터 중력과 입력을 잠근다.
 - 2026-08-13: 커스터마이징 맵에서만 마우스 커서가 사라지는 문제를 수정했다. 커스터마이징 프리뷰 캐릭터를 possess한 상태에서 공용 캐릭터 Tick이 `GameOnly`와 커서 숨김을 되돌리던 경로를 `ACustomizationPlayerController`에서는 제외하고, 기본 화면은 하드웨어 커서, PaintMode는 원형 소프트웨어 커서를 사용하게 정리했다.
 - 2026-08-13: 레벨별 GameMode/PlayerController 구조 판단에 따라 포디움은 PvP 상속을 제거했다. 결과 표시 전용 `APodiumGameMode`는 `AGameModeBase`, `APodiumPlayerController`는 `APlayerController`를 직접 상속해 PvP 전용 HUD·입력·라운드 흐름이 포디움에 섞이지 않게 했다.
 - 2026-08-14: 사용자가 눈 밟힘 효과를 요청해 C-26을 추가하고 현재 집중 Task로 전환했다. 첫 범위는 캐릭터 AnimNotify/Blueprint 호출 함수, `SnowSurface` 태그 trace, Blueprint 표현 이벤트 계약까지로 제한한다.
@@ -287,3 +288,8 @@
 - 2026-08-21: 사용자가 UI 버튼, 눈덩이, 피해, 상호작용, 보이스까지 포함한 오디오 확장을 요청해 C-30을 추가했다. 옵션의 기존 BGM/SFX/보이스 설정을 기준으로 전체 오디오 라우팅과 행동별 사운드 계약을 정리한다.
 - 2026-08-22: C-30에 맵별 배경음악 시작 지점을 추가했다. 메인메뉴와 커스터마이징은 로컬 PlayerController가, 로비·PvP·눈사람 모드·포디움은 GameMode가 각 로컬 컨트롤러에 배경음악 재생을 지시한다.
 - 2026-08-22: PvP 전환 중 배경음악이 끊기는 문제를 막기 위해 배경음악 재생 책임을 `USnowRumbleBackgroundMusicSubsystem`으로 옮기고, 컨트롤러 종료 시 정지를 제거했다. 맵 전환 후에도 같은 로컬 오디오 컴포넌트를 유지하면서 맵별 음악만 교체한다.
+- 2026-08-22: PvP 최종 승리 판정 직후 포디엄으로 넘어가기 전에 승리 팀만 랜덤 이모션을 재생하도록 C-05 연출 보강을 추가했다. `ASnowRumbleGameMode::PlayWinningTeamEmotes()`가 승리 팀 플레이어들에게 `ASnowRumbleCharacter::PlayRandomServerDirectedEmote()`를 호출한다.
+- 2026-08-22: 메인메뉴, 커스터마이징, 포디움 표시용 pawn은 각 컨트롤러가 `Cast Shadow`를 꺼서 결과 화면과 프리뷰에서 바닥 그림자가 보이지 않게 했다.
+- 2026-08-22: 포디움 이동 전 로딩 UI를 띄우는 경로를 제거해, 매치 종료 후 포디움 전환은 검은 화면만 남도록 조정했다.
+- 2026-08-22: 포디움이 시작되면 승리 팀 pawn을 다시 잡은 뒤 `PlayRandomServerDirectedEmote()`를 호출해 각 캐릭터의 랜덤 승리 이모트를 재생하게 했다.
+- 2026-08-22: 포디움 복귀 안내를 1초 단위로 갱신하도록 바꿔 `ClientSetPodiumWinner()` 한 번 이후 `ClientUpdatePodiumReturnSubtitle()`로 10, 9, 8 식 숫자가 내려가게 했다.

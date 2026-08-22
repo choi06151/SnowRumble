@@ -8,6 +8,7 @@
 #include "Components/Border.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/Image.h"
+#include "Components/PrimitiveComponent.h"
 #include "Components/SizeBox.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/WidgetComponent.h"
@@ -29,6 +30,27 @@
 #include "../Player/SnowRumbleCharacter.h"
 #include "../Player/SnowRumbleCustomizationSubsystem_C.h"
 #include "Sound/SoundBase.h"
+
+namespace
+{
+void DisableActorShadowCasting(AActor* Actor)
+{
+	if (!Actor)
+	{
+		return;
+	}
+
+	TArray<UPrimitiveComponent*> PrimitiveComponents;
+	Actor->GetComponents(PrimitiveComponents);
+	for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
+	{
+		if (PrimitiveComponent)
+		{
+			PrimitiveComponent->SetCastShadow(false);
+		}
+	}
+}
+}
 
 void ACustomizationPlayerController::BeginPlay()
 {
@@ -583,6 +605,8 @@ void ACustomizationPlayerController::ApplyPreviewAnimationSettings()
 	{
 		return;
 	}
+
+	DisableActorShadowCasting(PreviewCharacter);
 
 	TArray<USkeletalMeshComponent*> MeshComponents;
 	PreviewCharacter->GetComponents(MeshComponents);
