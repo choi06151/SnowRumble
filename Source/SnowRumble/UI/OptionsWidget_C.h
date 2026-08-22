@@ -16,6 +16,7 @@ class UOptionsKeyBindingRowWidget;
 class UPanelWidget;
 class USoundClass;
 class USoundBase;
+class USoundMix;
 class USlider;
 class UTextBlock;
 class UWidgetSwitcher;
@@ -221,6 +222,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Options|Audio")
 	TObjectPtr<USoundClass> VoiceSoundClass;
 
+	/** 옵션 메뉴가 열려 있는 동안만 사용하는 라이브 오디오 프리뷰 믹스다. */
+	UPROPERTY(Transient)
+	TObjectPtr<USoundMix> LiveAudioPreviewSoundMix;
+
 	/** 마이크 입력 음량을 조절하는 슬라이더다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Microphone")
 	TObjectPtr<USlider> MicrophoneVolumeSlider;
@@ -316,6 +321,9 @@ private:
 	/** 저장된 BGM/SFX 볼륨을 지정된 SoundClass에 반영한다. */
 	void ApplyAudioVolumeSettings() const;
 
+	/** 현재 임시 오디오 값을 활성 사운드 믹스에 바로 반영한다. */
+	void ApplyAudioPreviewSoundMix();
+
 	/** 마이크 슬라이더와 방식 버튼을 저장된 설정 기준으로 구성한다. */
 	void InitializeMicrophoneSettings();
 
@@ -369,6 +377,9 @@ private:
 
 	/** 옵션 화면 버튼 클릭 사운드를 재생한다. */
 	void PlayOptionsClickSound() const;
+
+	/** 현재 로컬 플레이어의 배경음악 프리뷰 볼륨을 갱신한다. */
+	void ApplyBackgroundMusicPreviewVolume() const;
 
 	/** 버튼 기본 스타일을 보관한 뒤 선택 상태에서는 Pressed 스타일을 유지한다. */
 	void SetButtonSelectedVisual(UButton* Button, bool bSelected);

@@ -8,11 +8,17 @@
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
 #include "Components/WidgetSwitcher.h"
+#include "CustomizationPlayerController_C.h"
+#include "LobbyPlayerController.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "../Player/SnowRumbleUserSettingsSubsystem_C.h"
 #include "Engine/GameInstance.h"
+#include "MainMenuPlayerController.h"
+#include "../Game/PodiumPlayerController.h"
 #include "OptionsKeyBindingRowWidget_C.h"
+#include "Kismet/GameplayStatics.h"
 #include "Sound/SoundClass.h"
+#include "Sound/SoundMix.h"
 
 namespace
 {
@@ -57,6 +63,12 @@ void UOptionsWidget::NativeConstruct()
 
 void UOptionsWidget::NativeDestruct()
 {
+	if (LiveAudioPreviewSoundMix)
+	{
+		UGameplayStatics::PopSoundMixModifier(this, LiveAudioPreviewSoundMix);
+		LiveAudioPreviewSoundMix = nullptr;
+	}
+
 	UnbindOptionButtons();
 
 	Super::NativeDestruct();
@@ -112,6 +124,8 @@ void UOptionsWidget::DiscardPendingOptionChanges()
 	InitializeDefaultKeyBindingRows();
 	RefreshSensitivityValueText();
 	RefreshAudioValueText();
+	ApplyBackgroundMusicPreviewVolume();
+	ApplyAudioPreviewSoundMix();
 	RefreshMicrophoneValueText();
 	RefreshKeyBindingPanel();
 	SetHasPendingOptionChanges(false);
@@ -376,6 +390,9 @@ void UOptionsWidget::HandleMasterVolumeSliderValueChanged(float NewValue)
 
 	PendingMasterVolume = FMath::Clamp(NewValue, 0.0f, 1.0f);
 	RefreshAudioValueText();
+	ApplyAudioVolumeSettings();
+	ApplyAudioPreviewSoundMix();
+	ApplyBackgroundMusicPreviewVolume();
 	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 }
 
@@ -388,6 +405,9 @@ void UOptionsWidget::HandleBgmVolumeSliderValueChanged(float NewValue)
 
 	PendingBgmVolume = FMath::Clamp(NewValue, 0.0f, 1.0f);
 	RefreshAudioValueText();
+	ApplyAudioVolumeSettings();
+	ApplyAudioPreviewSoundMix();
+	ApplyBackgroundMusicPreviewVolume();
 	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 }
 
@@ -400,6 +420,9 @@ void UOptionsWidget::HandleSfxVolumeSliderValueChanged(float NewValue)
 
 	PendingSfxVolume = FMath::Clamp(NewValue, 0.0f, 1.0f);
 	RefreshAudioValueText();
+	ApplyAudioVolumeSettings();
+	ApplyAudioPreviewSoundMix();
+	ApplyBackgroundMusicPreviewVolume();
 	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 }
 
@@ -412,6 +435,9 @@ void UOptionsWidget::HandleVoiceVolumeSliderValueChanged(float NewValue)
 
 	PendingVoiceVolume = FMath::Clamp(NewValue, 0.0f, 1.0f);
 	RefreshAudioValueText();
+	ApplyAudioVolumeSettings();
+	ApplyAudioPreviewSoundMix();
+	ApplyBackgroundMusicPreviewVolume();
 	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 }
 
@@ -528,6 +554,8 @@ void UOptionsWidget::ApplyPendingOptionChanges()
 			}
 		}
 		ApplyAudioVolumeSettings();
+		ApplyAudioPreviewSoundMix();
+		ApplyBackgroundMusicPreviewVolume();
 	}
 
 	if (APlayerController* PlayerController = GetOwningPlayer())
@@ -606,6 +634,9 @@ void UOptionsWidget::ResetCurrentOptionsCategory()
 			bIsUpdatingAudioSliders = false;
 		}
 		RefreshAudioValueText();
+		ApplyAudioVolumeSettings();
+		ApplyAudioPreviewSoundMix();
+		ApplyBackgroundMusicPreviewVolume();
 		SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 		break;
 	case ESnowRumbleOptionsCategory::Microphone:
@@ -973,6 +1004,8 @@ void UOptionsWidget::InitializeAudioSettings()
 	}
 
 	ApplyAudioVolumeSettings();
+	ApplyAudioPreviewSoundMix();
+	ApplyBackgroundMusicPreviewVolume();
 }
 
 void UOptionsWidget::InitializeMicrophoneSettings()
@@ -1015,6 +1048,96 @@ void UOptionsWidget::ApplyAudioVolumeSettings() const
 	if (VoiceSoundClass)
 	{
 		VoiceSoundClass->Properties.Volume = MasterVolume * PendingVoiceVolume;
+	}
+}
+
+void UOptionsWidget::ApplyAudioPreviewSoundMix()
+{
+	if (!GetWorld())
+	{
+		return;
+	}
+
+	if (!LiveAudioPreviewSoundMix)
+	{
+		LiveAudioPreviewSoundMix = NewObject<USoundMix>(this);
+		UGameplayStatics::PushSoundMixModifier(this, LiveAudioPreviewSoundMix);
+	}
+
+	const float MasterVolume = PendingMasterVolume;
+	const float BgmVolume = PendingBgmVolume;
+	const float SfxVolume = PendingSfxVolume;
+	const float VoiceVolume = PendingVoiceVolume;
+
+	if (BgmSoundClass)
+	{
+		UGameplayStatics::SetSoundMixClassOverride(
+			this,
+			LiveAudioPreviewSoundMix,
+			BgmSoundClass,
+			MasterVolume * BgmVolume,
+			1.0f,
+			0.0f,
+			true);
+	}
+
+	if (SfxSoundClass)
+	{
+		UGameplayStatics::SetSoundMixClassOverride(
+			this,
+			LiveAudioPreviewSoundMix,
+			SfxSoundClass,
+			MasterVolume * SfxVolume,
+			1.0f,
+			0.0f,
+			true);
+	}
+
+	if (VoiceSoundClass)
+	{
+		UGameplayStatics::SetSoundMixClassOverride(
+			this,
+			LiveAudioPreviewSoundMix,
+			VoiceSoundClass,
+			MasterVolume * VoiceVolume,
+			1.0f,
+			0.0f,
+			true);
+	}
+}
+
+void UOptionsWidget::ApplyBackgroundMusicPreviewVolume() const
+{
+	const float MasterVolume = PendingMasterVolume;
+	const float BgmVolume = PendingBgmVolume;
+
+	if (ASnowRumblePlayerController* SnowRumblePlayerController =
+		Cast<ASnowRumblePlayerController>(GetOwningPlayer()))
+	{
+		SnowRumblePlayerController->SetBackgroundMusicPreviewVolume(
+			MasterVolume,
+			BgmVolume);
+	}
+	if (AMainMenuPlayerController* MainMenuPlayerController =
+		Cast<AMainMenuPlayerController>(GetOwningPlayer()))
+	{
+		MainMenuPlayerController->SetBackgroundMusicPreviewVolume(
+			MasterVolume,
+			BgmVolume);
+	}
+	if (ACustomizationPlayerController* CustomizationPlayerController =
+		Cast<ACustomizationPlayerController>(GetOwningPlayer()))
+	{
+		CustomizationPlayerController->SetBackgroundMusicPreviewVolume(
+			MasterVolume,
+			BgmVolume);
+	}
+	if (APodiumPlayerController* PodiumPlayerController =
+		Cast<APodiumPlayerController>(GetOwningPlayer()))
+	{
+		PodiumPlayerController->SetBackgroundMusicPreviewVolume(
+			MasterVolume,
+			BgmVolume);
 	}
 }
 

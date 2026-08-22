@@ -2,13 +2,12 @@
 
 #include "PodiumPlayerController.h"
 
-#include "../Audio/SnowRumbleAudioHelpers.h"
+#include "../Audio/SnowRumbleBackgroundMusicSubsystem_C.h"
 #include "../UI/LoadingScreenSubsystem.h"
 #include "../UI/PodiumWidget.h"
 #include "Engine/GameInstance.h"
 #include "EngineUtils.h"
 #include "Camera/CameraActor.h"
-#include "Components/AudioComponent.h"
 #include "Sound/SoundBase.h"
 
 APodiumPlayerController::APodiumPlayerController()
@@ -80,12 +79,6 @@ void APodiumPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		PodiumWidget = nullptr;
 	}
 
-	if (BackgroundMusicComponent.IsValid())
-	{
-		BackgroundMusicComponent->Stop();
-	}
-	BackgroundMusicComponent.Reset();
-
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -137,40 +130,45 @@ void APodiumPlayerController::ClientStopBackgroundMusic_Implementation()
 		return;
 	}
 
-	if (BackgroundMusicComponent.IsValid())
+	StopBackgroundMusic();
+}
+
+void APodiumPlayerController::SetBackgroundMusicPreviewVolume(
+	float MasterVolume,
+	float BgmVolume)
+{
+	if (UGameInstance* GameInstance = GetGameInstance())
 	{
-		BackgroundMusicComponent->Stop();
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->SetBackgroundMusicPreviewVolume(
+				MasterVolume,
+				BgmVolume);
+		}
 	}
-	BackgroundMusicComponent.Reset();
 }
 
 void APodiumPlayerController::PlayBackgroundMusic(USoundBase* Music)
 {
-	if (BackgroundMusicComponent.IsValid())
+	if (UGameInstance* GameInstance = GetGameInstance())
 	{
-		BackgroundMusicComponent->Stop();
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->PlayBackgroundMusic(Music);
+		}
 	}
-
-	if (!Music)
-	{
-		BackgroundMusicComponent.Reset();
-		return;
-	}
-
-	BackgroundMusicComponent = SnowRumbleAudio::SpawnSound2D(
-		this,
-		Music,
-		ESnowRumbleAudioMixChannel::BackgroundMusic,
-		1.0f,
-		1.0f,
-		true);
 }
 
 void APodiumPlayerController::StopBackgroundMusic()
 {
-	if (BackgroundMusicComponent.IsValid())
+	if (UGameInstance* GameInstance = GetGameInstance())
 	{
-		BackgroundMusicComponent->Stop();
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->StopBackgroundMusic();
+		}
 	}
-	BackgroundMusicComponent.Reset();
 }

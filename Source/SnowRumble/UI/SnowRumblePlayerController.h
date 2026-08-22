@@ -86,6 +86,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Voice")
 	void ToggleManualVoiceMute(ASnowRumblePlayerState* TargetPlayerState);
 
+	/** 현재 재생 중인 배경음악의 볼륨 프리뷰를 갱신한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Audio")
+	void SetBackgroundMusicPreviewVolume(float MasterVolume, float BgmVolume);
+
 	/** 대상 플레이어가 수동 음소거 상태인지 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Voice")
 	bool IsVoicePlayerManuallyMuted(

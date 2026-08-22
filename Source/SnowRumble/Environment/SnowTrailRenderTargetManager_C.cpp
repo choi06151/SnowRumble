@@ -270,11 +270,6 @@ void ASnowTrailRenderTargetManager::ApplySnowTrailMaterialParameters(
 
 	AppliedSnowTrailMaterials.Reset();
 
-	const FLinearColor WorldCenterParameter(
-		TrailWorldCenter.X,
-		TrailWorldCenter.Y,
-		0.0f,
-		0.0f);
 	const FLinearColor UVScaleParameter(
 		SnowTrailUVScale.X,
 		SnowTrailUVScale.Y,
@@ -291,7 +286,6 @@ void ASnowTrailRenderTargetManager::ApplySnowTrailMaterialParameters(
 		[
 			this,
 			TargetRenderTarget,
-			WorldCenterParameter,
 			UVScaleParameter,
 			UVOffsetParameter,
 			&AppliedComponents](
@@ -324,27 +318,18 @@ void ASnowTrailRenderTargetManager::ApplySnowTrailMaterialParameters(
 					SnowTrailRenderTargetParameterName,
 					TargetRenderTarget);
 			}
-			if (!SnowTrailWorldCenterParameterName.IsNone())
+			if (!SnowTrailWorldCenterXParameterName.IsNone())
 			{
-				DynamicMaterial->SetVectorParameterValue(
-					SnowTrailWorldCenterParameterName,
-					WorldCenterParameter);
+				DynamicMaterial->SetScalarParameterValue(
+					SnowTrailWorldCenterXParameterName,
+					TrailWorldCenter.X);
 			}
-			DynamicMaterial->SetVectorParameterValue(
-				TEXT("SnowTrailWorldCenter"),
-				WorldCenterParameter);
-			DynamicMaterial->SetVectorParameterValue(
-				TEXT("TrailWorldCenter"),
-				WorldCenterParameter);
-			DynamicMaterial->SetVectorParameterValue(
-				TEXT("Middle"),
-				WorldCenterParameter);
-			DynamicMaterial->SetVectorParameterValue(
-				TEXT("TrailMiddle"),
-				WorldCenterParameter);
-			DynamicMaterial->SetVectorParameterValue(
-				TEXT("SnowTrailMiddle"),
-				WorldCenterParameter);
+			if (!SnowTrailWorldCenterYParameterName.IsNone())
+			{
+				DynamicMaterial->SetScalarParameterValue(
+					SnowTrailWorldCenterYParameterName,
+					TrailWorldCenter.Y);
+			}
 			if (!SnowTrailWorldSizeParameterName.IsNone())
 			{
 				DynamicMaterial->SetScalarParameterValue(

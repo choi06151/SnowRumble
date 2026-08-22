@@ -4,13 +4,12 @@
 
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Blueprint/UserWidget.h"
-#include "../Audio/SnowRumbleAudioHelpers.h"
+#include "../Audio/SnowRumbleBackgroundMusicSubsystem_C.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "../Player/SnowRumbleUserSettingsSubsystem_C.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
 #include "ChatWidget_C.h"
-#include "Components/AudioComponent.h"
 #include "Components/InputComponent.h"
 #include "Components/Widget.h"
 #include "Engine/GameInstance.h"
@@ -77,7 +76,6 @@ void ASnowRumblePlayerController::EndPlay(
 		PvpIntroCameraActor->Destroy();
 		PvpIntroCameraActor = nullptr;
 	}
-	StopBackgroundMusic();
 	GetWorldTimerManager().ClearTimer(PvpIntroCameraDestroyTimerHandle);
 	DefaultMouseCursorWidget = nullptr;
 
@@ -438,6 +436,22 @@ void ASnowRumblePlayerController::ToggleManualVoiceMute(
 
 	ApplyManualVoiceMuteState(TargetPlayerState, !bWasMuted);
 	RefreshGameplayVoiceMutes();
+}
+
+void ASnowRumblePlayerController::SetBackgroundMusicPreviewVolume(
+	float MasterVolume,
+	float BgmVolume)
+{
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->SetBackgroundMusicPreviewVolume(
+				MasterVolume,
+				BgmVolume);
+		}
+	}
 }
 
 bool ASnowRumblePlayerController::IsVoicePlayerManuallyMuted(
@@ -1355,11 +1369,14 @@ void ASnowRumblePlayerController::ApplyDefaultMouseCursorWidget()
 
 void ASnowRumblePlayerController::StopBackgroundMusic()
 {
-	if (BackgroundMusicComponent.IsValid())
+	if (UGameInstance* GameInstance = GetGameInstance())
 	{
-		BackgroundMusicComponent->Stop();
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->StopBackgroundMusic();
+		}
 	}
-	BackgroundMusicComponent.Reset();
 }
 
 void ASnowRumblePlayerController::PlayBackgroundMusic(
@@ -1376,21 +1393,14 @@ void ASnowRumblePlayerController::PlayBackgroundMusic(
 		return;
 	}
 
-	if (BackgroundMusicComponent.IsValid()
-		&& BackgroundMusicComponent->Sound == BackgroundMusicSound
-		&& BackgroundMusicComponent->IsPlaying())
+	if (UGameInstance* GameInstance = GetGameInstance())
 	{
-		return;
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->PlayBackgroundMusic(BackgroundMusicSound);
+		}
 	}
-
-	StopBackgroundMusic();
-	BackgroundMusicComponent = SnowRumbleAudio::SpawnSound2D(
-		this,
-		BackgroundMusicSound,
-		ESnowRumbleAudioMixChannel::BackgroundMusic,
-		1.0f,
-		1.0f,
-		true);
 }
 
 bool ASnowRumblePlayerController::ShouldReceiveChatMessage(
