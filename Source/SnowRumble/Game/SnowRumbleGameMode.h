@@ -11,6 +11,7 @@ class AActor;
 class APawn;
 class AGiftBox;
 class ASnowRumbleCharacter;
+class USoundBase;
 enum class ESnowRumbleTeam : uint8;
 enum class ESnowRumbleGiftBoxGrade : uint8;
 
@@ -55,6 +56,10 @@ public:
 	void CompleteMapShrinkFromBlueprint();
 
 protected:
+	/** PvP 맵에서 재생할 배경음악이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Audio")
+	TObjectPtr<USoundBase> BackgroundMusicSound;
+
 	/** 서버가 맵 축소 시점에 맵 Blueprint로 넘기는 이벤트다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Map Pressure")
 	void OnMapShrinkRequested(
@@ -123,6 +128,9 @@ private:
 
 	/** 현재 PvP 진입에서 팀 소개 시퀀스를 재생해야 하는지 반환한다. */
 	bool ShouldPlayMatchIntroSequence() const;
+
+	/** 현재 로컬 클라이언트에 PvP 배경음악을 재생하도록 지시한다. */
+	void BroadcastBackgroundMusic() const;
 
 	/** 다음 팀 소개 카메라 샷을 모든 클라이언트에 지시한다. */
 	void AdvanceMatchIntroSequence();

@@ -2,11 +2,13 @@
 
 #include "PodiumPlayerController.h"
 
+#include "../Audio/SnowRumbleBackgroundMusicSubsystem_C.h"
 #include "../UI/LoadingScreenSubsystem.h"
 #include "../UI/PodiumWidget.h"
 #include "Engine/GameInstance.h"
 #include "EngineUtils.h"
 #include "Camera/CameraActor.h"
+#include "Sound/SoundBase.h"
 
 APodiumPlayerController::APodiumPlayerController()
 {
@@ -62,6 +64,11 @@ void APodiumPlayerController::BeginPlay()
 			PodiumWidget->AddToViewport(100);
 		}
 	}
+
+	if (IsLocalController())
+	{
+		PlayBackgroundMusic(BackgroundMusicSound);
+	}
 }
 
 void APodiumPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -103,4 +110,65 @@ void APodiumPlayerController::ClientSetPodiumResults_Implementation(
 
 	PodiumWidget->SetPodiumNames(FirstPlace, SecondPlace, ThirdPlace);
 	PodiumWidget->SetSubtitle(Subtitle);
+}
+
+void APodiumPlayerController::ClientPlayBackgroundMusic_Implementation(
+	USoundBase* NewBackgroundMusicSound)
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	PlayBackgroundMusic(NewBackgroundMusicSound);
+}
+
+void APodiumPlayerController::ClientStopBackgroundMusic_Implementation()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	StopBackgroundMusic();
+}
+
+void APodiumPlayerController::SetBackgroundMusicPreviewVolume(
+	float MasterVolume,
+	float BgmVolume)
+{
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->SetBackgroundMusicPreviewVolume(
+				MasterVolume,
+				BgmVolume);
+		}
+	}
+}
+
+void APodiumPlayerController::PlayBackgroundMusic(USoundBase* Music)
+{
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->PlayBackgroundMusic(Music);
+		}
+	}
+}
+
+void APodiumPlayerController::StopBackgroundMusic()
+{
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->StopBackgroundMusic();
+		}
+	}
 }

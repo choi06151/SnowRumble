@@ -12,6 +12,7 @@ class AActor;
 class ASnowRumbleCharacter;
 class ASnowRumblePlayerState;
 class ASnowmanModeSnowmanCharacter;
+class USoundBase;
 
 UCLASS()
 class SNOWRUMBLE_API ASnowmanModeGameMode : public AGameModeBase
@@ -41,6 +42,10 @@ public:
 		AActor* StartSpot) override;
 
 protected:
+	/** 눈사람 모드에서 재생할 배경음악이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")
+	TObjectPtr<USoundBase> BackgroundMusicSound;
+
 	/** 눈사람 모드 제한시간이다. K-14 전까지 승패 없이 시간 상태만 제공한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman", meta = (ClampMin = "0.0"))
 	float SnowmanModeTimeLimitSeconds = 600.0f;
@@ -114,6 +119,9 @@ private:
 
 	/** 현재 GameState의 SnowRumble PlayerState 목록을 수집한다. */
 	TArray<ASnowRumblePlayerState*> CollectSnowmanPlayerStates() const;
+
+	/** 현재 로컬 클라이언트에 눈사람 모드 배경음악을 재생하도록 지시한다. */
+	void BroadcastBackgroundMusic() const;
 
 	/** 지정 PlayerState가 소유한 캐릭터를 찾는다. */
 	ASnowRumbleCharacter* FindCharacterForPlayerState(

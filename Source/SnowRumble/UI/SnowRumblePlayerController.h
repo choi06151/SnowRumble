@@ -10,11 +10,13 @@
 #include "SnowRumblePlayerController.generated.h"
 
 class UChatWidget;
+class UAudioComponent;
 class ULoadingScreenWidget;
 class UTexture2D;
 class UUserWidget;
 class UVoiceMuteMenuWidget;
 class ACameraActor;
+class USoundBase;
 
 UCLASS(Blueprintable)
 class SNOWRUMBLE_API ASnowRumblePlayerController : public APlayerController
@@ -84,6 +86,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Voice")
 	void ToggleManualVoiceMute(ASnowRumblePlayerState* TargetPlayerState);
 
+	/** 현재 재생 중인 배경음악의 볼륨 프리뷰를 갱신한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Audio")
+	void SetBackgroundMusicPreviewVolume(float MasterVolume, float BgmVolume);
+
 	/** 대상 플레이어가 수동 음소거 상태인지 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Voice")
 	bool IsVoicePlayerManuallyMuted(
@@ -132,6 +138,12 @@ public:
 	UFUNCTION(Client, Reliable, Category = "SnowRumble|Match Intro")
 	void ClientFinishPvpTeamIntro();
 
+	UFUNCTION(Client, Reliable, Category = "SnowRumble|Audio")
+	void ClientPlayBackgroundMusic(USoundBase* BackgroundMusicSound);
+
+	UFUNCTION(Client, Reliable, Category = "SnowRumble|Audio")
+	void ClientStopBackgroundMusic();
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -157,6 +169,9 @@ protected:
 	virtual void ClientStartPvpIntroFadeOut_Implementation(
 		float FadeOutSeconds);
 	virtual void ClientFinishPvpTeamIntro_Implementation();
+	virtual void ClientPlayBackgroundMusic_Implementation(
+		USoundBase* BackgroundMusicSound);
+	virtual void ClientStopBackgroundMusic_Implementation();
 
 	/** 현재 상태에서 Enter 채팅 입력을 열 수 있는지 반환한다. */
 	virtual bool CanOpenChatInput() const;
@@ -223,6 +238,12 @@ protected:
 
 	/** 기본 마우스 커서 위젯 슬롯을 소프트웨어 커서로 적용한다. */
 	void ApplyDefaultMouseCursorWidget();
+
+	/** 현재 재생 중인 배경음악을 중지한다. */
+	void StopBackgroundMusic();
+
+	/** 배경음악을 현재 로컬 볼륨 설정에 맞춰 재생한다. */
+	void PlayBackgroundMusic(USoundBase* BackgroundMusicSound);
 
 private:
 	/** 로컬 옵션 설정 기준으로 채팅 직접 키 바인딩을 다시 묶는다. */
@@ -347,6 +368,8 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<ACameraActor> PvpIntroCameraActor;
+
+	TWeakObjectPtr<UAudioComponent> BackgroundMusicComponent;
 
 	bool bChatInputIgnoringPawnInput = false;
 

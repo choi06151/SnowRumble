@@ -4,13 +4,16 @@
 
 #include "Animation/AnimationAsset.h"
 #include "Blueprint/UserWidget.h"
+#include "../Audio/SnowRumbleBackgroundMusicSubsystem_C.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/GameInstance.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "MainMenuWidget.h"
 #include "OptionsWidget_C.h"
 #include "../Online/SnowRumbleSessionSubsystem.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "../Player/SnowRumbleCustomizationSubsystem_C.h"
+#include "Sound/SoundBase.h"
 
 void AMainMenuPlayerController::BeginPlay()
 {
@@ -31,6 +34,7 @@ void AMainMenuPlayerController::BeginPlay()
 		ApplyMainMenuInputLock();
 		ApplyMainMenuPreviewAnimation();
 		ApplyMainMenuPreviewCustomization();
+		PlayBackgroundMusic();
 	}
 }
 
@@ -150,6 +154,22 @@ void AMainMenuPlayerController::TravelToCustomizationLevel()
 	}
 
 	ClientTravel(CustomizationLevelUrl, TRAVEL_Absolute);
+}
+
+void AMainMenuPlayerController::SetBackgroundMusicPreviewVolume(
+	float MasterVolume,
+	float BgmVolume)
+{
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->SetBackgroundMusicPreviewVolume(
+				MasterVolume,
+				BgmVolume);
+		}
+	}
 }
 
 UMainMenuWidget* AMainMenuPlayerController::EnsureMainMenuWidget()
@@ -327,4 +347,33 @@ void AMainMenuPlayerController::ApplyMainMenuPreviewCustomization()
 	LastCustomizedPreviewCharacter = PreviewCharacter;
 	LastAppliedPreviewCustomizationData = CustomizationData;
 	bHasAppliedPreviewCustomizationData = true;
+}
+
+void AMainMenuPlayerController::PlayBackgroundMusic()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->PlayBackgroundMusic(BackgroundMusicSound);
+		}
+	}
+}
+
+void AMainMenuPlayerController::StopBackgroundMusic()
+{
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->StopBackgroundMusic();
+		}
+	}
 }

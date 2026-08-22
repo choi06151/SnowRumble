@@ -2,6 +2,7 @@
 
 #include "SnowRumbleLobbyGameMode.h"
 
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/PlayerController.h"
 #include "Misc/PackageName.h"
@@ -14,6 +15,7 @@
 #include "SnowRumbleLobbyGameState.h"
 #include "SnowRumbleMatchSubsystem_C.h"
 #include "SnowRumblePlayerState.h"
+#include "Sound/SoundBase.h"
 
 namespace
 {
@@ -91,6 +93,12 @@ ASnowRumbleLobbyGameMode::ASnowRumbleLobbyGameMode()
 	}
 }
 
+void ASnowRumbleLobbyGameMode::BeginPlay()
+{
+	Super::BeginPlay();
+	BroadcastBackgroundMusic();
+}
+
 void ASnowRumbleLobbyGameMode::RequestStartMatch(
 	APlayerController* RequestingController)
 {
@@ -154,6 +162,21 @@ void ASnowRumbleLobbyGameMode::PostLogin(APlayerController* NewPlayer)
 	{
 		LobbyGameState->NotifyLobbyStateChanged();
 	}
+
+	BroadcastBackgroundMusic();
+}
+
+void ASnowRumbleLobbyGameMode::HandleSeamlessTravelPlayer(AController*& C)
+{
+	Super::HandleSeamlessTravelPlayer(C);
+	BroadcastBackgroundMusic();
+}
+
+void ASnowRumbleLobbyGameMode::HandleStartingNewPlayer_Implementation(
+	APlayerController* NewPlayer)
+{
+	Super::HandleStartingNewPlayer_Implementation(NewPlayer);
+	BroadcastBackgroundMusic();
 }
 
 void ASnowRumbleLobbyGameMode::ShuffleLobbyTeamsFromServer(int32 TeamCount)
@@ -563,6 +586,26 @@ void ASnowRumbleLobbyGameMode::ShowMatchLoadingScreens()
 			PlayerController->ClientUpdateLoadingProgress(
 				0,
 				ExpectedPlayerCount);
+		}
+	}
+}
+
+void ASnowRumbleLobbyGameMode::BroadcastBackgroundMusic() const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
+		It;
+		++It)
+	{
+		if (ASnowRumblePlayerController* PlayerController =
+			Cast<ASnowRumblePlayerController>(It->Get()))
+		{
+			PlayerController->ClientPlayBackgroundMusic(BackgroundMusicSound);
 		}
 	}
 }

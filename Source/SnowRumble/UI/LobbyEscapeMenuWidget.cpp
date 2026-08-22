@@ -2,6 +2,7 @@
 
 #include "LobbyEscapeMenuWidget.h"
 
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "Components/Button.h"
 #include "InputCoreTypes.h"
 #include "LobbyPlayerController.h"
@@ -101,6 +102,7 @@ void ULobbyEscapeMenuWidget::UnbindMenuButtons()
 
 void ULobbyEscapeMenuWidget::HandleReturnToMainMenuButtonClicked()
 {
+	PlayMenuClickSound();
 	OnReturnToMainMenuRequested();
 	if (LobbyPlayerController)
 	{
@@ -114,6 +116,7 @@ void ULobbyEscapeMenuWidget::HandleReturnToMainMenuButtonClicked()
 
 void ULobbyEscapeMenuWidget::HandleSettingsButtonClicked()
 {
+	PlayMenuClickSound();
 	OnSettingsRequested();
 	if (LobbyPlayerController)
 	{
@@ -123,12 +126,22 @@ void ULobbyEscapeMenuWidget::HandleSettingsButtonClicked()
 
 void ULobbyEscapeMenuWidget::HandleInviteFriendsButtonClicked()
 {
+	PlayMenuClickSound();
 	OnInviteFriendsRequested();
 }
 
 void ULobbyEscapeMenuWidget::HandleBackButtonClicked()
 {
+	PlayMenuClickSound();
 	CloseMenu();
+}
+
+void ULobbyEscapeMenuWidget::PlayMenuClickSound() const
+{
+	SnowRumbleAudio::PlaySound2D(
+		this,
+		MenuClickSound,
+		ESnowRumbleAudioMixChannel::UserInterface);
 }
 
 void ULobbyEscapeMenuWidget::CloseMenu()

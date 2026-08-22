@@ -7,6 +7,7 @@
 #include "EmoteRadialMenuWidget.generated.h"
 
 class UButton;
+class USoundBase;
 
 UCLASS(Abstract, Blueprintable)
 class SNOWRUMBLE_API UEmoteRadialMenuWidget : public UUserWidget
@@ -160,5 +161,10 @@ private:
 	/** 8개 버튼의 클릭 이벤트 연결을 해제한다. */
 	void UnbindEmoteButtons();
 
+	void PlayEmoteClickSound() const;
+
 	int32 HoveredEmoteIndex = INDEX_NONE;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|UI|Emote|Audio")
+	TObjectPtr<USoundBase> EmoteClickSound;
 };

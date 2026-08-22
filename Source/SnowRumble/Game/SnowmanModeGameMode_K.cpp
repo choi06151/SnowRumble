@@ -2,6 +2,7 @@
 
 #include "SnowmanModeGameMode_K.h"
 
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "../Player/SnowmanModeSnowmanCharacter_K.h"
 #include "../UI/SnowRumblePlayerController.h"
@@ -15,6 +16,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "SnowmanModeGameState_K.h"
 #include "SnowRumblePlayerState.h"
+#include "Sound/SoundBase.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSnowmanMode, Log, All);
 
@@ -103,6 +105,8 @@ void ASnowmanModeGameMode::InitGame(
 			SnowmanRoleInitializationRetryTimerHandle);
 		World->GetTimerManager().ClearTimer(InfectionScanTimerHandle);
 	}
+
+	BroadcastBackgroundMusic();
 }
 
 void ASnowmanModeGameMode::PostLogin(APlayerController* NewPlayer)
@@ -111,6 +115,7 @@ void ASnowmanModeGameMode::PostLogin(APlayerController* NewPlayer)
 
 	BroadcastLoadingProgress();
 	TryDismissLoadingScreens();
+	BroadcastBackgroundMusic();
 }
 
 void ASnowmanModeGameMode::HandleSeamlessTravelPlayer(AController*& C)
@@ -119,6 +124,7 @@ void ASnowmanModeGameMode::HandleSeamlessTravelPlayer(AController*& C)
 
 	BroadcastLoadingProgress();
 	TryDismissLoadingScreens();
+	BroadcastBackgroundMusic();
 }
 
 void ASnowmanModeGameMode::HandleStartingNewPlayer_Implementation(
@@ -128,6 +134,27 @@ void ASnowmanModeGameMode::HandleStartingNewPlayer_Implementation(
 
 	BroadcastLoadingProgress();
 	TryDismissLoadingScreens();
+	BroadcastBackgroundMusic();
+}
+
+void ASnowmanModeGameMode::BroadcastBackgroundMusic() const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
+		It;
+		++It)
+	{
+		if (ASnowRumblePlayerController* PlayerController =
+			Cast<ASnowRumblePlayerController>(It->Get()))
+		{
+			PlayerController->ClientPlayBackgroundMusic(BackgroundMusicSound);
+		}
+	}
 }
 
 AActor* ASnowmanModeGameMode::ChoosePlayerStart_Implementation(
