@@ -23,6 +23,7 @@
 - [x] HUD WBP의 라운드 종료 패널 표시 바인딩을 제공한다.
 - [ ] 5분 30초 마지막 금색 상자 발생 시점을 제공한다.
 - [x] 라운드가 남아 있으면 결과 표시 후 다음 랜덤 PvP 맵으로 이동한다.
+- [x] 최초 라운드 이후 PvP 내부 라운드 전환은 로딩 UI 없이 검은 전환만 남긴다.
 - [x] 모든 정규 라운드 종료 시 공동 1등이 있으면 단판 승부 전용 PvP 맵으로 이동한다.
 - [x] 단판 승부 중에는 공동 1등 대상 팀끼리의 피해만 유효하게 처리한다.
 - [x] 단판 승부 대상이 아닌 팀은 관전자 상태로 전환해 이동·상호작용·충돌 간섭을 막고 경기 참가자 시점을 보게 한다.
@@ -192,8 +193,10 @@
 - 2026-08-22: 포디움 구조를 1등팀 전용으로 바꿨다. `APodiumGameMode`는 `Podium_Team1`~`Podium_Team4` 위치를 1등팀 전용 자리로 사용하고, 승리 팀이 아닌 플레이어는 포디움에서 스폰하지 않는다. `APodiumPlayerController`는 `UPodiumWinnerWidget` 기반 전용 WBP에 승리 팀명과 로비 복귀 카운트다운만 전달한다.
 - 2026-08-22: 포디움 표시용 pawn의 `Cast Shadow`를 끄고, 결과 화면에서 캐릭터와 장비 그림자가 바닥에 남지 않게 했다.
 - 2026-08-22: 포디움 이동 전 `ClientShowLoadingScreen()` 호출을 제거하고 `ClientHideLoadingScreen()`만 남겨, 전환 중 로딩 UI 대신 검은 화면만 보이게 했다.
+- 2026-08-23: 최초 PvP 라운드 이후 모든 PvP 내부 라운드 전환과 단판 승부 전환도 `ClientShowLoadingScreen()` 호출 없이 검은 화면만 보이게 했다.
 - 2026-08-22: 포디움이 시작될 때 승리 팀 pawn을 다시 잡은 뒤 `PlayRandomServerDirectedEmote()`를 호출해 각 캐릭터가 랜덤 승리 이모트를 재생하게 했다.
 - 2026-08-22: 포디움 복귀 문구를 `ClientSetPodiumWinner()` 한 번만 보내는 대신, 1초마다 `ClientUpdatePodiumReturnSubtitle()`로 `10`, `9`, `8` 식 숫자를 갱신하게 했다.
+- 2026-08-23: 포디움 승리 팀 배치 순서를 조정했다. `Podium_Team1`~`Podium_Team4` 태그 PlayerStart를 태그 번호 기준으로 정렬하고, 승리 팀원이 1~3명이면 1번부터 순차 배치하며 4명이면 네 위치를 무작위로 섞어 배치한다.
 - 2026-08-13: 포디움은 경기 규칙을 실행하지 않는 결과 표시 레벨이므로 `APodiumGameMode`를 `ASnowRumbleGameMode` 상속에서 `AGameModeBase` 상속으로 분리했다. `APodiumPlayerController`도 `ASnowRumblePlayerController` 상속을 제거해 PvP HUD, ESC, 채팅, 입력 복구 흐름이 포디움에 섞이지 않게 했다. C++ 컴파일은 통과했고, 최종 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
 - 2026-08-13: 정규 라운드가 모두 끝난 뒤 공동 1등 팀이 있으면 `USnowRumbleMatchSubsystem::StartTiebreakerForLeadingTie()`가 단판 승부 상태를 travel 사이 유지하고, `ASnowRumbleGameMode::TiebreakerTravelUrl`로 전용 PvP 맵에 이동하게 했다. 단판 승부에서는 라운드 문구가 `단판승부`로 표시되고 `MapShrinkCountdownText`는 숨겨지며, 맵 축소 타이머와 `OnMapShrinkRequested` 호출은 중지된다. 선물상자 스폰 타이머는 그대로 예약된다. `git diff --check`는 통과했고 UHT/C++ 컴파일도 통과했지만, 실행 중인 Unreal Editor가 `UnrealEditor-SnowRumble.dll`을 잡고 있어 최종 링크는 `LNK1104`로 실패했다.
 - 2026-08-13: 단판 승부 맵에 모든 플레이어가 같이 travel되더라도 비동점 팀이 판정에 간섭하지 못하도록, 캐릭터 피해 적용 시 공격자와 대상이 모두 단판 승부 대상 팀일 때만 피해를 허용하게 했다. `git diff --check`와 UHT/C++ 컴파일은 통과했고, 최종 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
@@ -256,7 +259,7 @@
 - [ ] `MapShrinkCountdownText`가 0초에 도달하면 `맵이 축소됩니다!`로 바뀐다.
 - [ ] PvP GameMode Blueprint의 `OnMapShrinkRequested` 이벤트가 축소 시점마다 호출된다.
 - [ ] 현재 임시 완료 기준으로 `맵이 축소됩니다!` 표시 약 5초 후 다음 축소 카운트다운이 다시 시작된다.
-- [ ] 3라운드 또는 5라운드 설정에서 라운드 종료 후 남은 라운드가 있으면 로딩창이 다시 표시되고 다른 PvP 후보 맵으로 이동한다.
+- [ ] 3라운드 또는 5라운드 설정에서 라운드 종료 후 남은 라운드가 있으면 로딩 UI 없이 검은 화면만 보이고 다른 PvP 후보 맵으로 이동한다.
 - [ ] 마지막 라운드 종료 후 `IsMatchEnded()`가 true가 되고 `GetMatchWinningTeam()`이 최종 1등 팀을 반환한다.
 - [ ] 마지막 정규 라운드 종료 후 공동 1등이 있으면 로비로 복귀하지 않고 `TiebreakerTravelUrl` 맵으로 이동한다.
 - [ ] 단판 승부 HUD의 `CurrentRoundText`가 `단판승부`로 표시된다.
@@ -269,7 +272,8 @@
 - [ ] 단판 승부 승리 팀이 최종 1등 팀으로 확정되고 이후 로비로 복귀한다.
 - [ ] 마지막 라운드 종료 후 약 `MatchEndLobbyReturnDelaySeconds` 뒤 포디움 맵으로 이동한다.
 - [ ] 포디움 맵에서 승리 팀만 표시되고 패배 팀은 스폰되지 않는다.
-- [ ] 포디움 맵에서 `Podium_Team1`, `Podium_Team2`, `Podium_Team3`, `Podium_Team4` 태그 PlayerStart에 승리 팀원이 배치된다.
+- [ ] 포디움 맵에서 승리 팀원이 1~3명이면 `Podium_Team1`부터 팀원 수만큼 순서대로 배치된다.
+- [ ] 포디움 맵에서 승리 팀원이 4명이면 `Podium_Team1`~`Podium_Team4` 위치에 무작위 순서로 배치된다.
 - [ ] 포디움 화면에서 `WinningTeamText`, `SubtitleText`가 있으면 승리 팀명과 10초 후 복귀 안내가 표시된다.
 - [ ] 포디움에서는 `MainHUDWidget`, 이모션 원형 메뉴, 상호작용 안내 위젯이 뜨지 않는다.
 - [ ] 포디움 결과 표시 약 10초 후 매치 상태가 초기화되고 로비로 복귀한다.

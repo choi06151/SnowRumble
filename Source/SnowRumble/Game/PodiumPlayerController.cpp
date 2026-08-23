@@ -214,7 +214,7 @@ void APodiumPlayerController::PlayBackgroundMusic(USoundBase* Music)
 		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
 			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
 		{
-			BackgroundMusicSubsystem->PlayBackgroundMusic(Music);
+			BackgroundMusicSubsystem->PlayBackgroundMusic(Music, false);
 		}
 	}
 }

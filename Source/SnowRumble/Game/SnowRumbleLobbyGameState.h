@@ -99,6 +99,9 @@ protected:
 private:
 	int32 NormalizeRoundLimit(int32 NewRoundLimit) const;
 
+	/** 방 설정 변경을 비호스트 클라이언트의 개인 알림 UI에 전달한다. */
+	void BroadcastRoomSettingsChangedAlarmToClients() const;
+
 	UPROPERTY(ReplicatedUsing = OnRep_LobbyMode)
 	ESnowRumbleLobbyMode LobbyMode = ESnowRumbleLobbyMode::Pvp;
 

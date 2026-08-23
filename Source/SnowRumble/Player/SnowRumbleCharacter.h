@@ -18,6 +18,7 @@ class UAnimMontage;
 class UEmoteRadialMenuWidget;
 class UGiftItemEffectComponent;
 class UInteractionPromptWidget;
+class UKeyGuideWidget;
 class UMainHUDWidget;
 class UMaterialInstanceDynamic;
 class UOverheadNameplateWidget;
@@ -281,6 +282,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Emote|UI")
 	void CloseEmoteRadialMenu();
 
+	/** 로컬 플레이어 화면에서 키 가이드 위젯을 닫고 게임 입력으로 복구한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|KeyGuide|UI")
+	void CloseKeyGuideWidget();
+
 	/** 눈덩이를 부착할 캐릭터의 조정 가능한 장착 위치를 반환한다. */
 	USceneComponent* GetSnowballHoldPoint() const;
 
@@ -484,6 +489,12 @@ protected:
 	/** 이모션 입력 해제 상태를 Blueprint에 전달한다. */
 	void HandleEmoteCompleted();
 
+	/** 키 가이드 입력 누름 상태를 처리한다. */
+	void HandleKeyGuideStarted();
+
+	/** 키 가이드 입력 해제 상태를 처리한다. */
+	void HandleKeyGuideCompleted();
+
 	/** 로컬 PlayerCameraManager에 안전한 상하 시야각을 적용한다. */
 	void ApplyCameraPitchLimits();
 
@@ -508,6 +519,9 @@ protected:
 	/** 로컬 플레이어용 이모션 원형 메뉴 위젯을 필요할 때 생성한다. */
 	void EnsureEmoteRadialMenuWidget();
 
+	/** 로컬 플레이어용 키 가이드 위젯을 필요할 때 생성한다. */
+	void EnsureKeyGuideWidget();
+
 	/** 로컬 플레이어용 메인 HUD 위젯을 필요할 때 생성한다. */
 	void EnsureMainHUDWidget();
 
@@ -524,6 +538,9 @@ protected:
 
 	/** 로컬 플레이어 화면에서 이모션 원형 메뉴를 연다. */
 	void OpenEmoteRadialMenu();
+
+	/** 로컬 플레이어 화면에서 키 가이드 위젯을 연다. */
+	void OpenKeyGuideWidget();
 
 	/** 로컬 화면에 굴리기 충돌 프록시 범위를 디버그 Sphere로 표시한다. */
 	void DrawRollingSnowballCollisionDebug() const;
@@ -1113,6 +1130,9 @@ public:
 	TObjectPtr<UInputAction> EmoteAction;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
+	TObjectPtr<UInputAction> KeyGuideAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
 	TObjectPtr<UInputAction> MicrophonePushToTalkAction;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
@@ -1266,6 +1286,14 @@ public:
 	UPROPERTY(Transient)
 	TObjectPtr<UEmoteRadialMenuWidget> EmoteRadialMenuWidget;
 
+	/** 로컬 플레이어 화면에 생성할 키 가이드 위젯 클래스다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|KeyGuide|UI")
+	TSubclassOf<UKeyGuideWidget> KeyGuideWidgetClass;
+
+	/** 로컬 플레이어가 소유한 키 가이드 위젯 인스턴스다. */
+	UPROPERTY(Transient)
+	TObjectPtr<UKeyGuideWidget> KeyGuideWidget;
+
 	/** 로컬 플레이어 화면에 생성할 메인 HUD 위젯 클래스다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI")
 	TSubclassOf<UMainHUDWidget> MainHUDWidgetClass;
@@ -1300,6 +1328,7 @@ public:
 	TObjectPtr<UInteractionPromptWidget> InteractionPromptWidget;
 
 	bool bIsEmoteRadialMenuOpen = false;
+	bool bIsKeyGuideWidgetOpen = false;
 	bool bPvpMatchMoveInputIgnoreApplied = false;
 	bool bPvpMatchLookInputIgnoreApplied = false;
 

@@ -287,19 +287,30 @@ bool USnowballCreationComponent::FindSnowSurface(
 		+ FVector::Distance(ViewLocation, Character->GetActorLocation());
 	const FVector TraceEnd =
 		ViewLocation + ViewDirection.GetSafeNormal() * EffectiveTraceDistance;
-	const bool bHit = World->LineTraceSingleByChannel(
-		OutHit,
+	TArray<FHitResult> Hits;
+	const bool bHit = World->LineTraceMultiByChannel(
+		Hits,
 		ViewLocation,
 		TraceEnd,
 		ECC_Visibility,
 		QueryParams);
 
-	const bool bHitSnowSurface =
-		bHit
-		&& OutHit.GetActor()
-		&& OutHit.GetActor()->ActorHasTag(SnowSurfaceTag);
+	if (!bHit)
+	{
+		return false;
+	}
 
-	return bHitSnowSurface;
+	for (const FHitResult& Hit : Hits)
+	{
+		if (AActor* HitActor = Hit.GetActor();
+			HitActor && HitActor->ActorHasTag(SnowSurfaceTag))
+		{
+			OutHit = Hit;
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void USnowballCreationComponent::SetCreatingState(bool bNewCreating)
