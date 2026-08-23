@@ -21,8 +21,13 @@
 #include "LobbyWidget.h"
 #include "LoadingScreenSubsystem.h"
 #include "MainHUDWidget.h"
+#include "OnlineSubsystem.h"
+#include "OnlineSubsystemUtils.h"
+#include "Interfaces/VoiceInterface.h"
 #include "Sound/SoundBase.h"
 #include "VoiceMuteMenuWidget_C.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogSnowRumbleVoice, Log, All);
 
 void ASnowRumblePlayerController::BeginPlay()
 {
@@ -176,6 +181,26 @@ void ASnowRumblePlayerController::RebindConfiguredInputKeys()
 			IE_Released,
 			this,
 			&ASnowRumblePlayerController::HandleMicrophonePushToTalkReleased);
+	}
+	if (BoundVoiceChannelToggleKey.IsValid()
+		&& BoundVoiceChannelToggleKey != BoundChatInputKey
+		&& BoundVoiceChannelToggleKey != BoundChatChannelToggleKey)
+	{
+		InputComponent->BindKey(
+			BoundVoiceChannelToggleKey,
+			IE_Pressed,
+			this,
+			&ASnowRumblePlayerController::HandleVoiceChannelTogglePressed);
+	}
+	if (BoundVoiceTargetMuteKey.IsValid()
+		&& BoundVoiceTargetMuteKey != BoundChatInputKey
+		&& BoundVoiceTargetMuteKey != BoundChatChannelToggleKey)
+	{
+		InputComponent->BindKey(
+			BoundVoiceTargetMuteKey,
+			IE_Pressed,
+			this,
+			&ASnowRumblePlayerController::RequestVoiceTargetMute);
 	}
 	RefreshMicrophoneInputState();
 	ApplyReplicatedVoiceChannel(LocalVoiceChannel);
@@ -856,6 +881,13 @@ void ASnowRumblePlayerController::SetMicrophoneInputActive(bool bNewActive)
 	}
 
 	bMicrophoneInputActive = bNewActive;
+	UE_LOG(
+		LogSnowRumbleVoice,
+		Log,
+		TEXT("Microphone input %s. Controller=%s Mode=%d"),
+		bMicrophoneInputActive ? TEXT("ON") : TEXT("OFF"),
+		*GetNameSafe(this),
+		static_cast<int32>(GetMicrophoneMode()));
 	ApplyNetworkVoiceInputState(bMicrophoneInputActive);
 	ApplyReplicatedVoiceSpeakingState(bNewVoiceSpeaking);
 	OnMicrophoneInputStateChanged(bMicrophoneInputActive);
@@ -864,20 +896,103 @@ void ASnowRumblePlayerController::SetMicrophoneInputActive(bool bNewActive)
 void ASnowRumblePlayerController::ApplyNetworkVoiceInputState(
 	bool bShouldSpeak)
 {
-	if (!IsLocalController() || bNetworkVoiceInputActive == bShouldSpeak)
+	if (!IsLocalController())
 	{
+		UE_LOG(
+			LogSnowRumbleVoice,
+			Warning,
+			TEXT("Network voice input skipped: controller is not local. Controller=%s ShouldSpeak=%d"),
+			*GetNameSafe(this),
+			bShouldSpeak ? 1 : 0);
+		return;
+	}
+
+	if (bNetworkVoiceInputActive == bShouldSpeak)
+	{
+		UE_LOG(
+			LogSnowRumbleVoice,
+			Verbose,
+			TEXT("Network voice input unchanged. Controller=%s ShouldSpeak=%d"),
+			*GetNameSafe(this),
+			bShouldSpeak ? 1 : 0);
 		return;
 	}
 
 	bNetworkVoiceInputActive = bShouldSpeak;
 	if (bNetworkVoiceInputActive)
 	{
+		EnsureLocalVoiceTalkerReady();
+		UE_LOG(
+			LogSnowRumbleVoice,
+			Log,
+			TEXT("StartTalking requested. Controller=%s"),
+			*GetNameSafe(this));
 		StartTalking();
 	}
 	else
 	{
+		UE_LOG(
+			LogSnowRumbleVoice,
+			Log,
+			TEXT("StopTalking requested. Controller=%s"),
+			*GetNameSafe(this));
 		StopTalking();
 	}
+}
+
+bool ASnowRumblePlayerController::EnsureLocalVoiceTalkerReady()
+{
+	if (!IsLocalController())
+	{
+		return false;
+	}
+
+	const ULocalPlayer* LocalPlayer = Cast<ULocalPlayer>(Player);
+	if (!LocalPlayer)
+	{
+		UE_LOG(
+			LogSnowRumbleVoice,
+			Warning,
+			TEXT("Voice setup skipped: local player is missing. Controller=%s"),
+			*GetNameSafe(this));
+		return false;
+	}
+
+	IOnlineSubsystem* OnlineSubsystem = Online::GetSubsystem(GetWorld());
+	if (!OnlineSubsystem)
+	{
+		UE_LOG(
+			LogSnowRumbleVoice,
+			Warning,
+			TEXT("Voice setup failed: OnlineSubsystem is unavailable."));
+		return false;
+	}
+
+	IOnlineVoicePtr VoiceInterface = OnlineSubsystem->GetVoiceInterface();
+	if (!VoiceInterface.IsValid())
+	{
+		UE_LOG(
+			LogSnowRumbleVoice,
+			Warning,
+			TEXT("Voice setup failed: VoiceInterface is unavailable. Subsystem=%s"),
+			*OnlineSubsystem->GetSubsystemName().ToString());
+		return false;
+	}
+
+	const uint32 LocalUserNum =
+		static_cast<uint32>(LocalPlayer->GetControllerId());
+	const bool bRegistered = VoiceInterface->RegisterLocalTalker(LocalUserNum);
+	const bool bHeadsetPresent = VoiceInterface->IsHeadsetPresent(LocalUserNum);
+	UE_LOG(
+		LogSnowRumbleVoice,
+		Log,
+		TEXT("Voice talker ready check. User=%u Registered=%d HeadsetPresent=%d Subsystem=%s"),
+		LocalUserNum,
+		bRegistered ? 1 : 0,
+		bHeadsetPresent ? 1 : 0,
+		*OnlineSubsystem->GetSubsystemName().ToString());
+
+	return bRegistered;
 }
 
 bool ASnowRumblePlayerController::ShouldMirrorMicrophoneInputToVoiceSpeaking()

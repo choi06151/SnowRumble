@@ -208,6 +208,12 @@ void USnowRumbleSessionSubsystem::HostLanSession(
 
 void USnowRumbleSessionSubsystem::CreateLanSession(int32 MaxPlayers)
 {
+	if (PendingHostRoomCode.IsEmpty())
+	{
+		PendingHostRoomCode = GenerateRoomCode();
+	}
+	CurrentRoomCode = PendingHostRoomCode;
+
 	IOnlineSessionPtr SessionInterface = GetSessionInterface();
 	if (!SessionInterface.IsValid())
 	{
@@ -605,6 +611,17 @@ USnowRumbleSessionSubsystem::GetSearchResults() const
 
 FString USnowRumbleSessionSubsystem::GetCurrentRoomCode() const
 {
+	if (!CurrentRoomCode.IsEmpty())
+	{
+		return CurrentRoomCode;
+	}
+
+	if (CurrentOperation == ESnowRumbleSessionOperation::Host
+		&& !PendingHostRoomCode.IsEmpty())
+	{
+		return PendingHostRoomCode;
+	}
+
 	return CurrentRoomCode;
 }
 
@@ -664,6 +681,10 @@ void USnowRumbleSessionSubsystem::HandleCreateSessionComplete(
 	}
 
 	bWasInLanSession = true;
+	if (CurrentRoomCode.IsEmpty() && !PendingHostRoomCode.IsEmpty())
+	{
+		CurrentRoomCode = PendingHostRoomCode;
+	}
 	SetOperationState(
 		ESnowRumbleSessionOperation::Host,
 		ESnowRumbleSessionState::Succeeded,

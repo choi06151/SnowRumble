@@ -91,6 +91,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snowball")
 	void CancelCharging();
 
+	/** 피격 등으로 던지기 연출이 끊겼을 때 보유 눈덩이는 유지하고 충전/보류 투척만 정리한다. */
+	void InterruptThrowStateFromServer();
+
 	/** 현재 투척 충전 중인지 확인한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
 	bool IsCharging() const;

@@ -34,6 +34,7 @@ PvP 라운드 중 서버가 맵에 배치된 후보 지점에서 선물상자를
 - [x] 모닥불이 완성 큰눈에 맞으면 남은 내구도와 관계없이 즉시 꺼지게 한다.
 - [x] 눈섬 물 상승 수위가 모닥불 위치에 닿으면 모닥불이 즉시 꺼지게 한다.
 - [x] 선물상자 Blueprint가 빨간/황금 등급별 Niagara VFX를 다르게 연결할 수 있도록 `GradeVfxComponent`와 등급별 Effect 슬롯을 제공한다.
+- [x] 모닥불 키트로 런타임 설치된 모닥불도 직접 배치 모닥불과 같은 방식으로 범위 안 플레이어를 회복하게 한다.
 
 ## 작업 배정
 
@@ -98,6 +99,7 @@ PvP 라운드 중 서버가 맵에 배치된 후보 지점에서 선물상자를
 - 2026-08-21: 눈섬 물 상승 수위가 모닥불 위치에 닿으면 모닥불이 즉시 꺼지도록 `ACampfire::ExtinguishFromWater()`와 `ASnowIslandWaterPressureActor` 연동을 추가했다. 물이 닿아도 모닥불 Actor와 Mesh는 남고 회복·충돌·VFX만 비활성화된다. `git diff --check`와 충돌 표식 검색은 통과했고, `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 보류됐다.
 - 2026-08-21: 선물상자 등급별 VFX 연결용으로 `AGiftBox::GradeVfxComponent`, `RedGiftBoxEffect`, `GoldGiftBoxEffect`를 추가했다. 서버가 확정한 `GiftBoxGrade`가 복제되면 각 클라이언트가 빨간/황금 등급에 맞는 Niagara System을 컴포넌트에 적용하고, 상자가 열리면 등급 VFX를 비활성화한 뒤 기존 개봉 VFX를 재생한다. `git diff --check`와 충돌 표식 검색은 통과했고, `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 보류됐다.
 - 2026-08-21: 선물상자 스폰 위치를 TargetPoint 정확한 지점에서 TargetPoint 주변 랜덤 위치로 변경했다. `ASnowRumbleGameMode::GiftBoxSpawnScatterRadius` 기본값 450cm 안에서 서버가 XY 오프셋을 확정하고, 기존 `GiftBoxSpawnHeightOffset`만큼 위에서 상자를 떨어뜨린다. `git diff --check`, UHT, C++ 컴파일은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
+- 2026-08-23: 모닥불 키트로 런타임 설치된 모닥불의 회복 누락에 대응했다. `ACampfire::HealOverlappingCharacters()`가 `HealRadiusComponent`의 overlap cache 대신 서버 Tick마다 모닥불 위치 기준 sphere overlap query로 `ASnowRumbleCharacter`를 찾아 회복하게 했다. `git diff --check`, 충돌 표식 검색, `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
 
 ## 수동 작업 (구현 후 구체화)
 
@@ -129,6 +131,8 @@ PvP 라운드 중 서버가 맵에 배치된 후보 지점에서 선물상자를
 - [x] 역할·소유권·담당자 이니셜 규칙 위반 없음
 - [x] 공용 계약과 캡슐화 규칙 위반 없음
 - [x] 현재 Task 문서가 실제 구현 기준으로 갱신됨
+- [x] 키트 설치 모닥불 회복 판정 C++ 보강 완료
+- [x] 키트 설치 모닥불 회복 판정 `SnowRumbleEditor Win64 Development` 빌드 성공
 
 ### 결과 확인 (구현 후 구체화)
 

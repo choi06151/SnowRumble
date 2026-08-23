@@ -175,7 +175,7 @@ void APodiumGameMode::SetupPodiumFromServer()
 	CollectPodiumPlayerStarts(WinningTeamStarts);
 
 	ACameraActor* PodiumCamera = FindPodiumCamera();
-	int32 UsedStartIndex = 0;
+	TArray<APlayerController*> WinningTeamControllers;
 
 	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
 		It;
@@ -195,17 +195,9 @@ void APodiumGameMode::SetupPodiumFromServer()
 		}
 
 		const ESnowRumbleTeam PlayerTeam = SnowPlayerState->GetLobbyTeam();
-		if (PlayerTeam == PodiumWinningTeam && !WinningTeamStarts.IsEmpty())
+		if (PlayerTeam == PodiumWinningTeam)
 		{
-			APlayerStart* SelectedStart =
-				WinningTeamStarts[UsedStartIndex % WinningTeamStarts.Num()];
-			RestartPlayerAtPlayerStart(PlayerController, SelectedStart);
-			if (ASnowRumbleCharacter* PodiumCharacter =
-				Cast<ASnowRumbleCharacter>(PlayerController->GetPawn()))
-			{
-				PodiumCharacter->PlayRandomServerDirectedEmote();
-			}
-			++UsedStartIndex;
+			WinningTeamControllers.Add(PlayerController);
 		}
 
 		if (PodiumCamera)
@@ -213,6 +205,36 @@ void APodiumGameMode::SetupPodiumFromServer()
 			PlayerController->SetViewTargetWithBlend(PodiumCamera, 0.5f);
 		}
 
+	}
+
+	if (!WinningTeamStarts.IsEmpty())
+	{
+		if (WinningTeamControllers.Num() >= 4
+			&& WinningTeamStarts.Num() >= 4)
+		{
+			for (int32 Index = WinningTeamStarts.Num() - 1; Index > 0; --Index)
+			{
+				const int32 SwapIndex = FMath::RandRange(0, Index);
+				WinningTeamStarts.Swap(Index, SwapIndex);
+			}
+		}
+
+		for (int32 Index = 0; Index < WinningTeamControllers.Num(); ++Index)
+		{
+			APlayerController* PlayerController = WinningTeamControllers[Index];
+			APlayerStart* SelectedStart =
+				WinningTeamStarts[Index % WinningTeamStarts.Num()];
+			RestartPlayerAtPlayerStart(PlayerController, SelectedStart);
+			if (ASnowRumbleCharacter* PodiumCharacter =
+				Cast<ASnowRumbleCharacter>(PlayerController->GetPawn()))
+			{
+				PodiumCharacter->PlayRandomServerDirectedEmote();
+			}
+			if (PodiumCamera)
+			{
+				PlayerController->SetViewTargetWithBlend(PodiumCamera, 0.5f);
+			}
+		}
 	}
 
 	StartPodiumReturnCountdown(PodiumWinningTeam);
@@ -394,6 +416,7 @@ void APodiumGameMode::CollectPodiumPlayerStarts(
 	TArray<APlayerStart*>& OutWinningTeamStarts) const
 {
 	OutWinningTeamStarts.Reset();
+	OutWinningTeamStarts.SetNumZeroed(4);
 
 	if (const UWorld* World = GetWorld())
 	{
@@ -407,22 +430,28 @@ void APodiumGameMode::CollectPodiumPlayerStarts(
 
 			if (PlayerStart->ActorHasTag(TEXT("Podium_Team1")))
 			{
-				OutWinningTeamStarts.Add(PlayerStart);
+				OutWinningTeamStarts[0] = PlayerStart;
 			}
 			else if (PlayerStart->ActorHasTag(TEXT("Podium_Team2")))
 			{
-				OutWinningTeamStarts.Add(PlayerStart);
+				OutWinningTeamStarts[1] = PlayerStart;
 			}
 			else if (PlayerStart->ActorHasTag(TEXT("Podium_Team3")))
 			{
-				OutWinningTeamStarts.Add(PlayerStart);
+				OutWinningTeamStarts[2] = PlayerStart;
 			}
 			else if (PlayerStart->ActorHasTag(TEXT("Podium_Team4")))
 			{
-				OutWinningTeamStarts.Add(PlayerStart);
+				OutWinningTeamStarts[3] = PlayerStart;
 			}
 		}
 	}
+
+	OutWinningTeamStarts.RemoveAll(
+		[](const APlayerStart* PlayerStart)
+		{
+			return PlayerStart == nullptr;
+		});
 }
 
 ACameraActor* APodiumGameMode::FindPodiumCamera() const

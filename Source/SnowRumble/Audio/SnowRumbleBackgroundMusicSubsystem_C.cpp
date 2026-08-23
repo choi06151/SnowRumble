@@ -3,6 +3,7 @@
 #include "SnowRumbleBackgroundMusicSubsystem_C.h"
 
 #include "Components/AudioComponent.h"
+#include "Engine/World.h"
 #include "../Audio/SnowRumbleAudioHelpers.h"
 #include "Sound/SoundBase.h"
 
@@ -13,8 +14,14 @@ void USnowRumbleBackgroundMusicSubsystem::Deinitialize()
 }
 
 void USnowRumbleBackgroundMusicSubsystem::PlayBackgroundMusic(
-	USoundBase* BackgroundMusicSound)
+	USoundBase* BackgroundMusicSound,
+	bool bShouldLoop)
 {
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(NonLoopStopTimerHandle);
+	}
+
 	if (!BackgroundMusicSound)
 	{
 		StopBackgroundMusic();
@@ -27,6 +34,23 @@ void USnowRumbleBackgroundMusicSubsystem::PlayBackgroundMusic(
 		if (CurrentBackgroundMusicComponent->Sound == BackgroundMusicSound
 			&& CurrentBackgroundMusicComponent->IsPlaying())
 		{
+			bCurrentBackgroundMusicShouldLoop = bShouldLoop;
+			if (!bShouldLoop)
+			{
+				const float MusicDuration = BackgroundMusicSound->GetDuration();
+				if (MusicDuration > 0.0f && FMath::IsFinite(MusicDuration))
+				{
+					if (UWorld* World = GetWorld())
+					{
+						World->GetTimerManager().SetTimer(
+							NonLoopStopTimerHandle,
+							this,
+							&USnowRumbleBackgroundMusicSubsystem::StopBackgroundMusic,
+							MusicDuration,
+							false);
+					}
+				}
+			}
 			CurrentBackgroundMusicComponent->SetVolumeMultiplier(
 				SnowRumbleAudio::GetEffectiveVolume(
 					this,
@@ -47,6 +71,23 @@ void USnowRumbleBackgroundMusicSubsystem::PlayBackgroundMusic(
 		BackgroundMusicComponent.Get())
 	{
 		CurrentBackgroundMusicSound = BackgroundMusicSound;
+		bCurrentBackgroundMusicShouldLoop = bShouldLoop;
+		if (!bShouldLoop)
+		{
+			const float MusicDuration = BackgroundMusicSound->GetDuration();
+			if (MusicDuration > 0.0f && FMath::IsFinite(MusicDuration))
+			{
+				if (UWorld* World = GetWorld())
+				{
+					World->GetTimerManager().SetTimer(
+						NonLoopStopTimerHandle,
+						this,
+						&USnowRumbleBackgroundMusicSubsystem::StopBackgroundMusic,
+						MusicDuration,
+						false);
+				}
+			}
+		}
 		CurrentBackgroundMusicComponent->OnAudioFinished.AddUniqueDynamic(
 			this,
 			&USnowRumbleBackgroundMusicSubsystem::HandleBackgroundMusicFinished);
@@ -55,6 +96,11 @@ void USnowRumbleBackgroundMusicSubsystem::PlayBackgroundMusic(
 
 void USnowRumbleBackgroundMusicSubsystem::StopBackgroundMusic()
 {
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(NonLoopStopTimerHandle);
+	}
+
 	if (UAudioComponent* CurrentBackgroundMusicComponent =
 		BackgroundMusicComponent.Get())
 	{
@@ -63,6 +109,7 @@ void USnowRumbleBackgroundMusicSubsystem::StopBackgroundMusic()
 	}
 
 	CurrentBackgroundMusicSound = nullptr;
+	bCurrentBackgroundMusicShouldLoop = true;
 	BackgroundMusicComponent = nullptr;
 }
 
@@ -82,8 +129,11 @@ void USnowRumbleBackgroundMusicSubsystem::SetBackgroundMusicPreviewVolume(
 void USnowRumbleBackgroundMusicSubsystem::HandleBackgroundMusicFinished()
 {
 	USoundBase* MusicToRestart = CurrentBackgroundMusicSound;
-	if (!MusicToRestart)
+	const bool bShouldRestart = bCurrentBackgroundMusicShouldLoop;
+	if (!MusicToRestart || !bShouldRestart)
 	{
+		CurrentBackgroundMusicSound = nullptr;
+		bCurrentBackgroundMusicShouldLoop = true;
 		BackgroundMusicComponent = nullptr;
 		return;
 	}

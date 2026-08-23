@@ -12,6 +12,7 @@
 - [x] 방 이름, 최대 8명과 팀 PvP 방 정보를 서버 세션 흐름에 반영한다.
 - [x] 빠른 게임이 빈자리가 있는 LAN 방 중 참가 가능한 방을 찾아 자동 참가하는 결과를 제공한다.
 - [x] 방 생성 시 방 코드를 생성·광고하고, 대기방 UI가 읽을 수 있는 계약을 제공한다.
+- [x] 호스트 로비 UI가 세션 생성 타이밍과 무관하게 pending 방 코드를 fallback으로 읽을 수 있게 한다.
 - [x] 방 찾기에서 입력한 방 코드와 일치하는 검색 결과에만 참가하는 요청을 제공한다.
 - [x] 에디터 확인 중 세션 호출 여부와 검색 결과를 추적할 수 있도록 `LogSnowRumbleSession` 로그를 추가한다.
 
@@ -103,9 +104,11 @@
 - 2026-08-21: Hamachi 테스트 중 방 코드 참가 재시도에서 NULL OSS named session이 남아 `can't join twice`가 발생하는 로그를 확인했다. 참가 시작 전이나 참가 실패 완료 시 로컬 named session을 정리해 다음 참가 요청이 막히지 않도록 보강했다. C++ 컴파일과 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됐다.
 - 2026-08-21: 클라이언트가 참가 중 호스트 연결을 잃으면 DemoMap 등 기본 맵으로 빠지는 문제에 대응했다. 네트워크 실패 처리에서 메인메뉴 travel URL에 `BP_MainMenuGameMode`를 강제하고, 메인메뉴 진입 알림을 `호스트의 연결이 해제되었습니다.`로 표시하게 했다. C++ 컴파일과 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됐다.
 - 2026-08-21: 접속 실패 일부가 `NetworkFailure`가 아닌 `TravelFailure` 경로로 처리되고, 프로젝트 기본 맵이 PvP 테스트용 DemoMap이면 엔진 fallback이 DemoMap으로 이동하는 원인을 확인했다. `TravelFailure`도 세션 실패로 처리하고, `GameDefaultMap`과 `ServerDefaultMap`을 `L_MainMenu`로 고정해 실패 fallback도 메인메뉴가 되게 했다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-23: 호스트가 로비에 들어갔을 때 간헐적으로 방 코드가 비어 보이는 문제를 보강했다. `GetCurrentRoomCode()`는 `CurrentRoomCode`가 비었더라도 호스트 생성 중이면 `PendingHostRoomCode`를 반환하고, `CreateLanSession()`과 생성 성공 처리에서도 `CurrentRoomCode`를 pending 코드로 복구한다.
 
 ### 결과 확인
 - [ ] 호스트가 방을 만들면 `L_Lobby`로 이동하고 대기방 UI에서 6자리 방 코드를 확인할 수 있다.
+- [ ] 호스트가 세션 생성 완료 전 로비 UI를 먼저 보더라도 방 코드가 비어 있지 않다.
 - [ ] 다른 클라이언트가 빠른 게임을 누르면 빈자리가 있는 LAN 방에 자동 참가한다.
 - [ ] 다른 클라이언트가 방 찾기에서 같은 방 코드를 입력하면 해당 LAN 방에 참가한다.
 - [ ] 존재하지 않는 코드 또는 가득 찬 방을 입력하면 클라이언트가 로비에 남고 실패 메시지를 받는다.
