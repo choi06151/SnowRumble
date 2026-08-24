@@ -5,6 +5,7 @@
 #include "../Audio/SnowRumbleAudioHelpers.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "../Player/SnowRumbleCharacter.h"
+#include "Components/AudioComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
@@ -724,13 +725,68 @@ void ASnowballItem::MulticastPlayImpactEffect_Implementation(
 	FVector_NetQuantize ImpactPoint,
 	FVector_NetQuantizeNormal ImpactNormal)
 {
+	USoundBase* SoundToPlay = IsFullyGrown() && LargeImpactSound
+		? LargeImpactSound
+		: ImpactSound;
 	SnowRumbleAudio::PlaySoundAtLocation(
 		this,
-		ImpactSound,
+		SoundToPlay,
 		ESnowRumbleAudioMixChannel::Gameplay,
 		ImpactPoint,
 		1.0f,
 		1.0f,
 		ImpactSoundAttenuation);
 	PlayImpactEffect(ImpactPoint, ImpactNormal);
+}
+
+void ASnowballItem::PlayRollingSound()
+{
+	if (HasAuthority())
+	{
+		MulticastPlayRollingSound(GetActorLocation());
+	}
+}
+
+void ASnowballItem::StopRollingSound()
+{
+	if (HasAuthority())
+	{
+		MulticastStopRollingSound();
+	}
+}
+
+void ASnowballItem::MulticastPlayRollingSound_Implementation(
+	FVector_NetQuantize Location)
+{
+	if (RollingAudioComponent)
+	{
+		RollingAudioComponent->Stop();
+		RollingAudioComponent = nullptr;
+	}
+
+	if (!RollingSound)
+	{
+		return;
+	}
+
+	RollingAudioComponent = UGameplayStatics::SpawnSoundAtLocation(
+		this,
+		RollingSound,
+		Location,
+		FRotator::ZeroRotator,
+		SnowRumbleAudio::GetEffectiveVolume(
+			this,
+			ESnowRumbleAudioMixChannel::Gameplay),
+		1.0f,
+		0.0f,
+		RollingSoundAttenuation);
+}
+
+void ASnowballItem::MulticastStopRollingSound_Implementation()
+{
+	if (RollingAudioComponent)
+	{
+		RollingAudioComponent->Stop();
+		RollingAudioComponent = nullptr;
+	}
 }

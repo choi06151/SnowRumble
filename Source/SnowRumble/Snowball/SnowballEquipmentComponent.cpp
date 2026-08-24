@@ -653,6 +653,7 @@ void USnowballEquipmentComponent::ServerStartRollingSnowball_Implementation()
 		InitialRollingHit);
 	RollingSnowball->MoveRollingSnowball(
 		Character->GetRollingSnowballCollisionLocation());
+	RollingSnowball->PlayRollingSound();
 	Character->ForceNetUpdate();
 	RollingSnowball->ForceNetUpdate();
 }
@@ -666,6 +667,7 @@ void USnowballEquipmentComponent::ServerStopRollingSnowball_Implementation()
 			Character->DisableRollingSnowballCollision();
 		}
 
+		RollingSnowball->StopRollingSound();
 		RollingSnowball->StopRolling();
 		RollingSnowball = nullptr;
 	}

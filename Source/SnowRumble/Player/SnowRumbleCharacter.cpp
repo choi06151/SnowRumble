@@ -844,18 +844,40 @@ void ASnowRumbleCharacter::RequestSnowFootstepEffect(FName FootSocketName)
 	}
 
 	FHitResult FootstepHit;
-	if (!FindSnowFootstepSurface(FootSocketName, FootstepHit))
+	if (!FindFootstepSurface(FootSocketName, FootstepHit))
 	{
 		return;
 	}
 
+	const bool bIsSnowSurface = FootstepHit.GetActor()
+		&& !SnowFootstepSurfaceTag.IsNone()
+		&& FootstepHit.GetActor()->ActorHasTag(SnowFootstepSurfaceTag);
+	USoundBase* FootstepSoundToPlay = bIsSnowSurface
+		? FootstepSound
+		: NormalFootstepSound;
+	USoundAttenuation* FootstepAttenuationToUse = bIsSnowSurface
+		? FootstepSoundAttenuation
+		: NormalFootstepSoundAttenuation;
 	LastSnowFootstepEffectTime = CurrentTime;
-	OnSnowFootstepEffect(
-		FootSocketName,
+	SnowRumbleAudio::PlaySoundAtLocation(
+		this,
+		FootstepSoundToPlay,
+		ESnowRumbleAudioMixChannel::Gameplay,
 		FootstepHit.ImpactPoint,
-		FootstepHit.ImpactNormal.GetSafeNormal());
+		1.0f,
+		1.0f,
+		FootstepAttenuationToUse);
+	if (bIsSnowSurface)
+	{
+		OnSnowFootstepEffect(
+			FootSocketName,
+			FootstepHit.ImpactPoint,
+			FootstepHit.ImpactNormal.GetSafeNormal());
+	}
 
-	if (bEnableSharedSnowTrailStamps && IsLocallyControlled())
+	if (bIsSnowSurface
+		&& bEnableSharedSnowTrailStamps
+		&& IsLocallyControlled())
 	{
 		RequestSharedSnowTrailStamp(
 			FootstepHit.ImpactPoint,
@@ -2909,7 +2931,14 @@ void ASnowRumbleCharacter::StartJump()
 		&& (!SnowballEquipmentComponent
 			|| !SnowballEquipmentComponent->IsRollingSnowball()))
 	{
-		Jump();
+		if (CanJump())
+		{
+			Jump();
+			SnowRumbleAudio::PlaySound2D(
+				this,
+				JumpSound,
+				ESnowRumbleAudioMixChannel::Gameplay);
+		}
 	}
 }
 
@@ -4487,9 +4516,21 @@ bool ASnowRumbleCharacter::FindSnowFootstepSurface(
 	FName FootSocketName,
 	FHitResult& OutFootstepHit) const
 {
-	if (!GetMesh()
-		|| FootSocketName.IsNone()
-		|| SnowFootstepSurfaceTag.IsNone())
+	if (!FindFootstepSurface(FootSocketName, OutFootstepHit))
+	{
+		return false;
+	}
+
+	return OutFootstepHit.GetActor()
+		&& !SnowFootstepSurfaceTag.IsNone()
+		&& OutFootstepHit.GetActor()->ActorHasTag(SnowFootstepSurfaceTag);
+}
+
+bool ASnowRumbleCharacter::FindFootstepSurface(
+	FName FootSocketName,
+	FHitResult& OutFootstepHit) const
+{
+	if (!GetMesh() || FootSocketName.IsNone())
 	{
 		return false;
 	}
@@ -4524,10 +4565,7 @@ bool ASnowRumbleCharacter::FindSnowFootstepSurface(
 		TraceEnd,
 		ECC_Visibility,
 		QueryParams);
-	const bool bHitSnowSurface = bHit
-		&& OutFootstepHit.GetActor()
-		&& OutFootstepHit.GetActor()->ActorHasTag(SnowFootstepSurfaceTag);
-	if (!bHitSnowSurface)
+	if (!bHit)
 	{
 		if (const ASnowTrailRenderTargetManager* SnowTrailManager =
 			ASnowTrailRenderTargetManager::FindSnowTrailManager(this))
@@ -4537,22 +4575,18 @@ bool ASnowRumbleCharacter::FindSnowFootstepSurface(
 				UE_LOG(
 					LogSnowTrailCharacter,
 					Warning,
-					TEXT("[SnowTrail] Foot trace failed Character=%s Foot=%s Hit=%d HitActor=%s HasTag=%d Start=%s End=%s Tag=%s"),
+					TEXT("[SnowTrail] Foot trace failed Character=%s Foot=%s Hit=%d HitActor=%s Start=%s End=%s Tag=%s"),
 					*GetNameSafe(this),
 					*FootSocketName.ToString(),
 					bHit ? 1 : 0,
 					*GetNameSafe(OutFootstepHit.GetActor()),
-					OutFootstepHit.GetActor()
-						&& OutFootstepHit.GetActor()->ActorHasTag(SnowFootstepSurfaceTag)
-							? 1
-							: 0,
 					*TraceStart.ToCompactString(),
 					*TraceEnd.ToCompactString(),
 					*SnowFootstepSurfaceTag.ToString());
 			}
 		}
 	}
-	return bHitSnowSurface;
+	return bHit;
 }
 
 bool ASnowRumbleCharacter::FindSnowFootstepSurfaceAtLocation(
