@@ -598,10 +598,7 @@ void ASnowRumbleGameMode::TravelToNextRoundIfNeeded()
 			if (ASnowRumblePlayerController* PlayerController =
 				Cast<ASnowRumblePlayerController>(It->Get()))
 			{
-				PlayerController->ClientShowLoadingScreen();
-				PlayerController->ClientUpdateLoadingProgress(
-					0,
-					ExpectedPlayerCount);
+				PlayerController->ClientHideLoadingScreen();
 			}
 		}
 
@@ -632,10 +629,7 @@ void ASnowRumbleGameMode::TravelToTiebreakerRound()
 			if (ASnowRumblePlayerController* PlayerController =
 				Cast<ASnowRumblePlayerController>(It->Get()))
 			{
-				PlayerController->ClientShowLoadingScreen();
-				PlayerController->ClientUpdateLoadingProgress(
-					0,
-					ExpectedPlayerCount);
+				PlayerController->ClientHideLoadingScreen();
 			}
 		}
 

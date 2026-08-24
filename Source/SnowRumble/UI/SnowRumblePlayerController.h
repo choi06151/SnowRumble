@@ -293,6 +293,9 @@ private:
 	/** 엔진 네트워크 음성 송출 시작/중지를 실제로 호출한다. */
 	void ApplyNetworkVoiceInputState(bool bShouldSpeak);
 
+	/** OnlineSubsystem 음성 인터페이스와 로컬 토커 등록 상태를 보장한다. */
+	bool EnsureLocalVoiceTalkerReady();
+
 	/** 현재 마이크 입력 상태를 speaking 표시로 그대로 쓸 수 있는지 반환한다. */
 	bool ShouldMirrorMicrophoneInputToVoiceSpeaking() const;
 

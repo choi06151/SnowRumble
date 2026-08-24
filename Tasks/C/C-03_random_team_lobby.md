@@ -15,6 +15,7 @@
 - [x] 팀당 최대 4명과 양 팀 동수 조건을 검사한다.
 - [x] 모든 참가자의 준비 상태와 호스트 시작 권한을 서버가 확정한다.
 - [x] 직접 팀 선택 기능은 MVP에서 비활성화한다.
+- [x] 호스트가 방 설정을 실제로 변경하면 비호스트 클라이언트에 개인 텍스트 알림을 표시한다.
 
 ## 작업 배정
 - 담당자·기능·계약 소유자: 최재원(C)
@@ -32,6 +33,7 @@
   - `ASnowRumbleLobbyGameState::CanStartLobbyMatch()`: 서버 기준으로 총 2~8명, Red와 Blue 동수, 팀당 1~4명, 전원 준비 상태일 때만 true를 반환한다.
   - `ASnowRumbleLobbyGameState::GetLobbyTeamPlayerCount(ESnowRumbleTeam Team)`: S-03 UI가 팀별 인원 표시를 구성할 때 읽을 수 있는 팀 인원 조회 함수다.
   - `ASnowRumblePlayerState::GetLobbyTeam()`, `ASnowRumblePlayerState::IsLobbyReady()`: S-03 UI가 각 참가자의 팀과 준비 상태를 읽는 원본 복제 상태다.
+  - `ASnowRumbleLobbyGameState`는 로비 모드, 라운드 수, 게임 속도가 서버에서 실제 변경될 때 비호스트 클라이언트의 기존 개인 알림 UI에 `방장이 방설정을 변경하였습니다`를 표시한다.
 - 인계 대상: S-03, C-04, C-08
 
 ## 범위 밖
@@ -60,6 +62,7 @@
 - S-03에서 참가자 목록은 `ULobbyWidget::GetLobbyPlayers()`로 받고, 각 행은 `ASnowRumblePlayerState::GetLobbyTeam()`, `GetLobbyPlayerName()`, `IsLobbyReady()` 값을 읽어 표시한다.
 - S-03에서 팀별 인원 표시는 `ASnowRumbleLobbyGameState::GetLobbyTeamPlayerCount(ESnowRumbleTeam::Red/Blue)`를 사용한다.
 - S-03에서 시작 버튼 활성화는 호스트 화면에서 `ULobbyWidget::IsLocalPlayerHost()`와 `ULobbyWidget::CanStartMatch()`가 모두 true일 때로 연결한다.
+- S-03에서 별도 UI 자산 변경은 필요 없다. 기존 로비 개인 알림용 `PersonalAlarmText`와 `PersonalAlarmAnimation` 연결을 유지하면 방 설정 변경 알림도 같은 경로로 표시된다.
 
 ## 완료 조건
 ### 에이전트 확인
@@ -72,6 +75,12 @@
 - [x] 대기방 계약 인계 완료
 - [x] 호스트·클라이언트 정적 점검 완료
 - [x] `SnowRumbleEditor Win64 Development` 재빌드 성공
+- [x] 방 설정 변경 개인 알림 C++ 보강 완료
+- [x] 방 설정 변경 개인 알림 `git diff --check` 통과
+- [x] 방 설정 변경 개인 알림 `SnowRumbleEditor Win64 Development` 빌드 성공
+
+### 검증 메모
+- 2026-08-23: 호스트가 로비 모드, 라운드 수, 게임 속도를 실제로 변경하면 비호스트 클라이언트에 `방장이 방설정을 변경하였습니다` 개인 알림을 표시하도록 보강했다. `git diff --check`, 충돌 표식 검색, `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
 
 ### 결과 확인
 - [x] 호스트가 방을 만들면 `L_Lobby`의 `PlayerStart` 위치에 기본 캐릭터로 스폰된다.
@@ -85,3 +94,5 @@
 - [ ] 1vs2처럼 Red와 Blue 인원이 다르면 모든 참가자가 준비해도 시작 가능 상태가 되지 않는다.
 - [ ] 팀당 4명을 초과하는 시작 가능 상태가 만들어지지 않는다.
 - [ ] S-03 UI에서 직접 팀 선택 버튼이나 게시판 팀 변경 기능을 연결하지 않아도 진행이 막히지 않는다.
+- [ ] 클라이언트가 준비 완료한 뒤 호스트가 로비 게시판에서 모드, 라운드 수, 게임 속도 중 하나를 실제로 변경하면 클라이언트 준비 상태가 초기화되고 `방장이 방설정을 변경하였습니다` 개인 알림이 표시된다.
+- [ ] 호스트가 현재 값과 같은 방 설정 버튼을 다시 누르면 클라이언트에 방 설정 변경 알림이 새로 뜨지 않는다.

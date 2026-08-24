@@ -22,6 +22,7 @@
 #include "../UI/EmoteRadialMenuWidget.h"
 #include "../UI/CustomizationPlayerController_C.h"
 #include "../UI/InteractionPromptWidget_C.h"
+#include "../UI/KeyGuideWidget_C.h"
 #include "../UI/MainHUDWidget.h"
 #include "../UI/MainMenuPlayerController.h"
 #include "../Game/PodiumPlayerController.h"
@@ -297,11 +298,11 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 			}
 			if (!OutlinedActor
 				&& SnowballEquipmentComponent
+				&& !SnowballEquipmentComponent->IsRollingSnowball()
 				&& !SnowballEquipmentComponent->HasHeldSnowball())
 			{
-				OutlinedActor = SnowballEquipmentComponent->IsRollingSnowball()
-					? SnowballEquipmentComponent->GetRollingSnowball()
-					: SnowballEquipmentComponent->FindClosestPickupCandidate();
+				OutlinedActor =
+					SnowballEquipmentComponent->FindClosestPickupCandidate();
 			}
 		}
 
@@ -1174,6 +1175,10 @@ float ASnowRumbleCharacter::TakeDamage(
 		HealthComponent ? HealthComponent->ApplyDamage(AdjustedDamage) : 0.0f;
 	if (AppliedDamage > 0.0f)
 	{
+		if (SnowballEquipmentComponent)
+		{
+			SnowballEquipmentComponent->InterruptThrowStateFromServer();
+		}
 		StartHitReactAnimationState();
 		const FVector DamageCauserLocation = DamageCauser
 			? DamageCauser->GetActorLocation()
@@ -1255,6 +1260,12 @@ void ASnowRumbleCharacter::BeginPlay()
 void ASnowRumbleCharacter::EndPlay(
 	const EEndPlayReason::Type EndPlayReason)
 {
+	if (KeyGuideWidget)
+	{
+		KeyGuideWidget->RemoveFromParent();
+		KeyGuideWidget = nullptr;
+	}
+
 	if (InteractionPromptWidget)
 	{
 		InteractionPromptWidget->RemoveFromParent();
@@ -2092,6 +2103,33 @@ void ASnowRumbleCharacter::EnsureEmoteRadialMenuWidget()
 	}
 }
 
+void ASnowRumbleCharacter::EnsureKeyGuideWidget()
+{
+	if (!IsLocallyControlled()
+		|| KeyGuideWidget
+		|| !KeyGuideWidgetClass
+		|| ShouldSuppressPvpWidgets())
+	{
+		return;
+	}
+
+	APlayerController* PlayerController = Cast<APlayerController>(Controller);
+	if (!PlayerController)
+	{
+		return;
+	}
+
+	KeyGuideWidget =
+		CreateWidget<UKeyGuideWidget>(
+			PlayerController,
+			KeyGuideWidgetClass);
+	if (KeyGuideWidget)
+	{
+		KeyGuideWidget->AddToViewport();
+		KeyGuideWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
 void ASnowRumbleCharacter::EnsureMainHUDWidget()
 {
 	if (!IsLocallyControlled()
@@ -2258,14 +2296,14 @@ bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
 	}
 
 	if (!SnowballEquipmentComponent
+		|| SnowballEquipmentComponent->IsRollingSnowball()
 		|| SnowballEquipmentComponent->HasHeldSnowball())
 	{
 		return false;
 	}
 
-	ASnowballItem* Snowball = SnowballEquipmentComponent->IsRollingSnowball()
-		? SnowballEquipmentComponent->GetRollingSnowball()
-		: SnowballEquipmentComponent->FindClosestPickupCandidate();
+	ASnowballItem* Snowball =
+		SnowballEquipmentComponent->FindClosestPickupCandidate();
 	if (!Snowball)
 	{
 		return false;
@@ -2349,6 +2387,83 @@ void ASnowRumbleCharacter::CloseEmoteRadialMenu()
 	}
 
 	bIsEmoteRadialMenuOpen = false;
+}
+
+void ASnowRumbleCharacter::OpenKeyGuideWidget()
+{
+	if (!IsLocallyControlled())
+	{
+		return;
+	}
+	if (bIsKeyGuideWidgetOpen)
+	{
+		return;
+	}
+
+	EnsureKeyGuideWidget();
+	if (!KeyGuideWidget)
+	{
+		return;
+	}
+
+	KeyGuideWidget->RefreshKeyGuideTexts();
+	KeyGuideWidget->SetVisibility(ESlateVisibility::Visible);
+
+	if (APlayerController* PlayerController =
+		Cast<APlayerController>(Controller))
+	{
+		if (ASnowRumblePlayerController* SnowRumblePlayerController =
+			Cast<ASnowRumblePlayerController>(PlayerController))
+		{
+			SnowRumblePlayerController->EnableDefaultCursorUiInput(
+				KeyGuideWidget,
+				false);
+		}
+		else
+		{
+			FInputModeGameAndUI InputMode;
+			InputMode.SetWidgetToFocus(KeyGuideWidget->TakeWidget());
+			InputMode.SetHideCursorDuringCapture(false);
+			InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			PlayerController->SetInputMode(InputMode);
+			PlayerController->SetShowMouseCursor(true);
+		}
+		PlayerController->SetIgnoreLookInput(true);
+	}
+
+	bIsKeyGuideWidgetOpen = true;
+}
+
+void ASnowRumbleCharacter::CloseKeyGuideWidget()
+{
+	const bool bWasKeyGuideWidgetOpen = bIsKeyGuideWidgetOpen;
+
+	if (KeyGuideWidget)
+	{
+		KeyGuideWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	if (IsLocallyControlled() && bWasKeyGuideWidgetOpen)
+	{
+		if (APlayerController* PlayerController =
+			Cast<APlayerController>(Controller))
+		{
+			if (ASnowRumblePlayerController* SnowRumblePlayerController =
+				Cast<ASnowRumblePlayerController>(PlayerController))
+			{
+				SnowRumblePlayerController->RestoreGameOnlyInput();
+			}
+			else
+			{
+				FInputModeGameOnly InputMode;
+				PlayerController->SetInputMode(InputMode);
+				PlayerController->SetShowMouseCursor(false);
+			}
+			PlayerController->SetIgnoreLookInput(false);
+		}
+	}
+
+	bIsKeyGuideWidgetOpen = false;
 }
 
 void ASnowRumbleCharacter::DrawRollingSnowballCollisionDebug() const
@@ -2465,6 +2580,12 @@ void ASnowRumbleCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 		EnhancedInputComponent->BindAction(EmoteAction, ETriggerEvent::Started, this, &ASnowRumbleCharacter::HandleEmoteStarted);
 		EnhancedInputComponent->BindAction(EmoteAction, ETriggerEvent::Completed, this, &ASnowRumbleCharacter::HandleEmoteCompleted);
 	}
+	if (KeyGuideAction)
+	{
+		EnhancedInputComponent->BindAction(KeyGuideAction, ETriggerEvent::Started, this, &ASnowRumbleCharacter::HandleKeyGuideStarted);
+		EnhancedInputComponent->BindAction(KeyGuideAction, ETriggerEvent::Completed, this, &ASnowRumbleCharacter::HandleKeyGuideCompleted);
+		EnhancedInputComponent->BindAction(KeyGuideAction, ETriggerEvent::Canceled, this, &ASnowRumbleCharacter::HandleKeyGuideCompleted);
+	}
 }
 
 void ASnowRumbleCharacter::Move(const FInputActionValue& Value)
@@ -2515,7 +2636,9 @@ void ASnowRumbleCharacter::Move(const FInputActionValue& Value)
 
 void ASnowRumbleCharacter::Look(const FInputActionValue& Value)
 {
-	if (bIsEmoteRadialMenuOpen || IsPvpMatchInputLocked())
+	if (bIsEmoteRadialMenuOpen
+		|| bIsKeyGuideWidgetOpen
+		|| IsPvpMatchInputLocked())
 	{
 		return;
 	}
@@ -2558,7 +2681,8 @@ void ASnowRumbleCharacter::UpdateCameraZoomInput()
 	if (!IsLocallyControlled()
 		|| !Controller
 		|| FocusedLobbyBoard
-		|| bIsEmoteRadialMenuOpen)
+		|| bIsEmoteRadialMenuOpen
+		|| bIsKeyGuideWidgetOpen)
 	{
 		return;
 	}
@@ -3033,6 +3157,19 @@ void ASnowRumbleCharacter::HandleEmoteCompleted()
 	OnEmoteInput(false);
 }
 
+void ASnowRumbleCharacter::HandleKeyGuideStarted()
+{
+	if (CanPerformGameplayAction())
+	{
+		OpenKeyGuideWidget();
+	}
+}
+
+void ASnowRumbleCharacter::HandleKeyGuideCompleted()
+{
+	CloseKeyGuideWidget();
+}
+
 void ASnowRumbleCharacter::ApplyInputMappingContext()
 {
 	const APlayerController* PlayerController = Cast<APlayerController>(Controller);
@@ -3108,7 +3245,8 @@ void ASnowRumbleCharacter::ApplyInputMappingContext()
 			ApplySavedKey(AimAction, EKeys::RightMouseButton, TEXT("Aim"));
 			ApplySavedKey(ActionAction, EKeys::LeftMouseButton, TEXT("Action"));
 			ApplySavedKey(DropEquipmentAction, EKeys::Q, TEXT("DropEquipment"));
-			ApplySavedKey(EmoteAction, EKeys::B, TEXT("Emote"));
+			ApplySavedKey(EmoteAction, EKeys::Tab, TEXT("Emote"));
+			ApplySavedKey(KeyGuideAction, EKeys::T, TEXT("KeyGuide"));
 			ApplySavedKey(
 				MicrophonePushToTalkAction,
 				EKeys::K,
@@ -3667,6 +3805,7 @@ bool ASnowRumbleCharacter::CanPerformGameplayAction() const
 		&& !bIsPickingUpItem
 		&& !bIsInteractingWithItem
 		&& !bIsEmoteRadialMenuOpen
+		&& !bIsKeyGuideWidgetOpen
 		&& !bTiebreakerSpectator
 		&& !bIsGrabbedByCharacter
 		&& !IsHangingFromWorldGrab()
@@ -3807,6 +3946,7 @@ void ASnowRumbleCharacter::RefreshPvpMatchInputLock()
 	const bool bUiInputActive =
 		FocusedLobbyBoard
 		|| bIsEmoteRadialMenuOpen
+		|| bIsKeyGuideWidgetOpen
 		|| Cast<ACustomizationPlayerController>(PlayerController)
 		|| Cast<AMainMenuPlayerController>(PlayerController)
 		|| (SnowRumblePlayerController

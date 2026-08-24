@@ -310,6 +310,24 @@ void USnowballEquipmentComponent::CancelCharging()
 	}
 }
 
+void USnowballEquipmentComponent::InterruptThrowStateFromServer()
+{
+	AActor* OwningActor = GetOwner();
+	if (!OwningActor || !OwningActor->HasAuthority())
+	{
+		return;
+	}
+
+	const bool bHadInterruptedThrowState = bIsCharging || bHasPendingThrow;
+	ClearPendingThrow();
+	SetChargingState(false);
+
+	if (bHadInterruptedThrowState)
+	{
+		OwningActor->ForceNetUpdate();
+	}
+}
+
 bool USnowballEquipmentComponent::IsCharging() const
 {
 	return bIsCharging && CanThrowHeldSnowball();
