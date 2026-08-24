@@ -527,6 +527,8 @@ void USnowballEquipmentComponent::ServerReleaseChargedSnowball_Implementation(
 	}
 
 	const bool bThrowingLargeSnowball = IsHoldingLargeSnowball();
+	const bool bUseAirborneThrowBonus =
+		!bThrowingLargeSnowball && Character->IsInAir();
 	const float CurrentMaximumChargeSeconds = GetCurrentMaximumChargeSeconds();
 	const float ChargeProgress = FMath::Clamp(
 		static_cast<float>(
@@ -542,6 +544,15 @@ void USnowballEquipmentComponent::ServerReleaseChargedSnowball_Implementation(
 			? LargeSnowballMaximumThrowSpeed
 			: MaximumThrowSpeed,
 		ChargeProgress);
+	const float FinalThrowSpeed =
+		ThrowSpeed
+		* (bUseAirborneThrowBonus
+			? FMath::Max(0.0f, AirborneThrowSpeedMultiplier)
+			: 1.0f);
+	const float ThrowDamageMultiplier =
+		bUseAirborneThrowBonus
+			? FMath::Max(0.0f, AirborneThrowDamageMultiplier)
+			: 1.0f;
 	const FVector AimDirection =
 		(AimTarget - HeldSnowball->GetActorLocation()).GetSafeNormal();
 	if (AimDirection.IsNearlyZero())
@@ -553,8 +564,9 @@ void USnowballEquipmentComponent::ServerReleaseChargedSnowball_Implementation(
 	SetChargingState(false);
 
 	bHasPendingThrow = true;
-	PendingThrowSpeed = ThrowSpeed;
+	PendingThrowSpeed = FinalThrowSpeed;
 	PendingThrowChargeProgress = ChargeProgress;
+	PendingThrowDamageMultiplier = ThrowDamageMultiplier;
 	Character->NotifySnowballThrowSucceeded(bThrowingLargeSnowball);
 	Character->ForceNetUpdate();
 }
@@ -849,13 +861,15 @@ void USnowballEquipmentComponent::ExecutePendingThrowFromServer(
 			: AimDirection;
 	const float ThrowSpeed = PendingThrowSpeed;
 	const float ThrowChargeProgress = PendingThrowChargeProgress;
+	const float ThrowDamageMultiplier = PendingThrowDamageMultiplier;
 
 	ClearPendingThrow();
 
 	if (!SnowballToThrow->Throw(
 		ThrowDirection,
 		ThrowSpeed,
-		ThrowChargeProgress))
+		ThrowChargeProgress,
+		ThrowDamageMultiplier))
 	{
 		return;
 	}
@@ -872,6 +886,7 @@ void USnowballEquipmentComponent::ClearPendingThrow()
 	bHasPendingThrow = false;
 	PendingThrowSpeed = 0.0f;
 	PendingThrowChargeProgress = 0.0f;
+	PendingThrowDamageMultiplier = 1.0f;
 }
 
 void USnowballEquipmentComponent::SetChargingState(bool bNewCharging)

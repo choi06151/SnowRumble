@@ -38,11 +38,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
 	bool CanBePickedUp() const;
 
-	/** 서버가 장착된 눈덩이를 지정한 방향·속도·충전량으로 투척한다. */
+	/** 서버가 장착된 눈덩이를 지정한 방향·속도·충전량·피해 배율로 투척한다. */
 	bool Throw(
 		const FVector& ThrowDirection,
 		float ThrowSpeed,
-		float ThrowChargeProgress);
+		float ThrowChargeProgress,
+		float ThrowDamageMultiplier = 1.0f);
 
 	/** 서버가 장착된 눈덩이를 현재 손 위치에서 바닥 상태로 놓는다. */
 	bool DropToGround();
@@ -228,6 +229,7 @@ protected:
 	float AccumulatedRollingDistance = 0.0f;
 	bool bHasProcessedThrownImpact = false;
 	float CurrentThrowChargeProgress = 0.0f;
+	float CurrentThrowDamageMultiplier = 1.0f;
 
 	TSet<TWeakObjectPtr<AActor>> TemporarilyIgnoredActors;
 	ECollisionResponse CachedPawnCollisionResponse = ECR_Block;

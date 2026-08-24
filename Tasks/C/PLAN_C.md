@@ -327,3 +327,6 @@
 - 2026-08-24: 사진 스크린샷 표시용 WBP 부모 `ULatestPhotoScreenshotWidget`을 추가했다. WBP에서 `LatestScreenshotImage` Image를 바인딩하면 `Saved/Screenshots` 아래 최신 `Photo_*.png`를 로드해 표시하고, `RefreshLatestScreenshot()`로 수동 갱신할 수 있다.
 - 2026-08-24: `ULatestPhotoScreenshotWidget`이 `FScreenshotRequest::OnScreenshotRequestProcessed()`를 구독하게 해 사진 촬영 저장이 끝나면 열린 WBP의 `LatestScreenshotImage`가 최신 사진으로 자동 갱신되도록 했다.
 - 2026-08-24: C-30 공간 효과음 범위를 눈덩이 충돌음과 캐릭터 피격음으로 좁혔다. UI 상호작용음은 로컬 2D로 유지하고, `ImpactSoundAttenuation`과 `DamageSoundAttenuation`을 Blueprint 연결 슬롯으로 추가했다.
+- 2026-08-24: C-09 공중 작은 눈덩이 투척 보정을 추가했다. 서버 release 시점에 공중이면 기존 공중 투척 모션과 함께 피해 1.5배, 속도 기본 1.2배를 적용하고, 속도 배율은 `AirborneThrowSpeedMultiplier`로 조정 가능하게 했다.
+- 2026-08-24: C-30 UI 버튼 공통 클릭음을 추가했다. `USnowRumbleAudioUserWidget`이 버튼을 자동 연결하고 단일 `ButtonInteractionSound`를 로컬 2D로 재생하며, 기존 UI별 클릭 사운드는 제거했다.
+- 2026-08-24: C-30 UI 사운드를 hover/click 슬롯으로 분리했다. `ButtonHoverSound`와 `ButtonClickSound`를 각각의 이벤트에 사용한다.

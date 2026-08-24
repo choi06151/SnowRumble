@@ -323,31 +323,26 @@ void UOptionsWidget::UnbindOptionButtons()
 
 void UOptionsWidget::HandleSensitivityCategoryButtonClicked()
 {
-	PlayOptionsClickSound();
 	SetOptionsCategory(ESnowRumbleOptionsCategory::Sensitivity);
 }
 
 void UOptionsWidget::HandleAudioCategoryButtonClicked()
 {
-	PlayOptionsClickSound();
 	SetOptionsCategory(ESnowRumbleOptionsCategory::Audio);
 }
 
 void UOptionsWidget::HandleKeyBindingCategoryButtonClicked()
 {
-	PlayOptionsClickSound();
 	SetOptionsCategory(ESnowRumbleOptionsCategory::KeyBinding);
 }
 
 void UOptionsWidget::HandleMicrophoneCategoryButtonClicked()
 {
-	PlayOptionsClickSound();
 	SetOptionsCategory(ESnowRumbleOptionsCategory::Microphone);
 }
 
 void UOptionsWidget::HandleCloseButtonClicked()
 {
-	PlayOptionsClickSound();
 	DiscardPendingOptionChanges();
 	OnOptionsCloseRequested();
 	OnOptionsCloseRequestedNative.Broadcast();
@@ -355,7 +350,6 @@ void UOptionsWidget::HandleCloseButtonClicked()
 
 void UOptionsWidget::HandleApplyButtonClicked()
 {
-	PlayOptionsClickSound();
 	ApplyPendingOptionChanges();
 	OnOptionsApplyRequested();
 	SetHasPendingOptionChanges(false);
@@ -363,7 +357,6 @@ void UOptionsWidget::HandleApplyButtonClicked()
 
 void UOptionsWidget::HandleResetButtonClicked()
 {
-	PlayOptionsClickSound();
 	ResetCurrentOptionsCategory();
 	OnOptionsResetRequested();
 	OnOptionsCategoryResetRequested(CurrentOptionsCategory);
@@ -455,7 +448,6 @@ void UOptionsWidget::HandleMicrophoneVolumeSliderValueChanged(float NewValue)
 
 void UOptionsWidget::HandleMicrophonePushToTalkButtonClicked()
 {
-	PlayOptionsClickSound();
 	PendingMicrophoneMode = ESnowRumbleMicrophoneMode::PushToTalk;
 	OnMicrophoneModeChanged(PendingMicrophoneMode);
 	RefreshMicrophoneModeButtonSelection();
@@ -464,19 +456,10 @@ void UOptionsWidget::HandleMicrophonePushToTalkButtonClicked()
 
 void UOptionsWidget::HandleMicrophoneAlwaysOnButtonClicked()
 {
-	PlayOptionsClickSound();
 	PendingMicrophoneMode = ESnowRumbleMicrophoneMode::AlwaysOn;
 	OnMicrophoneModeChanged(PendingMicrophoneMode);
 	RefreshMicrophoneModeButtonSelection();
 	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
-}
-
-void UOptionsWidget::PlayOptionsClickSound() const
-{
-	SnowRumbleAudio::PlaySound2D(
-		this,
-		ButtonClickSound,
-		ESnowRumbleAudioMixChannel::UserInterface);
 }
 
 void UOptionsWidget::HandleKeyRowRebindRequested(FName BindingId)

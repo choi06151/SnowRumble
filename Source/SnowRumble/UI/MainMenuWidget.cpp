@@ -202,26 +202,22 @@ void UMainMenuWidget::HandleSearchCompleted(
 
 void UMainMenuWidget::HandleHostButtonClicked()
 {
-	PlayMenuClickSound();
 	HostLanGame(8);
 }
 
 void UMainMenuWidget::HandleQuickJoinButtonClicked()
 {
-	PlayMenuClickSound();
 	QuickJoinLanGame();
 }
 
 void UMainMenuWidget::HandleFindButtonClicked()
 {
-	PlayMenuClickSound();
 	SetRoomCodeJoinPanelVisible(true);
 	OnRoomCodeJoinPromptRequested();
 }
 
 void UMainMenuWidget::HandleSettingsButtonClicked()
 {
-	PlayMenuClickSound();
 	if (AMainMenuPlayerController* MainMenuPlayerController =
 		Cast<AMainMenuPlayerController>(GetOwningPlayer()))
 	{
@@ -231,7 +227,6 @@ void UMainMenuWidget::HandleSettingsButtonClicked()
 
 void UMainMenuWidget::HandleCustomizationButtonClicked()
 {
-	PlayMenuClickSound();
 	if (AMainMenuPlayerController* MainMenuPlayerController =
 		Cast<AMainMenuPlayerController>(GetOwningPlayer()))
 	{
@@ -241,7 +236,6 @@ void UMainMenuWidget::HandleCustomizationButtonClicked()
 
 void UMainMenuWidget::HandleConfirmRoomCodeJoinClicked()
 {
-	PlayMenuClickSound();
 	const FString RoomCode = RoomCodeTextBox
 		? RoomCodeTextBox->GetText().ToString()
 		: FString();
@@ -250,16 +244,7 @@ void UMainMenuWidget::HandleConfirmRoomCodeJoinClicked()
 
 void UMainMenuWidget::HandleCancelRoomCodeJoinClicked()
 {
-	PlayMenuClickSound();
 	SetRoomCodeJoinPanelVisible(false);
-}
-
-void UMainMenuWidget::PlayMenuClickSound() const
-{
-	SnowRumbleAudio::PlaySound2D(
-		this,
-		MenuClickSound,
-		ESnowRumbleAudioMixChannel::UserInterface);
 }
 
 void UMainMenuWidget::BindMenuButtons()

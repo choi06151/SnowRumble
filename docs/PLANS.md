@@ -116,7 +116,10 @@
 
 ## 최근 통합 로그
 
+- 2026-08-24: C-09 공중 작은 눈덩이 투척 보정을 추가했다. 서버 release 시점에 공중이면 기존 `ThrowSmallSnowballInAir` 모션과 맞춰 피해 1.5배와 속도 기본 1.2배를 적용한다.
 - 2026-08-24: C-30 효과음 공간화 범위를 눈덩이 충돌음과 캐릭터 피격음으로 한정했다. UI 상호작용음은 해당 플레이어 로컬 2D 재생으로 유지하고, `ASnowballItem::ImpactSoundAttenuation`과 `ASnowRumbleCharacter::DamageSoundAttenuation`으로 attenuation 연결 지점을 추가했다.
+- 2026-08-24: C-30 UI 버튼 공통 클릭음을 추가했다. `USnowRumbleAudioUserWidget`이 버튼을 자동 연결하고 단일 `ButtonInteractionSound`를 로컬 2D로 재생한다.
+- 2026-08-24: C-30 UI 사운드를 hover/click 슬롯으로 분리했다. 버튼 hover는 `ButtonHoverSound`, click은 `ButtonClickSound`를 로컬 2D로 재생한다.
 - 2026-08-24: C-11 커스터마이징 UI 계약을 기존 버튼 이름 자동 바인딩 방식으로 36색 팔레트까지 확장하고 C++가 버튼 RGB 스타일을 초기화하게 했다. WBP 버튼 배치는 사용자/S 인계로 남겼다.
 - 2026-08-24: C-11 커스터마이징 UI에 선택적 `BrushSizeSlider` 계약을 추가했다. 0~1 Slider 값은 기존 브러시 최소·최대 크기로 변환되고 버튼·휠 조절과 동기화된다.
 - 2026-08-24: C-06/C-28 얼음·Grab 공용 계약을 확장했다. 서버는 얼은 대상에 대해 같은 팀 Grab만 허용하고, 기존 Grab tether 운반과 사망 시 자동 해제를 연결한다.

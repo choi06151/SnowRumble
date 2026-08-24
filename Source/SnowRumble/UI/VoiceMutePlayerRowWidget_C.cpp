@@ -72,20 +72,11 @@ void UVoiceMutePlayerRowWidget::NativeDestruct()
 
 void UVoiceMutePlayerRowWidget::HandleMuteButtonClicked()
 {
-	PlayRowClickSound();
 	if (VoicePlayerController && ObservedPlayerState)
 	{
 		VoicePlayerController->ToggleManualVoiceMute(ObservedPlayerState);
 		RefreshRow();
 	}
-}
-
-void UVoiceMutePlayerRowWidget::PlayRowClickSound() const
-{
-	SnowRumbleAudio::PlaySound2D(
-		this,
-		RowClickSound,
-		ESnowRumbleAudioMixChannel::UserInterface);
 }
 
 void UVoiceMutePlayerRowWidget::BindRowButton()
