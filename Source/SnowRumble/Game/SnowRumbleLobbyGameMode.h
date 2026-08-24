@@ -91,7 +91,7 @@ protected:
 	/** 현재 로컬 클라이언트에 로비 배경음악을 재생하도록 지시한다. */
 	void BroadcastBackgroundMusic() const;
 
-	/** 로딩창 표시 RPC가 나간 다음 틱에 실제 PvP 맵 이동을 실행한다. */
+	/** 로딩창 표시 후 지연 시간이 지나면 실제 게임 맵 이동을 실행한다. */
 	void StartPendingMatchTravel();
 
 	/** 대기방에서 PvP 시작 시 이동할 게임방 맵 경로다. */
@@ -111,6 +111,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Lobby")
 	TArray<FSnowRumbleLoadingMapPresentation> PvPLevelLoadingPresentations;
 
+	/** 로비에서 게임 맵으로 이동하기 전 로딩창을 보여줄 대기 시간이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Lobby", meta = (ClampMin = "0.0"))
+	float MatchTravelDelaySeconds = 5.0f;
+
 	/** 대기방에서 눈사람 모드 시작 시 사용할 GameMode 클래스다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Lobby")
 	TSubclassOf<AGameModeBase> SnowmanModeGameModeClass;
@@ -118,4 +122,5 @@ protected:
 	FString PendingMatchTravelUrl;
 	FString PendingMatchMapPackageName;
 	bool bMatchTravelPending = false;
+	FTimerHandle PendingMatchTravelTimerHandle;
 };

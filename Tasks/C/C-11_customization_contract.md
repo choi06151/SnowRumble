@@ -27,10 +27,10 @@
 - 페인트 trace는 소프트웨어 커서의 좌상단 기준 표시를 보정해 원형 커서 중심에서 나가도록 자동 보정한다.
 - 페인트 stroke는 UV 좌표가 갑자기 멀리 이동하면 관절/UV seam으로 보고 선을 끊어 긴 튐 선을 만들지 않는다.
 - 색칠하기 버튼은 메인 화면에서 색칠하기 화면으로 전환하고, 색칠하기 화면에서 다시 누르면 메인 화면으로 돌아간다.
-- 색칠하기 화면은 고정 브러시 색 팔레트, 브러시 크기 조정 버튼, 전체 칠하기 버튼을 제공한다.
+- 색칠하기 화면은 36개 프리뷰 몸 색상 후보 버튼, 브러시 크기 조정 버튼, 전체 칠하기 버튼을 제공한다.
 - 모자 선택 화면은 색칠하기 버튼 옆의 모자 버튼으로 열고, 위/아래 버튼으로 현재 캐릭터 BP에 등록된 모자 StaticMesh 후보를 하나씩 순환한다.
 - 모자 선택 결과는 StaticMesh 자산 직접 참조가 아니라 `HatMeshIndex`로 저장·복제하고, 각 캐릭터 BP의 후보 배열에서 같은 인덱스를 장착한다.
-- 브러시 색은 빨강, 주황, 노랑, 초록, 파랑, 남색, 보라, 검정, 하양 팔레트 버튼으로만 선택한다.
+- 브러시 색 후보는 빨강·주황·노랑·초록·파랑·보라 계열의 명도 변형과 검정·회색·하양을 포함한 36개 색상으로 선택한다.
 - 현재 선택된 팔레트 버튼은 Pressed 상태 스타일로 유지한다.
 - 브러시 크기 버튼은 버튼을 누른 상태에서 마우스 휠로 선 두께를 작게 또는 크게 조정한다.
 - 게임 전체에서 기본 커서 BP 슬롯을 사용하고, 커스터마이징 색칠하기 화면에서는 BP 슬롯에 지정한 원형 커서 위젯으로 마우스 커서를 바꾼다.
@@ -68,7 +68,7 @@
 - [x] 색칠하기 화면이 아닐 때 좌클릭으로 페인트 stroke가 생성되지 않게 한다.
 - [x] 색칠하기 버튼을 누르면 `CustomizationContentSwitcher` 인덱스 1 색칠하기 화면으로 전환한다.
 - [x] 색칠하기 화면에서 색칠하기 버튼을 다시 누르면 `CustomizationContentSwitcher` 인덱스 0 메인 화면으로 돌아간다.
-- [x] 색칠하기 화면의 브러시 색을 빨강, 주황, 노랑, 초록, 파랑, 남색, 보라, 검정, 하양 고정 팔레트 버튼으로 선택하게 한다.
+- [x] 색칠하기 화면에서 36개 고정 색상 버튼을 C++가 이름으로 자동 바인딩한다.
 - [x] 현재 선택된 브러시 색 버튼은 Pressed 상태 스타일로 표시한다.
 - [x] `BrushSizeButton`을 누른 상태에서 마우스 휠로 브러시 크기를 조정하게 한다.
 - [x] `FillBodyColorButton`이 현재 브러시 색을 `BodyColor`에 적용하게 한다.
@@ -238,6 +238,7 @@
 - 2026-08-14: 브러시 크기를 바꿀 때 trace 위치가 함께 밀려 보이는 문제에 대응해 `bUsePaintCursorCenterTraceOffset`이 현재 브러시 지름을 사용하지 않게 했다. 필요한 hotspot 보정은 브러시 크기와 무관한 `PaintCursorCenterTraceOffset`과 `PaintCursorScreenOffset`으로만 적용한다.
 - 2026-08-14: 위 변경은 UHT와 C++ 컴파일, `.lib` 생성까지 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 `LNK1104`로 보류됐다.
 - 2026-08-12: 모자 커스터마이징 첫 범위를 추가했다. `HatMeshComponent` 빈 슬롯, `CustomizationHatMeshes` 후보 배열, `HatMeshIndex` 저장·복제 데이터, `HatModeButton`/`HatPreviousButton`/`HatNextButton` UI 계약을 제공한다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됐다.
+- 2026-08-24: 기존 색상 버튼 자동 바인딩 방식을 유지하면서 27개 색상 버튼 프로퍼티·핸들러·Pressed 상태 갱신을 추가해 총 36개 팔레트 버튼을 지원한다. C++가 각 버튼의 RGB 스타일 색까지 초기화한다.
 - 2026-08-12: 색칠하기 브러시 색 선택을 언리얼 기본 컬러 피커에서 고정 팔레트 버튼으로 변경했다. WBP는 빨강, 주황, 노랑, 초록, 파랑, 남색, 보라, 검정, 하양 버튼만 배치하고, 선택된 색 버튼은 C++에서 Pressed 스타일로 유지된다.
 - 2026-08-12: 고정 팔레트 버튼 변경은 `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드를 통과했다.
 - 2026-08-12: 팔레트 버튼 클릭 시 하드코딩된 색 대신 해당 버튼의 WBP 스타일 Normal Tint와 BackgroundColor를 기준으로 브러시 색을 정하게 변경했다.
@@ -281,9 +282,10 @@
 - 회전 버튼 두 개를 배치하고 이름을 `RotateLeftButton`, `RotateRightButton`으로 맞춘다.
 - 회전 속도는 커스터마이징 PlayerController BP의 `PreviewRotationSpeedDegrees`에서 조정한다.
 - 하위 화면 공통 버튼 이름을 `BackButton`, `ApplyButton`, `ResetButton`으로 맞춘다.
-- 색칠하기 화면에는 브러시 색 버튼과 현재 색 표시 칸을 두지 않는다. 대신 `RedBrushColorButton`, `OrangeBrushColorButton`, `YellowBrushColorButton`, `GreenBrushColorButton`, `BlueBrushColorButton`, `IndigoBrushColorButton`, `PurpleBrushColorButton`, `BlackBrushColorButton`, `WhiteBrushColorButton`을 배치한다.
-- 각 팔레트 버튼은 실제 색상이 보이도록 WBP 버튼 스타일의 Normal Tint 또는 BackgroundColor를 맞춘다. C++은 버튼의 원래 Normal Tint와 BackgroundColor를 기준으로 실제 브러시 색을 정하고, 선택된 색 버튼은 Pressed 스타일로 유지한다.
+- 색칠하기 화면에 36개 색상 버튼을 배치하고 C++ 프로퍼티 이름과 동일하게 맞춘다. 기존 9개 이름에 더해 `LightRedBrushColorButton`, `DarkRedBrushColorButton`, `SoftRedBrushColorButton` 등 색상 이름을 따른다.
+- 버튼의 Normal Tint와 BackgroundColor를 별도로 설정하지 않아도 된다. C++가 지정된 RGB 값을 Normal/Hovered/Pressed/Disabled 스타일에 적용하고, 같은 값을 브러시 색으로 사용한다.
 - 색칠하기 화면에 브러시 크기 버튼을 배치하고 이름을 `BrushSizeButton`으로 맞춘다. 이 버튼을 누른 상태에서 마우스 휠을 위/아래로 움직이면 브러시 크기가 커지거나 작아진다.
+- 색칠하기 화면에 선택적으로 `BrushSizeSlider`라는 Slider를 배치한다. Slider의 0~1 값은 C++가 `MinPaintBrushSize`~`MaxPaintBrushSize` 범위로 변환하며, 버튼·휠 조절과 같은 브러시 크기 상태를 사용한다.
 - 색칠하기 화면에 전체 칠하기 버튼을 배치하고 이름을 `FillBodyColorButton`으로 맞춘다. 이 버튼은 현재 브러시 색을 캐릭터 `BodyColor`에 적용한다.
 - 현재 브러시 색 또는 크기를 UI에 표시하려면 WBP에서 `GetPaintBrushColor()`와 `GetPaintBrushSize()`를 바인딩한다.
 - 메인 화면에서 색칠하기 버튼 옆에 모자 버튼을 배치하고 이름을 `HatModeButton`으로 맞춘다.
@@ -314,6 +316,7 @@
 - [x] 커스터마이징 레벨 검정 브러쉬 메쉬 드로잉 1차 코드 변경 완료
 - [x] 드로잉 stroke 저장·복제·로비/PvP 캐릭터 재적용 경로 완료
 - [x] 색칠하기 화면 브러시 색·크기·전체 칠하기 버튼 계약 완료
+- [x] `BrushSizeSlider`의 0~1 값과 기존 버튼·휠 브러시 크기 조절을 연결하는 계약 완료
 - [x] Stroke별 브러시 색·두께 저장과 로비/PvP 재적용 경로 완료
 - [x] 게임 전체 기본 마우스 커서 슬롯, 색칠하기 마우스 커서 슬롯, 페인트 커서 크기·색상 갱신 계약 완료
 - [x] 모자 StaticMesh 슬롯, 후보 배열, 선택 인덱스 저장·복제·적용 계약 완료
@@ -349,7 +352,9 @@
 - [ ] `PaintModeButton`을 누르면 마우스 커서가 `PaintMouseCursorWidgetClass` 원형 커서로 바뀐다.
 - [ ] `BackButton`으로 메인 화면에 돌아오면 마우스 커서가 `DefaultMouseCursorWidgetClass` 기본 커서로 돌아온다.
 - [ ] 원형 커서 WBP의 `BrushCursorSizeBox`가 브러시 크기에 맞춰 커지거나 작아진다.
-- [ ] 빨강, 주황, 노랑, 초록, 파랑, 남색, 보라, 검정, 하양 팔레트 버튼을 누르면 이후 그리는 선 색이 해당 버튼의 WBP tint 색으로 바뀐다.
+- [ ] 36개 색상 버튼을 각각 누르면 해당 버튼 스타일 색으로 브러시 색이 바뀌고, 선택된 버튼이 Pressed 상태로 표시된다.
+- [ ] WBP에 `BrushSizeSlider`를 배치하면 Slider를 움직일 때 브러시 크기와 원형 커서 크기가 함께 바뀐다.
+- [ ] `BrushSizeButton`을 누른 상태에서 휠을 조절하면 `BrushSizeSlider` 위치도 현재 브러시 크기에 맞춰 갱신된다.
 - [ ] 현재 선택된 팔레트 버튼이 Pressed 상태 스타일로 유지된다.
 - [ ] 팔레트 버튼을 누르면 원형 커서 WBP의 `BrushCursorColorBorder` 또는 `BrushCursorColorImage` 표시 색이 같은 색으로 바뀐다.
 - [ ] 팔레트 버튼에서 색을 바꾼 뒤 캐릭터 Mesh를 좌클릭 드래그하면 새 색으로 선이 그려진다.

@@ -3,17 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "SnowRumbleAudioUserWidget.h"
 #include "VoiceMutePlayerRowWidget_C.generated.h"
 
 class ASnowRumblePlayerController;
 class ASnowRumblePlayerState;
 class UButton;
 class UTextBlock;
-class USoundBase;
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API UVoiceMutePlayerRowWidget : public UUserWidget
+class SNOWRUMBLE_API UVoiceMutePlayerRowWidget : public USnowRumbleAudioUserWidget
 {
 	GENERATED_BODY()
 
@@ -60,14 +59,10 @@ private:
 
 	void BindRowButton();
 	void UnbindRowButton();
-	void PlayRowClickSound() const;
-
 	UPROPERTY(Transient)
 	TObjectPtr<ASnowRumblePlayerState> ObservedPlayerState;
 
 	UPROPERTY(Transient)
 	TObjectPtr<ASnowRumblePlayerController> VoicePlayerController;
 
-	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|UI|Voice Mute|Audio")
-	TObjectPtr<USoundBase> RowClickSound;
 };

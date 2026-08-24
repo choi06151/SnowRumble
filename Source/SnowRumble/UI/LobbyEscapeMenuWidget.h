@@ -3,15 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "SnowRumbleAudioUserWidget.h"
 #include "LobbyEscapeMenuWidget.generated.h"
 
 class ALobbyPlayerController;
 class UButton;
-class USoundBase;
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API ULobbyEscapeMenuWidget : public UUserWidget
+class SNOWRUMBLE_API ULobbyEscapeMenuWidget : public USnowRumbleAudioUserWidget
 {
 	GENERATED_BODY()
 
@@ -71,8 +70,6 @@ private:
 	UFUNCTION()
 	void HandleBackButtonClicked();
 
-	void PlayMenuClickSound() const;
-
 	void BindMenuButtons();
 	void UnbindMenuButtons();
 	void CloseMenu();
@@ -80,6 +77,4 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<ALobbyPlayerController> LobbyPlayerController;
 
-	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|UI|Lobby Escape|Audio")
-	TObjectPtr<USoundBase> MenuClickSound;
 };

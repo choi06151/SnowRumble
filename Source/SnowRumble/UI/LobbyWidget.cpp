@@ -60,8 +60,8 @@ FText GetTeamText(ESnowRumbleTeam Team)
 		return FText::FromString(TEXT("핑크"));
 	case ESnowRumbleTeam::Blue:
 		return FText::FromString(TEXT("파랑"));
-	case ESnowRumbleTeam::White:
-		return FText::FromString(TEXT("하양"));
+	case ESnowRumbleTeam::Orange:
+		return FText::FromString(TEXT("주황"));
 	default:
 		return FText::FromString(TEXT("미선택"));
 	}

@@ -102,19 +102,10 @@ void UVoiceMuteMenuWidget::NativeTick(
 
 void UVoiceMuteMenuWidget::HandleCloseButtonClicked()
 {
-	PlayMenuClickSound();
 	if (VoicePlayerController)
 	{
 		VoicePlayerController->HideVoiceMuteMenu();
 	}
-}
-
-void UVoiceMuteMenuWidget::PlayMenuClickSound() const
-{
-	SnowRumbleAudio::PlaySound2D(
-		this,
-		MenuClickSound,
-		ESnowRumbleAudioMixChannel::UserInterface);
 }
 
 void UVoiceMuteMenuWidget::BindMenuButtons()

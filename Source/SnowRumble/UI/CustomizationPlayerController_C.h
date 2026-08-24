@@ -70,6 +70,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
 	void AdjustPaintBrushSizeFromWheel(float WheelDelta);
 
+	/** 0~1 정규화 값으로 페인트 브러시 크기를 설정한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
+	void SetPaintBrushSizeFromNormalizedValue(float NormalizedValue);
+
+	/** 현재 페인트 브러시 크기를 0~1 정규화 값으로 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization")
+	float GetPaintBrushSizeNormalizedValue() const;
+
 	/** 현재 페인트 브러시 크기를 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization")
 	float GetPaintBrushSize() const;

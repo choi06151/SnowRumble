@@ -33,16 +33,19 @@ class USnowRumbleHealthComponent;
 class USnowballCreationComponent;
 class USnowballEquipmentComponent;
 class USpringArmComponent;
+class UUserWidget;
 class UCanvas;
 class UCanvasRenderTarget2D;
 class UTexture;
 class UWidgetInteractionComponent;
 class UWidgetComponent;
+class USoundAttenuation;
 class USoundBase;
 class AController;
 class AGiftBox;
 class AGiftBoxItemPickup;
 class ALobbyInteractionBoard;
+class APhotoInteractionActor;
 class ASnowballItem;
 struct FDamageEvent;
 struct FInputActionValue;
@@ -67,7 +70,8 @@ enum class ESnowRumbleTimedActionState : uint8
 {
 	None,
 	CreatingSnowball,
-	RollingSnowball
+	RollingSnowball,
+	Frozen
 };
 
 UENUM(BlueprintType)
@@ -123,6 +127,10 @@ public:
 	/** UI에서 얼음 상태 사망까지 남은 시간을 표시하기 위해 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Health")
 	float GetFrozenSecondsRemaining() const;
+
+	/** UI에서 얼음 사망 타이머를 1에서 0으로 표시할 진행도를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Health")
+	float GetFrozenProgress() const;
 
 	/** Animation Blueprint와 UI에서 눈덩이 장착 여부를 확인한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
@@ -394,6 +402,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Lobby|Board")
 	void CloseLobbyBoardFocus();
 
+	/** 서버가 확정한 사진 촬영 액터의 카메라를 로컬 화면에 적용한다. */
+	UFUNCTION(Client, Reliable)
+	void ClientFocusPhotoActor(APhotoInteractionActor* PhotoActor);
+
+	/** 사진 촬영 액터 포커스를 해제하고 원래 캐릭터 카메라로 돌아간다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Photo")
+	void ClosePhotoActorFocus();
+
 	/** 현재 로컬 상호작용 후보 기준 안내 문구를 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Interaction")
 	FText GetCurrentInteractionPromptText() const;
@@ -595,14 +611,35 @@ protected:
 	/** 로컬 플레이어가 상호작용할 가장 가까운 로비 게시판을 찾는다. */
 	ALobbyInteractionBoard* FindClosestLobbyBoardCandidate() const;
 
+	/** 로컬 플레이어가 상호작용할 가장 가까운 사진 촬영 액터를 찾는다. */
+	APhotoInteractionActor* FindClosestPhotoInteractionCandidate() const;
+
 	/** 로컬 플레이어가 상호작용할 가장 가까운 선물상자를 찾는다. */
 	AGiftBox* FindClosestGiftBoxCandidate() const;
 
 	/** 로컬 플레이어가 상호작용할 가장 가까운 선물상자 아이템을 찾는다. */
 	AGiftBoxItemPickup* FindClosestGiftBoxItemPickupCandidate() const;
 
+	/** 일반 핫팩으로 부활할 수 있는 같은 팀 얼음 아군을 찾는다. */
+	ASnowRumbleCharacter* FindClosestFrozenTeammateCandidate() const;
+
+	/** 로컬 E 홀드 부활 입력을 시작한다. */
+	void TryStartTeammateRevive();
+
+	/** E 홀드 부활 입력을 취소한다. */
+	void CancelTeammateRevive();
+
+	/** E 홀드가 완료되면 서버 부활 요청을 보낸다. */
+	void CompleteTeammateRevive();
+
 	/** 소유 플레이어가 가까운 로비 게시판 상호작용을 서버에 요청한다. */
 	void TryInteractWithLobbyBoard();
+
+	/** 소유 플레이어가 가까운 사진 촬영 액터 상호작용을 서버에 요청한다. */
+	void TryInteractWithPhotoActor();
+
+	/** 사진 촬영 상태에서 P 키를 눌러 로컬 스크린샷을 저장한다. */
+	void HandlePhotoCapture();
 
 	/** 소유 플레이어가 가까운 선물상자 개봉을 서버에 요청한다. */
 	void TryInteractWithGiftBox();
@@ -617,6 +654,10 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerTryInteractWithLobbyBoard(ALobbyInteractionBoard* Board);
 
+	/** 서버가 현재 위치와 상태를 검사해 사진 촬영 상호작용을 확정한다. */
+	UFUNCTION(Server, Reliable)
+	void ServerTryInteractWithPhotoActor(APhotoInteractionActor* PhotoActor);
+
 	/** 서버가 현재 위치와 상태를 검사해 선물상자 개봉을 확정한다. */
 	UFUNCTION(Server, Reliable)
 	void ServerTryOpenGiftBox(AGiftBox* GiftBox);
@@ -624,6 +665,10 @@ protected:
 	/** 서버가 현재 위치와 상태를 검사해 선물상자 아이템 획득을 확정한다. */
 	UFUNCTION(Server, Reliable)
 	void ServerTryPickupGiftBoxItem(AGiftBoxItemPickup* Pickup);
+
+	/** 서버가 거리·팀·얼음 상태와 핫팩 보유를 검증해 아군을 부활시킨다. */
+	UFUNCTION(Server, Reliable)
+	void ServerReviveFrozenTeammate(ASnowRumbleCharacter* TargetCharacter);
 
 	/** 서버가 현재 포커스 대상과 버튼 액션을 검사해 게시판 이벤트를 확정한다. */
 	UFUNCTION(Server, Reliable)
@@ -718,6 +763,10 @@ protected:
 	void ClientRequestLocalDamageFeedback(
 		float AppliedDamage,
 		FVector_NetQuantize DamageCauserLocation);
+
+	/** 서버가 확정한 피격음을 모든 화면에서 피격자 위치 기준으로 재생한다. */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastPlayDamageSound(FVector_NetQuantize DamageLocation);
 
 	/** 서버가 소유 클라이언트의 이모션 선택을 검사하고 확정한다. */
 	UFUNCTION(Server, Reliable)
@@ -1013,6 +1062,9 @@ public:
 	TObjectPtr<UStaticMesh> HotPackEquipmentMesh;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Hot Pack")
+	TObjectPtr<UStaticMesh> GoldenHotPackEquipmentMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Hot Pack")
 	FName HotPackEquipmentAttachSocketName = TEXT("HotPackSocket");
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Equipment Visual|Hot Pack")
@@ -1274,6 +1326,14 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")
 	TObjectPtr<USoundBase> DamageSound;
 
+	/** 피격음이 월드 거리감과 공간감을 갖도록 적용할 attenuation 설정이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")
+	TObjectPtr<USoundAttenuation> DamageSoundAttenuation;
+
+	/** 사진 촬영 시 재생할 셔터 효과음이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")
+	TObjectPtr<USoundBase> PhotoCaptureSound;
+
 	/** 원형 선택 UI의 8개 칸에 대응하는 이모션 몽타주 슬롯이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Emote")
 	TArray<TObjectPtr<UAnimMontage>> EmoteMontages;
@@ -1302,6 +1362,14 @@ public:
 	UPROPERTY(Transient)
 	TObjectPtr<UMainHUDWidget> MainHUDWidget;
 
+	/** 사진 모드에서 표시할 전용 WBP 클래스다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Photo|UI")
+	TSubclassOf<UUserWidget> PhotoInteractionWidgetClass;
+
+	/** 로컬 플레이어가 사진 모드에서 소유한 전용 WBP 인스턴스다. */
+	UPROPERTY(Transient)
+	TObjectPtr<UUserWidget> PhotoInteractionWidget;
+
 	/** 로컬 플레이어 화면에 생성할 상호작용 안내 위젯 클래스다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Interaction|UI")
 	TSubclassOf<UInteractionPromptWidget> InteractionPromptWidgetClass;
@@ -1313,6 +1381,14 @@ public:
 	/** 상호작용 대상 월드 위치에서 안내 기준점을 얼마나 위로 올릴지 정한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Interaction|UI")
 	float InteractionPromptWorldHeightOffset = 70.0f;
+
+	/** 일반 핫팩 부활 대상 탐색과 서버 검증에 사용할 최대 거리다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Interaction|Revive", meta = (ClampMin = "0.0"))
+	float TeammateReviveInteractionDistance = 260.0f;
+
+	/** 일반 핫팩 부활을 확정하기 위해 E를 유지해야 하는 시간이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Interaction|Revive", meta = (ClampMin = "0.0"))
+	float TeammateReviveHoldSeconds = 0.75f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation", meta = (ClampMin = "1.0"))
 	float ViewPitchAlphaRangeDegrees = 60.0f;
@@ -1383,6 +1459,9 @@ public:
 
 	bool bIsInteractHeld = false;
 	bool bUsedInteractForRolling = false;
+	bool bIsRevivingTeammate = false;
+	TWeakObjectPtr<ASnowRumbleCharacter> TeammateReviveTarget;
+	FTimerHandle TeammateReviveTimerHandle;
 	bool bLobbyBoardPointerPressed = false;
 	bool bLocalSnowEffectActive = false;
 	bool bDistanceSnowTrailActive = false;
@@ -1391,6 +1470,13 @@ public:
 
 	UPROPERTY(Transient)
 	TObjectPtr<ALobbyInteractionBoard> FocusedLobbyBoard;
+
+	UPROPERTY(Transient)
+	TObjectPtr<APhotoInteractionActor> FocusedPhotoActor;
+
+	bool bOrientRotationToMovementBeforePhotoFocus = true;
+	bool bUseControllerRotationYawBeforePhotoFocus = false;
+	float PhotoFocusViewPitchDegrees = 0.0f;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> CustomizationMaterialInstance;
