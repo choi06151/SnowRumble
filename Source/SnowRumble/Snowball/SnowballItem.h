@@ -7,6 +7,7 @@
 #include "SnowballItem.generated.h"
 
 class ASnowRumbleCharacter;
+class UAudioComponent;
 class UPrimitiveComponent;
 class UProjectileMovementComponent;
 class USceneComponent;
@@ -53,6 +54,12 @@ public:
 
 	/** 서버가 굴리기 상태를 끝내고 바닥 물리를 복구한다. */
 	bool StopRolling();
+
+	/** 서버가 굴리기 시작 루프음을 모든 참가자에게 전달한다. */
+	void PlayRollingSound();
+
+	/** 서버가 굴리기 종료 루프음을 모든 참가자에게 전달한다. */
+	void StopRollingSound();
 
 	/** 서버가 굴리기 충돌 프록시의 확정 위치로 눈덩이를 무충돌 이동한다. */
 	void MoveRollingSnowball(const FVector& TargetLocation);
@@ -140,6 +147,13 @@ protected:
 		FVector_NetQuantize ImpactPoint,
 		FVector_NetQuantizeNormal ImpactNormal);
 
+	/** 서버가 굴리기 시작한 눈덩이의 효과음을 모든 참가자 위치에서 재생한다. */
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayRollingSound(FVector_NetQuantize Location);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastStopRollingSound();
+
 	/** Blueprint에서 실제 충돌 Niagara, 파티클과 사운드를 재생한다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Snowball|Impact")
 	void PlayImpactEffect(
@@ -150,9 +164,22 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact")
 	TObjectPtr<USoundBase> ImpactSound;
 
+	/** 최대 성장 큰 눈덩이 충돌에 사용할 별도 폭발음이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact|Large")
+	TObjectPtr<USoundBase> LargeImpactSound;
+
 	/** 충돌 사운드가 월드 거리감과 공간감을 갖도록 적용할 attenuation 설정이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact")
 	TObjectPtr<USoundAttenuation> ImpactSoundAttenuation;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling|Audio")
+	TObjectPtr<USoundBase> RollingSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling|Audio")
+	TObjectPtr<USoundAttenuation> RollingSoundAttenuation;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UAudioComponent> RollingAudioComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball")
 	TObjectPtr<USphereComponent> CollisionComponent;
