@@ -15,6 +15,8 @@
 - [x] 발 socket 위치에서 아래 방향 trace로 `SnowSurface` 태그 표면만 감지
 - [x] 너무 잦은 효과 재생을 막는 최소 쿨다운과 trace 조정값 제공
 - [x] Blueprint가 Niagara, Decal, Sound를 연결할 표현 이벤트 제공
+- [x] AnimNotify가 유효한 눈 표면을 밟을 때 `FootstepSound`를 attenuation과 함께 위치 기반으로 재생
+- [x] 같은 AnimNotify에서 `SnowSurface` 태그 유무로 눈길/일반길 발걸음 사운드를 분리
 
 ## 작업 배정
 
@@ -51,11 +53,14 @@
 
 - 2026-08-14: 최재원 요청으로 눈 밟힘 표현 계약 Task를 추가하고 진행중으로 전환함.
 - 2026-08-14: `RequestSnowFootstepEffect`와 `OnSnowFootstepEffect` 계약을 구현함. `SnowRumbleEditor Win64 Development` 빌드는 UHT와 C++ 컴파일, `.lib` 생성까지 통과했으나 실행 중인 Unreal Editor가 `UnrealEditor-SnowRumble.dll`을 사용 중이라 최종 링크는 `LNK1104`로 보류됨.
+- 2026-08-24: `FootstepSound`와 `FootstepSoundAttenuation`을 추가해 `SnowSurface` 유효 판정 후 발 socket의 충돌 위치에서 발소리를 공간음향으로 재생하게 했다.
 
 ## 수동 작업
 
 - `BP_SnowRumbleCharacter` 또는 캐릭터 AnimBP에서 왼발 착지 Notify는 `RequestSnowFootstepEffect("foot_l")`, 오른발 착지 Notify는 `RequestSnowFootstepEffect("foot_r")`처럼 실제 Skeleton 발 socket 이름으로 호출한다.
 - `BP_SnowRumbleCharacter`에서 `OnSnowFootstepEffect`를 구현해 `FootstepLocation`과 `FootstepNormal` 기준으로 Niagara 눈 튐, 발자국 Decal, 발소리를 재생한다.
+- `BP_SnowRumbleCharacter`에서 `FootstepSound`와 `FootstepSoundAttenuation`을 지정한다. 발소리는 C++가 AnimNotify의 유효한 눈 표면 판정 후 자동 재생하므로 Blueprint에서 별도 Sound 노드를 중복 연결하지 않는다.
+- `BP_SnowRumbleCharacter`에서 일반 바닥용 `NormalFootstepSound`와 `NormalFootstepSoundAttenuation`을 지정한다. `SnowSurface` 태그가 있으면 눈길 슬롯, 없으면 일반길 슬롯을 사용한다.
 - 눈 효과를 낼 바닥 Actor 또는 바닥 Blueprint에 `SnowSurface` Actor Tag를 추가한다.
 - 기본 socket 이름이 Skeleton과 다르면 `LeftFootSocketName`, `RightFootSocketName` 또는 Notify 호출 인자를 실제 socket 이름으로 맞춘다.
 
@@ -74,3 +79,5 @@
 - [ ] PIE 또는 Standalone에서 눈 표면 위를 걸을 때 발 착지 시점에만 `OnSnowFootstepEffect` 표현이 재생됨
 - [ ] `SnowSurface` 태그가 없는 바닥에서는 같은 AnimNotify가 호출되어도 눈 밟힘 표현이 재생되지 않음
 - [ ] Listen Server 호스트와 클라이언트 화면에서 각자 보이는 캐릭터의 눈 밟힘 표현이 과도하게 중복되거나 누락되지 않음
+- [ ] `FootstepSound`가 발 socket 아래의 `SnowSurface` 위치에서 attenuation과 함께 재생됨
+- [ ] 일반 바닥에서 `NormalFootstepSound`가 재생되고, 눈 표면 VFX/stamp는 실행되지 않음

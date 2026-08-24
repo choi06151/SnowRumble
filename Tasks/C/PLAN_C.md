@@ -330,3 +330,5 @@
 - 2026-08-24: C-09 공중 작은 눈덩이 투척 보정을 추가했다. 서버 release 시점에 공중이면 기존 공중 투척 모션과 함께 피해 1.5배, 속도 기본 1.2배를 적용하고, 속도 배율은 `AirborneThrowSpeedMultiplier`로 조정 가능하게 했다.
 - 2026-08-24: C-30 UI 버튼 공통 클릭음을 추가했다. `USnowRumbleAudioUserWidget`이 버튼을 자동 연결하고 단일 `ButtonInteractionSound`를 로컬 2D로 재생하며, 기존 UI별 클릭 사운드는 제거했다.
 - 2026-08-24: C-30 UI 사운드를 hover/click 슬롯으로 분리했다. `ButtonHoverSound`와 `ButtonClickSound`를 각각의 이벤트에 사용한다.
+- 2026-08-24: C-30 눈 제작·굴리기·잡기·놓기·점프·큰 눈덩이 폭발 사운드 슬롯과 서버 확정 이벤트 연결을 추가했다.
+- 2026-08-24: C-26 발걸음 AnimNotify에 `FootstepSound`와 `FootstepSoundAttenuation`을 연결해 눈 표면 발 위치에서 공간음향으로 재생한다.

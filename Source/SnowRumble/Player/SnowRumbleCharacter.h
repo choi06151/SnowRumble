@@ -717,6 +717,11 @@ protected:
 		FName FootSocketName,
 		FHitResult& OutFootstepHit) const;
 
+	/** 지정한 발 socket 아래에서 눈길과 일반길을 포함한 바닥을 찾는다. */
+	bool FindFootstepSurface(
+		FName FootSocketName,
+		FHitResult& OutFootstepHit) const;
+
 	/** 지정한 월드 위치 주변에서 눈 표면을 찾는다. */
 	bool FindSnowFootstepSurfaceAtLocation(
 		const FVector& FootstepLocation,
@@ -1226,6 +1231,22 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep", meta = (ClampMin = "0.0"))
 	float SnowFootstepEffectCooldown = 0.08f;
 
+	/** 눈 표면 발 착지 시 위치 기반으로 재생할 발걸음 사운드다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep|Audio")
+	TObjectPtr<USoundBase> FootstepSound;
+
+	/** 발걸음 사운드의 월드 거리감과 공간감을 설정한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep|Audio")
+	TObjectPtr<USoundAttenuation> FootstepSoundAttenuation;
+
+	/** 일반 바닥 발 착지 시 위치 기반으로 재생할 발걸음 사운드다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep|Audio")
+	TObjectPtr<USoundBase> NormalFootstepSound;
+
+	/** 일반 바닥 발걸음 사운드의 월드 거리감과 공간감을 설정한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep|Audio")
+	TObjectPtr<USoundAttenuation> NormalFootstepSoundAttenuation;
+
 	/** 눈 밟힘 위치를 서버 검증 후 지형 RenderTarget 눈길 stamp로 공유할지 정한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snow Trail")
 	bool bEnableSharedSnowTrailStamps = true;
@@ -1316,6 +1337,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")
 	TObjectPtr<USoundBase> SnowballThrowSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")
+	TObjectPtr<USoundBase> JumpSound;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")
 	TObjectPtr<USoundBase> ItemInteractionSound;

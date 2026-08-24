@@ -7,6 +7,8 @@
 #include "SnowballCreationComponent.generated.h"
 
 class ASnowballItem;
+class USoundAttenuation;
+class USoundBase;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 	FOnSnowballCreatingChanged,
@@ -53,6 +55,10 @@ protected:
 	UFUNCTION()
 	void OnRep_IsCreating();
 
+	/** 서버가 확정한 눈 제작 완료음을 모든 참가자 위치에서 재생한다. */
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayCreationSound(FVector_NetQuantize Location);
+
 	/** 서버가 제작 완료 시 상태와 바닥을 다시 검사하고 눈덩이를 생성한다. */
 	void CompleteCreation();
 
@@ -85,6 +91,12 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Creation")
 	FName SnowSurfaceTag = TEXT("SnowSurface");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Creation|Audio")
+	TObjectPtr<USoundBase> SnowballCreationSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Creation|Audio")
+	TObjectPtr<USoundAttenuation> SnowballCreationSoundAttenuation;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_IsCreating, Category = "SnowRumble|Snowball|Creation")
 	bool bIsCreating = false;

@@ -2,6 +2,7 @@
 
 #include "PlayerGrabComponent_C.h"
 
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "SnowRumbleCharacter.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "Components/PrimitiveComponent.h"
@@ -13,6 +14,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
+#include "Sound/SoundAttenuation.h"
+#include "Sound/SoundBase.h"
 #include "DrawDebugHelpers.h"
 
 UPlayerGrabComponent::UPlayerGrabComponent()
@@ -595,6 +598,7 @@ void UPlayerGrabComponent::AttachGrabConstraint(
 
 	Character->ForceNetUpdate();
 	TargetCharacter->ForceNetUpdate();
+	MulticastPlayGrabSound(Character->GetActorLocation(), false);
 }
 
 void UPlayerGrabComponent::AttachWorldGrab(FVector AttachedWorldLocation)
@@ -623,6 +627,7 @@ void UPlayerGrabComponent::AttachWorldGrab(FVector AttachedWorldLocation)
 	GrabbedActorLocationOffsetFromAttachedPoint = FVector::ZeroVector;
 	Character->HandleWorldGrabChanged(true);
 	Character->ForceNetUpdate();
+	MulticastPlayGrabSound(Character->GetActorLocation(), false);
 }
 
 void UPlayerGrabComponent::ClearGrabConstraint()
@@ -640,6 +645,10 @@ void UPlayerGrabComponent::ClearGrabConstraint()
 
 	if (AActor* Owner = GetOwner(); Owner && Owner->HasAuthority())
 	{
+		if (bWasAttached)
+		{
+			MulticastPlayGrabSound(Owner->GetActorLocation(), true);
+		}
 		if (bWasAttached)
 		{
 			GrabHoldProgress = GetGrabRemainingTimeProgress();
@@ -672,6 +681,20 @@ void UPlayerGrabComponent::ClearGrabConstraint()
 			}
 		}
 	}
+}
+
+void UPlayerGrabComponent::MulticastPlayGrabSound_Implementation(
+	FVector_NetQuantize Location,
+	bool bReleased)
+{
+	SnowRumbleAudio::PlaySoundAtLocation(
+		this,
+		bReleased ? ReleaseGrabSound : GrabSound,
+		ESnowRumbleAudioMixChannel::Gameplay,
+		Location,
+		1.0f,
+		1.0f,
+		GrabSoundAttenuation);
 }
 
 void UPlayerGrabComponent::UpdateGrabbedCharacterTether(float DeltaTime)
