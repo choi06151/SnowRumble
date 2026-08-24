@@ -33,7 +33,7 @@
 
 namespace
 {
-void DisableActorShadowCasting(AActor* Actor)
+void DisableCustomizationActorShadowCasting(AActor* Actor)
 {
 	if (!Actor)
 	{
@@ -629,7 +629,7 @@ void ACustomizationPlayerController::ApplyPreviewAnimationSettings()
 		return;
 	}
 
-	DisableActorShadowCasting(PreviewCharacter);
+	DisableCustomizationActorShadowCasting(PreviewCharacter);
 
 	TArray<USkeletalMeshComponent*> MeshComponents;
 	PreviewCharacter->GetComponents(MeshComponents);

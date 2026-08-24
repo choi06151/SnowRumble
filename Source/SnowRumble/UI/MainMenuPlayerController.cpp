@@ -19,7 +19,7 @@
 
 namespace
 {
-void DisableActorShadowCasting(AActor* Actor)
+void DisableMainMenuActorShadowCasting(AActor* Actor)
 {
 	if (!Actor)
 	{
@@ -303,7 +303,7 @@ void AMainMenuPlayerController::ApplyMainMenuPreviewAnimation()
 		return;
 	}
 
-	DisableActorShadowCasting(ControlledPawn);
+	DisableMainMenuActorShadowCasting(ControlledPawn);
 
 	if (LastAnimatedPreviewPawn.Get() == ControlledPawn)
 	{
