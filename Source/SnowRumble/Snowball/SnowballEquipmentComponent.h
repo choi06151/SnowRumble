@@ -236,6 +236,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw", meta = (ClampMin = "0.0"))
 	float MaximumThrowSpeed = 2400.0f;
 
+	/** 공중에서 작은 눈덩이를 던질 때 적용할 피해 배율이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Airborne", meta = (ClampMin = "0.0"))
+	float AirborneThrowDamageMultiplier = 1.5f;
+
+	/** 공중에서 작은 눈덩이를 던질 때 적용할 속도 배율이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Airborne", meta = (ClampMin = "0.0"))
+	float AirborneThrowSpeedMultiplier = 1.2f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Aim", meta = (ClampMin = "0.0"))
 	float AimTraceDistance = 10000.0f;
 
@@ -277,4 +285,5 @@ protected:
 	FVector LastRollingMovementDirection = FVector::ForwardVector;
 	float PendingThrowSpeed = 0.0f;
 	float PendingThrowChargeProgress = 0.0f;
+	float PendingThrowDamageMultiplier = 1.0f;
 };

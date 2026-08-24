@@ -3,19 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "SnowRumbleAudioUserWidget.h"
 #include "../Online/SnowRumbleSessionSubsystem.h"
 #include "MainMenuWidget.generated.h"
 
 class UButton;
 class UEditableTextBox;
-class USoundBase;
 class UTextBlock;
 class UWidget;
 class UWidgetAnimation;
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API UMainMenuWidget : public UUserWidget
+class SNOWRUMBLE_API UMainMenuWidget : public USnowRumbleAudioUserWidget
 {
 	GENERATED_BODY()
 
@@ -173,8 +172,6 @@ private:
 		const FText& Text,
 		ETextCommit::Type CommitMethod);
 
-	void PlayMenuClickSound() const;
-
 	void BindMenuButtons();
 	void UnbindMenuButtons();
 	void SetRoomCodeJoinPanelVisible(bool bVisible);
@@ -191,6 +188,4 @@ private:
 
 	static const TArray<FSnowRumbleSessionInfo> EmptyResults;
 
-	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|UI|Main Menu|Audio")
-	TObjectPtr<USoundBase> MenuClickSound;
 };

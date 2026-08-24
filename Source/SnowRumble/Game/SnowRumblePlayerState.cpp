@@ -23,7 +23,7 @@ bool IsValidLobbyTeam(ESnowRumbleTeam Team)
 	case ESnowRumbleTeam::Purple:
 	case ESnowRumbleTeam::Pink:
 	case ESnowRumbleTeam::Blue:
-	case ESnowRumbleTeam::White:
+	case ESnowRumbleTeam::Orange:
 		return true;
 	default:
 		return false;
@@ -61,8 +61,8 @@ FLinearColor ASnowRumblePlayerState::GetLobbyTeamColor() const
 		return FLinearColor(1.0f, 0.25f, 0.65f, 1.0f);
 	case ESnowRumbleTeam::Blue:
 		return FLinearColor(0.05f, 0.25f, 1.0f, 1.0f);
-	case ESnowRumbleTeam::White:
-		return FLinearColor(0.9f, 0.9f, 0.9f, 1.0f);
+	case ESnowRumbleTeam::Orange:
+		return FLinearColor(1.0f, 0.35f, 0.05f, 1.0f);
 	default:
 		return FLinearColor::White;
 	}

@@ -168,7 +168,6 @@ void UEmoteRadialMenuWidget::HandleEmoteButton7Unhovered()
 
 void UEmoteRadialMenuWidget::SelectEmote(int32 EmoteIndex)
 {
-	PlayEmoteClickSound();
 	ASnowRumbleCharacter* Character =
 		Cast<ASnowRumbleCharacter>(GetOwningPlayerPawn());
 	if (!Character)
@@ -182,14 +181,6 @@ void UEmoteRadialMenuWidget::SelectEmote(int32 EmoteIndex)
 	{
 		Character->CloseEmoteRadialMenu();
 	}
-}
-
-void UEmoteRadialMenuWidget::PlayEmoteClickSound() const
-{
-	SnowRumbleAudio::PlaySound2D(
-		this,
-		EmoteClickSound,
-		ESnowRumbleAudioMixChannel::UserInterface);
 }
 
 void UEmoteRadialMenuWidget::SetHoveredEmoteIndex(int32 EmoteIndex)

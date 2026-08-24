@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "SnowRumbleAudioUserWidget.h"
 #include "Styling/SlateTypes.h"
 #include "../Game/SnowRumbleMatchSubsystem_C.h"
 #include "../Game/SnowRumblePlayerState.h"
@@ -13,7 +13,6 @@
 class ASnowRumbleCharacter;
 class ALobbyPlayerController;
 class UButton;
-class USoundBase;
 class UTextBlock;
 class UWidgetAnimation;
 
@@ -27,7 +26,7 @@ enum class ELobbyBoardTeamColor : uint8
 	Purple,
 	Pink,
 	Blue,
-	White
+	Orange
 };
 
 UENUM(BlueprintType)
@@ -38,7 +37,7 @@ enum class ELobbyBoardGameMode : uint8
 };
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API ULobbyBoardWidget : public UUserWidget
+class SNOWRUMBLE_API ULobbyBoardWidget : public USnowRumbleAudioUserWidget
 {
 	GENERATED_BODY()
 
@@ -56,7 +55,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby Board")
 	void SubmitTeamColorFromBlueprint(ELobbyBoardTeamColor TeamColor);
 
-	void PlayBoardClickSound() const;
+	/** 지정된 로컬 PlayerController가 포커스한 게시판에 외부 설정 변경 피드백을 표시한다. */
+	void ShowInvalidActionFeedbackForController(
+		ALobbyPlayerController* RequestingPlayerController,
+		const FText& ReasonText);
 
 protected:
 	/** 위젯 생성 시 선택 버튼과 닫기 버튼을 연결한다. */
@@ -118,9 +120,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UButton> BlueTeamButton;
 
-	/** WBP에서 같은 이름으로 만든 하양 팀 버튼에 자동 연결된다. */
+	/** WBP에서 같은 이름으로 만든 주황 팀 버튼에 자동 연결된다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UButton> WhiteTeamButton;
+	TObjectPtr<UButton> OrangeTeamButton;
 
 	/** WBP에서 같은 이름으로 만든 PVP 모드 버튼에 자동 연결된다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
@@ -210,9 +212,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> BlueTeamCountText;
 
-	/** WBP에서 같은 이름으로 만든 하양 팀 인원 수 텍스트에 자동 연결된다. */
+	/** WBP에서 같은 이름으로 만든 주황 팀 인원 수 텍스트에 자동 연결된다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UTextBlock> WhiteTeamCountText;
+	TObjectPtr<UTextBlock> OrangeTeamCountText;
 
 	/** 팀 색 버튼이 눌렸을 때 WBP가 표시 반응이나 이후 기능 연결을 처리한다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Lobby Board")
@@ -233,9 +235,6 @@ protected:
 	/** WBP에 같은 이름으로 만든 예외행동 사유 표시 TextBlock이다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> InvalidActionReasonText;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Lobby Board|Audio")
-	TObjectPtr<USoundBase> BoardClickSound;
 
 private:
 	/** WBP 내부에서 이름이 일치하는 버튼을 직접 찾아 C++ 변수에 보관한다. */
@@ -287,7 +286,7 @@ private:
 	void HandleBlueTeamButtonClicked();
 
 	UFUNCTION()
-	void HandleWhiteTeamButtonClicked();
+	void HandleOrangeTeamButtonClicked();
 
 	UFUNCTION()
 	void HandlePvpModeButtonClicked();
@@ -348,6 +347,9 @@ private:
 
 	/** 현재 선택된 게시판 옵션 버튼의 눌림 표시를 갱신한다. */
 	void RefreshSelectedButtonVisuals();
+
+	/** 주황 팀 버튼의 기본·호버·선택 색을 주황색으로 초기화한다. */
+	void ApplyOrangeTeamButtonColor();
 
 	/** 버튼 기본 스타일을 보관한 뒤 선택 상태에서는 Pressed 스타일을 유지한다. */
 	void SetButtonSelectedVisual(UButton* Button, bool bSelected);

@@ -26,6 +26,7 @@
 - [x] 플레이어를 잡으면 잡힌 캐릭터의 이동 입력은 허용하고 점프·일반 행동은 해제 전까지 잠그며, 서버가 잡은 손 위치 쪽으로 몸을 부드럽게 끌어당긴다.
 - [x] 손이 캐릭터나 월드에 붙은 뒤 잡기 유지 시간이 최대 시간을 넘으면 서버가 자동으로 잡기를 해제한다.
 - [x] 로컬 HUD의 기존 `AimChargeProgressBar`를 손이 붙은 잡기 중 남은 시간 표시로 재사용해 1에서 0으로 줄어들게 한다.
+- [x] 얼음 상태 플레이어는 같은 팀 Grabber에게만 잡히고, 기존 Grab tether로 운반되게 한다.
 
 ## 작업 배정
 
@@ -70,7 +71,7 @@
 - 손가락/팔 흐느적거림 최종 튜닝
 - Physics Asset body 추가와 충돌 세부 설정
 - 잡은 상대를 끌어당기는 게임 규칙
-- 팀/적 판정 제한
+- 얼음 대상의 같은 팀 판정과 운반 연동은 C-06에서 제공받는다.
 - 잡기 전용 UI, 이펙트, 사운드
 
 ## 사전 전제
@@ -97,6 +98,7 @@
 - 2026-08-21: 빈손 좌클릭 입력 우선순위를 조정했다. `ViewPitchAlpha`가 `SnowCreationPreferredViewPitchAlpha` 이하일 때는 잡기 reach를 시작하지 않고 기존 눈 제작 경로로 내려가며, 정면 이상을 볼 때는 기존처럼 잡기 reach를 우선한다. UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
 - 2026-08-21: 카메라 좌우 시점에 따른 spine Control Rig 보정 계약을 추가했다. `ASnowRumbleCharacter`가 `ViewYawDegrees`와 `ViewYawAlpha`를 제공하고, `USnowRumbleCharacterAnimInstance`가 같은 값을 AnimBP 읽기 전용 값으로 갱신한다. `ViewYawAlpha`는 왼쪽 -0.5, 정면 0, 오른쪽 0.5의 Lerp 값이며 `ViewYawAlphaRangeDegrees`로 정규화 범위를 조정한다. UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
 - 2026-08-21: 벽잡기 또는 플레이어에게 잡힌 상태에서 우클릭 조준 해제 이벤트가 들어와도 잡기용 회전 잠금이 풀리지 않게 보강했다. 우클릭 연타로 `bOrientRotationToMovement`가 다시 켜져 tether 방향과 캐릭터 회전이 충돌하는 경로를 차단한다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-24: 얼음 상태 대상 Grab 연동을 추가했다. 서버는 얼은 대상이 같은 팀인지 검증하고, 이미 다른 캐릭터에게 잡힌 대상은 제외한다. 얼은 대상은 행동 제한을 유지하면서 Grab tether를 따라 이동하고, 사망 시 Grab이 자동 해제된다.
 - 2026-08-21: 보행 중 빈손 좌클릭 연타 시 월드 붙음 tether가 즉시 확정되어 캐릭터가 위로 튀는 회귀를 보강했다. `WorldGrabMinReachHoldSeconds` 이전에는 캐릭터 잡기 후보만 허용하고, 월드 붙음은 `WorldGrabMaxSurfaceNormalZ`, `WorldGrabMinAttachHeightFromActor`, `WorldGrabMaxAttachHeightFromActor` 조건을 통과한 수직 벽 계열 표면에서만 확정한다. 추가로 서버 잡기 확정 자체가 `MinGrabReachAlphaForAttachment` 이상일 때만 진행되도록 해 손이 올라가는 중 좌클릭 연타로 tether가 먼저 걸리는 경로를 막았다. 이후에도 남는 launch를 막기 위해 `WorldGrabTetherMaxUpwardSpeed`로 월드 tether 상승 보정 속도를 제한하고, 월드 잡기 해제 시 잔여 상승 속도를 제거한다. `git diff --check`와 충돌 표식 검색은 통과했고, `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 보류됐다.
 - 2026-08-21: 플레이어를 잡았을 때 잡힌 캐릭터가 잡는 캐릭터의 가상 reach 위치가 아니라 실제 잡는 손 bone/socket 위치를 기준으로 끌려오게 보강했다. `BuildHandGrabAnchorLocation()`이 `RightGrabHandBoneName`/`LeftGrabHandBoneName`의 Mesh 월드 위치를 우선 사용하고, 없을 때만 기존 `BuildHandGrabTargetLocation()`으로 fallback한다.
 - 2026-08-21: 잡힌 플레이어의 neck/상체 Control Rig 보정용 위치 계약을 추가했다. 잡는 손 위치를 잡힌 캐릭터의 `GrabbedByCharacterWorldLocation`으로 복제하고, `USnowRumbleCharacterAnimInstance`는 `GrabbedByCharacterWorldLocation`과 Mesh component space로 변환한 `GrabbedByCharacterComponentLocation`을 제공한다.
@@ -168,3 +170,4 @@
 - [ ] 플레이어를 잡으면 잡힌 플레이어는 이동 입력으로 몸을 흔들 수 있지만 점프·일반 행동은 할 수 없고, 잡는 사람이 움직이면 몸이 손 위치 쪽으로 끌려오며 몸 방향은 잡힌 손 위치 쪽을 유지하고, 좌클릭 해제 후 다시 자유롭게 움직일 수 있다.
 - [ ] 손이 캐릭터나 월드에 붙은 잡기를 유지하면 HUD의 기존 ProgressBar가 1에서 0으로 줄어든다.
 - [ ] 손이 붙은 뒤 `MaximumGrabHoldSeconds`가 지나면 좌클릭을 계속 누르고 있어도 잡기가 자동으로 풀리고 이동·점프·일반 행동 잠금이 복구된다.
+- 2026-08-24: Grab 제한 게이지를 연결마다 초기화하지 않도록 서버 잔량을 유지하게 했다. 해제 후 `GrabRecoveryDelaySeconds` 기본 1초를 기다리고 `GrabRecoverySeconds` 기본 5초 동안 서서히 회복하며, HUD 표시 조건은 기존 `IsGrabAttached()`를 유지한다.

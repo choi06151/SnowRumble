@@ -10,6 +10,7 @@ class ASnowRumbleCharacter;
 class UPrimitiveComponent;
 class UProjectileMovementComponent;
 class USceneComponent;
+class USoundAttenuation;
 class USphereComponent;
 class USoundBase;
 
@@ -37,11 +38,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
 	bool CanBePickedUp() const;
 
-	/** 서버가 장착된 눈덩이를 지정한 방향·속도·충전량으로 투척한다. */
+	/** 서버가 장착된 눈덩이를 지정한 방향·속도·충전량·피해 배율로 투척한다. */
 	bool Throw(
 		const FVector& ThrowDirection,
 		float ThrowSpeed,
-		float ThrowChargeProgress);
+		float ThrowChargeProgress,
+		float ThrowDamageMultiplier = 1.0f);
 
 	/** 서버가 장착된 눈덩이를 현재 손 위치에서 바닥 상태로 놓는다. */
 	bool DropToGround();
@@ -148,6 +150,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact")
 	TObjectPtr<USoundBase> ImpactSound;
 
+	/** 충돌 사운드가 월드 거리감과 공간감을 갖도록 적용할 attenuation 설정이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact")
+	TObjectPtr<USoundAttenuation> ImpactSoundAttenuation;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball")
 	TObjectPtr<USphereComponent> CollisionComponent;
 
@@ -162,6 +168,10 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float MinimumDamageMultiplier = 0.4f;
+
+	/** 눈덩이 성장에 따라 적용할 최대 피해 배율이다. 성장 0에서는 1배로 시작한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact|Growth", meta = (ClampMin = "1.0"))
+	float MaximumGrowthDamageMultiplier = 3.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact", meta = (ClampMin = "0.0"))
 	float SmallSnowballMinimumKnockback = 300.0f;
@@ -219,6 +229,7 @@ protected:
 	float AccumulatedRollingDistance = 0.0f;
 	bool bHasProcessedThrownImpact = false;
 	float CurrentThrowChargeProgress = 0.0f;
+	float CurrentThrowDamageMultiplier = 1.0f;
 
 	TSet<TWeakObjectPtr<AActor>> TemporarilyIgnoredActors;
 	ECollisionResponse CachedPawnCollisionResponse = ECR_Block;

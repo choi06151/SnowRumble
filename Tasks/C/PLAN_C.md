@@ -65,6 +65,17 @@
 - 2026-08-07: 최초 Task 시작 전 개발 스타일을 확인하고 Task 대기열을 스타일에 맞게 재검토하도록 계획 항목 추가.
 - 2026-08-07: 구조 개편 커밋 `a1d4bfb`를 `master`, `C`, `K`, `S`, `J` 원격 브랜치에 배포했고, 해당 내용을 C-01의 사전 정리 기록으로 반영. 실제 코드·자산 기준 분류와 소유권 인계는 C-01의 남은 작업으로 유지.
 - 2026-08-07: 최재원(C)의 개발 스타일을 C++ 위주로 확정. C Task는 서버 권한·복제·공용 계약을 C++ 중심으로 먼저 고정하고 Blueprint는 표현·연결 책임으로 분리한다.
+- 2026-08-24: C-11 커스터마이징 색상 후보를 기존 버튼 이름 자동 바인딩 방식으로 유지하면서 27개 버튼 프로퍼티·핸들러와 C++ RGB 스타일 초기화를 추가해 총 36개 팔레트를 지원한다. WBP 버튼 생성·배치는 사용자 작업으로 남겼다.
+- 2026-08-24: C-11에 선택적 `BrushSizeSlider` 자동 바인딩을 추가했다. 0~1 Slider 값을 기존 `MinPaintBrushSize`~`MaxPaintBrushSize` 범위로 변환하고 버튼·휠 조절과 상태를 공유한다.
+- 2026-08-24: C-06/C-28 얼음·Grab 연동을 추가했다. 서버는 얼은 대상의 같은 팀 Grab만 허용하고, 얼음 행동 제한을 유지한 채 tether 운반을 지원하며 사망 시 자동 해제한다.
+- 2026-08-24: C-09 눈덩이 투척 충돌에 같은 팀 피해·넉백 무시를 추가했다. 서버가 눈덩이 Owner와 피격 캐릭터의 `LobbyTeam`을 비교하고, 같은 팀이면 충돌 연출만 유지한다.
+- 2026-08-24: C-09 눈덩이 피해가 `GrowthProgress`에 따라 1배에서 기본 최대 3배까지 증가하도록 `MaximumGrowthDamageMultiplier`를 추가했다. 기존 차지 피해 배율은 유지한다.
+- 2026-08-24: 로비 게임 시작 시 로딩 화면 표시 후 `MatchTravelDelaySeconds` 기본 5초를 기다린 뒤 `ServerTravel`하도록 변경했다.
+- 2026-08-24: Grab 제한 게이지를 서버 잔량으로 유지하고, 해제 후 1초 지연 뒤 기본 5초 동안 서서히 회복하도록 변경했다. 재그랩은 초기화된 게이지가 아니라 현재 잔량에서 시작하며 HUD 표시 조건은 유지한다.
+- 2026-08-24: 일반 핫팩을 같은 팀 얼음 플레이어 근접 부활 상호작용에 연결했다. 후보 아웃라인·`E - 살리기` 안내·0.75초 홀드·서버 검증 후 핫팩 소모를 추가하고 황금 핫팩 즉시 부활은 유지한다.
+- 2026-08-24: 황금 핫팩을 즉시 전체 부활에서 장착형 근접 부활로 변경했다. 일반 핫팩과 같은 후보·서버 검증을 사용하고 홀드 시간은 2배, HP는 100%, 성공 후 아이템은 유지한다.
+- 2026-08-24: 로비 8번째 팀을 White에서 Orange로 변경했다. 서버 팀 enum·자동 배정·팀 색상·LobbyBoard 버튼을 Orange 기준으로 연결하고 기존 WBP White 버튼 이름은 fallback으로 유지한다.
+- 2026-08-24: C-06 얼음 상태를 `ESnowRumbleTimedActionState::Frozen`으로 연결하고, `OverheadTimedActionWidget`이 복제 서버 시각 기준 60초 사망 타이머를 1에서 0으로 표시하게 했다.
 - 2026-08-08: 개편 전 `master` 구현을 현재 C-01 기준으로 적용했다. 세션·로비, HP·얼기, 눈 전투, UI 부모, 이모션, 레거시 투사체의 유지·수정·대체·폐기 보류·재검증 분류를 C-01과 관련 C Task에 반영했다.
 - 2026-08-08: 최재원(C)이 프로젝트 정상 동작을 확인해 C-01을 완료 처리하고, 다음 후보를 C-02 세션·방 설정으로 전환했다.
 - 2026-08-08: C-02의 빠른 게임 기준을 빈자리 있는 첫 LAN 방 자동 참가로 확정하고, 직접 방 찾기는 방 코드 입력 참가로 확정해 C-02를 진행중으로 전환했다.
@@ -282,6 +293,7 @@
 - 2026-08-21: C-02 호스트 이탈 클라이언트 복귀 경로를 보강했다. 네트워크 실패 시 `BP_MainMenuGameMode`를 강제한 `L_MainMenu` URL로 이동하고, 메인메뉴에서 `호스트의 연결이 해제되었습니다.` 알람을 표시한다.
 - 2026-08-21: C-02 연결 실패 fallback이 DemoMap으로 가는 원인을 보강했다. 접속 실패 일부가 `TravelFailure`로 들어와 기존 `NetworkFailure` 핸들러를 우회할 수 있어 `OnTravelFailure`도 메인메뉴 복귀로 처리하고, `DefaultEngine.ini`의 `GameDefaultMap`/`ServerDefaultMap`을 `L_MainMenu`로 고정했다.
 - 2026-08-21: C-11 메인메뉴 프리뷰 커스터마이징 적용을 보강했다. 로비와 동일하게 로컬 `USnowRumbleCustomizationSubsystem` 데이터를 메인메뉴 possessed 캐릭터에 적용해 색, 모자, 페인트 stroke 결과가 메인메뉴에서도 보이게 했다.
+- 2026-08-24: C-11 로비 ESC 메뉴에서 메인메뉴로 돌아갈 때도 최초 메인메뉴 진입과 동일하게 `BP_MainMenuGameMode`를 travel URL에 강제하도록 보강했다. 기존 BP에 plain `/Game/Maps/L_MainMenu`가 남아 있어도 런타임에 `game=/Game/Game/BP_MainMenuGameMode.BP_MainMenuGameMode_C` 옵션을 추가해 `AMainMenuPlayerController`의 이동·중력 잠금이 적용된다.
 - 2026-08-21: C-29 포디움 진입 시 잔여 로딩 WBP 제거를 보강했다. 포디움 PlayerController는 공용 PvP PlayerController가 아니므로 별도로 `ULoadingScreenSubsystem::HideLoadingScreen()`을 호출해 포디움 화면에서 로딩창이 남지 않게 한다.
 - 2026-08-22: C-24/C-09 눈덩이 Notify 투척 조준을 보강했다. 입력 release 때 저장한 방향을 쓰지 않고, `UAnimNotify_SnowballThrowRelease` 시점의 로컬 카메라 위치·방향을 서버로 보내 최종 trace와 투척 방향을 다시 계산한다. `git diff --check`, UHT, C++ 컴파일과 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor의 DLL 잠금 `LNK1104`로 보류됐다.
 - 2026-08-22: C-28 잡기 최대 유지 시간을 추가했다. `UPlayerGrabComponent::MaximumGrabHoldSeconds`가 0보다 크면 서버가 손이 캐릭터나 월드에 붙은 뒤 시간 초과 시 잡기를 자동 해제하고, 기존 `AimChargeProgressBar`는 손이 붙은 잡기 중 남은 시간을 1에서 0으로 표시한다. `git diff --check`, 충돌 표식 검색, UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor의 DLL 잠금 `LNK1104`로 보류됐다.
@@ -293,7 +305,9 @@
 - 2026-08-22: 포디움 이동 전 로딩 UI를 띄우는 경로를 제거해, 매치 종료 후 포디움 전환은 검은 화면만 남도록 조정했다.
 - 2026-08-22: 포디움이 시작되면 승리 팀 pawn을 다시 잡은 뒤 `PlayRandomServerDirectedEmote()`를 호출해 각 캐릭터의 랜덤 승리 이모트를 재생하게 했다.
 - 2026-08-22: 포디움 복귀 안내를 1초 단위로 갱신하도록 바꿔 `ClientSetPodiumWinner()` 한 번 이후 `ClientUpdatePodiumReturnSubtitle()`로 10, 9, 8 식 숫자가 내려가게 했다.
-- 2026-08-23: C-03 로비 방 설정 변경 알림을 보강했다. 호스트가 로비 모드, 라운드 수, 게임 속도를 실제로 변경하면 비호스트 클라이언트의 기존 개인 알림 UI에 `방장이 방설정을 변경하였습니다`가 표시된다.
+- 2026-08-24: C-03 로비 방 설정 변경 알림을 수정했다. 호스트가 로비 모드, 라운드 수, 게임 속도를 실제로 변경하면 비호스트 클라이언트가 포커스한 게시판의 기존 `InvalidActionReasonText`와 `InvalidActionAnimation`에 `방장이 방설정을 변경하였습니다`가 표시된다.
+- 2026-08-24: C-14 PvP 팀 스폰을 보강했다. 새 플레이어가 이미 스폰된 같은 팀원 옆의 충돌 없는 위치를 우선 사용하고, 대상 팀원이 없거나 후보를 찾지 못하면 기존 PlayerStart 분산 스폰으로 fallback한다.
+- 2026-08-24: 사진 촬영 상호작용 기반을 추가했다. `APhotoInteractionActor`가 근처에서 `E - 사진찍기`를 제공하고 액터 CameraComponent로 시점을 전환하며, 사진 상태에서는 WASD·마우스·Tab 이모트를 유지하고 `P`로 로컬 스크린샷을 `Saved/Screenshots`에 저장한다.
 - 2026-08-23: C-25 모닥불 키트 설치 모닥불의 회복 누락을 보강했다. 런타임 설치 모닥불도 서버 Tick마다 위치 기준 sphere overlap query로 범위 안 캐릭터를 찾아 회복한다.
 - 2026-08-23: C-29 후속 PvP 라운드 전환 기준을 조정했다. 로비에서 최초 PvP 라운드로 들어갈 때만 Slate 로딩창을 띄우고, 최초 라운드 이후 모든 PvP 내부 라운드 전환과 포디움 이동은 로딩 UI 없이 검은 화면만 남긴다.
 - 2026-08-23: C-30 포디움 배경음악 반복 예외를 추가했다. 일반 맵 BGM은 기존처럼 자동 반복하고, 포디움 BGM만 한 번 재생 후 정지하도록 루프 옵션과 비반복 정지 타이머를 연결했다.
@@ -304,4 +318,15 @@
 - 2026-08-23: C-21 키 가이드 입력 슬롯을 추가했다. 캐릭터 BP는 `KeyGuideAction`과 `KeyGuideWidgetClass`를 지정할 수 있고, 기본 `T`/`KeyGuide` 키 설정으로 누르는 동안만 로컬 안내 WBP를 표시한다.
 - 2026-08-23: C-21 키 가이드 WBP 부모를 추가했다. `UKeyGuideWidget`은 현재 로컬 키 설정을 읽어 WBP의 키 표시 TextBlock만 자동 갱신하고, 이모션 기본 키 설정은 `Tab`으로 정리했다.
 - 2026-08-23: C-21 마이크 입력 점검을 보강했다. `K` 눌러서 말하기 시작 시 VoiceInterface 로컬 토커 등록을 보장하고, 마이크 입력·토커 등록·StartTalking/StopTalking 로그를 남기며 `N/M` 직접 키 바인딩 누락도 보강했다.
+- 2026-08-24: C-21 음성채팅 마이크 입력 회귀를 보강했다. 로컬 PlayerController BeginPlay에서 로컬 보이스 토커를 선등록하고 PTT off 상태는 즉시 `StopTalking()`으로 되돌리며, GameState 플레이어 목록 기준 원격 토커를 `RegisterRemoteTalker()`로 등록해 LAN/NULL 세션에서 수신 처리 누락 가능성을 줄였다. `DefaultEngine.ini`에는 `MaxLocalTalkers`, `MaxRemoteTalkers`, `VoiceNotificationDelta`, `bDuckingOptOut` 보이스 설정을 명시했다.
 - 2026-08-23: C-05 포디움 승리 팀 배치 규칙을 조정했다. 승리 팀원이 1~3명이면 `Podium_Team1`부터 순차 배치하고, 4명이면 `Podium_Team1`~`Podium_Team4`를 무작위로 섞어 배치한다.
+- 2026-08-24: 사진 모드에 `PhotoInteractionWidgetClass` 전용 WBP 슬롯을 추가했다. 사진 액터 카메라는 고정하고, 사진 모드 진입 시 WBP를 viewport에 생성·종료 시 제거하며 마우스 입력은 플레이어의 컨트롤 회전과 시선에 반영한다.
+- 2026-08-24: 사진 모드에서 사진 액터 카메라에는 마우스 입력을 전달하지 않고, 플레이어 컨트롤 회전에만 전달하도록 조정했다. WASD·Tab·P 입력과 `PhotoCaptureSound` 슬롯은 유지한다.
+- 2026-08-24: 사진 모드에서 고정된 사진 카메라는 유지하면서 캐릭터 yaw 회전과 플레이어 시선 입력은 다시 활성화했다. 사진 모드 종료 시 이동 방향 회전과 yaw 설정을 원래 값으로 복원한다.
+- 2026-08-24: 사진 모드 상하 시선 보정을 추가했다. 사진 액터 카메라는 계속 고정하고, 로컬 캐릭터가 사진 모드 중 입력한 pitch를 `GetViewPitchDegrees()`에 반영해 기존 Control Rig spine 보정 경로가 상하 시선에도 반응하게 했다.
+- 2026-08-24: 사진 스크린샷 표시용 WBP 부모 `ULatestPhotoScreenshotWidget`을 추가했다. WBP에서 `LatestScreenshotImage` Image를 바인딩하면 `Saved/Screenshots` 아래 최신 `Photo_*.png`를 로드해 표시하고, `RefreshLatestScreenshot()`로 수동 갱신할 수 있다.
+- 2026-08-24: `ULatestPhotoScreenshotWidget`이 `FScreenshotRequest::OnScreenshotRequestProcessed()`를 구독하게 해 사진 촬영 저장이 끝나면 열린 WBP의 `LatestScreenshotImage`가 최신 사진으로 자동 갱신되도록 했다.
+- 2026-08-24: C-30 공간 효과음 범위를 눈덩이 충돌음과 캐릭터 피격음으로 좁혔다. UI 상호작용음은 로컬 2D로 유지하고, `ImpactSoundAttenuation`과 `DamageSoundAttenuation`을 Blueprint 연결 슬롯으로 추가했다.
+- 2026-08-24: C-09 공중 작은 눈덩이 투척 보정을 추가했다. 서버 release 시점에 공중이면 기존 공중 투척 모션과 함께 피해 1.5배, 속도 기본 1.2배를 적용하고, 속도 배율은 `AirborneThrowSpeedMultiplier`로 조정 가능하게 했다.
+- 2026-08-24: C-30 UI 버튼 공통 클릭음을 추가했다. `USnowRumbleAudioUserWidget`이 버튼을 자동 연결하고 단일 `ButtonInteractionSound`를 로컬 2D로 재생하며, 기존 UI별 클릭 사운드는 제거했다.
+- 2026-08-24: C-30 UI 사운드를 hover/click 슬롯으로 분리했다. `ButtonHoverSound`와 `ButtonClickSound`를 각각의 이벤트에 사용한다.

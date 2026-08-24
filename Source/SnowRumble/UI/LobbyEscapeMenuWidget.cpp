@@ -102,7 +102,6 @@ void ULobbyEscapeMenuWidget::UnbindMenuButtons()
 
 void ULobbyEscapeMenuWidget::HandleReturnToMainMenuButtonClicked()
 {
-	PlayMenuClickSound();
 	OnReturnToMainMenuRequested();
 	if (LobbyPlayerController)
 	{
@@ -116,7 +115,6 @@ void ULobbyEscapeMenuWidget::HandleReturnToMainMenuButtonClicked()
 
 void ULobbyEscapeMenuWidget::HandleSettingsButtonClicked()
 {
-	PlayMenuClickSound();
 	OnSettingsRequested();
 	if (LobbyPlayerController)
 	{
@@ -126,22 +124,12 @@ void ULobbyEscapeMenuWidget::HandleSettingsButtonClicked()
 
 void ULobbyEscapeMenuWidget::HandleInviteFriendsButtonClicked()
 {
-	PlayMenuClickSound();
 	OnInviteFriendsRequested();
 }
 
 void ULobbyEscapeMenuWidget::HandleBackButtonClicked()
 {
-	PlayMenuClickSound();
 	CloseMenu();
-}
-
-void ULobbyEscapeMenuWidget::PlayMenuClickSound() const
-{
-	SnowRumbleAudio::PlaySound2D(
-		this,
-		MenuClickSound,
-		ESnowRumbleAudioMixChannel::UserInterface);
 }
 
 void ULobbyEscapeMenuWidget::CloseMenu()

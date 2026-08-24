@@ -32,8 +32,8 @@ ESnowRumbleTeam ToSnowRumbleTeam(ELobbyBoardTeamColor TeamColor)
 		return ESnowRumbleTeam::Pink;
 	case ELobbyBoardTeamColor::Blue:
 		return ESnowRumbleTeam::Blue;
-	case ELobbyBoardTeamColor::White:
-		return ESnowRumbleTeam::White;
+	case ELobbyBoardTeamColor::Orange:
+		return ESnowRumbleTeam::Orange;
 	default:
 		return ESnowRumbleTeam::None;
 	}
@@ -81,6 +81,7 @@ void ULobbyBoardWidget::NativeConstruct()
 
 	ResolveBoardButtons();
 	ResolveTeamCountTexts();
+	ApplyOrangeTeamButtonColor();
 	BindBoardButtons();
 	RefreshTeamCountTexts();
 	RefreshReadyStartButtonText();
@@ -172,9 +173,14 @@ void ULobbyBoardWidget::ResolveBoardButtons()
 		BlueTeamButton =
 			WidgetTree->FindWidget<UButton>(TEXT("BlueTeamButton"));
 	}
-	if (!WhiteTeamButton)
+	if (!OrangeTeamButton)
 	{
-		WhiteTeamButton =
+		OrangeTeamButton =
+			WidgetTree->FindWidget<UButton>(TEXT("OrangeTeamButton"));
+	}
+	if (!OrangeTeamButton)
+	{
+		OrangeTeamButton =
 			WidgetTree->FindWidget<UButton>(TEXT("WhiteTeamButton"));
 	}
 	if (!PvpModeButton)
@@ -296,9 +302,14 @@ void ULobbyBoardWidget::ResolveTeamCountTexts()
 		BlueTeamCountText =
 			WidgetTree->FindWidget<UTextBlock>(TEXT("BlueTeamCountText"));
 	}
-	if (!WhiteTeamCountText)
+	if (!OrangeTeamCountText)
 	{
-		WhiteTeamCountText =
+		OrangeTeamCountText =
+			WidgetTree->FindWidget<UTextBlock>(TEXT("OrangeTeamCountText"));
+	}
+	if (!OrangeTeamCountText)
+	{
+		OrangeTeamCountText =
 			WidgetTree->FindWidget<UTextBlock>(TEXT("WhiteTeamCountText"));
 	}
 }
@@ -377,11 +388,11 @@ void ULobbyBoardWidget::BindBoardButtons()
 			this,
 			&ULobbyBoardWidget::HandleBlueTeamButtonClicked);
 	}
-	if (WhiteTeamButton)
+	if (OrangeTeamButton)
 	{
-		WhiteTeamButton->OnClicked.AddUniqueDynamic(
+		OrangeTeamButton->OnClicked.AddUniqueDynamic(
 			this,
-			&ULobbyBoardWidget::HandleWhiteTeamButtonClicked);
+			&ULobbyBoardWidget::HandleOrangeTeamButtonClicked);
 	}
 	if (PvpModeButton)
 	{
@@ -513,9 +524,9 @@ void ULobbyBoardWidget::UnbindBoardButtons()
 	{
 		BlueTeamButton->OnClicked.RemoveAll(this);
 	}
-	if (WhiteTeamButton)
+	if (OrangeTeamButton)
 	{
-		WhiteTeamButton->OnClicked.RemoveAll(this);
+		OrangeTeamButton->OnClicked.RemoveAll(this);
 	}
 	if (PvpModeButton)
 	{
@@ -573,31 +584,26 @@ void ULobbyBoardWidget::UnbindBoardButtons()
 
 void ULobbyBoardWidget::HandleActionButton0Clicked()
 {
-	PlayBoardClickSound();
 	SubmitBoardAction(ELobbyBoardAction::Action0);
 }
 
 void ULobbyBoardWidget::HandleActionButton1Clicked()
 {
-	PlayBoardClickSound();
 	SubmitBoardAction(ELobbyBoardAction::Action1);
 }
 
 void ULobbyBoardWidget::HandleActionButton2Clicked()
 {
-	PlayBoardClickSound();
 	SubmitBoardAction(ELobbyBoardAction::Action2);
 }
 
 void ULobbyBoardWidget::HandleActionButton3Clicked()
 {
-	PlayBoardClickSound();
 	SubmitBoardAction(ELobbyBoardAction::Action3);
 }
 
 void ULobbyBoardWidget::HandleCloseFocusButtonClicked()
 {
-	PlayBoardClickSound();
 	if (FocusedCharacter)
 	{
 		FocusedCharacter->CloseLobbyBoardFocus();
@@ -606,67 +612,56 @@ void ULobbyBoardWidget::HandleCloseFocusButtonClicked()
 
 void ULobbyBoardWidget::HandleRedTeamButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitTeamColor(ELobbyBoardTeamColor::Red);
 }
 
 void ULobbyBoardWidget::HandleSkyTeamButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitTeamColor(ELobbyBoardTeamColor::Sky);
 }
 
 void ULobbyBoardWidget::HandleGreenTeamButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitTeamColor(ELobbyBoardTeamColor::Green);
 }
 
 void ULobbyBoardWidget::HandleYellowTeamButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitTeamColor(ELobbyBoardTeamColor::Yellow);
 }
 
 void ULobbyBoardWidget::HandlePurpleTeamButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitTeamColor(ELobbyBoardTeamColor::Purple);
 }
 
 void ULobbyBoardWidget::HandlePinkTeamButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitTeamColor(ELobbyBoardTeamColor::Pink);
 }
 
 void ULobbyBoardWidget::HandleBlueTeamButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitTeamColor(ELobbyBoardTeamColor::Blue);
 }
 
-void ULobbyBoardWidget::HandleWhiteTeamButtonClicked()
+void ULobbyBoardWidget::HandleOrangeTeamButtonClicked()
 {
-	PlayBoardClickSound();
-	SubmitTeamColor(ELobbyBoardTeamColor::White);
+	SubmitTeamColor(ELobbyBoardTeamColor::Orange);
 }
 
 void ULobbyBoardWidget::HandlePvpModeButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitLobbyMode(ELobbyBoardGameMode::Pvp);
 }
 
 void ULobbyBoardWidget::HandleSnowmanModeButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitLobbyMode(ELobbyBoardGameMode::Snowman);
 }
 
 void ULobbyBoardWidget::HandleReadyStartButtonClicked()
 {
-	PlayBoardClickSound();
 	ASnowRumblePlayerState* PlayerState = GetRequestingPlayerState();
 	if (!PlayerState)
 	{
@@ -704,61 +699,51 @@ void ULobbyBoardWidget::HandleReadyStartButtonClicked()
 
 void ULobbyBoardWidget::HandleRound1ButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitMatchRoundLimit(1);
 }
 
 void ULobbyBoardWidget::HandleRound3ButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitMatchRoundLimit(3);
 }
 
 void ULobbyBoardWidget::HandleRound5ButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitMatchRoundLimit(5);
 }
 
 void ULobbyBoardWidget::HandleShuffle2TeamsButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitShuffleTeams(2);
 }
 
 void ULobbyBoardWidget::HandleShuffle3TeamsButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitShuffleTeams(3);
 }
 
 void ULobbyBoardWidget::HandleShuffle4TeamsButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitShuffleTeams(4);
 }
 
 void ULobbyBoardWidget::HandleShuffleSoloButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitShuffleSolo();
 }
 
 void ULobbyBoardWidget::HandleSlowGameSpeedButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitGameSpeed(ESnowRumbleGameSpeed::Slow);
 }
 
 void ULobbyBoardWidget::HandleNormalGameSpeedButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitGameSpeed(ESnowRumbleGameSpeed::Normal);
 }
 
 void ULobbyBoardWidget::HandleFastGameSpeedButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitGameSpeed(ESnowRumbleGameSpeed::Fast);
 }
 
@@ -804,6 +789,19 @@ void ULobbyBoardWidget::SubmitTeamColorFromBlueprint(
 	}
 
 	OnTeamColorButtonClicked(TeamColor);
+}
+
+void ULobbyBoardWidget::ShowInvalidActionFeedbackForController(
+	ALobbyPlayerController* RequestingPlayerController,
+	const FText& ReasonText)
+{
+	if (!RequestingPlayerController ||
+		GetRequestingLobbyPlayerController() != RequestingPlayerController)
+	{
+		return;
+	}
+
+	ShowInvalidActionFeedback(ReasonText);
 }
 
 ALobbyPlayerController* ULobbyBoardWidget::GetRequestingLobbyPlayerController()
@@ -859,7 +857,7 @@ void ULobbyBoardWidget::RefreshTeamCountTexts()
 	SetTeamCountText(PurpleTeamCountText, ESnowRumbleTeam::Purple);
 	SetTeamCountText(PinkTeamCountText, ESnowRumbleTeam::Pink);
 	SetTeamCountText(BlueTeamCountText, ESnowRumbleTeam::Blue);
-	SetTeamCountText(WhiteTeamCountText, ESnowRumbleTeam::White);
+	SetTeamCountText(OrangeTeamCountText, ESnowRumbleTeam::Orange);
 }
 
 void ULobbyBoardWidget::RefreshReadyStartButtonText()
@@ -933,8 +931,8 @@ void ULobbyBoardWidget::RefreshSelectedButtonVisuals()
 		BlueTeamButton,
 		SelectedTeam == ESnowRumbleTeam::Blue);
 	SetButtonSelectedVisual(
-		WhiteTeamButton,
-		SelectedTeam == ESnowRumbleTeam::White);
+		OrangeTeamButton,
+		SelectedTeam == ESnowRumbleTeam::Orange);
 
 	const ESnowRumbleLobbyMode LobbyMode = LobbyGameState
 		? LobbyGameState->GetLobbyMode()
@@ -1003,6 +1001,23 @@ void ULobbyBoardWidget::SetButtonSelectedVisual(UButton* Button, bool bSelected)
 	Button->SetStyle(SelectedStyle);
 }
 
+void ULobbyBoardWidget::ApplyOrangeTeamButtonColor()
+{
+	if (!OrangeTeamButton)
+	{
+		return;
+	}
+
+	FButtonStyle Style = OrangeTeamButton->GetStyle();
+	const FSlateColor OrangeColor(
+		FLinearColor(1.0f, 0.35f, 0.05f, 1.0f));
+	Style.Normal.TintColor = OrangeColor;
+	Style.Hovered.TintColor = OrangeColor;
+	Style.Pressed.TintColor = OrangeColor;
+	Style.Disabled.TintColor = OrangeColor;
+	OrangeTeamButton->SetStyle(Style);
+}
+
 void ULobbyBoardWidget::SubmitMatchRoundLimit(int32 NewRoundLimit)
 {
 	if (!IsRequestingPlayerHost())
@@ -1022,14 +1037,6 @@ void ULobbyBoardWidget::SubmitMatchRoundLimit(int32 NewRoundLimit)
 	{
 		LobbyGameState->SetMatchRoundLimitFromServer(NewRoundLimit);
 	}
-}
-
-void ULobbyBoardWidget::PlayBoardClickSound() const
-{
-	SnowRumbleAudio::PlaySound2D(
-		this,
-		BoardClickSound,
-		ESnowRumbleAudioMixChannel::UserInterface);
 }
 
 void ULobbyBoardWidget::SubmitGameSpeed(ESnowRumbleGameSpeed NewGameSpeed)

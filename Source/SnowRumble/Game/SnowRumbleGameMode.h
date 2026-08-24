@@ -283,9 +283,23 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Spawn", meta = (ClampMin = "1"))
 	int32 PlayerStartSpawnScatterAttempts = 24;
 
-	/** 선택된 PlayerStart를 기준으로 실제 Pawn 생성 transform을 만든다. */
+	/** 같은 팀원이 이미 스폰된 경우 팀원 주변에 배치할 최대 거리다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Spawn", meta = (ClampMin = "0.0"))
+	float TeammateSpawnRadius = 180.0f;
+
+	/** 팀원 주변 유효 스폰 위치를 찾기 위해 시도할 횟수다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Spawn", meta = (ClampMin = "1"))
+	int32 TeammateSpawnAttempts = 24;
+
+	/** 같은 팀원이 있으면 팀원 옆을 우선하고, 없으면 선택된 PlayerStart를 기준으로 transform을 만든다. */
 	FTransform BuildScatteredPlayerStartTransform(
+		const AController* NewPlayer,
 		const AActor* StartSpot) const;
+
+	/** 같은 팀원 주변에서 충돌 없는 스폰 transform을 찾는다. */
+	bool TryBuildTeammateSpawnTransform(
+		const AController* NewPlayer,
+		FTransform& OutSpawnTransform) const;
 
 	/** 이번 매치에서 이미 확정한 스폰 위치와 충분히 떨어져 있는지 확인한다. */
 	bool TryResolveSpawnLocationOnGround(

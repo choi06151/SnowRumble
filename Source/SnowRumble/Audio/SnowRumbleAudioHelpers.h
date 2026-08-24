@@ -6,6 +6,7 @@
 #include "SnowRumbleAudioHelpers.generated.h"
 
 class USoundBase;
+class USoundAttenuation;
 class UAudioComponent;
 
 UENUM(BlueprintType)
@@ -48,5 +49,6 @@ namespace SnowRumbleAudio
 		ESnowRumbleAudioMixChannel Channel,
 		const FVector& Location,
 		float BaseVolumeMultiplier = 1.0f,
-		float PitchMultiplier = 1.0f);
+		float PitchMultiplier = 1.0f,
+		USoundAttenuation* AttenuationSettings = nullptr);
 }

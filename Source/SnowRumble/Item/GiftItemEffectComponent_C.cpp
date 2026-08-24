@@ -7,9 +7,7 @@
 #include "../Game/SnowRumblePlayerState.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "../Player/SnowRumbleHealthComponent.h"
-#include "../UI/SnowRumblePlayerController.h"
 #include "GameFramework/Actor.h"
-#include "GameFramework/GameStateBase.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
 
@@ -36,7 +34,7 @@ bool UGiftItemEffectComponent::ApplyGiftItemFromServer(
 		break;
 
 	case ESnowRumbleGiftItemType::GoldenHotPack:
-		bApplied = UseGoldenHotPackImmediately();
+		bApplied = EquipGoldenHotPack();
 		break;
 
 	case ESnowRumbleGiftItemType::HotChocolate:
@@ -111,6 +109,68 @@ bool UGiftItemEffectComponent::IsInvulnerable() const
 bool UGiftItemEffectComponent::HasHotPack() const
 {
 	return bHasHotPack;
+}
+
+bool UGiftItemEffectComponent::HasGoldenHotPack() const
+{
+	return bHasGoldenHotPack;
+}
+
+bool UGiftItemEffectComponent::HasAnyHotPack() const
+{
+	return bHasHotPack || bHasGoldenHotPack;
+}
+
+bool UGiftItemEffectComponent::ReviveFrozenTeammate(
+	ASnowRumbleCharacter* TargetCharacter)
+{
+	ASnowRumbleCharacter* OwnerCharacter =
+		Cast<ASnowRumbleCharacter>(GetOwner());
+	const ASnowRumblePlayerState* OwnerPlayerState = OwnerCharacter
+		? OwnerCharacter->GetPlayerState<ASnowRumblePlayerState>()
+		: nullptr;
+	const ASnowRumblePlayerState* TargetPlayerState = TargetCharacter
+		? TargetCharacter->GetPlayerState<ASnowRumblePlayerState>()
+		: nullptr;
+	USnowRumbleHealthComponent* TargetHealth = TargetCharacter
+		? TargetCharacter->FindComponentByClass<USnowRumbleHealthComponent>()
+		: nullptr;
+	if (!GetOwner()
+		|| !GetOwner()->HasAuthority()
+		|| !HasAnyHotPack()
+		|| !OwnerCharacter
+		|| !TargetCharacter
+		|| TargetCharacter == OwnerCharacter
+		|| !OwnerPlayerState
+		|| !TargetPlayerState
+		|| OwnerPlayerState->GetLobbyTeam() == ESnowRumbleTeam::None
+		|| OwnerPlayerState->GetLobbyTeam()
+			!= TargetPlayerState->GetLobbyTeam()
+		|| FVector::DistSquared(
+			OwnerCharacter->GetActorLocation(),
+			TargetCharacter->GetActorLocation())
+			> FMath::Square(260.0f)
+		|| !TargetHealth
+		|| !TargetHealth->IsFrozen()
+		|| TargetHealth->IsDead())
+	{
+		return false;
+	}
+
+	const bool bRevived = TargetHealth->ReviveFromFrozen(
+		bHasGoldenHotPack ? 1.0f : 0.5f);
+	if (!bRevived)
+	{
+		return false;
+	}
+
+	if (!bHasGoldenHotPack)
+	{
+		bHasHotPack = false;
+	}
+	OnRep_ItemEffects();
+	GetOwner()->ForceNetUpdate();
+	return true;
 }
 
 bool UGiftItemEffectComponent::HasBoots() const
@@ -191,6 +251,7 @@ void UGiftItemEffectComponent::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(UGiftItemEffectComponent, bHasGoldenSnowDuckMaker);
 	DOREPLIFETIME(UGiftItemEffectComponent, bInvulnerable);
 	DOREPLIFETIME(UGiftItemEffectComponent, bHasHotPack);
+	DOREPLIFETIME(UGiftItemEffectComponent, bHasGoldenHotPack);
 	DOREPLIFETIME(UGiftItemEffectComponent, SnowShovelDurability);
 	DOREPLIFETIME(UGiftItemEffectComponent, EquippedShovelType);
 }
@@ -217,7 +278,7 @@ bool UGiftItemEffectComponent::ApplyInstantHeal(float HealAmount)
 
 bool UGiftItemEffectComponent::EquipHotPack()
 {
-	if (bHasHotPack)
+	if (HasAnyHotPack())
 	{
 		return false;
 	}
@@ -226,61 +287,13 @@ bool UGiftItemEffectComponent::EquipHotPack()
 	return true;
 }
 
-bool UGiftItemEffectComponent::UseGoldenHotPackImmediately()
+bool UGiftItemEffectComponent::EquipGoldenHotPack()
 {
-	const ASnowRumbleCharacter* OwnerCharacter =
-		Cast<ASnowRumbleCharacter>(GetOwner());
-	const ASnowRumblePlayerState* OwnerPlayerState = OwnerCharacter
-		? OwnerCharacter->GetPlayerState<ASnowRumblePlayerState>()
-		: nullptr;
-	if (!OwnerCharacter || !OwnerPlayerState)
+	if (HasAnyHotPack())
 	{
 		return false;
 	}
-
-	const ESnowRumbleTeam OwnerTeam = OwnerPlayerState->GetLobbyTeam();
-	if (OwnerTeam == ESnowRumbleTeam::None)
-	{
-		return false;
-	}
-
-	UWorld* World = GetWorld();
-	AGameStateBase* GameState = World ? World->GetGameState() : nullptr;
-	if (!GameState)
-	{
-		return false;
-	}
-
-	for (APlayerState* PlayerState : GameState->PlayerArray)
-	{
-		const ASnowRumblePlayerState* SnowRumblePlayerState =
-			Cast<ASnowRumblePlayerState>(PlayerState);
-		if (!SnowRumblePlayerState
-			|| SnowRumblePlayerState->GetLobbyTeam() != OwnerTeam)
-		{
-			continue;
-		}
-
-		APawn* Pawn = SnowRumblePlayerState->GetPawn();
-		ASnowRumbleCharacter* Teammate = Cast<ASnowRumbleCharacter>(Pawn);
-		USnowRumbleHealthComponent* HealthComponent = Teammate
-			? Teammate->FindComponentByClass<USnowRumbleHealthComponent>()
-			: nullptr;
-		if (HealthComponent)
-		{
-			HealthComponent->ReviveFromFrozen(0.5f);
-		}
-	}
-
-	if (ASnowRumblePlayerController* PlayerController =
-		Cast<ASnowRumblePlayerController>(OwnerCharacter->GetController()))
-	{
-		PlayerController->ClientShowPersonalTextAlarm(NSLOCTEXT(
-			"SnowRumble",
-			"GoldenHotPackAllFrozenTeammatesRevived",
-			"얼은 팀원이 다 살아났습니다"));
-	}
-
+	bHasGoldenHotPack = true;
 	return true;
 }
 

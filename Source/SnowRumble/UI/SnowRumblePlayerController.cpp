@@ -56,6 +56,8 @@ void ASnowRumblePlayerController::BeginPlay()
 				Widget->AddToViewport(50);
 			}
 		}
+		EnsureLocalVoiceTalkerReady();
+		EnsureRemoteVoiceTalkersReady();
 	}
 }
 
@@ -65,6 +67,8 @@ void ASnowRumblePlayerController::EndPlay(
 	ApplyNetworkVoiceInputState(false);
 	ApplyReplicatedVoiceSpeakingState(false);
 	GameplayUnmuteAllPlayers();
+	RegisteredRemoteVoiceTalkerIds.Reset();
+	bLocalVoiceTalkerReady = false;
 
 	if (ChatWidget)
 	{
@@ -982,17 +986,87 @@ bool ASnowRumblePlayerController::EnsureLocalVoiceTalkerReady()
 	const uint32 LocalUserNum =
 		static_cast<uint32>(LocalPlayer->GetControllerId());
 	const bool bRegistered = VoiceInterface->RegisterLocalTalker(LocalUserNum);
+	const bool bWasReady = bLocalVoiceTalkerReady;
+	bLocalVoiceTalkerReady = bRegistered;
+	if (bRegistered && !bWasReady && !bNetworkVoiceInputActive)
+	{
+		StopTalking();
+	}
 	const bool bHeadsetPresent = VoiceInterface->IsHeadsetPresent(LocalUserNum);
 	UE_LOG(
 		LogSnowRumbleVoice,
 		Log,
-		TEXT("Voice talker ready check. User=%u Registered=%d HeadsetPresent=%d Subsystem=%s"),
+		TEXT("Voice local talker ready check. User=%u Registered=%d HeadsetPresent=%d Subsystem=%s"),
 		LocalUserNum,
 		bRegistered ? 1 : 0,
 		bHeadsetPresent ? 1 : 0,
 		*OnlineSubsystem->GetSubsystemName().ToString());
 
 	return bRegistered;
+}
+
+void ASnowRumblePlayerController::EnsureRemoteVoiceTalkersReady()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	IOnlineSubsystem* OnlineSubsystem = Online::GetSubsystem(GetWorld());
+	IOnlineVoicePtr VoiceInterface = OnlineSubsystem
+		? OnlineSubsystem->GetVoiceInterface()
+		: nullptr;
+	if (!VoiceInterface.IsValid())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	const AGameStateBase* GameState = World ? World->GetGameState() : nullptr;
+	const ASnowRumblePlayerState* LocalPlayerState =
+		GetPlayerState<ASnowRumblePlayerState>();
+	if (!GameState || !LocalPlayerState)
+	{
+		return;
+	}
+
+	for (APlayerState* CandidatePlayerState : GameState->PlayerArray)
+	{
+		const ASnowRumblePlayerState* SnowRumblePlayerState =
+			Cast<ASnowRumblePlayerState>(CandidatePlayerState);
+		if (!SnowRumblePlayerState
+			|| SnowRumblePlayerState == LocalPlayerState)
+		{
+			continue;
+		}
+
+		const FUniqueNetIdRepl& PlayerNetId =
+			SnowRumblePlayerState->GetUniqueId();
+		if (!PlayerNetId.IsValid() || !PlayerNetId.IsV1())
+		{
+			continue;
+		}
+
+		const FString TalkerId = PlayerNetId->ToString();
+		if (RegisteredRemoteVoiceTalkerIds.Contains(TalkerId))
+		{
+			continue;
+		}
+
+		const bool bRegistered =
+			VoiceInterface->RegisterRemoteTalker(*PlayerNetId);
+		UE_LOG(
+			LogSnowRumbleVoice,
+			Log,
+			TEXT("Voice remote talker register. Player=%s Registered=%d Subsystem=%s"),
+			*GetNameSafe(SnowRumblePlayerState),
+			bRegistered ? 1 : 0,
+			*OnlineSubsystem->GetSubsystemName().ToString());
+		if (bRegistered)
+		{
+			RegisteredRemoteVoiceTalkerIds.Add(TalkerId);
+		}
+	}
 }
 
 bool ASnowRumblePlayerController::ShouldMirrorMicrophoneInputToVoiceSpeaking()
@@ -1110,6 +1184,8 @@ void ASnowRumblePlayerController::RefreshGameplayVoiceMutes()
 	{
 		return;
 	}
+
+	EnsureRemoteVoiceTalkersReady();
 
 	const ASnowRumblePlayerState* LocalPlayerState =
 		GetPlayerState<ASnowRumblePlayerState>();
@@ -1404,8 +1480,8 @@ FText ASnowRumblePlayerController::GetPvpIntroTeamDisplayText(
 		return NSLOCTEXT("SnowRumble", "PvpIntroPinkTeam", "분홍팀");
 	case ESnowRumbleTeam::Blue:
 		return NSLOCTEXT("SnowRumble", "PvpIntroBlueTeam", "파란팀");
-	case ESnowRumbleTeam::White:
-		return NSLOCTEXT("SnowRumble", "PvpIntroWhiteTeam", "하얀팀");
+	case ESnowRumbleTeam::Orange:
+		return NSLOCTEXT("SnowRumble", "PvpIntroOrangeTeam", "주황팀");
 	default:
 		return NSLOCTEXT("SnowRumble", "PvpIntroUnknownTeam", "팀 소개");
 	}

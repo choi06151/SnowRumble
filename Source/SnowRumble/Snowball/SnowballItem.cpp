@@ -3,6 +3,7 @@
 #include "SnowballItem.h"
 
 #include "../Audio/SnowRumbleAudioHelpers.h"
+#include "../Game/SnowRumblePlayerState.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "Components/SceneComponent.h"
 #include "Components/SphereComponent.h"
@@ -11,12 +12,35 @@
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
 
+namespace
+{
+bool AreSnowballCharactersOnSameTeam(
+	const ASnowRumbleCharacter* ThrowingCharacter,
+	const ASnowRumbleCharacter* HitCharacter)
+{
+	const ASnowRumblePlayerState* ThrowerPlayerState = ThrowingCharacter
+		? ThrowingCharacter->GetPlayerState<ASnowRumblePlayerState>()
+		: nullptr;
+	const ASnowRumblePlayerState* HitPlayerState = HitCharacter
+		? HitCharacter->GetPlayerState<ASnowRumblePlayerState>()
+		: nullptr;
+	if (!ThrowerPlayerState || !HitPlayerState)
+	{
+		return false;
+	}
+
+	const ESnowRumbleTeam ThrowerTeam = ThrowerPlayerState->GetLobbyTeam();
+	return ThrowerTeam != ESnowRumbleTeam::None
+		&& ThrowerTeam == HitPlayerState->GetLobbyTeam();
+}
+}
+
 ASnowballItem::ASnowballItem()
 {
 	bReplicates = true;
 	SetReplicateMovement(true);
-	NetUpdateFrequency = 30.0f;
-	MinNetUpdateFrequency = 15.0f;
+	SetNetUpdateFrequency(30.0f);
+	SetMinNetUpdateFrequency(15.0f);
 
 	CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComponent"));
 	CollisionComponent->InitSphereRadius(18.0f);
@@ -74,7 +98,8 @@ bool ASnowballItem::TrySetHeldBy(
 bool ASnowballItem::Throw(
 	const FVector& ThrowDirection,
 	float ThrowSpeed,
-	float ThrowChargeProgress)
+	float ThrowChargeProgress,
+	float ThrowDamageMultiplier)
 {
 	if (!HasAuthority()
 		|| ItemState != ESnowballItemState::Held
@@ -92,6 +117,7 @@ bool ASnowballItem::Throw(
 	bIsSettledOnGround = false;
 	bHasProcessedThrownImpact = false;
 	CurrentThrowChargeProgress = FMath::Clamp(ThrowChargeProgress, 0.0f, 1.0f);
+	CurrentThrowDamageMultiplier = FMath::Max(0.0f, ThrowDamageMultiplier);
 
 	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 	CollisionComponent->SetSimulatePhysics(false);
@@ -577,60 +603,77 @@ void ASnowballItem::HandleThrownImpact(
 	{
 		const ASnowRumbleCharacter* ThrowingCharacter =
 			Cast<ASnowRumbleCharacter>(GetOwner());
-		const float ItemDamageMultiplier = ThrowingCharacter
-			? ThrowingCharacter->GetSnowballDamageMultiplier()
-			: 1.0f;
-		const float ChargedDamage = Damage * FMath::Lerp(
-			FMath::Clamp(MinimumDamageMultiplier, 0.0f, 1.0f),
-			1.0f,
-			CurrentThrowChargeProgress)
-			* ItemDamageMultiplier;
-		UGameplayStatics::ApplyDamage(
-			OtherActor,
-			ChargedDamage,
-			GetInstigatorController(),
-			this,
-			UDamageType::StaticClass());
-
-		if (ASnowRumbleCharacter* HitCharacter =
-			Cast<ASnowRumbleCharacter>(OtherActor))
+		ASnowRumbleCharacter* HitCharacter =
+			Cast<ASnowRumbleCharacter>(OtherActor);
+		const bool bIgnoreFriendlyFire =
+			HitCharacter
+			&& AreSnowballCharactersOnSameTeam(
+				ThrowingCharacter,
+				HitCharacter);
+		if (!bIgnoreFriendlyFire)
 		{
-			FVector KnockbackDirection =
-				ProjectileMovement
-					? ProjectileMovement->Velocity.GetSafeNormal2D()
-					: FVector::ZeroVector;
-			if (KnockbackDirection.IsNearlyZero())
-			{
-				KnockbackDirection =
-					(HitCharacter->GetActorLocation() - GetActorLocation())
-					.GetSafeNormal2D();
-			}
+			const float ItemDamageMultiplier = ThrowingCharacter
+				? ThrowingCharacter->GetSnowballDamageMultiplier()
+				: 1.0f;
+			const float ChargedDamage = Damage * FMath::Lerp(
+				FMath::Clamp(MinimumDamageMultiplier, 0.0f, 1.0f),
+				1.0f,
+				CurrentThrowChargeProgress)
+				* ItemDamageMultiplier;
+			const float GrowthDamageMultiplier = FMath::Lerp(
+				1.0f,
+				FMath::Max(1.0f, MaximumGrowthDamageMultiplier),
+				FMath::Clamp(GrowthProgress, 0.0f, 1.0f));
+			const float FinalDamage =
+				ChargedDamage
+				* GrowthDamageMultiplier
+				* CurrentThrowDamageMultiplier;
+			UGameplayStatics::ApplyDamage(
+				OtherActor,
+				FinalDamage,
+				GetInstigatorController(),
+				this,
+				UDamageType::StaticClass());
 
-			if (!KnockbackDirection.IsNearlyZero())
+			if (HitCharacter)
 			{
-				const bool bLargeSnowball = IsFullyGrown();
-				const float MinimumKnockback = FMath::Max(
-					0.0f,
-					bLargeSnowball
-						? LargeSnowballMinimumKnockback
-						: SmallSnowballMinimumKnockback);
-				const float MaximumKnockback = FMath::Max(
-					MinimumKnockback,
-					bLargeSnowball
-						? LargeSnowballMaximumKnockback
-						: SmallSnowballMaximumKnockback);
-				const float KnockbackStrength = FMath::Lerp(
-					MinimumKnockback,
-					MaximumKnockback,
-					CurrentThrowChargeProgress);
-				KnockbackDirection = FVector(
-					KnockbackDirection.X,
-					KnockbackDirection.Y,
-					KnockbackUpwardRatio).GetSafeNormal();
-				HitCharacter->LaunchCharacter(
-					KnockbackDirection * KnockbackStrength,
-					true,
-					true);
+				FVector KnockbackDirection =
+					ProjectileMovement
+						? ProjectileMovement->Velocity.GetSafeNormal2D()
+						: FVector::ZeroVector;
+				if (KnockbackDirection.IsNearlyZero())
+				{
+					KnockbackDirection =
+						(HitCharacter->GetActorLocation() - GetActorLocation())
+						.GetSafeNormal2D();
+				}
+
+				if (!KnockbackDirection.IsNearlyZero())
+				{
+					const bool bLargeSnowball = IsFullyGrown();
+					const float MinimumKnockback = FMath::Max(
+						0.0f,
+						bLargeSnowball
+							? LargeSnowballMinimumKnockback
+							: SmallSnowballMinimumKnockback);
+					const float MaximumKnockback = FMath::Max(
+						MinimumKnockback,
+						bLargeSnowball
+							? LargeSnowballMaximumKnockback
+							: SmallSnowballMaximumKnockback);
+					const float KnockbackStrength = FMath::Lerp(
+						MinimumKnockback,
+						MaximumKnockback,
+						CurrentThrowChargeProgress);
+					KnockbackDirection = FVector(
+						KnockbackDirection.X,
+						KnockbackDirection.Y,
+						KnockbackUpwardRatio).GetSafeNormal();
+					HitCharacter->LaunchCharacter(
+						KnockbackDirection * KnockbackStrength,
+						true,
+						true);
+				}
 			}
 		}
 	}
@@ -685,6 +728,9 @@ void ASnowballItem::MulticastPlayImpactEffect_Implementation(
 		this,
 		ImpactSound,
 		ESnowRumbleAudioMixChannel::Gameplay,
-		ImpactPoint);
+		ImpactPoint,
+		1.0f,
+		1.0f,
+		ImpactSoundAttenuation);
 	PlayImpactEffect(ImpactPoint, ImpactNormal);
 }

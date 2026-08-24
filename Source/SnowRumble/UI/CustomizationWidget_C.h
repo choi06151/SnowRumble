@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "../Player/SnowRumbleCustomizationData_C.h"
-#include "Blueprint/UserWidget.h"
+#include "SnowRumbleAudioUserWidget.h"
 #include "Styling/SlateTypes.h"
 #include "CustomizationWidget_C.generated.h"
 
@@ -12,6 +12,7 @@ class ACustomizationPlayerController;
 class UBorder;
 class UButton;
 class UImage;
+class USlider;
 class UWidgetSwitcher;
 
 UENUM(BlueprintType)
@@ -24,7 +25,7 @@ enum class ESnowRumbleCustomizationPage : uint8
 };
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API UCustomizationWidget : public UUserWidget
+class SNOWRUMBLE_API UCustomizationWidget : public USnowRumbleAudioUserWidget
 {
 	GENERATED_BODY()
 
@@ -139,10 +140,68 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
 	TObjectPtr<UButton> WhiteBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> LightRedBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> DarkRedBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> SoftRedBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> LightOrangeBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> DarkOrangeBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> SoftOrangeBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> LightYellowBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> DarkYellowBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> SoftYellowBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> LightGreenBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> DarkGreenBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> SoftGreenBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> LightBlueBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> DarkBlueBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> SoftBlueBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> LightIndigoBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> DarkIndigoBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> SoftIndigoBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> LightPurpleBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> DarkPurpleBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> SoftPurpleBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> PinkBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> CyanBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> BrownBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> DarkGrayBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> GrayBrushColorButton;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> LightGrayBrushColorButton;
 
 	/** 누른 상태에서 마우스 휠로 브러시 크기를 조정하는 버튼이다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
 	TObjectPtr<UButton> BrushSizeButton;
+
+	/** 0~1 값으로 브러시 크기를 조절하는 선택 슬라이더다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<USlider> BrushSizeSlider;
 
 	/** 현재 브러시 색을 BodyColor에 적용하는 전체 칠하기 버튼이다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
@@ -214,12 +273,69 @@ private:
 
 	UFUNCTION()
 	void HandleWhiteBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleLightRedBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleDarkRedBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleSoftRedBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleLightOrangeBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleDarkOrangeBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleSoftOrangeBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleLightYellowBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleDarkYellowBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleSoftYellowBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleLightGreenBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleDarkGreenBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleSoftGreenBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleLightBlueBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleDarkBlueBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleSoftBlueBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleLightIndigoBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleDarkIndigoBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleSoftIndigoBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleLightPurpleBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleDarkPurpleBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleSoftPurpleBrushColorButtonClicked();
+	UFUNCTION()
+	void HandlePinkBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleCyanBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleBrownBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleDarkGrayBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleGrayBrushColorButtonClicked();
+	UFUNCTION()
+	void HandleLightGrayBrushColorButtonClicked();
 
 	UFUNCTION()
 	void HandleBrushSizeButtonPressed();
 
 	UFUNCTION()
 	void HandleBrushSizeButtonReleased();
+
+	UFUNCTION()
+	void HandleBrushSizeSliderValueChanged(float NewValue);
 
 	UFUNCTION()
 	void HandleFillBodyColorButtonClicked();
@@ -254,6 +370,9 @@ private:
 	void BindCustomizationButtons();
 	void UnbindCustomizationButtons();
 	void RefreshPaintBrushPreview();
+	void ApplyPaletteButtonColors();
+	void ApplyPaletteButtonColor(UButton* Button, FLinearColor Color);
+	void RefreshBrushSizeSlider();
 	void SetPaintBrushColorFromPalette(FLinearColor NewBrushColor);
 	void SetPaintBrushColorFromPaletteButton(
 		UButton* Button,

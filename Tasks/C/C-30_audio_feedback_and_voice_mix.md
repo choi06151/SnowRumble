@@ -19,6 +19,8 @@ UI 버튼, 눈덩이 투척과 폭발, 피해 피드백, 아이템 및 게시판
 - [x] 배경음악은 재생 종료 시 같은 음원을 다시 시작해 사운드 자산의 loop 설정이 빠져도 반복되게 한다. 단, 포디움 배경음악은 반복하지 않는다.
 - [x] 보이스 채널 전환과 음소거 상태가 음성 표시와 소리 반영에 일관되게 연결되도록 정리한다.
 - [x] 각 맵의 배경음악 시작 지점을 GameMode 또는 PlayerController에 연결한다.
+- [x] 눈덩이 충돌음과 캐릭터 피격음을 위치 기반 재생으로 유지하고, Blueprint에서 attenuation 자산을 지정할 수 있게 한다.
+- [x] 버튼을 가진 UI 위젯이 공통 hover/click 사운드를 각각 로컬 2D로 자동 재생하도록 연결한다.
 
 ## 작업 배정
 
@@ -27,7 +29,7 @@ UI 버튼, 눈덩이 투척과 폭발, 피해 피드백, 아이템 및 게시판
 - 계약 소유자: 최재원(C)
 - 자산 수정자: C++·문서 최재원(C), 사운드 자산·연출은 사용자 또는 서유정(S)
 - 생성 파일: `Tasks/C/C-30_audio_feedback_and_voice_mix.md`
-- 변경 파일: `Source/SnowRumble/Audio/SnowRumbleAudioHelpers.*`, `Source/SnowRumble/Audio/SnowRumbleBackgroundMusicSubsystem_C.*`, `Source/SnowRumble/Player/SnowRumbleUserSettingsSubsystem_C.*`, `Source/SnowRumble/UI/OptionsWidget_C.*`, `Source/SnowRumble/UI/MainMenuWidget.*`, `Source/SnowRumble/UI/MainMenuPlayerController.*`, `Source/SnowRumble/UI/CustomizationPlayerController_C.*`, `Source/SnowRumble/UI/LobbyEscapeMenuWidget.*`, `Source/SnowRumble/UI/LobbyBoardWidget_C.*`, `Source/SnowRumble/UI/MainHUDWidget.*`, `Source/SnowRumble/UI/VoiceMuteMenuWidget_C.*`, `Source/SnowRumble/UI/VoiceMutePlayerRowWidget_C.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/Player/SnowRumblePlayerController.*`, `Source/SnowRumble/Interaction/LobbyInteractionBoard_C.*`, `Source/SnowRumble/Item/*`, `Source/SnowRumble/Snowball/*`, `Source/SnowRumble/Game/SnowRumbleGameMode.*`, `Source/SnowRumble/Game/SnowRumbleLobbyGameMode.*`, `Source/SnowRumble/Game/SnowmanModeGameMode_K.*`, `Source/SnowRumble/Game/SnowRumbleMainMenuGameMode.*`, `Source/SnowRumble/Game/SnowRumbleCustomizationGameMode_C.*`, `Source/SnowRumble/Game/PodiumGameMode.*`, `Source/SnowRumble/Game/PodiumPlayerController.*`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`
+- 변경 파일: `Source/SnowRumble/Audio/SnowRumbleAudioHelpers.*`, `Source/SnowRumble/Audio/SnowRumbleBackgroundMusicSubsystem_C.*`, `Source/SnowRumble/Player/SnowRumbleUserSettingsSubsystem_C.*`, `Source/SnowRumble/UI/SnowRumbleAudioUserWidget.*`, `Source/SnowRumble/UI/MainMenuWidget.*`, `Source/SnowRumble/UI/CustomizationWidget_C.*`, `Source/SnowRumble/UI/EmoteRadialMenuWidget.*`, `Source/SnowRumble/UI/LobbyBoardWidget_C.*`, `Source/SnowRumble/UI/LobbyEscapeMenuWidget.*`, `Source/SnowRumble/UI/OptionsWidget_C.*`, `Source/SnowRumble/UI/OptionsKeyBindingRowWidget_C.*`, `Source/SnowRumble/UI/VoiceMuteMenuWidget_C.*`, `Source/SnowRumble/UI/VoiceMutePlayerRowWidget_C.*`, `Source/SnowRumble/UI/MainMenuPlayerController.*`, `Source/SnowRumble/UI/CustomizationPlayerController_C.*`, `Source/SnowRumble/UI/MainHUDWidget.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/Player/SnowRumblePlayerController.*`, `Source/SnowRumble/Interaction/LobbyInteractionBoard_C.*`, `Source/SnowRumble/Item/*`, `Source/SnowRumble/Snowball/*`, `Source/SnowRumble/Game/SnowRumbleGameMode.*`, `Source/SnowRumble/Game/SnowRumbleLobbyGameMode.*`, `Source/SnowRumble/Game/SnowmanModeGameMode_K.*`, `Source/SnowRumble/Game/SnowRumbleMainMenuGameMode.*`, `Source/SnowRumble/Game/SnowRumbleCustomizationGameMode_C.*`, `Source/SnowRumble/Game/PodiumGameMode.*`, `Source/SnowRumble/Game/PodiumPlayerController.*`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`
 - 공유 확인 대상: 사용자, 서유정(S)
 - 병합 순서: C++ 오디오 계약 선행, 사운드 자산과 UI 표현은 후속 연결
 
@@ -68,12 +70,17 @@ UI 버튼, 눈덩이 투척과 폭발, 피해 피드백, 아이템 및 게시판
 - 2026-08-22: 배경음악이 사운드 자산의 loop 설정에만 의존하지 않도록 `USnowRumbleBackgroundMusicSubsystem`이 재생 종료 시 같은 음원을 다시 시작하게 했다. `UAudioComponent`의 loop 상태에 기대지 않고 `OnAudioFinished`에서 재생을 재개한다.
 - 2026-08-22: 배경음악이 한 번 재생된 뒤 끊기는 회귀를 보강했다. `OnAudioFinished` 콜백 프레임에서 기존 컴포넌트가 아직 재생 중으로 보일 수 있어 조기 반환하던 경로를 막고, 종료 콜백에서는 이전 컴포넌트 참조를 먼저 비운 뒤 같은 음원을 새 컴포넌트로 재시작한다. `git diff --check`, 충돌 표식 검색, UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor의 DLL 잠금 `LNK1104`로 보류됐다.
 - 2026-08-23: 포디움 배경음악은 반복하지 않도록 `USnowRumbleBackgroundMusicSubsystem::PlayBackgroundMusic()`에 루프 여부를 추가했다. 기본값은 반복으로 유지하고, `APodiumPlayerController`만 비반복으로 요청한다. 포디움 사운드 자산 자체에 loop가 켜진 경우에도 곡 길이 기준 정지 타이머로 한 번 재생 후 멈추게 했다.
+- 2026-08-24: UI 상호작용음은 로컬 2D 재생으로 유지하고, 눈덩이 충돌음과 캐릭터 피격음만 공간음향 대상으로 좁혔다. `SnowRumbleAudio::PlaySoundAtLocation()`이 선택적 `USoundAttenuation`을 받게 했고, `ASnowballItem::ImpactSoundAttenuation`, `ASnowRumbleCharacter::DamageSoundAttenuation`으로 Blueprint 연결 지점을 추가했다. 피격음은 소유 클라이언트 전용 화면 피드백에서 분리해 서버 피격 확정 후 `MulticastPlayDamageSound()`가 피격자 위치에서 모든 화면에 재생한다. `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-24: `USnowRumbleAudioUserWidget`이 하위 `UButton`의 hover/click을 자동 탐색하고, `ButtonHoverSound`와 `ButtonClickSound`를 해당 로컬 플레이어에게만 2D로 각각 재생하게 했다. 메인메뉴·커스터마이징·이모션·로비 게시판·ESC·옵션·키 설정 행·보이스 메뉴/행을 공통 부모로 전환하고 기존 위젯별 클릭 사운드 자산은 제거했다. 컴파일과 `.lib` 생성은 통과했지만 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
 
 ## 수동 작업
 
 - `WBP_MainMenu`, `WBP_Lobby`, `WBP_MainHUD`, `WBP_Options`, `WBP_LobbyBoard`, `WBP_VoiceMuteMenu`에서 버튼/패널 클릭 사운드를 재생할 WBP 이벤트를 연결한다.
+- 버튼을 사용하는 WBP에서 공통 부모의 `ButtonHoverSound`와 `ButtonClickSound`에 각각 사운드 자산을 지정한다. 공통 부모가 하위 `UButton`을 자동 연결하므로 각 버튼별 이벤트 사운드 노드는 추가하지 않는다.
 - `BP_MainMenuGameMode`, `BP_LobbyGameMode`, `BP_SnowRumblePVPGameMode`, `BP_SnowmanModeGameMode`, `BP_SnowRumblePodiumGameMode`, `BP_CustomizationGameMode`에서 `BackgroundMusicSound` 또는 해당 컨트롤러 배경음악 자산을 지정한다.
 - `BP_SnowRumbleCharacter`와 관련 AnimBP/Blueprint에서 눈덩이 투척, 폭발, 피해, 상호작용, 잡기, 발걸음 사운드 자산을 연결한다.
+- `BP_SnowRumbleCharacter`에서 `DamageSound`와 `DamageSoundAttenuation`을 지정한다. 피격음은 피격자 위치에서 모든 참가자에게 거리감 있게 재생된다.
+- 눈덩이 Blueprint에서 `ImpactSound`와 `ImpactSoundAttenuation`을 지정한다. 충돌음은 충돌 지점에서 모든 참가자에게 거리감 있게 재생된다.
 - `BgmSoundClass`, `SfxSoundClass`, 마이크 관련 음성 설정이 실제 SoundClass와 음성 채널에 맞게 연결되도록 확인한다.
 - 필요하면 master volume을 SoundClass 계층 또는 별도 AudioSettings UI로 배치한다.
 
@@ -81,15 +88,17 @@ UI 버튼, 눈덩이 투척과 폭발, 피해 피드백, 아이템 및 게시판
 
 ### 에이전트 확인
 
-- [ ] 관련 코드·문서 변경 완료
-- [ ] 오디오 계약과 볼륨 라우팅 기준이 정리됨
-- [ ] 현재 Task 문서가 실제 구현 기준으로 갱신됨
+- [x] 관련 코드·문서 변경 완료
+- [x] 오디오 계약과 볼륨 라우팅 기준이 정리됨
+- [x] 현재 Task 문서가 실제 구현 기준으로 갱신됨
 
 ### 결과 확인
 
-- [ ] UI 버튼 클릭 시 지정한 사운드가 재생된다.
+- [ ] UI 버튼 hover 시 `ButtonHoverSound`, click 시 `ButtonClickSound`가 해당 플레이어에게만 재생된다.
 - [ ] 눈덩이 투척과 폭발에 사운드가 연결된다.
+- [ ] 눈덩이 충돌음이 충돌 위치 기준으로 가까울수록 크게, 멀수록 작게 들린다.
 - [ ] 피해 피드백과 아이템/게시판 상호작용 사운드가 연결된다.
+- [ ] 캐릭터 피격음이 피격자 위치 기준으로 다른 플레이어에게도 거리감 있게 들리고, 피격자 화면 흔들림/페이드는 맞은 플레이어에게만 보인다.
 - [ ] 옵션 소리 설정 변경이 전체 오디오 출력에 반영된다.
 - [ ] 보이스 송출과 음소거 상태가 음향과 표시 둘 다에서 일관되게 반영된다.
 - [ ] 포디움이 아닌 레벨에서는 `BackgroundMusicSound`에 loop 설정이 없어도 한 곡 종료 후 같은 배경음악이 다시 시작된다.
