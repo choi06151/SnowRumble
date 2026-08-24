@@ -122,6 +122,7 @@
 - 2026-08-09: 4명 이상이 같은 PlayerStart 위치에 겹쳐 생성되는 문제에 대응해 실제 Pawn 생성 위치를 선택된 PlayerStart 주변 900cm 반경 안에서 최소 240cm 간격을 우선 만족하도록 분산했다.
 - 2026-08-09: C-16 팀원 HP HUD를 추가하고 진행중으로 전환했다. `UMainHUDWidget`은 자기 HP 바를 유지하면서 같은 팀 색의 다른 플레이어 HP 바만 좌측 상단 패널에 동적으로 생성한다.
 - 2026-08-09: 사용자가 팀원 HP HUD 동작을 확인해 C-16을 완료로 전환했다.
+- 2026-08-24: 병합 중 MainHUD WBP 참조가 손실되는 상황에 대비해 `ASnowRumbleCharacter::EnsureMainHUDWidget()`가 현재 C 자산 `/Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C`를 우선 사용하도록 보강했다.
 - 2026-08-09: C-17 PvP 시작 카운트다운을 추가하고 진행중으로 전환했다. PvP GameState가 서버 확정 시작 시간을 복제하고, HUD는 `StartCountdownText`로 `3`, `2`, `1`, `시작!`을 표시한다.
 - 2026-08-09: C-17 카운트다운 조건을 로딩 후 PvP 맵 전용으로 조정했다. 로비 화면이나 로딩창 위에서는 표시하지 않고, PvP GameMode가 로딩창을 닫은 뒤 짧은 지연 후 시작한다.
 - 2026-08-09: 로비 이동 후 C-17 카운트다운이 보이지 않는 문제에 대응해, 모든 예상 플레이어가 PvP Pawn까지 가진 뒤 로딩창 닫기와 카운트다운을 시작하게 조정했다.

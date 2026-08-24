@@ -187,6 +187,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization")
 	TSubclassOf<ASnowRumbleCharacter> PreviewCharacterClass;
 
+	/** 커스텀 레벨 프리뷰 캐릭터 Mesh의 상대 Z 위치에 더할 오프셋(cm)이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Preview")
+	float PreviewCharacterZOffset = 0.0f;
+
 	/** 커스터마이징 방에서 프리뷰 캐릭터에 사용할 단일 애니메이션 에셋이다. 비워두면 현재 애니메이션을 그대로 멈춘다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Preview")
 	TObjectPtr<UAnimationAsset> PreviewAnimationAsset;
@@ -300,6 +304,9 @@ private:
 
 	/** 프리뷰 캐릭터 자동 스폰 위치를 찾는다. */
 	FTransform GetPreviewCharacterSpawnTransform() const;
+
+	/** 프리뷰 캐릭터의 최종 Z 위치를 보정한다. */
+	void ApplyPreviewCharacterZOffset();
 
 	/** 커스터마이징 방 전용 애니메이션 에셋과 정지 상태를 프리뷰 캐릭터에 적용한다. */
 	void ApplyPreviewAnimationSettings();
