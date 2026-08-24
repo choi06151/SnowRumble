@@ -32,8 +32,8 @@ ESnowRumbleTeam ToSnowRumbleTeam(ELobbyBoardTeamColor TeamColor)
 		return ESnowRumbleTeam::Pink;
 	case ELobbyBoardTeamColor::Blue:
 		return ESnowRumbleTeam::Blue;
-	case ELobbyBoardTeamColor::White:
-		return ESnowRumbleTeam::White;
+	case ELobbyBoardTeamColor::Orange:
+		return ESnowRumbleTeam::Orange;
 	default:
 		return ESnowRumbleTeam::None;
 	}
@@ -81,6 +81,7 @@ void ULobbyBoardWidget::NativeConstruct()
 
 	ResolveBoardButtons();
 	ResolveTeamCountTexts();
+	ApplyOrangeTeamButtonColor();
 	BindBoardButtons();
 	RefreshTeamCountTexts();
 	RefreshReadyStartButtonText();
@@ -172,9 +173,14 @@ void ULobbyBoardWidget::ResolveBoardButtons()
 		BlueTeamButton =
 			WidgetTree->FindWidget<UButton>(TEXT("BlueTeamButton"));
 	}
-	if (!WhiteTeamButton)
+	if (!OrangeTeamButton)
 	{
-		WhiteTeamButton =
+		OrangeTeamButton =
+			WidgetTree->FindWidget<UButton>(TEXT("OrangeTeamButton"));
+	}
+	if (!OrangeTeamButton)
+	{
+		OrangeTeamButton =
 			WidgetTree->FindWidget<UButton>(TEXT("WhiteTeamButton"));
 	}
 	if (!PvpModeButton)
@@ -296,9 +302,14 @@ void ULobbyBoardWidget::ResolveTeamCountTexts()
 		BlueTeamCountText =
 			WidgetTree->FindWidget<UTextBlock>(TEXT("BlueTeamCountText"));
 	}
-	if (!WhiteTeamCountText)
+	if (!OrangeTeamCountText)
 	{
-		WhiteTeamCountText =
+		OrangeTeamCountText =
+			WidgetTree->FindWidget<UTextBlock>(TEXT("OrangeTeamCountText"));
+	}
+	if (!OrangeTeamCountText)
+	{
+		OrangeTeamCountText =
 			WidgetTree->FindWidget<UTextBlock>(TEXT("WhiteTeamCountText"));
 	}
 }
@@ -377,11 +388,11 @@ void ULobbyBoardWidget::BindBoardButtons()
 			this,
 			&ULobbyBoardWidget::HandleBlueTeamButtonClicked);
 	}
-	if (WhiteTeamButton)
+	if (OrangeTeamButton)
 	{
-		WhiteTeamButton->OnClicked.AddUniqueDynamic(
+		OrangeTeamButton->OnClicked.AddUniqueDynamic(
 			this,
-			&ULobbyBoardWidget::HandleWhiteTeamButtonClicked);
+			&ULobbyBoardWidget::HandleOrangeTeamButtonClicked);
 	}
 	if (PvpModeButton)
 	{
@@ -513,9 +524,9 @@ void ULobbyBoardWidget::UnbindBoardButtons()
 	{
 		BlueTeamButton->OnClicked.RemoveAll(this);
 	}
-	if (WhiteTeamButton)
+	if (OrangeTeamButton)
 	{
-		WhiteTeamButton->OnClicked.RemoveAll(this);
+		OrangeTeamButton->OnClicked.RemoveAll(this);
 	}
 	if (PvpModeButton)
 	{
@@ -646,10 +657,10 @@ void ULobbyBoardWidget::HandleBlueTeamButtonClicked()
 	SubmitTeamColor(ELobbyBoardTeamColor::Blue);
 }
 
-void ULobbyBoardWidget::HandleWhiteTeamButtonClicked()
+void ULobbyBoardWidget::HandleOrangeTeamButtonClicked()
 {
 	PlayBoardClickSound();
-	SubmitTeamColor(ELobbyBoardTeamColor::White);
+	SubmitTeamColor(ELobbyBoardTeamColor::Orange);
 }
 
 void ULobbyBoardWidget::HandlePvpModeButtonClicked()
@@ -806,6 +817,19 @@ void ULobbyBoardWidget::SubmitTeamColorFromBlueprint(
 	OnTeamColorButtonClicked(TeamColor);
 }
 
+void ULobbyBoardWidget::ShowInvalidActionFeedbackForController(
+	ALobbyPlayerController* RequestingPlayerController,
+	const FText& ReasonText)
+{
+	if (!RequestingPlayerController ||
+		GetRequestingLobbyPlayerController() != RequestingPlayerController)
+	{
+		return;
+	}
+
+	ShowInvalidActionFeedback(ReasonText);
+}
+
 ALobbyPlayerController* ULobbyBoardWidget::GetRequestingLobbyPlayerController()
 	const
 {
@@ -859,7 +883,7 @@ void ULobbyBoardWidget::RefreshTeamCountTexts()
 	SetTeamCountText(PurpleTeamCountText, ESnowRumbleTeam::Purple);
 	SetTeamCountText(PinkTeamCountText, ESnowRumbleTeam::Pink);
 	SetTeamCountText(BlueTeamCountText, ESnowRumbleTeam::Blue);
-	SetTeamCountText(WhiteTeamCountText, ESnowRumbleTeam::White);
+	SetTeamCountText(OrangeTeamCountText, ESnowRumbleTeam::Orange);
 }
 
 void ULobbyBoardWidget::RefreshReadyStartButtonText()
@@ -933,8 +957,8 @@ void ULobbyBoardWidget::RefreshSelectedButtonVisuals()
 		BlueTeamButton,
 		SelectedTeam == ESnowRumbleTeam::Blue);
 	SetButtonSelectedVisual(
-		WhiteTeamButton,
-		SelectedTeam == ESnowRumbleTeam::White);
+		OrangeTeamButton,
+		SelectedTeam == ESnowRumbleTeam::Orange);
 
 	const ESnowRumbleLobbyMode LobbyMode = LobbyGameState
 		? LobbyGameState->GetLobbyMode()
@@ -1001,6 +1025,23 @@ void ULobbyBoardWidget::SetButtonSelectedVisual(UButton* Button, bool bSelected)
 	SelectedStyle.SetHovered(CachedStyle->Pressed);
 	SelectedStyle.SetPressed(CachedStyle->Pressed);
 	Button->SetStyle(SelectedStyle);
+}
+
+void ULobbyBoardWidget::ApplyOrangeTeamButtonColor()
+{
+	if (!OrangeTeamButton)
+	{
+		return;
+	}
+
+	FButtonStyle Style = OrangeTeamButton->GetStyle();
+	const FSlateColor OrangeColor(
+		FLinearColor(1.0f, 0.35f, 0.05f, 1.0f));
+	Style.Normal.TintColor = OrangeColor;
+	Style.Hovered.TintColor = OrangeColor;
+	Style.Pressed.TintColor = OrangeColor;
+	Style.Disabled.TintColor = OrangeColor;
+	OrangeTeamButton->SetStyle(Style);
 }
 
 void ULobbyBoardWidget::SubmitMatchRoundLimit(int32 NewRoundLimit)

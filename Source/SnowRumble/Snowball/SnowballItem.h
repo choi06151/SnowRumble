@@ -10,6 +10,7 @@ class ASnowRumbleCharacter;
 class UPrimitiveComponent;
 class UProjectileMovementComponent;
 class USceneComponent;
+class USoundAttenuation;
 class USphereComponent;
 class USoundBase;
 
@@ -148,6 +149,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact")
 	TObjectPtr<USoundBase> ImpactSound;
 
+	/** 충돌 사운드가 월드 거리감과 공간감을 갖도록 적용할 attenuation 설정이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact")
+	TObjectPtr<USoundAttenuation> ImpactSoundAttenuation;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball")
 	TObjectPtr<USphereComponent> CollisionComponent;
 
@@ -162,6 +167,10 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float MinimumDamageMultiplier = 0.4f;
+
+	/** 눈덩이 성장에 따라 적용할 최대 피해 배율이다. 성장 0에서는 1배로 시작한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact|Growth", meta = (ClampMin = "1.0"))
+	float MaximumGrowthDamageMultiplier = 3.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact", meta = (ClampMin = "0.0"))
 	float SmallSnowballMinimumKnockback = 300.0f;

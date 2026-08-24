@@ -425,7 +425,7 @@ void ASnowRumbleGameMode::RestartPlayerAtPlayerStart(
 	}
 
 	const FTransform SpawnTransform =
-		BuildScatteredPlayerStartTransform(StartSpot);
+		BuildScatteredPlayerStartTransform(NewPlayer, StartSpot);
 	UsedSpawnLocations.Add(SpawnTransform.GetLocation());
 	RestartPlayerAtTransform(NewPlayer, SpawnTransform);
 	BindPawnLifeState(NewPlayer->GetPawn());
@@ -1136,7 +1136,7 @@ bool ASnowRumbleGameMode::IsValidRoundTeam(ESnowRumbleTeam Team) const
 	case ESnowRumbleTeam::Purple:
 	case ESnowRumbleTeam::Pink:
 	case ESnowRumbleTeam::Blue:
-	case ESnowRumbleTeam::White:
+	case ESnowRumbleTeam::Orange:
 		return true;
 	default:
 		return false;
@@ -1178,7 +1178,7 @@ void ASnowRumbleGameMode::GetActiveRoundTeams(
 		ESnowRumbleTeam::Yellow,
 		ESnowRumbleTeam::Purple,
 		ESnowRumbleTeam::Pink,
-		ESnowRumbleTeam::White
+		ESnowRumbleTeam::Orange
 	};
 	for (const ESnowRumbleTeam Team : TeamOrder)
 	{
@@ -1241,8 +1241,15 @@ USnowRumbleMatchSubsystem* ASnowRumbleGameMode::GetMatchSubsystem() const
 }
 
 FTransform ASnowRumbleGameMode::BuildScatteredPlayerStartTransform(
+	const AController* NewPlayer,
 	const AActor* StartSpot) const
 {
+	FTransform TeammateSpawnTransform;
+	if (TryBuildTeammateSpawnTransform(NewPlayer, TeammateSpawnTransform))
+	{
+		return TeammateSpawnTransform;
+	}
+
 	const FVector StartLocation = StartSpot->GetActorLocation();
 	const FRotator StartRotation = StartSpot->GetActorRotation();
 
@@ -1276,6 +1283,76 @@ FTransform ASnowRumbleGameMode::BuildScatteredPlayerStartTransform(
 	}
 
 	return FTransform(StartRotation, ResolvedStartLocation);
+}
+
+bool ASnowRumbleGameMode::TryBuildTeammateSpawnTransform(
+	const AController* NewPlayer,
+	FTransform& OutSpawnTransform) const
+{
+	if (!NewPlayer || TeammateSpawnRadius <= 0.0f)
+	{
+		return false;
+	}
+
+	const ASnowRumblePlayerState* NewPlayerState =
+		NewPlayer->GetPlayerState<ASnowRumblePlayerState>();
+	if (!NewPlayerState || NewPlayerState->GetLobbyTeam() == ESnowRumbleTeam::None)
+	{
+		return false;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	TArray<ASnowRumbleCharacter*> Teammates;
+	for (TActorIterator<ASnowRumbleCharacter> It(World); It; ++It)
+	{
+		ASnowRumbleCharacter* Character = *It;
+		const ASnowRumblePlayerState* TeammateState = Character
+			? Character->GetPlayerState<ASnowRumblePlayerState>()
+			: nullptr;
+		if (TeammateState
+			&& TeammateState->GetLobbyTeam() == NewPlayerState->GetLobbyTeam())
+		{
+			Teammates.Add(Character);
+		}
+	}
+
+	if (Teammates.IsEmpty())
+	{
+		return false;
+	}
+
+	const int32 Attempts = FMath::Max(1, TeammateSpawnAttempts);
+	for (int32 AttemptIndex = 0; AttemptIndex < Attempts; ++AttemptIndex)
+	{
+		const ASnowRumbleCharacter* Teammate = Teammates[
+			FMath::RandRange(0, Teammates.Num() - 1)];
+		if (!Teammate)
+		{
+			continue;
+		}
+
+		const FVector RawCandidateLocation =
+			Teammate->GetActorLocation()
+			+ MakeRandomHorizontalOffset(TeammateSpawnRadius);
+		FVector CandidateLocation = RawCandidateLocation;
+		if (TryResolveSpawnLocationOnGround(
+				RawCandidateLocation,
+				CandidateLocation)
+			&& IsSpawnCapsuleClear(CandidateLocation))
+		{
+			OutSpawnTransform = FTransform(
+				Teammate->GetActorRotation(),
+				CandidateLocation);
+			return true;
+		}
+	}
+
+	return false;
 }
 
 bool ASnowRumbleGameMode::TryResolveSpawnLocationOnGround(

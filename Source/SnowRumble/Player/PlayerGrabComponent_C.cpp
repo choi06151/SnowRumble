@@ -3,6 +3,7 @@
 #include "PlayerGrabComponent_C.h"
 
 #include "SnowRumbleCharacter.h"
+#include "../Game/SnowRumblePlayerState.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/EngineTypes.h"
@@ -57,6 +58,11 @@ void UPlayerGrabComponent::TickComponent(
 
 	if (GrabbedCharacter)
 	{
+		if (GrabbedCharacter->IsDead())
+		{
+			ServerStopGrabReach_Implementation();
+			return;
+		}
 		UpdateGrabbedCharacterTether(DeltaTime);
 		return;
 	}
@@ -118,6 +124,9 @@ void UPlayerGrabComponent::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(UPlayerGrabComponent, ActiveGrabHand);
 	DOREPLIFETIME(UPlayerGrabComponent, GrabReachStartedServerTime);
 	DOREPLIFETIME(UPlayerGrabComponent, GrabAttachmentStartedServerTime);
+	DOREPLIFETIME(UPlayerGrabComponent, GrabHoldProgress);
+	DOREPLIFETIME(UPlayerGrabComponent, GrabProgressAtAttachmentStart);
+	DOREPLIFETIME(UPlayerGrabComponent, GrabRecoveryStartedServerTime);
 }
 
 void UPlayerGrabComponent::StartGrabReach()
@@ -226,24 +235,37 @@ float UPlayerGrabComponent::GetGrabReachAlpha() const
 
 float UPlayerGrabComponent::GetGrabRemainingTimeProgress() const
 {
-	if (!IsGrabAttached()
-		|| MaximumGrabHoldSeconds <= 0.0f
-		|| GrabAttachmentStartedServerTime <= 0.0f)
+	if (MaximumGrabHoldSeconds <= 0.0f)
 	{
-		return 0.0f;
+		return 1.0f;
 	}
 
-	const UWorld* World = GetWorld();
-	const AGameStateBase* GameState = World ? World->GetGameState() : nullptr;
-	const float CurrentServerTime = GameState
-		? GameState->GetServerWorldTimeSeconds()
-		: World
-			? World->GetTimeSeconds()
-			: GrabReachStartedServerTime;
-	const float ElapsedSeconds =
-		FMath::Max(0.0f, CurrentServerTime - GrabAttachmentStartedServerTime);
+	if (IsGrabAttached()
+		&& GrabAttachmentStartedServerTime > 0.0f)
+	{
+		const float ElapsedSeconds = FMath::Max(
+			0.0f,
+			GetCurrentServerTimeSeconds() - GrabAttachmentStartedServerTime);
+		return FMath::Clamp(
+			GrabProgressAtAttachmentStart
+				- ElapsedSeconds / MaximumGrabHoldSeconds,
+			0.0f,
+			1.0f);
+	}
+
+	if (GrabRecoveryStartedServerTime <= 0.0f
+		|| GrabHoldProgress >= 1.0f
+		|| GrabRecoverySeconds <= 0.0f)
+	{
+		return FMath::Clamp(GrabHoldProgress, 0.0f, 1.0f);
+	}
+
+	const float RecoveryElapsedSeconds = FMath::Max(
+		0.0f,
+		GetCurrentServerTimeSeconds() - GrabRecoveryStartedServerTime);
 	return FMath::Clamp(
-		1.0f - ElapsedSeconds / MaximumGrabHoldSeconds,
+		GrabHoldProgress
+			+ RecoveryElapsedSeconds / GrabRecoverySeconds,
 		0.0f,
 		1.0f);
 }
@@ -312,7 +334,9 @@ bool UPlayerGrabComponent::CanStartGrabReach() const
 {
 	const ASnowRumbleCharacter* Character = GetOwnerCharacter();
 	return Character
-		&& Character->CanStartPlayerGrabReach();
+		&& Character->CanStartPlayerGrabReach()
+		&& (MaximumGrabHoldSeconds <= 0.0f
+			|| GetGrabRemainingTimeProgress() > 0.0f);
 }
 
 bool UPlayerGrabComponent::FindGrabCandidate(
@@ -456,6 +480,28 @@ bool UPlayerGrabComponent::FindGrabCandidate(
 		{
 			continue;
 		}
+		if (HitCharacter->IsGrabbedByCharacter())
+		{
+			continue;
+		}
+
+		if (HitCharacter->IsFrozen())
+		{
+			const ASnowRumblePlayerState* GrabberPlayerState =
+				Character->GetPlayerState<ASnowRumblePlayerState>();
+			const ASnowRumblePlayerState* TargetPlayerState =
+				HitCharacter->GetPlayerState<ASnowRumblePlayerState>();
+			const bool bSameNonDefaultTeam =
+				GrabberPlayerState
+				&& TargetPlayerState
+				&& GrabberPlayerState->GetLobbyTeam() != ESnowRumbleTeam::None
+				&& GrabberPlayerState->GetLobbyTeam()
+					== TargetPlayerState->GetLobbyTeam();
+			if (!bSameNonDefaultTeam)
+			{
+				continue;
+			}
+		}
 
 		USkeletalMeshComponent* HitMesh =
 			Cast<USkeletalMeshComponent>(Hit.GetComponent());
@@ -499,6 +545,10 @@ void UPlayerGrabComponent::AttachGrabConstraint(
 	}
 
 	ClearGrabConstraint();
+	const float CurrentGrabProgress = GetGrabRemainingTimeProgress();
+	GrabHoldProgress = CurrentGrabProgress;
+	GrabProgressAtAttachmentStart = CurrentGrabProgress;
+	GrabRecoveryStartedServerTime = 0.0f;
 
 	GrabbedCharacter = TargetCharacter;
 	GrabbedTargetBoneName = TargetBoneName;
@@ -556,6 +606,10 @@ void UPlayerGrabComponent::AttachWorldGrab(FVector AttachedWorldLocation)
 	}
 
 	ClearGrabConstraint();
+	const float CurrentGrabProgress = GetGrabRemainingTimeProgress();
+	GrabHoldProgress = CurrentGrabProgress;
+	GrabProgressAtAttachmentStart = CurrentGrabProgress;
+	GrabRecoveryStartedServerTime = 0.0f;
 
 	GrabAttachedWorldLocation = AttachedWorldLocation;
 	GrabAttachmentType = ESnowRumbleGrabAttachmentType::World;
@@ -574,6 +628,7 @@ void UPlayerGrabComponent::AttachWorldGrab(FVector AttachedWorldLocation)
 void UPlayerGrabComponent::ClearGrabConstraint()
 {
 	ASnowRumbleCharacter* PreviousGrabbedCharacter = GrabbedCharacter.Get();
+	const bool bWasAttached = IsGrabAttached();
 	const bool bWasWorldGrab =
 		GrabAttachmentType == ESnowRumbleGrabAttachmentType::World;
 	if (GrabConstraintComponent)
@@ -585,6 +640,14 @@ void UPlayerGrabComponent::ClearGrabConstraint()
 
 	if (AActor* Owner = GetOwner(); Owner && Owner->HasAuthority())
 	{
+		if (bWasAttached)
+		{
+			GrabHoldProgress = GetGrabRemainingTimeProgress();
+			GrabProgressAtAttachmentStart = GrabHoldProgress;
+			GrabRecoveryStartedServerTime = GrabHoldProgress < 1.0f
+				? GetCurrentServerTimeSeconds() + GrabRecoveryDelaySeconds
+				: 0.0f;
+		}
 		if (PreviousGrabbedCharacter)
 		{
 			PreviousGrabbedCharacter->ClearGrabbedByCharacter(GetOwnerCharacter());
@@ -791,4 +854,17 @@ FVector UPlayerGrabComponent::BuildHandGrabAnchorLocation(
 ASnowRumbleCharacter* UPlayerGrabComponent::GetOwnerCharacter() const
 {
 	return Cast<ASnowRumbleCharacter>(GetOwner());
+}
+
+float UPlayerGrabComponent::GetCurrentServerTimeSeconds() const
+{
+	const UWorld* World = GetWorld();
+	const AGameStateBase* GameState = World
+		? World->GetGameState()
+		: nullptr;
+	return GameState
+		? GameState->GetServerWorldTimeSeconds()
+		: World
+			? World->GetTimeSeconds()
+			: 0.0f;
 }

@@ -6,6 +6,7 @@
 #include "Components/AudioComponent.h"
 #include "Engine/GameInstance.h"
 #include "Kismet/GameplayStatics.h"
+#include "Sound/SoundAttenuation.h"
 #include "Sound/SoundBase.h"
 
 namespace
@@ -106,7 +107,8 @@ void SnowRumbleAudio::PlaySoundAtLocation(
 	ESnowRumbleAudioMixChannel Channel,
 	const FVector& Location,
 	float BaseVolumeMultiplier,
-	float PitchMultiplier)
+	float PitchMultiplier,
+	USoundAttenuation* AttenuationSettings)
 {
 	if (!WorldContextObject || !Sound || Location.ContainsNaN())
 	{
@@ -119,5 +121,7 @@ void SnowRumbleAudio::PlaySoundAtLocation(
 		Location,
 		GetEffectiveVolume(WorldContextObject, Channel)
 			* FMath::Max(0.0f, BaseVolumeMultiplier),
-		FMath::Max(0.0f, PitchMultiplier));
+		FMath::Max(0.0f, PitchMultiplier),
+		0.0f,
+		AttenuationSettings);
 }

@@ -24,8 +24,8 @@ FText BuildWinningTeamText(ESnowRumbleTeam WinningTeam)
 		return NSLOCTEXT("SnowRumble", "PodiumWinnerPinkTeam", "분홍 팀 우승");
 	case ESnowRumbleTeam::Blue:
 		return NSLOCTEXT("SnowRumble", "PodiumWinnerBlueTeam", "파랑 팀 우승");
-	case ESnowRumbleTeam::White:
-		return NSLOCTEXT("SnowRumble", "PodiumWinnerWhiteTeam", "하양 팀 우승");
+	case ESnowRumbleTeam::Orange:
+		return NSLOCTEXT("SnowRumble", "PodiumWinnerOrangeTeam", "주황 팀 우승");
 	case ESnowRumbleTeam::None:
 	default:
 		return NSLOCTEXT("SnowRumble", "PodiumWinnerNoTeam", "우승 팀 없음");

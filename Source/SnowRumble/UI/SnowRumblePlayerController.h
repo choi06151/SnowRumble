@@ -296,6 +296,9 @@ private:
 	/** OnlineSubsystem 음성 인터페이스와 로컬 토커 등록 상태를 보장한다. */
 	bool EnsureLocalVoiceTalkerReady();
 
+	/** OnlineSubsystem 음성 인터페이스와 세션의 원격 토커 등록 상태를 보장한다. */
+	void EnsureRemoteVoiceTalkersReady();
+
 	/** 현재 마이크 입력 상태를 speaking 표시로 그대로 쓸 수 있는지 반환한다. */
 	bool ShouldMirrorMicrophoneInputToVoiceSpeaking() const;
 
@@ -393,9 +396,11 @@ private:
 	bool bMicrophoneInputActive = false;
 
 	bool bNetworkVoiceInputActive = false;
+	bool bLocalVoiceTalkerReady = false;
 
 	ESnowRumbleVoiceChannel LocalVoiceChannel =
 		ESnowRumbleVoiceChannel::All;
 
+	TSet<FString> RegisteredRemoteVoiceTalkerIds;
 	TSet<FString> ManuallyMutedVoicePlayerKeys;
 };

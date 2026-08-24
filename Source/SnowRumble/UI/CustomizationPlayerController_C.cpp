@@ -244,6 +244,29 @@ void ACustomizationPlayerController::AdjustPaintBrushSizeFromWheel(
 	UpdatePaintMouseCursorPresentation();
 }
 
+void ACustomizationPlayerController::SetPaintBrushSizeFromNormalizedValue(
+	float NormalizedValue)
+{
+	const float SafeMinSize = FMath::Max(1.0f, MinPaintBrushSize);
+	const float SafeMaxSize = FMath::Max(SafeMinSize, MaxPaintBrushSize);
+	const float SafeNormalizedValue = FMath::Clamp(NormalizedValue, 0.0f, 1.0f);
+	PaintStrokeThickness = FMath::Lerp(
+		SafeMinSize,
+		SafeMaxSize,
+		SafeNormalizedValue);
+	UpdatePaintMouseCursorPresentation();
+}
+
+float ACustomizationPlayerController::GetPaintBrushSizeNormalizedValue() const
+{
+	const float SafeMinSize = FMath::Max(1.0f, MinPaintBrushSize);
+	const float SafeMaxSize = FMath::Max(SafeMinSize, MaxPaintBrushSize);
+	return FMath::GetRangePct(
+		SafeMinSize,
+		SafeMaxSize,
+		PaintStrokeThickness);
+}
+
 float ACustomizationPlayerController::GetPaintBrushSize() const
 {
 	return PaintStrokeThickness;

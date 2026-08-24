@@ -127,7 +127,7 @@ int32 ASnowRumbleGameState::GetTeamRoundWinCount(
 		return PinkTeamRoundWins;
 	case ESnowRumbleTeam::Blue:
 		return BlueTeamRoundWins;
-	case ESnowRumbleTeam::White:
+	case ESnowRumbleTeam::Orange:
 		return WhiteTeamRoundWins;
 	default:
 		return 0;
@@ -328,5 +328,5 @@ void ASnowRumbleGameState::CopyRoundWinsFromMatchSubsystem(
 	BlueTeamRoundWins =
 		MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Blue);
 	WhiteTeamRoundWins =
-		MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::White);
+		MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Orange);
 }
