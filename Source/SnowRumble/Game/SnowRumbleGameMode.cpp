@@ -361,6 +361,10 @@ void ASnowRumbleGameMode::StartConfirmedMatchCountdown()
 	if (ASnowRumbleGameState* SnowRumbleGameState =
 		GetGameState<ASnowRumbleGameState>())
 	{
+		SnowRumbleGameState->SetMapShrinkIntervalSecondsFromServer(
+			GetWaterDrivenMapShrinkIntervalSeconds());
+		SnowRumbleGameState->SetMapShrinkWaitDurationSecondsFromServer(
+			GetMapShrinkWaitDurationSeconds());
 		SnowRumbleGameState->StartMatchCountdownFromServer(
 			MatchStartCountdownSeconds);
 		if (!SnowRumbleGameState->IsTiebreakerRound())
@@ -654,7 +658,7 @@ void ASnowRumbleGameMode::ScheduleNextMapShrink()
 
 	const float DelaySeconds =
 		MatchStartCountdownSeconds
-		+ SnowRumbleGameState->GetMapShrinkIntervalSeconds();
+		+ GetMapShrinkWaitDurationSeconds();
 	GetWorldTimerManager().SetTimer(
 		MapShrinkTimerHandle,
 		this,
@@ -696,20 +700,22 @@ void ASnowRumbleGameMode::TriggerMapShrink()
 	}
 
 	++MapShrinkStage;
+	const float MapShrinkDurationSeconds =
+		GetMapShrinkRiseDurationSeconds();
 	SnowRumbleGameState->StartMapShrinkFromServer(
-		TemporaryMapShrinkDurationSeconds);
+		MapShrinkDurationSeconds);
 	OnMapShrinkRequested(
 		MapShrinkStage,
 		SnowRumbleGameState->GetRoundElapsedSeconds(),
-		TemporaryMapShrinkDurationSeconds);
+		MapShrinkDurationSeconds);
 	for (TActorIterator<ASnowIslandWaterPressureActor> It(GetWorld()); It; ++It)
 	{
 		if (ASnowIslandWaterPressureActor* WaterPressureActor = *It)
 		{
 			WaterPressureActor->StartWaterPressureFromMapShrink(
 				MapShrinkStage,
-				SnowRumbleGameState->GetRoundElapsedSeconds(),
-				TemporaryMapShrinkDurationSeconds);
+				MapShrinkSegmentCount,
+				MapShrinkDurationSeconds);
 		}
 	}
 
@@ -717,7 +723,7 @@ void ASnowRumbleGameMode::TriggerMapShrink()
 		MapShrinkCompletionTimerHandle,
 		this,
 		&ASnowRumbleGameMode::CompleteMapShrinkFromServer,
-		TemporaryMapShrinkDurationSeconds,
+		MapShrinkDurationSeconds,
 		false);
 }
 
@@ -818,8 +824,43 @@ void ASnowRumbleGameMode::CompleteMapShrinkFromServer()
 		MapShrinkTimerHandle,
 		this,
 		&ASnowRumbleGameMode::TriggerMapShrink,
-		SnowRumbleGameState->GetMapShrinkIntervalSeconds(),
+		GetMapShrinkWaitDurationSeconds(),
 		false);
+}
+
+float ASnowRumbleGameMode::GetWaterDrivenMapShrinkIntervalSeconds() const
+{
+	return GetMapShrinkTotalDurationSeconds()
+		/ FMath::Max(1, MapShrinkSegmentCount);
+}
+
+float ASnowRumbleGameMode::GetMapShrinkTotalDurationSeconds() const
+{
+	const USnowRumbleMatchSubsystem* MatchSubsystem = GetMatchSubsystem();
+	const ESnowRumbleGameSpeed GameSpeed = MatchSubsystem
+		? MatchSubsystem->GetGameSpeed()
+		: ESnowRumbleGameSpeed::Normal;
+
+	switch (GameSpeed)
+	{
+	case ESnowRumbleGameSpeed::Fast:
+		return FMath::Max(1.0f, FastMapShrinkDurationSeconds);
+	case ESnowRumbleGameSpeed::Slow:
+		return FMath::Max(1.0f, SlowMapShrinkDurationSeconds);
+	case ESnowRumbleGameSpeed::Normal:
+	default:
+		return FMath::Max(1.0f, NormalMapShrinkDurationSeconds);
+	}
+}
+
+float ASnowRumbleGameMode::GetMapShrinkRiseDurationSeconds() const
+{
+	return GetWaterDrivenMapShrinkIntervalSeconds() / 3.0f;
+}
+
+float ASnowRumbleGameMode::GetMapShrinkWaitDurationSeconds() const
+{
+	return GetWaterDrivenMapShrinkIntervalSeconds() * (2.0f / 3.0f);
 }
 
 void ASnowRumbleGameMode::ReturnToLobbyAfterMatchEnd()
