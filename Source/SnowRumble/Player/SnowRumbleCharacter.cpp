@@ -62,6 +62,7 @@
 #include "Net/UnrealNetwork.h"
 #include "NiagaraComponent.h"
 #include "TimerManager.h"
+#include "UObject/UObjectGlobals.h"
 #include "Blueprint/UserWidget.h"
 #include "SnowRumbleUserSettingsSubsystem_C.h"
 
@@ -2291,7 +2292,6 @@ void ASnowRumbleCharacter::EnsureMainHUDWidget()
 {
 	if (!IsLocallyControlled()
 		|| MainHUDWidget
-		|| !MainHUDWidgetClass
 		|| ShouldSuppressPvpWidgets())
 	{
 		return;
@@ -2315,10 +2315,22 @@ void ASnowRumbleCharacter::EnsureMainHUDWidget()
 		return;
 	}
 
+	TSubclassOf<UMainHUDWidget> HudWidgetClass = MainHUDWidgetClass;
+	if (UClass* PreferredHudClass = LoadClass<UMainHUDWidget>(
+		nullptr,
+		TEXT("/Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C")))
+	{
+		HudWidgetClass = PreferredHudClass;
+	}
+	if (!HudWidgetClass)
+	{
+		return;
+	}
+
 	MainHUDWidget =
 		CreateWidget<UMainHUDWidget>(
 			PlayerController,
-			MainHUDWidgetClass);
+			HudWidgetClass);
 	if (MainHUDWidget)
 	{
 		MainHUDWidget->AddToViewport();

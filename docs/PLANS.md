@@ -122,6 +122,7 @@
 - 2026-08-24: C-30 UI 사운드를 hover/click 슬롯으로 분리했다. 버튼 hover는 `ButtonHoverSound`, click은 `ButtonClickSound`를 로컬 2D로 재생한다.
 - 2026-08-24: C-30 눈 제작·굴리기·잡기·놓기·점프·큰 눈덩이 폭발 사운드 연결을 추가했다. 제작·굴리기·잡기·놓기·큰 눈덩이는 위치 기반으로, 점프는 로컬 SFX로 재생한다.
 - 2026-08-24: C-26 발걸음 AnimNotify에 `FootstepSound`와 `FootstepSoundAttenuation`을 연결해 `SnowSurface` 발 위치에서 공간음향으로 재생한다.
+- 2026-08-24: 병합 중 MainHUD WBP 참조 손실에 대비해 C++가 `/Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C`를 우선 로드하도록 보강했다.
 - 2026-08-24: C-11 커스터마이징 UI 계약을 기존 버튼 이름 자동 바인딩 방식으로 36색 팔레트까지 확장하고 C++가 버튼 RGB 스타일을 초기화하게 했다. WBP 버튼 배치는 사용자/S 인계로 남겼다.
 - 2026-08-24: C-11 커스터마이징 UI에 선택적 `BrushSizeSlider` 계약을 추가했다. 0~1 Slider 값은 기존 브러시 최소·최대 크기로 변환되고 버튼·휠 조절과 동기화된다.
 - 2026-08-24: C-06/C-28 얼음·Grab 공용 계약을 확장했다. 서버는 얼은 대상에 대해 같은 팀 Grab만 허용하고, 기존 Grab tether 운반과 사망 시 자동 해제를 연결한다.
