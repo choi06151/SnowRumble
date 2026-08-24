@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "TimerManager.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "SnowRumbleBackgroundMusicSubsystem_C.generated.h"
 
@@ -18,7 +19,9 @@ class SNOWRUMBLE_API USnowRumbleBackgroundMusicSubsystem
 public:
 	virtual void Deinitialize() override;
 
-	void PlayBackgroundMusic(USoundBase* BackgroundMusicSound);
+	void PlayBackgroundMusic(
+		USoundBase* BackgroundMusicSound,
+		bool bShouldLoop = true);
 	void StopBackgroundMusic();
 	void SetBackgroundMusicPreviewVolume(float MasterVolume, float BgmVolume);
 
@@ -31,4 +34,8 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<USoundBase> CurrentBackgroundMusicSound;
+
+	bool bCurrentBackgroundMusicShouldLoop = true;
+
+	FTimerHandle NonLoopStopTimerHandle;
 };

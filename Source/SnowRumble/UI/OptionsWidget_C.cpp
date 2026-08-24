@@ -862,7 +862,11 @@ void UOptionsWidget::InitializeDefaultKeyBindingRows()
 	KeyBindingRows.Add(MakeKeyBindingRow(
 		TEXT("Emote"),
 		NSLOCTEXT("SnowRumble", "KeyBindingEmote", "이모션"),
-		EKeys::B));
+		EKeys::Tab));
+	KeyBindingRows.Add(MakeKeyBindingRow(
+		TEXT("KeyGuide"),
+		NSLOCTEXT("SnowRumble", "KeyBindingKeyGuide", "키 가이드"),
+		EKeys::T));
 	KeyBindingRows.Add(MakeKeyBindingRow(
 		TEXT("Chat"),
 		NSLOCTEXT("SnowRumble", "KeyBindingChat", "채팅"),

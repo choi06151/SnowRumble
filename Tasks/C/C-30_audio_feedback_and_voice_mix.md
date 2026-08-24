@@ -3,7 +3,7 @@
 ## 설명
 
 UI 버튼, 눈덩이 투척과 폭발, 피해 피드백, 아이템 및 게시판 상호작용, 보이스 상태에 대한 사운드 계약을 정리한다. 옵션의 소리 설정을 기준으로 전체 볼륨, 배경음악, 효과음, 보이스가 서로 충돌하지 않게 라우팅하고, Blueprint가 연결할 실제 사운드 자산과 재생 지점을 제공한다.
-맵별 배경음악은 메인메뉴, 커스터마이징, 로비, PvP, 눈사람 모드, 포디움에서 각 GameMode 또는 PlayerController가 시작한다.
+맵별 배경음악은 메인메뉴, 커스터마이징, 로비, PvP, 눈사람 모드, 포디움에서 각 GameMode 또는 PlayerController가 시작한다. 포디움 배경음악만 반복하지 않고 한 번 재생 후 정지한다.
 
 ## 상태 전이 기준
 
@@ -16,7 +16,7 @@ UI 버튼, 눈덩이 투척과 폭발, 피해 피드백, 아이템 및 게시판
 - [x] 눈덩이 제작, 투척, 충돌, 폭발, 피해 피드백에 사용할 사운드 트리거 지점을 정리한다.
 - [x] 아이템 획득, 놓기, 게시판 상호작용, 상호작용 안내 확인에 사용할 사운드 트리거 지점을 정리한다.
 - [x] 옵션의 소리 설정이 전체 볼륨과 BGM, 효과음, 보이스에 일관되게 적용되도록 라우팅한다.
-- [x] 배경음악은 재생 종료 시 같은 음원을 다시 시작해 사운드 자산의 loop 설정이 빠져도 반복되게 한다.
+- [x] 배경음악은 재생 종료 시 같은 음원을 다시 시작해 사운드 자산의 loop 설정이 빠져도 반복되게 한다. 단, 포디움 배경음악은 반복하지 않는다.
 - [x] 보이스 채널 전환과 음소거 상태가 음성 표시와 소리 반영에 일관되게 연결되도록 정리한다.
 - [x] 각 맵의 배경음악 시작 지점을 GameMode 또는 PlayerController에 연결한다.
 
@@ -27,7 +27,7 @@ UI 버튼, 눈덩이 투척과 폭발, 피해 피드백, 아이템 및 게시판
 - 계약 소유자: 최재원(C)
 - 자산 수정자: C++·문서 최재원(C), 사운드 자산·연출은 사용자 또는 서유정(S)
 - 생성 파일: `Tasks/C/C-30_audio_feedback_and_voice_mix.md`
-- 변경 파일: `Source/SnowRumble/Audio/SnowRumbleAudioHelpers.*`, `Source/SnowRumble/Player/SnowRumbleUserSettingsSubsystem_C.*`, `Source/SnowRumble/UI/OptionsWidget_C.*`, `Source/SnowRumble/UI/MainMenuWidget.*`, `Source/SnowRumble/UI/MainMenuPlayerController.*`, `Source/SnowRumble/UI/CustomizationPlayerController_C.*`, `Source/SnowRumble/UI/LobbyEscapeMenuWidget.*`, `Source/SnowRumble/UI/LobbyBoardWidget_C.*`, `Source/SnowRumble/UI/MainHUDWidget.*`, `Source/SnowRumble/UI/VoiceMuteMenuWidget_C.*`, `Source/SnowRumble/UI/VoiceMutePlayerRowWidget_C.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/Player/SnowRumblePlayerController.*`, `Source/SnowRumble/Interaction/LobbyInteractionBoard_C.*`, `Source/SnowRumble/Item/*`, `Source/SnowRumble/Snowball/*`, `Source/SnowRumble/Game/SnowRumbleGameMode.*`, `Source/SnowRumble/Game/SnowRumbleLobbyGameMode.*`, `Source/SnowRumble/Game/SnowmanModeGameMode_K.*`, `Source/SnowRumble/Game/SnowRumbleMainMenuGameMode.*`, `Source/SnowRumble/Game/SnowRumbleCustomizationGameMode_C.*`, `Source/SnowRumble/Game/PodiumGameMode.*`, `Source/SnowRumble/Game/PodiumPlayerController.*`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`
+- 변경 파일: `Source/SnowRumble/Audio/SnowRumbleAudioHelpers.*`, `Source/SnowRumble/Audio/SnowRumbleBackgroundMusicSubsystem_C.*`, `Source/SnowRumble/Player/SnowRumbleUserSettingsSubsystem_C.*`, `Source/SnowRumble/UI/OptionsWidget_C.*`, `Source/SnowRumble/UI/MainMenuWidget.*`, `Source/SnowRumble/UI/MainMenuPlayerController.*`, `Source/SnowRumble/UI/CustomizationPlayerController_C.*`, `Source/SnowRumble/UI/LobbyEscapeMenuWidget.*`, `Source/SnowRumble/UI/LobbyBoardWidget_C.*`, `Source/SnowRumble/UI/MainHUDWidget.*`, `Source/SnowRumble/UI/VoiceMuteMenuWidget_C.*`, `Source/SnowRumble/UI/VoiceMutePlayerRowWidget_C.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/Player/SnowRumblePlayerController.*`, `Source/SnowRumble/Interaction/LobbyInteractionBoard_C.*`, `Source/SnowRumble/Item/*`, `Source/SnowRumble/Snowball/*`, `Source/SnowRumble/Game/SnowRumbleGameMode.*`, `Source/SnowRumble/Game/SnowRumbleLobbyGameMode.*`, `Source/SnowRumble/Game/SnowmanModeGameMode_K.*`, `Source/SnowRumble/Game/SnowRumbleMainMenuGameMode.*`, `Source/SnowRumble/Game/SnowRumbleCustomizationGameMode_C.*`, `Source/SnowRumble/Game/PodiumGameMode.*`, `Source/SnowRumble/Game/PodiumPlayerController.*`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`
 - 공유 확인 대상: 사용자, 서유정(S)
 - 병합 순서: C++ 오디오 계약 선행, 사운드 자산과 UI 표현은 후속 연결
 
@@ -67,6 +67,7 @@ UI 버튼, 눈덩이 투척과 폭발, 피해 피드백, 아이템 및 게시판
 - 2026-08-22: PvP 전환 중 배경음악이 끊기는 문제를 해결하기 위해 배경음악 재생을 `USnowRumbleBackgroundMusicSubsystem`으로 이관했다. 각 컨트롤러의 EndPlay 정지 호출을 제거해 travel 중에도 음악이 이어지고, 옵션의 BGM 슬라이더는 같은 subsystem 오디오 컴포넌트에 즉시 반영한다.
 - 2026-08-22: 배경음악이 사운드 자산의 loop 설정에만 의존하지 않도록 `USnowRumbleBackgroundMusicSubsystem`이 재생 종료 시 같은 음원을 다시 시작하게 했다. `UAudioComponent`의 loop 상태에 기대지 않고 `OnAudioFinished`에서 재생을 재개한다.
 - 2026-08-22: 배경음악이 한 번 재생된 뒤 끊기는 회귀를 보강했다. `OnAudioFinished` 콜백 프레임에서 기존 컴포넌트가 아직 재생 중으로 보일 수 있어 조기 반환하던 경로를 막고, 종료 콜백에서는 이전 컴포넌트 참조를 먼저 비운 뒤 같은 음원을 새 컴포넌트로 재시작한다. `git diff --check`, 충돌 표식 검색, UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor의 DLL 잠금 `LNK1104`로 보류됐다.
+- 2026-08-23: 포디움 배경음악은 반복하지 않도록 `USnowRumbleBackgroundMusicSubsystem::PlayBackgroundMusic()`에 루프 여부를 추가했다. 기본값은 반복으로 유지하고, `APodiumPlayerController`만 비반복으로 요청한다. 포디움 사운드 자산 자체에 loop가 켜진 경우에도 곡 길이 기준 정지 타이머로 한 번 재생 후 멈추게 했다.
 
 ## 수동 작업
 
@@ -91,4 +92,5 @@ UI 버튼, 눈덩이 투척과 폭발, 피해 피드백, 아이템 및 게시판
 - [ ] 피해 피드백과 아이템/게시판 상호작용 사운드가 연결된다.
 - [ ] 옵션 소리 설정 변경이 전체 오디오 출력에 반영된다.
 - [ ] 보이스 송출과 음소거 상태가 음향과 표시 둘 다에서 일관되게 반영된다.
-- [ ] `BackgroundMusicSound`에 loop 설정이 없어도 한 곡 종료 후 같은 배경음악이 다시 시작된다.
+- [ ] 포디움이 아닌 레벨에서는 `BackgroundMusicSound`에 loop 설정이 없어도 한 곡 종료 후 같은 배경음악이 다시 시작된다.
+- [ ] 포디움 레벨에서는 `BackgroundMusicSound`가 한 번 재생된 뒤 반복 재생되지 않는다.
