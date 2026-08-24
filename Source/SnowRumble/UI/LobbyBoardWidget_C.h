@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "SnowRumbleAudioUserWidget.h"
 #include "Styling/SlateTypes.h"
 #include "../Game/SnowRumbleMatchSubsystem_C.h"
 #include "../Game/SnowRumblePlayerState.h"
@@ -13,7 +13,6 @@
 class ASnowRumbleCharacter;
 class ALobbyPlayerController;
 class UButton;
-class USoundBase;
 class UTextBlock;
 class UWidgetAnimation;
 
@@ -38,7 +37,7 @@ enum class ELobbyBoardGameMode : uint8
 };
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API ULobbyBoardWidget : public UUserWidget
+class SNOWRUMBLE_API ULobbyBoardWidget : public USnowRumbleAudioUserWidget
 {
 	GENERATED_BODY()
 
@@ -60,8 +59,6 @@ public:
 	void ShowInvalidActionFeedbackForController(
 		ALobbyPlayerController* RequestingPlayerController,
 		const FText& ReasonText);
-
-	void PlayBoardClickSound() const;
 
 protected:
 	/** 위젯 생성 시 선택 버튼과 닫기 버튼을 연결한다. */
@@ -238,9 +235,6 @@ protected:
 	/** WBP에 같은 이름으로 만든 예외행동 사유 표시 TextBlock이다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> InvalidActionReasonText;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Lobby Board|Audio")
-	TObjectPtr<USoundBase> BoardClickSound;
 
 private:
 	/** WBP 내부에서 이름이 일치하는 버튼을 직접 찾아 C++ 변수에 보관한다. */

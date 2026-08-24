@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "SnowRumbleAudioUserWidget.h"
 #include "Input/Events.h"
 #include "Input/Reply.h"
 #include "InputCoreTypes.h"
@@ -15,7 +15,6 @@ class UButton;
 class UOptionsKeyBindingRowWidget;
 class UPanelWidget;
 class USoundClass;
-class USoundBase;
 class USoundMix;
 class USlider;
 class UTextBlock;
@@ -49,7 +48,7 @@ enum class ESnowRumbleOptionsCategory : uint8
 };
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API UOptionsWidget : public UUserWidget
+class SNOWRUMBLE_API UOptionsWidget : public USnowRumbleAudioUserWidget
 {
 	GENERATED_BODY()
 
@@ -375,9 +374,6 @@ private:
 	/** 마이크 표시 텍스트를 현재 임시값 기준으로 갱신한다. */
 	void RefreshMicrophoneValueText();
 
-	/** 옵션 화면 버튼 클릭 사운드를 재생한다. */
-	void PlayOptionsClickSound() const;
-
 	/** 현재 로컬 플레이어의 배경음악 프리뷰 볼륨을 갱신한다. */
 	void ApplyBackgroundMusicPreviewVolume() const;
 
@@ -435,6 +431,4 @@ private:
 
 	TMap<UButton*, FButtonStyle> DefaultButtonStyles;
 
-	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|UI|Options|Audio")
-	TObjectPtr<USoundBase> ButtonClickSound;
 };

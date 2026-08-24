@@ -98,7 +98,8 @@ bool ASnowballItem::TrySetHeldBy(
 bool ASnowballItem::Throw(
 	const FVector& ThrowDirection,
 	float ThrowSpeed,
-	float ThrowChargeProgress)
+	float ThrowChargeProgress,
+	float ThrowDamageMultiplier)
 {
 	if (!HasAuthority()
 		|| ItemState != ESnowballItemState::Held
@@ -116,6 +117,7 @@ bool ASnowballItem::Throw(
 	bIsSettledOnGround = false;
 	bHasProcessedThrownImpact = false;
 	CurrentThrowChargeProgress = FMath::Clamp(ThrowChargeProgress, 0.0f, 1.0f);
+	CurrentThrowDamageMultiplier = FMath::Max(0.0f, ThrowDamageMultiplier);
 
 	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 	CollisionComponent->SetSimulatePhysics(false);
@@ -622,7 +624,10 @@ void ASnowballItem::HandleThrownImpact(
 				1.0f,
 				FMath::Max(1.0f, MaximumGrowthDamageMultiplier),
 				FMath::Clamp(GrowthProgress, 0.0f, 1.0f));
-			const float FinalDamage = ChargedDamage * GrowthDamageMultiplier;
+			const float FinalDamage =
+				ChargedDamage
+				* GrowthDamageMultiplier
+				* CurrentThrowDamageMultiplier;
 			UGameplayStatics::ApplyDamage(
 				OtherActor,
 				FinalDamage,

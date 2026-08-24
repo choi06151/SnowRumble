@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "../Player/SnowRumbleCustomizationData_C.h"
-#include "Blueprint/UserWidget.h"
+#include "SnowRumbleAudioUserWidget.h"
 #include "Styling/SlateTypes.h"
 #include "CustomizationWidget_C.generated.h"
 
@@ -25,7 +25,7 @@ enum class ESnowRumbleCustomizationPage : uint8
 };
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API UCustomizationWidget : public UUserWidget
+class SNOWRUMBLE_API UCustomizationWidget : public USnowRumbleAudioUserWidget
 {
 	GENERATED_BODY()
 

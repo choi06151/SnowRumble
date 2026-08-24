@@ -584,31 +584,26 @@ void ULobbyBoardWidget::UnbindBoardButtons()
 
 void ULobbyBoardWidget::HandleActionButton0Clicked()
 {
-	PlayBoardClickSound();
 	SubmitBoardAction(ELobbyBoardAction::Action0);
 }
 
 void ULobbyBoardWidget::HandleActionButton1Clicked()
 {
-	PlayBoardClickSound();
 	SubmitBoardAction(ELobbyBoardAction::Action1);
 }
 
 void ULobbyBoardWidget::HandleActionButton2Clicked()
 {
-	PlayBoardClickSound();
 	SubmitBoardAction(ELobbyBoardAction::Action2);
 }
 
 void ULobbyBoardWidget::HandleActionButton3Clicked()
 {
-	PlayBoardClickSound();
 	SubmitBoardAction(ELobbyBoardAction::Action3);
 }
 
 void ULobbyBoardWidget::HandleCloseFocusButtonClicked()
 {
-	PlayBoardClickSound();
 	if (FocusedCharacter)
 	{
 		FocusedCharacter->CloseLobbyBoardFocus();
@@ -617,67 +612,56 @@ void ULobbyBoardWidget::HandleCloseFocusButtonClicked()
 
 void ULobbyBoardWidget::HandleRedTeamButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitTeamColor(ELobbyBoardTeamColor::Red);
 }
 
 void ULobbyBoardWidget::HandleSkyTeamButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitTeamColor(ELobbyBoardTeamColor::Sky);
 }
 
 void ULobbyBoardWidget::HandleGreenTeamButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitTeamColor(ELobbyBoardTeamColor::Green);
 }
 
 void ULobbyBoardWidget::HandleYellowTeamButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitTeamColor(ELobbyBoardTeamColor::Yellow);
 }
 
 void ULobbyBoardWidget::HandlePurpleTeamButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitTeamColor(ELobbyBoardTeamColor::Purple);
 }
 
 void ULobbyBoardWidget::HandlePinkTeamButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitTeamColor(ELobbyBoardTeamColor::Pink);
 }
 
 void ULobbyBoardWidget::HandleBlueTeamButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitTeamColor(ELobbyBoardTeamColor::Blue);
 }
 
 void ULobbyBoardWidget::HandleOrangeTeamButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitTeamColor(ELobbyBoardTeamColor::Orange);
 }
 
 void ULobbyBoardWidget::HandlePvpModeButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitLobbyMode(ELobbyBoardGameMode::Pvp);
 }
 
 void ULobbyBoardWidget::HandleSnowmanModeButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitLobbyMode(ELobbyBoardGameMode::Snowman);
 }
 
 void ULobbyBoardWidget::HandleReadyStartButtonClicked()
 {
-	PlayBoardClickSound();
 	ASnowRumblePlayerState* PlayerState = GetRequestingPlayerState();
 	if (!PlayerState)
 	{
@@ -715,61 +699,51 @@ void ULobbyBoardWidget::HandleReadyStartButtonClicked()
 
 void ULobbyBoardWidget::HandleRound1ButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitMatchRoundLimit(1);
 }
 
 void ULobbyBoardWidget::HandleRound3ButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitMatchRoundLimit(3);
 }
 
 void ULobbyBoardWidget::HandleRound5ButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitMatchRoundLimit(5);
 }
 
 void ULobbyBoardWidget::HandleShuffle2TeamsButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitShuffleTeams(2);
 }
 
 void ULobbyBoardWidget::HandleShuffle3TeamsButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitShuffleTeams(3);
 }
 
 void ULobbyBoardWidget::HandleShuffle4TeamsButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitShuffleTeams(4);
 }
 
 void ULobbyBoardWidget::HandleShuffleSoloButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitShuffleSolo();
 }
 
 void ULobbyBoardWidget::HandleSlowGameSpeedButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitGameSpeed(ESnowRumbleGameSpeed::Slow);
 }
 
 void ULobbyBoardWidget::HandleNormalGameSpeedButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitGameSpeed(ESnowRumbleGameSpeed::Normal);
 }
 
 void ULobbyBoardWidget::HandleFastGameSpeedButtonClicked()
 {
-	PlayBoardClickSound();
 	SubmitGameSpeed(ESnowRumbleGameSpeed::Fast);
 }
 
@@ -1063,14 +1037,6 @@ void ULobbyBoardWidget::SubmitMatchRoundLimit(int32 NewRoundLimit)
 	{
 		LobbyGameState->SetMatchRoundLimitFromServer(NewRoundLimit);
 	}
-}
-
-void ULobbyBoardWidget::PlayBoardClickSound() const
-{
-	SnowRumbleAudio::PlaySound2D(
-		this,
-		BoardClickSound,
-		ESnowRumbleAudioMixChannel::UserInterface);
 }
 
 void ULobbyBoardWidget::SubmitGameSpeed(ESnowRumbleGameSpeed NewGameSpeed)
