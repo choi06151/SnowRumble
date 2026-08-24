@@ -9,6 +9,8 @@
 class ASnowRumbleCharacter;
 class UPhysicsConstraintComponent;
 class USkeletalMeshComponent;
+class USoundAttenuation;
+class USoundBase;
 
 UENUM(BlueprintType)
 enum class ESnowRumbleGrabHand : uint8
@@ -73,6 +75,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
 	float GetGrabReachAlpha() const;
 
+	/** 잡기 제한 시간이 남은 비율을 1에서 0으로 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	float GetGrabRemainingTimeProgress() const;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void TickComponent(
@@ -97,6 +103,11 @@ protected:
 	UFUNCTION()
 	void OnRep_GrabAttachmentType();
 
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayGrabSound(
+		FVector_NetQuantize Location,
+		bool bReleased);
+
 	/** 서버가 잡기 입력과 현재 상태를 검사한다. */
 	bool CanStartGrabReach() const;
 
@@ -106,7 +117,8 @@ protected:
 		USkeletalMeshComponent*& OutMesh,
 		FName& OutBoneName,
 		FVector& OutAttachedWorldLocation,
-		ESnowRumbleGrabAttachmentType& OutAttachmentType) const;
+		ESnowRumbleGrabAttachmentType& OutAttachmentType,
+		bool bAllowWorldAttachment) const;
 
 	/** 서버가 현재 손과 대상 Mesh를 물리 constraint로 연결한다. */
 	void AttachGrabConstraint(
@@ -130,7 +142,13 @@ protected:
 	/** 팔 뻗기 목표 위치를 캐릭터 기준으로 계산한다. */
 	FVector BuildHandGrabTargetLocation(ESnowRumbleGrabHand Hand) const;
 
+	/** 실제 Mesh 손 bone/socket 위치를 우선 사용해 잡힌 대상을 끌 기준점을 계산한다. */
+	FVector BuildHandGrabAnchorLocation(ESnowRumbleGrabHand Hand) const;
+
 	ASnowRumbleCharacter* GetOwnerCharacter() const;
+
+	/** 서버 시각을 가져와 잡기 제한과 회복을 같은 시간축으로 계산한다. */
+	float GetCurrentServerTimeSeconds() const;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_IsGrabReaching, Category = "SnowRumble|Grab")
 	bool bIsGrabReaching = false;
@@ -150,6 +168,35 @@ protected:
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Grab")
 	ESnowRumbleGrabHand ActiveGrabHand = ESnowRumbleGrabHand::Right;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Grab")
+	float GrabReachStartedServerTime = 0.0f;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Grab")
+	float GrabAttachmentStartedServerTime = 0.0f;
+
+	/** 현재 잡기 게이지의 저장된 잔량이다. */
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Grab|Limit")
+	float GrabHoldProgress = 1.0f;
+
+	/** 현재 연결을 시작할 때의 게이지 잔량이다. */
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Grab|Limit")
+	float GrabProgressAtAttachmentStart = 1.0f;
+
+	/** 잡기 해제 후 회복을 시작할 서버 시각이다. */
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Grab|Limit")
+	float GrabRecoveryStartedServerTime = 0.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Limit", meta = (ClampMin = "0.0"))
+	float MaximumGrabHoldSeconds = 5.0f;
+
+	/** 잡기 해제 후 게이지가 회복되기 전 대기 시간이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Limit", meta = (ClampMin = "0.0"))
+	float GrabRecoveryDelaySeconds = 1.0f;
+
+	/** 대기 시간이 지난 뒤 게이지가 완전히 회복되는 시간이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Limit", meta = (ClampMin = "0.0"))
+	float GrabRecoverySeconds = 5.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Control Rig", meta = (ClampMin = "0.0"))
 	float GrabReachForwardDistance = 95.0f;
@@ -175,11 +222,41 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Trace", meta = (ClampMin = "0.0"))
 	float GrabTraceForwardDistance = 22.0f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Trace|Debug")
+	bool bDrawGrabTraceDebug = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Trace|Debug", meta = (ClampMin = "0.0"))
+	float GrabTraceDebugDrawSeconds = 0.05f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Trace", meta = (ClampMin = "0.0"))
+	float WorldGrabMinReachHoldSeconds = 0.15f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Trace", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float MinGrabReachAlphaForAttachment = 0.65f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Trace", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float WorldGrabMaxSurfaceNormalZ = 0.35f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Trace")
+	float WorldGrabMinAttachHeightFromActor = -10.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Trace")
+	float WorldGrabMaxAttachHeightFromActor = 180.0f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Socket")
 	FName RightGrabHandBoneName = TEXT("hand_r");
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Socket")
 	FName LeftGrabHandBoneName = TEXT("hand_l");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Audio")
+	TObjectPtr<USoundBase> GrabSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Audio")
+	TObjectPtr<USoundBase> ReleaseGrabSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Audio")
+	TObjectPtr<USoundAttenuation> GrabSoundAttenuation;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0"))
 	float GrabTetherSlackDistance = 18.0f;
@@ -214,6 +291,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0"))
 	float WorldGrabTetherMaxPullSpeed = 620.0f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0"))
+	float WorldGrabTetherMaxUpwardSpeed = 120.0f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float WorldGrabInputVelocityRetention = 0.55f;
 
@@ -225,6 +305,9 @@ protected:
 
 	UPROPERTY(Transient)
 	float CurrentGrabReachAlpha = 0.0f;
+
+	UPROPERTY(Transient)
+	double GrabReachStartedTimeSeconds = 0.0;
 
 	UPROPERTY(Transient)
 	FVector GrabbedActorLocationOffsetFromAttachedPoint = FVector::ZeroVector;

@@ -2,6 +2,7 @@
 
 #include "SnowRumbleGameMode.h"
 
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "Engine/GameInstance.h"
 #include "../Item/GiftBox_C.h"
 #include "../Map/SnowIslandWaterPressureActor_J.h"
@@ -15,12 +16,20 @@
 #include "Engine/TargetPoint.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
+#include "Sound/SoundBase.h"
 #include "SnowRumbleGameState_C.h"
 #include "SnowRumbleMatchSubsystem_C.h"
 #include "SnowRumblePlayerState.h"
 
 namespace
 {
+constexpr const TCHAR* SnowRumblePvpGameModeTravelPath =
+	TEXT("/Game/Game/BP_SnowRumblePVPGameMode.BP_SnowRumblePVPGameMode_C");
+constexpr const TCHAR* SnowRumblePodiumGameModeTravelPath =
+	TEXT("/Game/Game/BP_SnowRumblePodiumGameMode.BP_SnowRumblePodiumGameMode_C");
+constexpr const TCHAR* SnowRumbleLobbyGameModeTravelPath =
+	TEXT("/Game/Game/BP_LobbyGameMode.BP_LobbyGameMode_C");
+
 FVector MakeRandomHorizontalOffset(float Radius)
 {
 	if (Radius <= 0.0f)
@@ -36,6 +45,34 @@ FVector MakeRandomHorizontalOffset(float Radius)
 		FMath::Cos(AngleRadians) * Distance,
 		FMath::Sin(AngleRadians) * Distance,
 		0.0f);
+}
+
+void EnsureSnowRumbleTravelOption(FString& TravelUrl, const TCHAR* Option)
+{
+	if (!TravelUrl.Contains(Option, ESearchCase::IgnoreCase))
+	{
+		TravelUrl += Option;
+	}
+}
+
+void EnsureSnowRumbleTravelOptionValue(
+	FString& TravelUrl,
+	const TCHAR* OptionName,
+	const FString& OptionValue)
+{
+	if (OptionValue.IsEmpty())
+	{
+		return;
+	}
+
+	const FString OptionPrefix = FString::Printf(TEXT("%s="), OptionName);
+	if (!TravelUrl.Contains(OptionPrefix, ESearchCase::IgnoreCase))
+	{
+		TravelUrl += FString::Printf(
+			TEXT("?%s=%s"),
+			OptionName,
+			*OptionValue);
+	}
 }
 }
 
@@ -63,6 +100,8 @@ void ASnowRumbleGameMode::BeginPlay()
 	{
 		SnowRumbleGameState->ApplyMatchStateFromServer(GetMatchSubsystem());
 	}
+
+	BroadcastBackgroundMusic();
 }
 
 void ASnowRumbleGameMode::InitGame(
@@ -78,6 +117,7 @@ void ASnowRumbleGameMode::InitGame(
 		? 0
 		: FMath::Max(0, FCString::Atoi(*ExpectedPlayersOption));
 	bLoadingScreensDismissed = false;
+	bLoadingScreensHidden = false;
 	bStartCountdownStarted = false;
 	bMatchIntroStarted = false;
 	MatchIntroTeamIndex = 0;
@@ -95,6 +135,7 @@ void ASnowRumbleGameMode::PostLogin(APlayerController* NewPlayer)
 
 	BroadcastLoadingProgress();
 	TryDismissLoadingScreens();
+	BroadcastBackgroundMusic();
 }
 
 void ASnowRumbleGameMode::HandleSeamlessTravelPlayer(AController*& C)
@@ -103,6 +144,7 @@ void ASnowRumbleGameMode::HandleSeamlessTravelPlayer(AController*& C)
 
 	BroadcastLoadingProgress();
 	TryDismissLoadingScreens();
+	BroadcastBackgroundMusic();
 }
 
 void ASnowRumbleGameMode::HandleStartingNewPlayer_Implementation(
@@ -112,6 +154,27 @@ void ASnowRumbleGameMode::HandleStartingNewPlayer_Implementation(
 
 	BroadcastLoadingProgress();
 	TryDismissLoadingScreens();
+	BroadcastBackgroundMusic();
+}
+
+void ASnowRumbleGameMode::BroadcastBackgroundMusic() const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
+		It;
+		++It)
+	{
+		if (ASnowRumblePlayerController* PlayerController =
+			Cast<ASnowRumblePlayerController>(It->Get()))
+		{
+			PlayerController->ClientPlayBackgroundMusic(BackgroundMusicSound);
+		}
+	}
 }
 
 void ASnowRumbleGameMode::TryDismissLoadingScreens()
@@ -136,22 +199,6 @@ void ASnowRumbleGameMode::TryDismissLoadingScreens()
 
 	bLoadingScreensDismissed = true;
 	BroadcastLoadingProgress();
-	const bool bShouldPlayMatchIntro = ShouldPlayMatchIntroSequence();
-	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
-		It;
-		++It)
-	{
-		if (ASnowRumblePlayerController* PlayerController =
-			Cast<ASnowRumblePlayerController>(It->Get()))
-		{
-			PlayerController->ClientHideLoadingScreen();
-			if (bShouldPlayMatchIntro)
-			{
-				PlayerController->ClientStartPvpIntroFadeOut(
-					MatchStartCountdownDelaySeconds);
-			}
-		}
-	}
 
 	if (!bStartCountdownStarted)
 	{
@@ -189,6 +236,7 @@ void ASnowRumbleGameMode::StartMatchIntroAfterLoading()
 	}
 
 	bMatchIntroStarted = true;
+	HideLoadingScreensBeforeIntro();
 	if (!ShouldPlayMatchIntroSequence())
 	{
 		StartConfirmedMatchCountdown();
@@ -199,7 +247,7 @@ void ASnowRumbleGameMode::StartMatchIntroAfterLoading()
 	GetActiveRoundTeams(MatchIntroTeams);
 	if (MatchIntroTeams.IsEmpty() || MatchIntroTeamShotSeconds <= 0.0f)
 	{
-		FinishMatchIntroSequence();
+		StartConfirmedMatchCountdown();
 		return;
 	}
 
@@ -282,6 +330,32 @@ void ASnowRumbleGameMode::FinishMatchIntroSequence()
 	StartConfirmedMatchCountdown();
 }
 
+void ASnowRumbleGameMode::HideLoadingScreensBeforeIntro()
+{
+	if (bLoadingScreensHidden)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	bLoadingScreensHidden = true;
+	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
+		It;
+		++It)
+	{
+		if (ASnowRumblePlayerController* PlayerController =
+			Cast<ASnowRumblePlayerController>(It->Get()))
+		{
+			PlayerController->ClientHideLoadingScreen();
+		}
+	}
+}
+
 void ASnowRumbleGameMode::StartConfirmedMatchCountdown()
 {
 	if (ASnowRumbleGameState* SnowRumbleGameState =
@@ -351,7 +425,7 @@ void ASnowRumbleGameMode::RestartPlayerAtPlayerStart(
 	}
 
 	const FTransform SpawnTransform =
-		BuildScatteredPlayerStartTransform(StartSpot);
+		BuildScatteredPlayerStartTransform(NewPlayer, StartSpot);
 	UsedSpawnLocations.Add(SpawnTransform.GetLocation());
 	RestartPlayerAtTransform(NewPlayer, SpawnTransform);
 	BindPawnLifeState(NewPlayer->GetPawn());
@@ -429,6 +503,13 @@ void ASnowRumbleGameMode::EvaluateRoundEndCondition()
 			WinningTeam,
 			MatchSubsystem);
 
+		if (MatchSubsystem
+			&& MatchSubsystem->IsMatchComplete()
+			&& !PodiumTravelUrl.IsEmpty())
+		{
+			PlayWinningTeamEmotes(WinningTeam);
+		}
+
 		if (bStartedTiebreaker)
 		{
 			FTimerHandle TiebreakerTravelTimerHandle;
@@ -463,6 +544,31 @@ void ASnowRumbleGameMode::EvaluateRoundEndCondition()
 	}
 }
 
+void ASnowRumbleGameMode::PlayWinningTeamEmotes(ESnowRumbleTeam WinningTeam) const
+{
+	if (!HasAuthority() || !IsValidRoundTeam(WinningTeam))
+	{
+		return;
+	}
+
+	for (APlayerState* PlayerState : GameState->PlayerArray)
+	{
+		const ASnowRumblePlayerState* SnowRumblePlayerState =
+			Cast<ASnowRumblePlayerState>(PlayerState);
+		if (!SnowRumblePlayerState
+			|| SnowRumblePlayerState->GetLobbyTeam() != WinningTeam)
+		{
+			continue;
+		}
+
+		if (ASnowRumbleCharacter* Character =
+			Cast<ASnowRumbleCharacter>(SnowRumblePlayerState->GetPawn()))
+		{
+			Character->PlayRandomServerDirectedEmote();
+		}
+	}
+}
+
 void ASnowRumbleGameMode::TravelToNextRoundIfNeeded()
 {
 	USnowRumbleMatchSubsystem* MatchSubsystem = GetMatchSubsystem();
@@ -492,10 +598,7 @@ void ASnowRumbleGameMode::TravelToNextRoundIfNeeded()
 			if (ASnowRumblePlayerController* PlayerController =
 				Cast<ASnowRumblePlayerController>(It->Get()))
 			{
-				PlayerController->ClientShowLoadingScreen();
-				PlayerController->ClientUpdateLoadingProgress(
-					0,
-					ExpectedPlayerCount);
+				PlayerController->ClientHideLoadingScreen();
 			}
 		}
 
@@ -526,10 +629,7 @@ void ASnowRumbleGameMode::TravelToTiebreakerRound()
 			if (ASnowRumblePlayerController* PlayerController =
 				Cast<ASnowRumblePlayerController>(It->Get()))
 			{
-				PlayerController->ClientShowLoadingScreen();
-				PlayerController->ClientUpdateLoadingProgress(
-					0,
-					ExpectedPlayerCount);
+				PlayerController->ClientHideLoadingScreen();
 			}
 		}
 
@@ -664,6 +764,7 @@ void ASnowRumbleGameMode::SpawnGiftBox()
 
 	const FVector SpawnLocation =
 		SelectedSpawnPoint->GetActorLocation()
+		+ MakeRandomHorizontalOffset(GiftBoxSpawnScatterRadius)
 		+ FVector::UpVector * GiftBoxSpawnHeightOffset;
 	const FRotator SpawnRotation = SelectedSpawnPoint->GetActorRotation();
 
@@ -745,10 +846,11 @@ void ASnowRumbleGameMode::ReturnToLobbyAfterMatchEnd()
 	}
 
 	FString TravelUrl = LobbyReturnTravelUrl;
-	if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
-	{
-		TravelUrl += TEXT("?listen");
-	}
+	EnsureSnowRumbleTravelOption(TravelUrl, TEXT("?listen"));
+	EnsureSnowRumbleTravelOptionValue(
+		TravelUrl,
+		TEXT("game"),
+		SnowRumbleLobbyGameModeTravelPath);
 
 	MatchSubsystem->ResetPvPMatch();
 	if (UWorld* World = GetWorld())
@@ -768,10 +870,11 @@ void ASnowRumbleGameMode::TravelToPodiumAfterMatchEnd()
 		if (!LobbyReturnTravelUrl.IsEmpty())
 		{
 			FString TravelUrl = LobbyReturnTravelUrl;
-			if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
-			{
-				TravelUrl += TEXT("?listen");
-			}
+			EnsureSnowRumbleTravelOption(TravelUrl, TEXT("?listen"));
+			EnsureSnowRumbleTravelOptionValue(
+				TravelUrl,
+				TEXT("game"),
+				SnowRumbleLobbyGameModeTravelPath);
 			MatchSubsystem->ResetPvPMatch();
 			if (UWorld* World = GetWorld())
 			{
@@ -782,27 +885,31 @@ void ASnowRumbleGameMode::TravelToPodiumAfterMatchEnd()
 	}
 
 	FString TravelUrl = PodiumTravelUrl;
-	if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
-	{
-		TravelUrl += TEXT("?listen");
-	}
+	EnsureSnowRumbleTravelOption(TravelUrl, TEXT("?listen"));
+	EnsureSnowRumbleTravelOptionValue(
+		TravelUrl,
+		TEXT("game"),
+		SnowRumblePodiumGameModeTravelPath);
 	if (!TravelUrl.Contains(TEXT("ExpectedPlayers="), ESearchCase::IgnoreCase))
 	{
-		TravelUrl += FString::Printf(
-			TEXT("%sExpectedPlayers=%d"),
-			TravelUrl.Contains(TEXT("?")) ? TEXT("&") : TEXT("?"),
-			ExpectedPlayerCount);
+		EnsureSnowRumbleTravelOptionValue(
+			TravelUrl,
+			TEXT("ExpectedPlayers"),
+			FString::FromInt(ExpectedPlayerCount));
 	}
 
 	// Keep match state until podium placement completes.
 	if (UWorld* World = GetWorld())
 	{
-		for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+		for (FConstPlayerControllerIterator It =
+			World->GetPlayerControllerIterator();
+			It;
+			++It)
 		{
-			if (ASnowRumblePlayerController* PlayerController = Cast<ASnowRumblePlayerController>(It->Get()))
+			if (ASnowRumblePlayerController* PlayerController =
+				Cast<ASnowRumblePlayerController>(It->Get()))
 			{
-				PlayerController->ClientShowLoadingScreen();
-				PlayerController->ClientUpdateLoadingProgress(0, ExpectedPlayerCount);
+				PlayerController->ClientHideLoadingScreen();
 			}
 		}
 
@@ -1029,7 +1136,7 @@ bool ASnowRumbleGameMode::IsValidRoundTeam(ESnowRumbleTeam Team) const
 	case ESnowRumbleTeam::Purple:
 	case ESnowRumbleTeam::Pink:
 	case ESnowRumbleTeam::Blue:
-	case ESnowRumbleTeam::White:
+	case ESnowRumbleTeam::Orange:
 		return true;
 	default:
 		return false;
@@ -1071,7 +1178,7 @@ void ASnowRumbleGameMode::GetActiveRoundTeams(
 		ESnowRumbleTeam::Yellow,
 		ESnowRumbleTeam::Purple,
 		ESnowRumbleTeam::Pink,
-		ESnowRumbleTeam::White
+		ESnowRumbleTeam::Orange
 	};
 	for (const ESnowRumbleTeam Team : TeamOrder)
 	{
@@ -1086,15 +1193,17 @@ FString ASnowRumbleGameMode::BuildPvPTravelUrl(
 	const FString& BaseTravelUrl) const
 {
 	FString TravelUrl = BaseTravelUrl;
-	if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
-	{
-		TravelUrl += TEXT("?listen");
-	}
+	EnsureSnowRumbleTravelOption(TravelUrl, TEXT("?listen"));
+	EnsureSnowRumbleTravelOptionValue(
+		TravelUrl,
+		TEXT("game"),
+		SnowRumblePvpGameModeTravelPath);
 	if (ExpectedPlayerCount > 0)
 	{
-		TravelUrl += FString::Printf(
-			TEXT("?ExpectedPlayers=%d"),
-			ExpectedPlayerCount);
+		EnsureSnowRumbleTravelOptionValue(
+			TravelUrl,
+			TEXT("ExpectedPlayers"),
+			FString::FromInt(ExpectedPlayerCount));
 	}
 	return TravelUrl;
 }
@@ -1132,8 +1241,15 @@ USnowRumbleMatchSubsystem* ASnowRumbleGameMode::GetMatchSubsystem() const
 }
 
 FTransform ASnowRumbleGameMode::BuildScatteredPlayerStartTransform(
+	const AController* NewPlayer,
 	const AActor* StartSpot) const
 {
+	FTransform TeammateSpawnTransform;
+	if (TryBuildTeammateSpawnTransform(NewPlayer, TeammateSpawnTransform))
+	{
+		return TeammateSpawnTransform;
+	}
+
 	const FVector StartLocation = StartSpot->GetActorLocation();
 	const FRotator StartRotation = StartSpot->GetActorRotation();
 
@@ -1167,6 +1283,76 @@ FTransform ASnowRumbleGameMode::BuildScatteredPlayerStartTransform(
 	}
 
 	return FTransform(StartRotation, ResolvedStartLocation);
+}
+
+bool ASnowRumbleGameMode::TryBuildTeammateSpawnTransform(
+	const AController* NewPlayer,
+	FTransform& OutSpawnTransform) const
+{
+	if (!NewPlayer || TeammateSpawnRadius <= 0.0f)
+	{
+		return false;
+	}
+
+	const ASnowRumblePlayerState* NewPlayerState =
+		NewPlayer->GetPlayerState<ASnowRumblePlayerState>();
+	if (!NewPlayerState || NewPlayerState->GetLobbyTeam() == ESnowRumbleTeam::None)
+	{
+		return false;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	TArray<ASnowRumbleCharacter*> Teammates;
+	for (TActorIterator<ASnowRumbleCharacter> It(World); It; ++It)
+	{
+		ASnowRumbleCharacter* Character = *It;
+		const ASnowRumblePlayerState* TeammateState = Character
+			? Character->GetPlayerState<ASnowRumblePlayerState>()
+			: nullptr;
+		if (TeammateState
+			&& TeammateState->GetLobbyTeam() == NewPlayerState->GetLobbyTeam())
+		{
+			Teammates.Add(Character);
+		}
+	}
+
+	if (Teammates.IsEmpty())
+	{
+		return false;
+	}
+
+	const int32 Attempts = FMath::Max(1, TeammateSpawnAttempts);
+	for (int32 AttemptIndex = 0; AttemptIndex < Attempts; ++AttemptIndex)
+	{
+		const ASnowRumbleCharacter* Teammate = Teammates[
+			FMath::RandRange(0, Teammates.Num() - 1)];
+		if (!Teammate)
+		{
+			continue;
+		}
+
+		const FVector RawCandidateLocation =
+			Teammate->GetActorLocation()
+			+ MakeRandomHorizontalOffset(TeammateSpawnRadius);
+		FVector CandidateLocation = RawCandidateLocation;
+		if (TryResolveSpawnLocationOnGround(
+				RawCandidateLocation,
+				CandidateLocation)
+			&& IsSpawnCapsuleClear(CandidateLocation))
+		{
+			OutSpawnTransform = FTransform(
+				Teammate->GetActorRotation(),
+				CandidateLocation);
+			return true;
+		}
+	}
+
+	return false;
 }
 
 bool ASnowRumbleGameMode::TryResolveSpawnLocationOnGround(

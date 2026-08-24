@@ -7,10 +7,13 @@
 #include "SnowballItem.generated.h"
 
 class ASnowRumbleCharacter;
+class UAudioComponent;
 class UPrimitiveComponent;
 class UProjectileMovementComponent;
 class USceneComponent;
+class USoundAttenuation;
 class USphereComponent;
+class USoundBase;
 
 UENUM(BlueprintType)
 enum class ESnowballItemState : uint8
@@ -36,11 +39,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
 	bool CanBePickedUp() const;
 
-	/** 서버가 장착된 눈덩이를 지정한 방향·속도·충전량으로 투척한다. */
+	/** 서버가 장착된 눈덩이를 지정한 방향·속도·충전량·피해 배율로 투척한다. */
 	bool Throw(
 		const FVector& ThrowDirection,
 		float ThrowSpeed,
-		float ThrowChargeProgress);
+		float ThrowChargeProgress,
+		float ThrowDamageMultiplier = 1.0f);
 
 	/** 서버가 장착된 눈덩이를 현재 손 위치에서 바닥 상태로 놓는다. */
 	bool DropToGround();
@@ -50,6 +54,12 @@ public:
 
 	/** 서버가 굴리기 상태를 끝내고 바닥 물리를 복구한다. */
 	bool StopRolling();
+
+	/** 서버가 굴리기 시작 루프음을 모든 참가자에게 전달한다. */
+	void PlayRollingSound();
+
+	/** 서버가 굴리기 종료 루프음을 모든 참가자에게 전달한다. */
+	void StopRollingSound();
 
 	/** 서버가 굴리기 충돌 프록시의 확정 위치로 눈덩이를 무충돌 이동한다. */
 	void MoveRollingSnowball(const FVector& TargetLocation);
@@ -137,11 +147,39 @@ protected:
 		FVector_NetQuantize ImpactPoint,
 		FVector_NetQuantizeNormal ImpactNormal);
 
+	/** 서버가 굴리기 시작한 눈덩이의 효과음을 모든 참가자 위치에서 재생한다. */
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayRollingSound(FVector_NetQuantize Location);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastStopRollingSound();
+
 	/** Blueprint에서 실제 충돌 Niagara, 파티클과 사운드를 재생한다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Snowball|Impact")
 	void PlayImpactEffect(
 		FVector ImpactPoint,
 		FVector ImpactNormal);
+
+	/** 충돌 시 기본 사운드를 재생한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact")
+	TObjectPtr<USoundBase> ImpactSound;
+
+	/** 최대 성장 큰 눈덩이 충돌에 사용할 별도 폭발음이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact|Large")
+	TObjectPtr<USoundBase> LargeImpactSound;
+
+	/** 충돌 사운드가 월드 거리감과 공간감을 갖도록 적용할 attenuation 설정이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact")
+	TObjectPtr<USoundAttenuation> ImpactSoundAttenuation;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling|Audio")
+	TObjectPtr<USoundBase> RollingSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling|Audio")
+	TObjectPtr<USoundAttenuation> RollingSoundAttenuation;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UAudioComponent> RollingAudioComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball")
 	TObjectPtr<USphereComponent> CollisionComponent;
@@ -157,6 +195,10 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float MinimumDamageMultiplier = 0.4f;
+
+	/** 눈덩이 성장에 따라 적용할 최대 피해 배율이다. 성장 0에서는 1배로 시작한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact|Growth", meta = (ClampMin = "1.0"))
+	float MaximumGrowthDamageMultiplier = 3.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact", meta = (ClampMin = "0.0"))
 	float SmallSnowballMinimumKnockback = 300.0f;
@@ -214,6 +256,7 @@ protected:
 	float AccumulatedRollingDistance = 0.0f;
 	bool bHasProcessedThrownImpact = false;
 	float CurrentThrowChargeProgress = 0.0f;
+	float CurrentThrowDamageMultiplier = 1.0f;
 
 	TSet<TWeakObjectPtr<AActor>> TemporarilyIgnoredActors;
 	ECollisionResponse CachedPawnCollisionResponse = ECR_Block;

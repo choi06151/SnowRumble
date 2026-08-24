@@ -5,6 +5,7 @@
 #include "Components/Button.h"
 #include "Components/Border.h"
 #include "Components/Image.h"
+#include "Components/Slider.h"
 #include "Components/WidgetSwitcher.h"
 #include "CustomizationPlayerController_C.h"
 #include "InputCoreTypes.h"
@@ -95,7 +96,9 @@ void UCustomizationWidget::NativeConstruct()
 
 	SetIsFocusable(true);
 	BindCustomizationButtons();
+	ApplyPaletteButtonColors();
 	SetCustomizationPage(CurrentCustomizationPage);
+	RefreshBrushSizeSlider();
 	RefreshPaintBrushPreview();
 }
 
@@ -113,6 +116,7 @@ void UCustomizationWidget::NativeTick(
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
 	RefreshPaintBrushPreview();
+	RefreshBrushSizeSlider();
 }
 
 FReply UCustomizationWidget::NativeOnKeyDown(
@@ -226,6 +230,194 @@ void UCustomizationWidget::HandleWhiteBrushColorButtonClicked()
 		WhiteBrushColorButton,
 		FLinearColor::White);
 }
+void UCustomizationWidget::HandleLightRedBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		LightRedBrushColorButton,
+		FLinearColor(1.0f, 0.52f, 0.46f, 1.0f));
+}
+
+void UCustomizationWidget::HandleDarkRedBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		DarkRedBrushColorButton,
+		FLinearColor(0.78f, 0.02f, 0.02f, 1.0f));
+}
+
+void UCustomizationWidget::HandleSoftRedBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		SoftRedBrushColorButton,
+		FLinearColor(1.0f, 0.28f, 0.20f, 1.0f));
+}
+
+void UCustomizationWidget::HandleLightOrangeBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		LightOrangeBrushColorButton,
+		FLinearColor(1.0f, 0.76f, 0.42f, 1.0f));
+}
+
+void UCustomizationWidget::HandleDarkOrangeBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		DarkOrangeBrushColorButton,
+		FLinearColor(0.82f, 0.22f, 0.01f, 1.0f));
+}
+
+void UCustomizationWidget::HandleSoftOrangeBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		SoftOrangeBrushColorButton,
+		FLinearColor(1.0f, 0.62f, 0.20f, 1.0f));
+}
+
+void UCustomizationWidget::HandleLightYellowBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		LightYellowBrushColorButton,
+		FLinearColor(1.0f, 0.96f, 0.58f, 1.0f));
+}
+
+void UCustomizationWidget::HandleDarkYellowBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		DarkYellowBrushColorButton,
+		FLinearColor(0.82f, 0.68f, 0.0f, 1.0f));
+}
+
+void UCustomizationWidget::HandleSoftYellowBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		SoftYellowBrushColorButton,
+		FLinearColor(1.0f, 0.98f, 0.38f, 1.0f));
+}
+
+void UCustomizationWidget::HandleLightGreenBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		LightGreenBrushColorButton,
+		FLinearColor(0.46f, 1.0f, 0.54f, 1.0f));
+}
+
+void UCustomizationWidget::HandleDarkGreenBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		DarkGreenBrushColorButton,
+		FLinearColor(0.02f, 0.58f, 0.10f, 1.0f));
+}
+
+void UCustomizationWidget::HandleSoftGreenBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		SoftGreenBrushColorButton,
+		FLinearColor(0.30f, 1.0f, 0.42f, 1.0f));
+}
+
+void UCustomizationWidget::HandleLightBlueBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		LightBlueBrushColorButton,
+		FLinearColor(0.52f, 0.88f, 1.0f, 1.0f));
+}
+
+void UCustomizationWidget::HandleDarkBlueBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		DarkBlueBrushColorButton,
+		FLinearColor(0.0f, 0.38f, 0.68f, 1.0f));
+}
+
+void UCustomizationWidget::HandleSoftBlueBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		SoftBlueBrushColorButton,
+		FLinearColor(0.22f, 0.82f, 1.0f, 1.0f));
+}
+
+void UCustomizationWidget::HandleLightIndigoBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		LightIndigoBrushColorButton,
+		FLinearColor(0.78f, 0.62f, 1.0f, 1.0f));
+}
+
+void UCustomizationWidget::HandleDarkIndigoBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		DarkIndigoBrushColorButton,
+		FLinearColor(0.22f, 0.02f, 0.62f, 1.0f));
+}
+
+void UCustomizationWidget::HandleSoftIndigoBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		SoftIndigoBrushColorButton,
+		FLinearColor(0.62f, 0.34f, 1.0f, 1.0f));
+}
+
+void UCustomizationWidget::HandleLightPurpleBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		LightPurpleBrushColorButton,
+		FLinearColor(0.86f, 0.60f, 1.0f, 1.0f));
+}
+
+void UCustomizationWidget::HandleDarkPurpleBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		DarkPurpleBrushColorButton,
+		FLinearColor(0.38f, 0.12f, 0.92f, 1.0f));
+}
+
+void UCustomizationWidget::HandleSoftPurpleBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		SoftPurpleBrushColorButton,
+		FLinearColor(0.70f, 0.40f, 1.0f, 1.0f));
+}
+
+void UCustomizationWidget::HandlePinkBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		PinkBrushColorButton,
+		FLinearColor(1.0f, 0.18f, 0.55f, 1.0f));
+}
+
+void UCustomizationWidget::HandleCyanBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		CyanBrushColorButton,
+		FLinearColor(0.05f, 0.75f, 0.85f, 1.0f));
+}
+
+void UCustomizationWidget::HandleBrownBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		BrownBrushColorButton,
+		FLinearColor(0.42f, 0.18f, 0.05f, 1.0f));
+}
+
+void UCustomizationWidget::HandleDarkGrayBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		DarkGrayBrushColorButton,
+		FLinearColor(0.18f, 0.18f, 0.18f, 1.0f));
+}
+
+void UCustomizationWidget::HandleGrayBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		GrayBrushColorButton,
+		FLinearColor(0.50f, 0.50f, 0.50f, 1.0f));
+}
+
+void UCustomizationWidget::HandleLightGrayBrushColorButtonClicked()
+{
+	SetPaintBrushColorFromPaletteButton(
+		LightGrayBrushColorButton,
+		FLinearColor(0.78f, 0.78f, 0.78f, 1.0f));
+}
 
 void UCustomizationWidget::HandleBrushSizeButtonPressed()
 {
@@ -242,6 +434,15 @@ void UCustomizationWidget::HandleBrushSizeButtonReleased()
 	if (CustomizationPlayerController)
 	{
 		CustomizationPlayerController->StopAdjustPaintBrushSize();
+	}
+}
+
+void UCustomizationWidget::HandleBrushSizeSliderValueChanged(float NewValue)
+{
+	if (CustomizationPlayerController)
+	{
+		CustomizationPlayerController->SetPaintBrushSizeFromNormalizedValue(
+			NewValue);
 	}
 }
 
@@ -414,6 +615,168 @@ void UCustomizationWidget::BindCustomizationButtons()
 			this,
 			&UCustomizationWidget::HandleWhiteBrushColorButtonClicked);
 	}
+	if (LightRedBrushColorButton)
+	{
+		LightRedBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleLightRedBrushColorButtonClicked);
+	}
+	if (DarkRedBrushColorButton)
+	{
+		DarkRedBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleDarkRedBrushColorButtonClicked);
+	}
+	if (SoftRedBrushColorButton)
+	{
+		SoftRedBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleSoftRedBrushColorButtonClicked);
+	}
+	if (LightOrangeBrushColorButton)
+	{
+		LightOrangeBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleLightOrangeBrushColorButtonClicked);
+	}
+	if (DarkOrangeBrushColorButton)
+	{
+		DarkOrangeBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleDarkOrangeBrushColorButtonClicked);
+	}
+	if (SoftOrangeBrushColorButton)
+	{
+		SoftOrangeBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleSoftOrangeBrushColorButtonClicked);
+	}
+	if (LightYellowBrushColorButton)
+	{
+		LightYellowBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleLightYellowBrushColorButtonClicked);
+	}
+	if (DarkYellowBrushColorButton)
+	{
+		DarkYellowBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleDarkYellowBrushColorButtonClicked);
+	}
+	if (SoftYellowBrushColorButton)
+	{
+		SoftYellowBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleSoftYellowBrushColorButtonClicked);
+	}
+	if (LightGreenBrushColorButton)
+	{
+		LightGreenBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleLightGreenBrushColorButtonClicked);
+	}
+	if (DarkGreenBrushColorButton)
+	{
+		DarkGreenBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleDarkGreenBrushColorButtonClicked);
+	}
+	if (SoftGreenBrushColorButton)
+	{
+		SoftGreenBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleSoftGreenBrushColorButtonClicked);
+	}
+	if (LightBlueBrushColorButton)
+	{
+		LightBlueBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleLightBlueBrushColorButtonClicked);
+	}
+	if (DarkBlueBrushColorButton)
+	{
+		DarkBlueBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleDarkBlueBrushColorButtonClicked);
+	}
+	if (SoftBlueBrushColorButton)
+	{
+		SoftBlueBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleSoftBlueBrushColorButtonClicked);
+	}
+	if (LightIndigoBrushColorButton)
+	{
+		LightIndigoBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleLightIndigoBrushColorButtonClicked);
+	}
+	if (DarkIndigoBrushColorButton)
+	{
+		DarkIndigoBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleDarkIndigoBrushColorButtonClicked);
+	}
+	if (SoftIndigoBrushColorButton)
+	{
+		SoftIndigoBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleSoftIndigoBrushColorButtonClicked);
+	}
+	if (LightPurpleBrushColorButton)
+	{
+		LightPurpleBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleLightPurpleBrushColorButtonClicked);
+	}
+	if (DarkPurpleBrushColorButton)
+	{
+		DarkPurpleBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleDarkPurpleBrushColorButtonClicked);
+	}
+	if (SoftPurpleBrushColorButton)
+	{
+		SoftPurpleBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleSoftPurpleBrushColorButtonClicked);
+	}
+	if (PinkBrushColorButton)
+	{
+		PinkBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandlePinkBrushColorButtonClicked);
+	}
+	if (CyanBrushColorButton)
+	{
+		CyanBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleCyanBrushColorButtonClicked);
+	}
+	if (BrownBrushColorButton)
+	{
+		BrownBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleBrownBrushColorButtonClicked);
+	}
+	if (DarkGrayBrushColorButton)
+	{
+		DarkGrayBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleDarkGrayBrushColorButtonClicked);
+	}
+	if (GrayBrushColorButton)
+	{
+		GrayBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleGrayBrushColorButtonClicked);
+	}
+	if (LightGrayBrushColorButton)
+	{
+		LightGrayBrushColorButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleLightGrayBrushColorButtonClicked);
+	}
 	if (BrushSizeButton)
 	{
 		BrushSizeButton->OnPressed.AddUniqueDynamic(
@@ -422,6 +785,12 @@ void UCustomizationWidget::BindCustomizationButtons()
 		BrushSizeButton->OnReleased.AddUniqueDynamic(
 			this,
 			&UCustomizationWidget::HandleBrushSizeButtonReleased);
+	}
+	if (BrushSizeSlider)
+	{
+		BrushSizeSlider->OnValueChanged.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleBrushSizeSliderValueChanged);
 	}
 	if (FillBodyColorButton)
 	{
@@ -508,10 +877,41 @@ void UCustomizationWidget::UnbindCustomizationButtons()
 	UnbindPaletteColorButton(PurpleBrushColorButton);
 	UnbindPaletteColorButton(BlackBrushColorButton);
 	UnbindPaletteColorButton(WhiteBrushColorButton);
+	UnbindPaletteColorButton(LightRedBrushColorButton);
+	UnbindPaletteColorButton(DarkRedBrushColorButton);
+	UnbindPaletteColorButton(SoftRedBrushColorButton);
+	UnbindPaletteColorButton(LightOrangeBrushColorButton);
+	UnbindPaletteColorButton(DarkOrangeBrushColorButton);
+	UnbindPaletteColorButton(SoftOrangeBrushColorButton);
+	UnbindPaletteColorButton(LightYellowBrushColorButton);
+	UnbindPaletteColorButton(DarkYellowBrushColorButton);
+	UnbindPaletteColorButton(SoftYellowBrushColorButton);
+	UnbindPaletteColorButton(LightGreenBrushColorButton);
+	UnbindPaletteColorButton(DarkGreenBrushColorButton);
+	UnbindPaletteColorButton(SoftGreenBrushColorButton);
+	UnbindPaletteColorButton(LightBlueBrushColorButton);
+	UnbindPaletteColorButton(DarkBlueBrushColorButton);
+	UnbindPaletteColorButton(SoftBlueBrushColorButton);
+	UnbindPaletteColorButton(LightIndigoBrushColorButton);
+	UnbindPaletteColorButton(DarkIndigoBrushColorButton);
+	UnbindPaletteColorButton(SoftIndigoBrushColorButton);
+	UnbindPaletteColorButton(LightPurpleBrushColorButton);
+	UnbindPaletteColorButton(DarkPurpleBrushColorButton);
+	UnbindPaletteColorButton(SoftPurpleBrushColorButton);
+	UnbindPaletteColorButton(PinkBrushColorButton);
+	UnbindPaletteColorButton(CyanBrushColorButton);
+	UnbindPaletteColorButton(BrownBrushColorButton);
+	UnbindPaletteColorButton(DarkGrayBrushColorButton);
+	UnbindPaletteColorButton(GrayBrushColorButton);
+	UnbindPaletteColorButton(LightGrayBrushColorButton);
 	if (BrushSizeButton)
 	{
 		BrushSizeButton->OnPressed.RemoveAll(this);
 		BrushSizeButton->OnReleased.RemoveAll(this);
+	}
+	if (BrushSizeSlider)
+	{
+		BrushSizeSlider->OnValueChanged.RemoveAll(this);
 	}
 	if (FillBodyColorButton)
 	{
@@ -565,6 +965,82 @@ void UCustomizationWidget::RefreshPaintBrushPreview()
 		BrushColorPreviewImage->SetColorAndOpacity(CurrentBrushColor);
 	}
 	RefreshPaletteButtonSelection();
+}
+
+void UCustomizationWidget::ApplyPaletteButtonColors()
+{
+	ApplyPaletteButtonColor(RedBrushColorButton, FLinearColor::Red);
+	ApplyPaletteButtonColor(OrangeBrushColorButton, FLinearColor(1.0f, 0.45f, 0.0f, 1.0f));
+	ApplyPaletteButtonColor(YellowBrushColorButton, FLinearColor::Yellow);
+	ApplyPaletteButtonColor(GreenBrushColorButton, FLinearColor::Green);
+	ApplyPaletteButtonColor(BlueBrushColorButton, FLinearColor::Blue);
+	ApplyPaletteButtonColor(IndigoBrushColorButton, FLinearColor(0.25f, 0.0f, 0.55f, 1.0f));
+	ApplyPaletteButtonColor(PurpleBrushColorButton, FLinearColor(0.55f, 0.0f, 1.0f, 1.0f));
+	ApplyPaletteButtonColor(BlackBrushColorButton, FLinearColor::Black);
+	ApplyPaletteButtonColor(WhiteBrushColorButton, FLinearColor::White);
+	ApplyPaletteButtonColor(LightRedBrushColorButton, FLinearColor(1.0f, 0.52f, 0.46f, 1.0f));
+	ApplyPaletteButtonColor(DarkRedBrushColorButton, FLinearColor(0.78f, 0.02f, 0.02f, 1.0f));
+	ApplyPaletteButtonColor(SoftRedBrushColorButton, FLinearColor(1.0f, 0.28f, 0.20f, 1.0f));
+	ApplyPaletteButtonColor(LightOrangeBrushColorButton, FLinearColor(1.0f, 0.76f, 0.42f, 1.0f));
+	ApplyPaletteButtonColor(DarkOrangeBrushColorButton, FLinearColor(0.82f, 0.22f, 0.01f, 1.0f));
+	ApplyPaletteButtonColor(SoftOrangeBrushColorButton, FLinearColor(1.0f, 0.62f, 0.20f, 1.0f));
+	ApplyPaletteButtonColor(LightYellowBrushColorButton, FLinearColor(1.0f, 0.96f, 0.58f, 1.0f));
+	ApplyPaletteButtonColor(DarkYellowBrushColorButton, FLinearColor(0.82f, 0.68f, 0.0f, 1.0f));
+	ApplyPaletteButtonColor(SoftYellowBrushColorButton, FLinearColor(1.0f, 0.98f, 0.38f, 1.0f));
+	ApplyPaletteButtonColor(LightGreenBrushColorButton, FLinearColor(0.46f, 1.0f, 0.54f, 1.0f));
+	ApplyPaletteButtonColor(DarkGreenBrushColorButton, FLinearColor(0.02f, 0.58f, 0.10f, 1.0f));
+	ApplyPaletteButtonColor(SoftGreenBrushColorButton, FLinearColor(0.30f, 1.0f, 0.42f, 1.0f));
+	ApplyPaletteButtonColor(LightBlueBrushColorButton, FLinearColor(0.52f, 0.88f, 1.0f, 1.0f));
+	ApplyPaletteButtonColor(DarkBlueBrushColorButton, FLinearColor(0.0f, 0.38f, 0.68f, 1.0f));
+	ApplyPaletteButtonColor(SoftBlueBrushColorButton, FLinearColor(0.22f, 0.82f, 1.0f, 1.0f));
+	ApplyPaletteButtonColor(LightIndigoBrushColorButton, FLinearColor(0.78f, 0.62f, 1.0f, 1.0f));
+	ApplyPaletteButtonColor(DarkIndigoBrushColorButton, FLinearColor(0.22f, 0.02f, 0.62f, 1.0f));
+	ApplyPaletteButtonColor(SoftIndigoBrushColorButton, FLinearColor(0.62f, 0.34f, 1.0f, 1.0f));
+	ApplyPaletteButtonColor(LightPurpleBrushColorButton, FLinearColor(0.86f, 0.60f, 1.0f, 1.0f));
+	ApplyPaletteButtonColor(DarkPurpleBrushColorButton, FLinearColor(0.38f, 0.12f, 0.92f, 1.0f));
+	ApplyPaletteButtonColor(SoftPurpleBrushColorButton, FLinearColor(0.70f, 0.40f, 1.0f, 1.0f));
+	ApplyPaletteButtonColor(PinkBrushColorButton, FLinearColor(1.0f, 0.18f, 0.55f, 1.0f));
+	ApplyPaletteButtonColor(CyanBrushColorButton, FLinearColor(0.05f, 0.75f, 0.85f, 1.0f));
+	ApplyPaletteButtonColor(BrownBrushColorButton, FLinearColor(0.42f, 0.18f, 0.05f, 1.0f));
+	ApplyPaletteButtonColor(DarkGrayBrushColorButton, FLinearColor(0.18f, 0.18f, 0.18f, 1.0f));
+	ApplyPaletteButtonColor(GrayBrushColorButton, FLinearColor(0.50f, 0.50f, 0.50f, 1.0f));
+	ApplyPaletteButtonColor(LightGrayBrushColorButton, FLinearColor(0.78f, 0.78f, 0.78f, 1.0f));
+}
+
+void UCustomizationWidget::ApplyPaletteButtonColor(
+	UButton* Button,
+	FLinearColor Color)
+{
+	if (!Button)
+	{
+		return;
+	}
+
+	FButtonStyle Style = Button->GetStyle();
+	FLinearColor HoverColor = Color;
+	HoverColor.R = FMath::Min(HoverColor.R * 1.1f, 1.0f);
+	HoverColor.G = FMath::Min(HoverColor.G * 1.1f, 1.0f);
+	HoverColor.B = FMath::Min(HoverColor.B * 1.1f, 1.0f);
+	FLinearColor PressedColor = Color * 0.8f;
+	PressedColor.A = Color.A;
+	FLinearColor DisabledColor = Color * 0.5f;
+	DisabledColor.A = Color.A;
+	Style.Normal.TintColor = Color;
+	Style.Hovered.TintColor = HoverColor;
+	Style.Pressed.TintColor = PressedColor;
+	Style.Disabled.TintColor = DisabledColor;
+	Button->SetStyle(Style);
+	Button->SetBackgroundColor(FLinearColor::White);
+	DefaultPaletteButtonStyles.Add(Button, Style);
+}
+
+void UCustomizationWidget::RefreshBrushSizeSlider()
+{
+	if (BrushSizeSlider && CustomizationPlayerController)
+	{
+		BrushSizeSlider->SetValue(
+			CustomizationPlayerController->GetPaintBrushSizeNormalizedValue());
+	}
 }
 
 void UCustomizationWidget::SetPaintBrushColorFromPalette(
@@ -687,6 +1163,168 @@ void UCustomizationWidget::RefreshPaletteButtonSelection()
 			GetPaletteButtonBrushColor(
 				WhiteBrushColorButton,
 				FLinearColor::White)));
+	SetButtonPressedVisual(
+		LightRedBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				LightRedBrushColorButton,
+				FLinearColor(1.0f, 0.52f, 0.46f, 1.0f))));
+	SetButtonPressedVisual(
+		DarkRedBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				DarkRedBrushColorButton,
+				FLinearColor(0.78f, 0.02f, 0.02f, 1.0f))));
+	SetButtonPressedVisual(
+		SoftRedBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				SoftRedBrushColorButton,
+				FLinearColor(1.0f, 0.28f, 0.20f, 1.0f))));
+	SetButtonPressedVisual(
+		LightOrangeBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				LightOrangeBrushColorButton,
+				FLinearColor(1.0f, 0.76f, 0.42f, 1.0f))));
+	SetButtonPressedVisual(
+		DarkOrangeBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				DarkOrangeBrushColorButton,
+				FLinearColor(0.82f, 0.22f, 0.01f, 1.0f))));
+	SetButtonPressedVisual(
+		SoftOrangeBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				SoftOrangeBrushColorButton,
+				FLinearColor(1.0f, 0.62f, 0.20f, 1.0f))));
+	SetButtonPressedVisual(
+		LightYellowBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				LightYellowBrushColorButton,
+				FLinearColor(1.0f, 0.96f, 0.58f, 1.0f))));
+	SetButtonPressedVisual(
+		DarkYellowBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				DarkYellowBrushColorButton,
+				FLinearColor(0.82f, 0.68f, 0.0f, 1.0f))));
+	SetButtonPressedVisual(
+		SoftYellowBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				SoftYellowBrushColorButton,
+				FLinearColor(1.0f, 0.98f, 0.38f, 1.0f))));
+	SetButtonPressedVisual(
+		LightGreenBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				LightGreenBrushColorButton,
+				FLinearColor(0.46f, 1.0f, 0.54f, 1.0f))));
+	SetButtonPressedVisual(
+		DarkGreenBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				DarkGreenBrushColorButton,
+				FLinearColor(0.02f, 0.58f, 0.10f, 1.0f))));
+	SetButtonPressedVisual(
+		SoftGreenBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				SoftGreenBrushColorButton,
+				FLinearColor(0.30f, 1.0f, 0.42f, 1.0f))));
+	SetButtonPressedVisual(
+		LightBlueBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				LightBlueBrushColorButton,
+				FLinearColor(0.52f, 0.88f, 1.0f, 1.0f))));
+	SetButtonPressedVisual(
+		DarkBlueBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				DarkBlueBrushColorButton,
+				FLinearColor(0.0f, 0.38f, 0.68f, 1.0f))));
+	SetButtonPressedVisual(
+		SoftBlueBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				SoftBlueBrushColorButton,
+				FLinearColor(0.22f, 0.82f, 1.0f, 1.0f))));
+	SetButtonPressedVisual(
+		LightIndigoBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				LightIndigoBrushColorButton,
+				FLinearColor(0.78f, 0.62f, 1.0f, 1.0f))));
+	SetButtonPressedVisual(
+		DarkIndigoBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				DarkIndigoBrushColorButton,
+				FLinearColor(0.22f, 0.02f, 0.62f, 1.0f))));
+	SetButtonPressedVisual(
+		SoftIndigoBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				SoftIndigoBrushColorButton,
+				FLinearColor(0.62f, 0.34f, 1.0f, 1.0f))));
+	SetButtonPressedVisual(
+		LightPurpleBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				LightPurpleBrushColorButton,
+				FLinearColor(0.86f, 0.60f, 1.0f, 1.0f))));
+	SetButtonPressedVisual(
+		DarkPurpleBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				DarkPurpleBrushColorButton,
+				FLinearColor(0.38f, 0.12f, 0.92f, 1.0f))));
+	SetButtonPressedVisual(
+		SoftPurpleBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				SoftPurpleBrushColorButton,
+				FLinearColor(0.70f, 0.40f, 1.0f, 1.0f))));
+	SetButtonPressedVisual(
+		PinkBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				PinkBrushColorButton,
+				FLinearColor(1.0f, 0.18f, 0.55f, 1.0f))));
+	SetButtonPressedVisual(
+		CyanBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				CyanBrushColorButton,
+				FLinearColor(0.05f, 0.75f, 0.85f, 1.0f))));
+	SetButtonPressedVisual(
+		BrownBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				BrownBrushColorButton,
+				FLinearColor(0.42f, 0.18f, 0.05f, 1.0f))));
+	SetButtonPressedVisual(
+		DarkGrayBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				DarkGrayBrushColorButton,
+				FLinearColor(0.18f, 0.18f, 0.18f, 1.0f))));
+	SetButtonPressedVisual(
+		GrayBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				GrayBrushColorButton,
+				FLinearColor(0.50f, 0.50f, 0.50f, 1.0f))));
+	SetButtonPressedVisual(
+		LightGrayBrushColorButton,
+		IsSameColor(
+			GetPaletteButtonBrushColor(
+				LightGrayBrushColorButton,
+				FLinearColor(0.78f, 0.78f, 0.78f, 1.0f))));
 }
 
 void UCustomizationWidget::SetButtonPressedVisual(

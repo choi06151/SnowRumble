@@ -9,6 +9,7 @@
 
 class USnowRumbleHealthComponent;
 class ACampfire;
+class ASnowRumbleCharacter;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGiftItemEffectsChanged);
 
@@ -30,6 +31,17 @@ public:
 	/** 일반 핫팩을 장착 중인지 반환한다. 핫팩은 1개까지만 장착된다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Item|Effect")
 	bool HasHotPack() const;
+
+	/** 황금 핫팩을 장착 중인지 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Item|Effect")
+	bool HasGoldenHotPack() const;
+
+	/** 일반 또는 황금 핫팩을 장착 중인지 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Item|Effect")
+	bool HasAnyHotPack() const;
+
+	/** 서버가 장착한 일반 핫팩으로 같은 팀의 얼음 상태 아군을 부활시킨다. */
+	bool ReviveFrozenTeammate(ASnowRumbleCharacter* TargetCharacter);
 
 	/** 부츠를 장착 중인지 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Item|Effect")
@@ -83,8 +95,8 @@ protected:
 	/** 서버가 일반 핫팩을 1개까지 장착한다. */
 	bool EquipHotPack();
 
-	/** 서버가 황금 핫팩 획득 즉시 같은 팀의 얼음 상태 아군을 부활시킨다. */
-	bool UseGoldenHotPackImmediately();
+	/** 서버가 황금 핫팩을 1개까지 장착한다. */
+	bool EquipGoldenHotPack();
 
 	/** 서버가 모닥불 키트 획득 즉시 캐릭터 앞에 모닥불을 설치한다. */
 	bool SpawnCampfireFromKit();
@@ -123,7 +135,7 @@ protected:
 	float GoldenSnowDuckMakerDamageMultiplier = 1.25f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Golden Fish Bread", meta = (ClampMin = "0.0"))
-	float GoldenFishBreadHealPerSecond = 2.0f;
+	float GoldenFishBreadHealPerSecond = 10.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Golden Fish Bread", meta = (ClampMin = "0.0"))
 	float GoldenFishBreadDurationSeconds = 30.0f;
@@ -166,6 +178,9 @@ protected:
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemEffects, Category = "SnowRumble|Item|Effect")
 	bool bHasHotPack = false;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemEffects, Category = "SnowRumble|Item|Effect")
+	bool bHasGoldenHotPack = false;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemEffects, Category = "SnowRumble|Item|Effect")
 	int32 SnowShovelDurability = 0;

@@ -8,9 +8,41 @@
 #include "Engine/GameInstance.h"
 #include "InputCoreTypes.h"
 #include "LobbyEscapeMenuWidget.h"
+#include "LobbyBoardWidget_C.h"
 #include "LobbyWidget.h"
 #include "OptionsWidget_C.h"
+#include "../Interaction/LobbyInteractionBoard_C.h"
 #include "../Online/SnowRumbleSessionSubsystem.h"
+#include "Components/WidgetComponent.h"
+#include "Engine/World.h"
+#include "EngineUtils.h"
+#include "GameFramework/GameModeBase.h"
+
+namespace
+{
+constexpr const TCHAR* LobbyMainMenuGameModeTravelPath =
+	TEXT("/Game/Game/BP_MainMenuGameMode.BP_MainMenuGameMode_C");
+
+void EnsureTravelOptionValue(
+	FString& TravelUrl,
+	const TCHAR* OptionName,
+	const TCHAR* OptionValue)
+{
+	if (TravelUrl.IsEmpty() || !OptionName || !OptionValue)
+	{
+		return;
+	}
+
+	const FString OptionPrefix = FString::Printf(TEXT("%s="), OptionName);
+	if (TravelUrl.Contains(OptionPrefix, ESearchCase::IgnoreCase))
+	{
+		return;
+	}
+
+	TravelUrl += TravelUrl.Contains(TEXT("?")) ? TEXT("?") : TEXT("?");
+	TravelUrl += FString::Printf(TEXT("%s=%s"), OptionName, OptionValue);
+}
+}
 
 void ALobbyPlayerController::BeginPlay()
 {
@@ -34,6 +66,37 @@ void ALobbyPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	HideLobby();
 
 	Super::EndPlay(EndPlayReason);
+}
+
+void ALobbyPlayerController::ClientShowLobbyBoardInvalidActionFeedback_Implementation(
+	const FText& ReasonText)
+{
+	if (!IsLocalController() || ReasonText.IsEmpty())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	for (TActorIterator<ALobbyInteractionBoard> It(World); It; ++It)
+	{
+		TArray<UWidgetComponent*> WidgetComponents;
+		It->GetBoardWidgetComponents(WidgetComponents);
+		for (UWidgetComponent* WidgetComponent : WidgetComponents)
+		{
+			ULobbyBoardWidget* BoardWidget = WidgetComponent
+				? Cast<ULobbyBoardWidget>(WidgetComponent->GetUserWidgetObject())
+				: nullptr;
+			if (BoardWidget)
+			{
+				BoardWidget->ShowInvalidActionFeedbackForController(this, ReasonText);
+			}
+		}
+	}
 }
 
 void ALobbyPlayerController::SetupInputComponent()
@@ -248,6 +311,11 @@ void ALobbyPlayerController::RequestReturnToMainMenu()
 	{
 		return;
 	}
+	FString ResolvedMainMenuTravelUrl = MainMenuTravelUrl;
+	EnsureTravelOptionValue(
+		ResolvedMainMenuTravelUrl,
+		TEXT("game"),
+		LobbyMainMenuGameModeTravelPath);
 
 	if (UGameInstance* GameInstance = GetGameInstance())
 	{
@@ -262,19 +330,18 @@ void ALobbyPlayerController::RequestReturnToMainMenu()
 	{
 		if (UWorld* World = GetWorld())
 		{
-			World->ServerTravel(MainMenuTravelUrl);
+			// 메인 메뉴는 로비 PlayerController를 이어받지 않고 새로 생성되어야
+			// 프리뷰 캐릭터의 중력·이동 잠금이 메인 메뉴 경로와 동일하게 적용된다.
+			if (AGameModeBase* GameMode = World->GetAuthGameMode())
+			{
+				GameMode->bUseSeamlessTravel = false;
+			}
+			World->ServerTravel(ResolvedMainMenuTravelUrl);
 		}
 		return;
 	}
 
-	FString ClientTravelUrl = MainMenuTravelUrl;
-	FString MapPath;
-	FString TravelOptions;
-	if (ClientTravelUrl.Split(TEXT("?"), &MapPath, &TravelOptions))
-	{
-		ClientTravelUrl = MapPath;
-	}
-	ClientTravel(ClientTravelUrl, TRAVEL_Absolute);
+	ClientTravel(ResolvedMainMenuTravelUrl, TRAVEL_Absolute);
 }
 
 void ALobbyPlayerController::RequestApplyLobbyPlayerName(

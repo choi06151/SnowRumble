@@ -3,12 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "../Player/SnowRumbleCustomizationData_C.h"
 #include "GameFramework/PlayerController.h"
 #include "MainMenuPlayerController.generated.h"
 
+class UAnimationAsset;
+class UAudioComponent;
 class UMainMenuWidget;
 class UOptionsWidget;
 class UUserWidget;
+class ASnowRumbleCharacter;
+class USoundBase;
 
 UCLASS(Blueprintable)
 class SNOWRUMBLE_API AMainMenuPlayerController : public APlayerController
@@ -36,9 +41,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
 	void TravelToCustomizationLevel();
 
+	/** 현재 재생 중인 배경음악의 볼륨 프리뷰를 갱신한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Audio")
+	void SetBackgroundMusicPreviewVolume(float MasterVolume, float BgmVolume);
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void PlayerTick(float DeltaTime) override;
 
 	/** 시작화면에서 자동 생성할 WBP_MainMenu 클래스다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Main Menu")
@@ -56,6 +66,26 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Cursor")
 	TSubclassOf<UUserWidget> DefaultMouseCursorWidgetClass;
 
+	/** 메인메뉴에 배치한 캐릭터에 적용할 단일 포즈/애니메이션 에셋이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Main Menu|Preview")
+	TObjectPtr<UAnimationAsset> MainMenuPreviewAnimationAsset;
+
+	/** 메인메뉴 캐릭터 애니메이션을 지정한 위치에서 정지 상태로 둘지 정한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Main Menu|Preview")
+	bool bPauseMainMenuPreviewAnimation = true;
+
+	/** MainMenuPreviewAnimationAsset을 적용할 때 고정할 재생 위치다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Main Menu|Preview", meta = (ClampMin = "0.0"))
+	float MainMenuPreviewAnimationPositionSeconds = 0.0f;
+
+	/** 메인메뉴에서만 프리뷰 캐릭터 Skeletal Mesh에 곱할 스케일이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Main Menu|Preview", meta = (ClampMin = "0.01", ClampMax = "10.0"))
+	float MainMenuPreviewMeshScale = 1.0f;
+
+	/** 메인메뉴에서 재생할 배경음악이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")
+	TObjectPtr<USoundBase> BackgroundMusicSound;
+
 private:
 	/** 시작화면 위젯 인스턴스가 없으면 생성한다. */
 	UMainMenuWidget* EnsureMainMenuWidget();
@@ -66,6 +96,21 @@ private:
 	/** 기본 마우스 커서 위젯 슬롯을 소프트웨어 커서로 적용한다. */
 	void ApplyDefaultMouseCursorWidget();
 
+	/** 메인메뉴에서는 UI 입력만 쓰도록 Pawn 이동과 시점 입력을 잠근다. */
+	void ApplyMainMenuInputLock();
+
+	/** 메인메뉴 캐릭터에 원하는 포즈/애니메이션 정지 상태와 Mesh 스케일을 적용한다. */
+	void ApplyMainMenuPreviewAnimation();
+
+	/** 로컬 커스터마이징 결과를 메인메뉴 프리뷰 캐릭터에 적용한다. */
+	void ApplyMainMenuPreviewCustomization();
+
+	/** 메인메뉴 배경음악을 재생한다. */
+	void PlayBackgroundMusic();
+
+	/** 현재 재생 중인 메인메뉴 배경음악을 중지한다. */
+	void StopBackgroundMusic();
+
 	UPROPERTY(Transient)
 	TObjectPtr<UMainMenuWidget> MainMenuWidget;
 
@@ -74,4 +119,15 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UUserWidget> DefaultMouseCursorWidget;
+
+	UPROPERTY(Transient)
+	TWeakObjectPtr<APawn> LastAnimatedPreviewPawn;
+
+	UPROPERTY(Transient)
+	TWeakObjectPtr<ASnowRumbleCharacter> LastCustomizedPreviewCharacter;
+
+	TWeakObjectPtr<UAudioComponent> BackgroundMusicComponent;
+
+	FSnowRumbleCustomizationData LastAppliedPreviewCustomizationData;
+	bool bHasAppliedPreviewCustomizationData = false;
 };

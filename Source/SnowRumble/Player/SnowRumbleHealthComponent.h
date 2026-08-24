@@ -57,6 +57,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Health")
 	float GetFrozenSecondsRemaining() const;
 
+	/** 얼음 상태에서 사망까지 남은 시간을 0~1로 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Health")
+	float GetFrozenProgress() const;
+
 	/** 서버가 핫팩 부활 완료 시 얼음 상태를 해제하고 HP를 회복한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Health")
 	bool ReviveFromFrozen(float HealthRatio);

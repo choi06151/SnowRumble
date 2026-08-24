@@ -2,11 +2,13 @@
 
 #include "SnowballCreationComponent.h"
 
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "Camera/CameraComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/GameStateBase.h"
 #include "Net/UnrealNetwork.h"
+#include "Sound/SoundBase.h"
 #include "SnowballItem.h"
 #include "SnowballEquipmentComponent.h"
 #include "TimerManager.h"
@@ -241,6 +243,7 @@ void USnowballCreationComponent::CompleteCreation()
 
 	if (CreatedSnowball)
 	{
+		MulticastPlayCreationSound(SpawnLocation);
 		CreatedSnowball->SettleOnGroundFromSurface(
 			SurfaceSpawnPoint,
 			CreationSurfaceNormal);
@@ -261,6 +264,19 @@ void USnowballCreationComponent::CompleteCreation()
 
 	SetCreatingState(false);
 	Character->ForceNetUpdate();
+}
+
+void USnowballCreationComponent::MulticastPlayCreationSound_Implementation(
+	FVector_NetQuantize Location)
+{
+	SnowRumbleAudio::PlaySoundAtLocation(
+		this,
+		SnowballCreationSound,
+		ESnowRumbleAudioMixChannel::Gameplay,
+		Location,
+		1.0f,
+		1.0f,
+		SnowballCreationSoundAttenuation);
 }
 
 bool USnowballCreationComponent::FindSnowSurface(
@@ -287,19 +303,30 @@ bool USnowballCreationComponent::FindSnowSurface(
 		+ FVector::Distance(ViewLocation, Character->GetActorLocation());
 	const FVector TraceEnd =
 		ViewLocation + ViewDirection.GetSafeNormal() * EffectiveTraceDistance;
-	const bool bHit = World->LineTraceSingleByChannel(
-		OutHit,
+	TArray<FHitResult> Hits;
+	const bool bHit = World->LineTraceMultiByChannel(
+		Hits,
 		ViewLocation,
 		TraceEnd,
 		ECC_Visibility,
 		QueryParams);
 
-	const bool bHitSnowSurface =
-		bHit
-		&& OutHit.GetActor()
-		&& OutHit.GetActor()->ActorHasTag(SnowSurfaceTag);
+	if (!bHit)
+	{
+		return false;
+	}
 
-	return bHitSnowSurface;
+	for (const FHitResult& Hit : Hits)
+	{
+		if (AActor* HitActor = Hit.GetActor();
+			HitActor && HitActor->ActorHasTag(SnowSurfaceTag))
+		{
+			OutHit = Hit;
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void USnowballCreationComponent::SetCreatingState(bool bNewCreating)

@@ -10,6 +10,7 @@
 class ASnowRumbleCharacter;
 class AGiftBoxItemPickup;
 class UMaterialInterface;
+class UNiagaraComponent;
 class UNiagaraSystem;
 class USphereComponent;
 class UStaticMeshComponent;
@@ -116,6 +117,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Gift Box")
 	TObjectPtr<UProjectileMovementComponent> ProjectileMovement;
 
+	/** 선물상자 등급을 표시하는 Niagara 컴포넌트다. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Gift Box|Effect")
+	TObjectPtr<UNiagaraComponent> GradeVfxComponent;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Gift Box", meta = (ClampMin = "0.0"))
 	float InteractionRadius = 220.0f;
 
@@ -133,6 +138,14 @@ protected:
 	/** 황금 선물상자 등급일 때 적용할 머티리얼이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Gift Box|Material")
 	TObjectPtr<UMaterialInterface> GoldGiftBoxMaterial;
+
+	/** 빨간 선물상자 등급일 때 GradeVfxComponent에 적용할 Niagara 이펙트다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Gift Box|Effect")
+	TObjectPtr<UNiagaraSystem> RedGiftBoxEffect;
+
+	/** 황금 선물상자 등급일 때 GradeVfxComponent에 적용할 Niagara 이펙트다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Gift Box|Effect")
+	TObjectPtr<UNiagaraSystem> GoldGiftBoxEffect;
 
 	/** 선물상자가 열려 사라질 때 재생할 Niagara 이펙트다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Gift Box|Effect")
@@ -152,6 +165,8 @@ private:
 	void HandleProjectileStopped(const FHitResult& Hit);
 
 	void ApplyGradeMaterial();
+	void ApplyGradeEffect();
+	void DeactivateGradeEffect();
 	void SpawnOpenedEffect() const;
 	FSnowRumbleGiftBoxReward ChooseReward() const;
 	FText GetFallbackRewardName() const;

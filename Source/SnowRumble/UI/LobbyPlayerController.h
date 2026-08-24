@@ -74,6 +74,10 @@ public:
 	UFUNCTION(Client, Reliable)
 	void ClientRequestApplySavedLobbyPlayerName();
 
+	/** 방 설정 변경을 포커스 중인 게시판의 기존 피드백 UI로 표시한다. */
+	UFUNCTION(Client, Reliable)
+	void ClientShowLobbyBoardInvalidActionFeedback(const FText& ReasonText);
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -97,7 +101,8 @@ protected:
 
 	/** ESC 메뉴에서 메인메뉴로 이동할 때 사용할 travel URL이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Lobby")
-	FString MainMenuTravelUrl = TEXT("/Game/Maps/L_MainMenu");
+	FString MainMenuTravelUrl =
+		TEXT("/Game/Maps/L_MainMenu?game=/Game/Game/BP_MainMenuGameMode.BP_MainMenuGameMode_C");
 
 private:
 	/** 로컬 GameInstance에 저장된 닉네임을 서버로 제출한다. */

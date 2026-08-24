@@ -126,6 +126,12 @@ public:
 	FVector GrabAttachedWorldLocation = FVector::ZeroVector;
 
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	FVector GrabbedByCharacterWorldLocation = FVector::ZeroVector;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	FVector GrabbedByCharacterComponentLocation = FVector::ZeroVector;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
 	FVector RightHandGrabTargetLocation = FVector::ZeroVector;
 
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")

@@ -2,6 +2,7 @@
 
 #include "EmoteRadialMenuWidget.h"
 
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Button.h"

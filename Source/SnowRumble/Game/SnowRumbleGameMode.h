@@ -11,6 +11,7 @@ class AActor;
 class APawn;
 class AGiftBox;
 class ASnowRumbleCharacter;
+class USoundBase;
 enum class ESnowRumbleTeam : uint8;
 enum class ESnowRumbleGiftBoxGrade : uint8;
 
@@ -55,6 +56,10 @@ public:
 	void CompleteMapShrinkFromBlueprint();
 
 protected:
+	/** PvP 맵에서 재생할 배경음악이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Audio")
+	TObjectPtr<USoundBase> BackgroundMusicSound;
+
 	/** 서버가 맵 축소 시점에 맵 Blueprint로 넘기는 이벤트다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Map Pressure")
 	void OnMapShrinkRequested(
@@ -67,6 +72,7 @@ private:
 	int32 ExpectedPlayerCount = 0;
 
 	bool bLoadingScreensDismissed = false;
+	bool bLoadingScreensHidden = false;
 	bool bStartCountdownStarted = false;
 	bool bMatchIntroStarted = false;
 	int32 MatchIntroTeamIndex = 0;
@@ -123,11 +129,17 @@ private:
 	/** 현재 PvP 진입에서 팀 소개 시퀀스를 재생해야 하는지 반환한다. */
 	bool ShouldPlayMatchIntroSequence() const;
 
+	/** 현재 로컬 클라이언트에 PvP 배경음악을 재생하도록 지시한다. */
+	void BroadcastBackgroundMusic() const;
+
 	/** 다음 팀 소개 카메라 샷을 모든 클라이언트에 지시한다. */
 	void AdvanceMatchIntroSequence();
 
 	/** 팀 소개가 끝난 뒤 기존 시작 카운트다운을 확정한다. */
 	void FinishMatchIntroSequence();
+
+	/** 모든 클라이언트의 PvP 로딩창을 닫는다. */
+	void HideLoadingScreensBeforeIntro();
 
 	/** 기존 C-17 시작 카운트다운과 경기 타이머들을 시작한다. */
 	void StartConfirmedMatchCountdown();
@@ -140,6 +152,9 @@ private:
 
 	/** 매치 종료 후 포디엄으로 서버가 이동하는 함수(헤더에 선언되어야 함). */
 	void TravelToPodiumAfterMatchEnd();
+
+	/** 매치 승리 팀의 플레이어들에게 랜덤 승리 이모션을 재생한다. */
+	void PlayWinningTeamEmotes(ESnowRumbleTeam WinningTeam) const;
 
 	/** 다음 맵 축소 타이머를 예약한다. */
 	void ScheduleNextMapShrink();
@@ -244,6 +259,10 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box", meta = (ClampMin = "0.0"))
 	float GiftBoxSpawnHeightOffset = 800.0f;
 
+	/** TargetPoint 주변에서 선물상자 낙하 시작 위치를 랜덤하게 분산할 반경이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box", meta = (ClampMin = "0.0"))
+	float GiftBoxSpawnScatterRadius = 450.0f;
+
 	/** 이 태그가 붙은 TargetPoint만 우선 사용한다. 없으면 맵의 모든 TargetPoint를 사용한다. */
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box")
 	FName GiftBoxSpawnPointTag = TEXT("GiftBoxSpawn");
@@ -264,9 +283,23 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Spawn", meta = (ClampMin = "1"))
 	int32 PlayerStartSpawnScatterAttempts = 24;
 
-	/** 선택된 PlayerStart를 기준으로 실제 Pawn 생성 transform을 만든다. */
+	/** 같은 팀원이 이미 스폰된 경우 팀원 주변에 배치할 최대 거리다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Spawn", meta = (ClampMin = "0.0"))
+	float TeammateSpawnRadius = 180.0f;
+
+	/** 팀원 주변 유효 스폰 위치를 찾기 위해 시도할 횟수다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Spawn", meta = (ClampMin = "1"))
+	int32 TeammateSpawnAttempts = 24;
+
+	/** 같은 팀원이 있으면 팀원 옆을 우선하고, 없으면 선택된 PlayerStart를 기준으로 transform을 만든다. */
 	FTransform BuildScatteredPlayerStartTransform(
+		const AController* NewPlayer,
 		const AActor* StartSpot) const;
+
+	/** 같은 팀원 주변에서 충돌 없는 스폰 transform을 찾는다. */
+	bool TryBuildTeammateSpawnTransform(
+		const AController* NewPlayer,
+		FTransform& OutSpawnTransform) const;
 
 	/** 이번 매치에서 이미 확정한 스폰 위치와 충분히 떨어져 있는지 확인한다. */
 	bool TryResolveSpawnLocationOnGround(

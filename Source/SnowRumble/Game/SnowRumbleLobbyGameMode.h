@@ -7,10 +7,28 @@
 #include "SnowRumbleLobbyGameMode.generated.h"
 
 class APlayerController;
+class AController;
 class AGameModeBase;
 class ASnowRumblePlayerState;
+class UTexture2D;
 class UWorld;
+class USoundBase;
 enum class ESnowRumbleTeam : uint8;
+
+USTRUCT(BlueprintType)
+struct FSnowRumbleLoadingMapPresentation
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Loading")
+	TSoftObjectPtr<UWorld> Level;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Loading")
+	FText DisplayName;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Loading")
+	TSoftObjectPtr<UTexture2D> LoadingImage;
+};
 
 UCLASS()
 class SNOWRUMBLE_API ASnowRumbleLobbyGameMode : public AGameModeBase
@@ -19,6 +37,8 @@ class SNOWRUMBLE_API ASnowRumbleLobbyGameMode : public AGameModeBase
 
 public:
 	ASnowRumbleLobbyGameMode();
+
+	virtual void BeginPlay() override;
 
 	/** 호스트 요청과 준비 상태를 검사한 뒤 게임방으로 이동한다. */
 	void RequestStartMatch(APlayerController* RequestingController);
@@ -31,6 +51,9 @@ public:
 
 protected:
 	virtual void PostLogin(APlayerController* NewPlayer) override;
+	virtual void HandleSeamlessTravelPlayer(AController*& C) override;
+	virtual void HandleStartingNewPlayer_Implementation(
+		APlayerController* NewPlayer) override;
 	virtual void Logout(AController* Exiting) override;
 
 	/** 새 참가자를 서버 기준 랜덤 팀 배정 규칙으로 배치한다. */
@@ -54,10 +77,21 @@ protected:
 	/** 등록된 PvP 후보 레벨 경로 목록을 반환한다. */
 	TArray<FString> GetPvPLevelCandidatePaths() const;
 
+	/** 선택된 맵의 로딩 화면 표시 설정을 반환한다. */
+	FSnowRumbleLoadingMapPresentation GetLoadingMapPresentation(
+		const FString& MapPackageName) const;
+
+	/** 특정 플레이어 기준 같은 팀 이름 목록을 반환한다. */
+	TArray<FString> GetTeamPlayerNamesFor(
+		const ASnowRumblePlayerState* LocalPlayerState) const;
+
 	/** 현재 연결된 모든 클라이언트에 매치 로딩창 표시를 요청한다. */
 	void ShowMatchLoadingScreens();
 
-	/** 로딩창 표시 RPC가 나간 다음 틱에 실제 PvP 맵 이동을 실행한다. */
+	/** 현재 로컬 클라이언트에 로비 배경음악을 재생하도록 지시한다. */
+	void BroadcastBackgroundMusic() const;
+
+	/** 로딩창 표시 후 지연 시간이 지나면 실제 게임 맵 이동을 실행한다. */
 	void StartPendingMatchTravel();
 
 	/** 대기방에서 PvP 시작 시 이동할 게임방 맵 경로다. */
@@ -69,10 +103,24 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Lobby")
 	TArray<TSoftObjectPtr<UWorld>> PvPLevelCandidates;
 
+	/** 로비에서 재생할 배경음악이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")
+	TObjectPtr<USoundBase> BackgroundMusicSound;
+
+	/** PvP 후보 레벨별 로딩 화면 표시명과 이미지다. 비어 있으면 레벨 경로 이름을 사용한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Lobby")
+	TArray<FSnowRumbleLoadingMapPresentation> PvPLevelLoadingPresentations;
+
+	/** 로비에서 게임 맵으로 이동하기 전 로딩창을 보여줄 대기 시간이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Lobby", meta = (ClampMin = "0.0"))
+	float MatchTravelDelaySeconds = 5.0f;
+
 	/** 대기방에서 눈사람 모드 시작 시 사용할 GameMode 클래스다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Lobby")
 	TSubclassOf<AGameModeBase> SnowmanModeGameModeClass;
 
 	FString PendingMatchTravelUrl;
+	FString PendingMatchMapPackageName;
 	bool bMatchTravelPending = false;
+	FTimerHandle PendingMatchTravelTimerHandle;
 };

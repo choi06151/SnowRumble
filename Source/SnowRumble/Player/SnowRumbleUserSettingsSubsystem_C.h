@@ -59,16 +59,31 @@ public:
 	float GetMaxMouseSensitivity() const;
 
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Audio")
+	void SetMasterVolume(float NewVolume);
+
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Audio")
 	void SetBgmVolume(float NewVolume);
 
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Audio")
 	void SetSfxVolume(float NewVolume);
 
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Audio")
+	void SetVoiceVolume(float NewVolume);
+
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Audio")
+	void ResetMasterVolume();
+
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Audio")
 	void ResetBgmVolume();
 
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Audio")
 	void ResetSfxVolume();
+
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Audio")
+	void ResetVoiceVolume();
+
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|User Settings|Audio")
+	float GetMasterVolume() const;
 
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|User Settings|Audio")
 	float GetBgmVolume() const;
@@ -77,7 +92,13 @@ public:
 	float GetSfxVolume() const;
 
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|User Settings|Audio")
+	float GetVoiceVolume() const;
+
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|User Settings|Audio")
 	float GetDefaultAudioVolume() const;
+
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|User Settings|Audio")
+	float GetDefaultVoiceVolume() const;
 
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Microphone")
 	void SetMicrophoneVolume(float NewVolume);
@@ -108,10 +129,16 @@ private:
 	float MouseSensitivity = 1.0f;
 
 	UPROPERTY(Config)
+	float MasterVolume = 1.0f;
+
+	UPROPERTY(Config)
 	float BgmVolume = 1.0f;
 
 	UPROPERTY(Config)
 	float SfxVolume = 1.0f;
+
+	UPROPERTY(Config)
+	float VoiceVolume = 1.0f;
 
 	UPROPERTY(Config)
 	float MicrophoneVolume = 1.0f;
@@ -124,6 +151,7 @@ private:
 	static constexpr float MaxMouseSensitivity = 3.0f;
 	static constexpr float DefaultMouseSensitivity = 1.0f;
 	static constexpr float DefaultAudioVolume = 1.0f;
+	static constexpr float DefaultVoiceVolume = 1.0f;
 	static constexpr float DefaultMicrophoneVolume = 1.0f;
 	static constexpr ESnowRumbleMicrophoneMode DefaultMicrophoneMode =
 		ESnowRumbleMicrophoneMode::PushToTalk;
