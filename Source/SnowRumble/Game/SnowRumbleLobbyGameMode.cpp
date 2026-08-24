@@ -32,7 +32,7 @@ const TArray<ESnowRumbleTeam>& GetLobbyTeamChoices()
 		ESnowRumbleTeam::Purple,
 		ESnowRumbleTeam::Pink,
 		ESnowRumbleTeam::Blue,
-		ESnowRumbleTeam::White
+		ESnowRumbleTeam::Orange
 	};
 	return TeamChoices;
 }
@@ -130,9 +130,12 @@ void ASnowRumbleLobbyGameMode::RequestStartMatch(
 	ShowMatchLoadingScreens();
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().SetTimerForNextTick(
+		World->GetTimerManager().SetTimer(
+			PendingMatchTravelTimerHandle,
 			this,
-			&ASnowRumbleLobbyGameMode::StartPendingMatchTravel);
+			&ASnowRumbleLobbyGameMode::StartPendingMatchTravel,
+			FMath::Max(0.0f, MatchTravelDelaySeconds),
+			false);
 	}
 }
 

@@ -140,6 +140,9 @@ protected:
 
 	ASnowRumbleCharacter* GetOwnerCharacter() const;
 
+	/** 서버 시각을 가져와 잡기 제한과 회복을 같은 시간축으로 계산한다. */
+	float GetCurrentServerTimeSeconds() const;
+
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_IsGrabReaching, Category = "SnowRumble|Grab")
 	bool bIsGrabReaching = false;
 
@@ -165,8 +168,28 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Grab")
 	float GrabAttachmentStartedServerTime = 0.0f;
 
+	/** 현재 잡기 게이지의 저장된 잔량이다. */
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Grab|Limit")
+	float GrabHoldProgress = 1.0f;
+
+	/** 현재 연결을 시작할 때의 게이지 잔량이다. */
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Grab|Limit")
+	float GrabProgressAtAttachmentStart = 1.0f;
+
+	/** 잡기 해제 후 회복을 시작할 서버 시각이다. */
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Grab|Limit")
+	float GrabRecoveryStartedServerTime = 0.0f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Limit", meta = (ClampMin = "0.0"))
 	float MaximumGrabHoldSeconds = 5.0f;
+
+	/** 잡기 해제 후 게이지가 회복되기 전 대기 시간이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Limit", meta = (ClampMin = "0.0"))
+	float GrabRecoveryDelaySeconds = 1.0f;
+
+	/** 대기 시간이 지난 뒤 게이지가 완전히 회복되는 시간이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Limit", meta = (ClampMin = "0.0"))
+	float GrabRecoverySeconds = 5.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Control Rig", meta = (ClampMin = "0.0"))
 	float GrabReachForwardDistance = 95.0f;

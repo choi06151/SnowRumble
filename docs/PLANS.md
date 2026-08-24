@@ -116,6 +116,19 @@
 
 ## 최근 통합 로그
 
+- 2026-08-24: C-30 효과음 공간화 범위를 눈덩이 충돌음과 캐릭터 피격음으로 한정했다. UI 상호작용음은 해당 플레이어 로컬 2D 재생으로 유지하고, `ASnowballItem::ImpactSoundAttenuation`과 `ASnowRumbleCharacter::DamageSoundAttenuation`으로 attenuation 연결 지점을 추가했다.
+- 2026-08-24: C-11 커스터마이징 UI 계약을 기존 버튼 이름 자동 바인딩 방식으로 36색 팔레트까지 확장하고 C++가 버튼 RGB 스타일을 초기화하게 했다. WBP 버튼 배치는 사용자/S 인계로 남겼다.
+- 2026-08-24: C-11 커스터마이징 UI에 선택적 `BrushSizeSlider` 계약을 추가했다. 0~1 Slider 값은 기존 브러시 최소·최대 크기로 변환되고 버튼·휠 조절과 동기화된다.
+- 2026-08-24: C-06/C-28 얼음·Grab 공용 계약을 확장했다. 서버는 얼은 대상에 대해 같은 팀 Grab만 허용하고, 기존 Grab tether 운반과 사망 시 자동 해제를 연결한다.
+- 2026-08-24: C-09 눈 전투 공용 판정을 보강했다. `ASnowballItem` 서버 충돌 처리에서 같은 팀 캐릭터는 눈덩이 피해와 넉백을 받지 않고 적 팀만 기존 피해 경로를 사용한다.
+- 2026-08-24: C-09 눈덩이 성장값을 투척 피해에 연결했다. `GrowthProgress` 0~1을 `MaximumGrowthDamageMultiplier` 1~3배로 보간해 차지 피해와 곱하고 서버에서 최종 피해를 확정한다.
+- 2026-08-24: 로비에서 게임 맵으로 이동할 때 로딩창을 먼저 표시하고 `MatchTravelDelaySeconds` 기본 5초 후 `ServerTravel`하도록 연결했다.
+- 2026-08-24: Grab 게이지를 서버 잔량으로 유지하고 해제 후 1초 대기, 기본 5초 점진 회복을 추가했다. 기존 HUD 표시 조건은 변경하지 않았다.
+- 2026-08-24: 일반 핫팩을 같은 팀 얼음 플레이어 근접 부활 상호작용에 연결했다. 아웃라인·`E - 살리기` 안내·홀드 입력과 서버 검증 부활 후 핫팩 소모를 추가했다.
+- 2026-08-24: 황금 핫팩도 장착형 근접 부활로 통합했다. 일반 핫팩 대비 E 홀드 2배, 부활 HP 100%, 성공 후 아이템 유지 규칙을 적용했다.
+- 2026-08-24: 로비 8번째 팀을 White에서 Orange로 변경했다. `ESnowRumbleTeam`, 서버 팀 배정, LobbyBoard 선택 버튼, 팀 색상 표시를 Orange로 연결하고 기존 White WBP 이름은 호환 fallback으로 유지한다.
+- 2026-08-24: C-06 얼음 상태를 기존 `OverheadTimedActionWidget` timed action 계약에 연결했다. `GetFrozenProgress()`가 복제 서버 시각 기준 남은 60초를 1에서 0으로 반환한다.
+
 - 2026-08-22: 포디움 전용 WBP 계약을 승리 팀명과 로비 복귀 카운트다운만 표시하도록 축소함. `UPodiumWinnerWidget`은 `WinningTeamText`와 `SubtitleText`만 자동 갱신하고, `APodiumPlayerController`와 `APodiumGameMode`는 팀원 이름 목록 전달을 중단했다.
 - 2026-08-22: 포디움에서는 `APodiumPlayerController`가 캐릭터 중력을 끄고 입력을 잠그며, `ASnowRumbleCharacter`가 `MainHUDWidget`, 이모션 원형 메뉴, 상호작용 안내 위젯을 만들지 않도록 차단했다.
 - 2026-08-18: C-19 채팅 Tab edge-detect 변경은 `git diff --check`와 C++ 컴파일을 통과함. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됨.

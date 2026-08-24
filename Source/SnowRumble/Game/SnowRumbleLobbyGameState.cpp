@@ -4,7 +4,7 @@
 
 #include "Net/UnrealNetwork.h"
 #include "SnowRumblePlayerState.h"
-#include "../UI/SnowRumblePlayerController.h"
+#include "../UI/LobbyPlayerController.h"
 
 TArray<ASnowRumblePlayerState*> ASnowRumbleLobbyGameState::GetLobbyPlayers()
 	const
@@ -300,14 +300,14 @@ void ASnowRumbleLobbyGameState::BroadcastRoomSettingsChangedAlarmToClients()
 		It;
 		++It)
 	{
-		ASnowRumblePlayerController* PlayerController =
-			Cast<ASnowRumblePlayerController>(It->Get());
+		ALobbyPlayerController* PlayerController =
+			Cast<ALobbyPlayerController>(It->Get());
 		const ASnowRumblePlayerState* PlayerState = PlayerController
 			? PlayerController->GetPlayerState<ASnowRumblePlayerState>()
 			: nullptr;
 		if (PlayerController && PlayerState && !PlayerState->IsLobbyHost())
 		{
-			PlayerController->ClientShowPersonalTextAlarm(AlarmText);
+			PlayerController->ClientShowLobbyBoardInvalidActionFeedback(AlarmText);
 		}
 	}
 }
