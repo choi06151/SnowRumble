@@ -11,6 +11,7 @@ class AActor;
 class APawn;
 class AGiftBox;
 class ASnowRumbleCharacter;
+class ASnowIslandWaterPressureActor;
 class USoundBase;
 enum class ESnowRumbleTeam : uint8;
 enum class ESnowRumbleGiftBoxGrade : uint8;
@@ -113,9 +114,21 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Match", meta = (ClampMin = "0.0"))
 	float PodiumTravelDelaySeconds = 3.0f;
 
-	/** 실제 맵 축소 완료 신호가 오기 전 임시로 축소 완료를 가정할 시간이다. */
-	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Map Pressure", meta = (ClampMin = "0.0"))
-	float TemporaryMapShrinkDurationSeconds = 5.0f;
+	/** 빠름 게임 속도에서 전체 맵 축소를 완료할 경기 시간이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Map Pressure", meta = (ClampMin = "1.0"))
+	float FastMapShrinkDurationSeconds = 180.0f;
+
+	/** 보통 게임 속도에서 전체 맵 축소를 완료할 경기 시간이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Map Pressure", meta = (ClampMin = "1.0"))
+	float NormalMapShrinkDurationSeconds = 300.0f;
+
+	/** 느림 게임 속도에서 전체 맵 축소를 완료할 경기 시간이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Map Pressure", meta = (ClampMin = "1.0"))
+	float SlowMapShrinkDurationSeconds = 420.0f;
+
+	/** 전체 맵 축소와 물 상승을 나눌 구간 수다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Map Pressure", meta = (ClampMin = "1"))
+	int32 MapShrinkSegmentCount = 4;
 
 	/** 모든 예상 플레이어가 접속하면 전체 클라이언트의 로딩창을 닫는다. */
 	void TryDismissLoadingScreens();
@@ -158,6 +171,18 @@ private:
 
 	/** 다음 맵 축소 타이머를 예약한다. */
 	void ScheduleNextMapShrink();
+
+	/** 현재 맵 Water Actor의 구간 시간으로 맵 축소 간격을 계산한다. */
+	float GetWaterDrivenMapShrinkIntervalSeconds() const;
+
+	/** 현재 게임 속도에 맞는 전체 맵 축소 시간을 반환한다. */
+	float GetMapShrinkTotalDurationSeconds() const;
+
+	/** 한 구간에서 실제 맵 축소가 진행되는 1/3 시간을 반환한다. */
+	float GetMapShrinkRiseDurationSeconds() const;
+
+	/** 다음 맵 축소까지 대기하는 2/3 시간을 반환한다. */
+	float GetMapShrinkWaitDurationSeconds() const;
 
 	/** 다음 선물상자 스폰 타이머를 예약한다. */
 	void ScheduleNextGiftBoxSpawn(float DelaySeconds);

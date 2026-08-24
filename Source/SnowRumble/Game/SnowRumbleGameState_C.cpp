@@ -18,7 +18,7 @@ void ASnowRumbleGameState::StartMatchCountdownFromServer(
 		GetServerWorldTimeSeconds() + MatchStartCountdownSeconds;
 	RoundStartServerTime = MatchStartServerTime;
 	NextMapShrinkServerTime = RoundStartServerTime
-		+ GetMapShrinkIntervalSeconds();
+		+ MapShrinkWaitDurationSeconds;
 	bStartCountdownActive = true;
 	ForceNetUpdate();
 }
@@ -47,7 +47,7 @@ void ASnowRumbleGameState::CompleteMapShrinkFromServer()
 
 	bMapShrinkInProgress = false;
 	NextMapShrinkServerTime =
-		GetServerWorldTimeSeconds() + GetMapShrinkIntervalSeconds();
+		GetServerWorldTimeSeconds() + MapShrinkWaitDurationSeconds;
 	ForceNetUpdate();
 }
 
@@ -210,7 +210,7 @@ float ASnowRumbleGameState::GetSecondsUntilNextMapShrink() const
 	}
 	if (!bStartCountdownActive || NextMapShrinkServerTime <= 0.0f)
 	{
-		return GetMapShrinkIntervalSeconds();
+		return MapShrinkWaitDurationSeconds;
 	}
 
 	return FMath::Max(
@@ -250,7 +250,31 @@ ESnowRumbleGameSpeed ASnowRumbleGameState::GetGameSpeed() const
 
 float ASnowRumbleGameState::GetMapShrinkIntervalSeconds() const
 {
-	return USnowRumbleMatchSubsystem::GetMapShrinkIntervalSeconds(GameSpeed);
+	return FMath::Max(1.0f, MapShrinkIntervalSeconds);
+}
+
+void ASnowRumbleGameState::SetMapShrinkIntervalSecondsFromServer(
+	float IntervalSeconds)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	MapShrinkIntervalSeconds = FMath::Max(1.0f, IntervalSeconds);
+	ForceNetUpdate();
+}
+
+void ASnowRumbleGameState::SetMapShrinkWaitDurationSecondsFromServer(
+	float WaitDurationSeconds)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	MapShrinkWaitDurationSeconds = FMath::Max(1.0f, WaitDurationSeconds);
+	ForceNetUpdate();
 }
 
 void ASnowRumbleGameState::GetLifetimeReplicatedProps(
@@ -267,6 +291,8 @@ void ASnowRumbleGameState::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ASnowRumbleGameState, MapShrinkDurationSeconds);
 	DOREPLIFETIME(ASnowRumbleGameState, bMapShrinkInProgress);
 	DOREPLIFETIME(ASnowRumbleGameState, GameSpeed);
+	DOREPLIFETIME(ASnowRumbleGameState, MapShrinkIntervalSeconds);
+	DOREPLIFETIME(ASnowRumbleGameState, MapShrinkWaitDurationSeconds);
 	DOREPLIFETIME(ASnowRumbleGameState, bRoundEnded);
 	DOREPLIFETIME(ASnowRumbleGameState, RoundWinningTeam);
 	DOREPLIFETIME(ASnowRumbleGameState, RedTeamRoundWins);

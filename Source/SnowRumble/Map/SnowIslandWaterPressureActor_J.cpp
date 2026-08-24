@@ -2,13 +2,13 @@
 
 #include "SnowIslandWaterPressureActor_J.h"
 
-#include "../Game/SnowRumbleGameState_C.h"
 #include "../Item/Campfire_C.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "../Player/SnowRumbleHealthComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SceneComponent.h"
 #include "EngineUtils.h"
+#include "GameFramework/GameStateBase.h"
 #include "GameFramework/DamageType.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -60,16 +60,30 @@ void ASnowIslandWaterPressureActor::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	if (bUseMapShrinkEventTiming)
+	if (WaterRiseDurationSeconds <= 0.0f)
 	{
-		CurrentWaterZ = CalculateEventDrivenWaterZ();
+		return;
 	}
-	else
+
+	const UWorld* World = GetWorld();
+	const AGameStateBase* GameState = World
+		? World->GetGameState<AGameStateBase>()
+		: nullptr;
+	if (!GameState)
 	{
-		const float RoundElapsedSeconds = GetRoundElapsedSeconds();
-		CurrentWaterStage = CalculateWaterStage(RoundElapsedSeconds);
-		CurrentWaterZ = CalculateWaterZ(RoundElapsedSeconds);
+		return;
 	}
+
+	const float RiseAlpha = FMath::Clamp(
+		(GameState->GetServerWorldTimeSeconds()
+			- WaterRiseStartServerTime)
+			/ WaterRiseDurationSeconds,
+		0.0f,
+		1.0f);
+	CurrentWaterZ = FMath::Lerp(
+		WaterRiseStartZ,
+		WaterRiseTargetZ,
+		RiseAlpha);
 	ApplyWaterZ(CurrentWaterZ);
 }
 
@@ -80,11 +94,10 @@ void ASnowIslandWaterPressureActor::GetLifetimeReplicatedProps(
 
 	DOREPLIFETIME(ASnowIslandWaterPressureActor, CurrentWaterStage);
 	DOREPLIFETIME(ASnowIslandWaterPressureActor, CurrentWaterZ);
-	DOREPLIFETIME(ASnowIslandWaterPressureActor, bUseMapShrinkEventTiming);
-	DOREPLIFETIME(ASnowIslandWaterPressureActor, MapShrinkWaterStartServerTime);
-	DOREPLIFETIME(ASnowIslandWaterPressureActor, MapShrinkWaterDurationSeconds);
-	DOREPLIFETIME(ASnowIslandWaterPressureActor, MapShrinkWaterStartZ);
-	DOREPLIFETIME(ASnowIslandWaterPressureActor, MapShrinkWaterTargetZ);
+	DOREPLIFETIME(ASnowIslandWaterPressureActor, WaterRiseStartServerTime);
+	DOREPLIFETIME(ASnowIslandWaterPressureActor, WaterRiseStartZ);
+	DOREPLIFETIME(ASnowIslandWaterPressureActor, WaterRiseTargetZ);
+	DOREPLIFETIME(ASnowIslandWaterPressureActor, WaterRiseDurationSeconds);
 }
 
 ESnowIslandWaterPressureStage
@@ -98,35 +111,57 @@ float ASnowIslandWaterPressureActor::GetCurrentWaterZ() const
 	return CurrentWaterZ;
 }
 
+
 void ASnowIslandWaterPressureActor::StartWaterPressureFromMapShrink(
 	int32 ShrinkStage,
-	float RoundElapsedSeconds,
-	float ShrinkDurationSeconds)
+	int32 TotalShrinkSegments,
+	float RiseDurationSeconds)
 {
-	if (!HasAuthority() || ShrinkStage <= 0)
+	if (!HasAuthority()
+		|| ShrinkStage <= LastAppliedShrinkStage
+		|| TotalShrinkSegments <= 0)
 	{
 		return;
 	}
 
-	bUseMapShrinkEventTiming = true;
-	CurrentWaterStage = CalculateWaterStageFromShrinkStage(ShrinkStage);
-	MapShrinkWaterDurationSeconds = FMath::Max(0.0f, ShrinkDurationSeconds);
-	MapShrinkWaterStartZ = CurrentWaterZ;
-	MapShrinkWaterTargetZ = CalculateWaterTargetZFromShrinkStage(ShrinkStage);
-
-	if (const UWorld* World = GetWorld())
+	LastAppliedShrinkStage = ShrinkStage;
+	const int32 ClampedStage = FMath::Clamp(
+		ShrinkStage,
+		0,
+		TotalShrinkSegments);
+	const float StageProgress = static_cast<float>(ClampedStage)
+		/ TotalShrinkSegments;
+	WaterRiseStartZ = CurrentWaterZ;
+	WaterRiseTargetZ = FMath::Lerp(
+		InitialWaterZ,
+		FinalWaterZ,
+		StageProgress);
+	const UWorld* World = GetWorld();
+	const AGameStateBase* GameState = World
+		? World->GetGameState<AGameStateBase>()
+		: nullptr;
+	WaterRiseStartServerTime = GameState
+		? GameState->GetServerWorldTimeSeconds()
+		: 0.0f;
+	WaterRiseDurationSeconds = FMath::Max(0.0f, RiseDurationSeconds);
+	CurrentWaterZ = WaterRiseStartZ;
+	if (ClampedStage >= TotalShrinkSegments)
 	{
-		const AGameStateBase* GameState = World->GetGameState();
-		MapShrinkWaterStartServerTime = GameState
-			? GameState->GetServerWorldTimeSeconds()
-			: RoundElapsedSeconds;
+		CurrentWaterStage = ESnowIslandWaterPressureStage::Overtime;
+	}
+	else if (StageProgress < (1.0f / 3.0f))
+	{
+		CurrentWaterStage = ESnowIslandWaterPressureStage::OuterFlood;
+	}
+	else if (StageProgress < (2.0f / 3.0f))
+	{
+		CurrentWaterStage = ESnowIslandWaterPressureStage::CentralFlood;
 	}
 	else
 	{
-		MapShrinkWaterStartServerTime = RoundElapsedSeconds;
+		CurrentWaterStage = ESnowIslandWaterPressureStage::Overtime;
 	}
 
-	CurrentWaterZ = CalculateEventDrivenWaterZ();
 	ApplyWaterZ(CurrentWaterZ);
 	ForceNetUpdate();
 }
@@ -137,20 +172,21 @@ void ASnowIslandWaterPressureActor::OnRep_WaterPressureState()
 }
 
 USceneComponent* ASnowIslandWaterPressureActor::ResolveWaterComponent(
-	AActor* WaterActor) const
+	AActor* WaterActor,
+	FName ComponentName) const
 {
 	if (!WaterActor)
 	{
 		return nullptr;
 	}
 
-	if (!WaterComponentName.IsNone())
+	if (!ComponentName.IsNone())
 	{
 		TArray<USceneComponent*> SceneComponents;
 		WaterActor->GetComponents<USceneComponent>(SceneComponents);
 		for (USceneComponent* SceneComponent : SceneComponents)
 		{
-			if (SceneComponent && SceneComponent->GetFName() == WaterComponentName)
+			if (SceneComponent && SceneComponent->GetFName() == ComponentName)
 			{
 				return SceneComponent;
 			}
@@ -162,126 +198,27 @@ USceneComponent* ASnowIslandWaterPressureActor::ResolveWaterComponent(
 
 void ASnowIslandWaterPressureActor::InitializeControlledWater()
 {
-	ControlledWaterComponent = ResolveWaterComponent(ControlledWaterActor);
-	InitialWaterZ = ManualInitialWaterZ;
+	ControlledWaterComponent = ResolveWaterComponent(
+		ControlledWaterActor,
+		WaterComponentName);
+	InitialWaterZ = ControlledWaterComponent.IsValid()
+		? ControlledWaterComponent->GetComponentLocation().Z
+		: 0.0f;
 
-	if (ControlledWaterComponent.IsValid() && bUseControlledWaterInitialZ)
-	{
-		InitialWaterZ = ControlledWaterComponent->GetComponentLocation().Z;
-	}
-}
+	TargetWaterComponent = ResolveWaterComponent(
+		TargetWaterActor,
+		TargetWaterComponentName);
+	FinalWaterZ = TargetWaterComponent.IsValid()
+		? TargetWaterComponent->GetComponentLocation().Z
+		: InitialWaterZ;
 
-ESnowIslandWaterPressureStage
-ASnowIslandWaterPressureActor::CalculateWaterStage(
-	float RoundElapsedSeconds) const
-{
-	if (RoundElapsedSeconds < StableEndSeconds)
+	if (!ControlledWaterComponent.IsValid() || !TargetWaterComponent.IsValid())
 	{
-		return ESnowIslandWaterPressureStage::Stable;
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("SnowIslandWaterPressureActor requires ControlledWaterActor and TargetWaterActor."));
 	}
-	if (RoundElapsedSeconds < OuterFloodEndSeconds)
-	{
-		return ESnowIslandWaterPressureStage::OuterFlood;
-	}
-	if (RoundElapsedSeconds < CentralFloodEndSeconds)
-	{
-		return ESnowIslandWaterPressureStage::CentralFlood;
-	}
-	return ESnowIslandWaterPressureStage::Overtime;
-}
-
-float ASnowIslandWaterPressureActor::CalculateWaterZ(
-	float RoundElapsedSeconds) const
-{
-	if (RoundElapsedSeconds < StableEndSeconds)
-	{
-		return InitialWaterZ;
-	}
-
-	const float OuterFloodDuration =
-		FMath::Max(KINDA_SMALL_NUMBER, OuterFloodEndSeconds - StableEndSeconds);
-	if (RoundElapsedSeconds < OuterFloodEndSeconds)
-	{
-		const float Alpha = FMath::Clamp(
-			(RoundElapsedSeconds - StableEndSeconds) / OuterFloodDuration,
-			0.0f,
-			1.0f);
-		return FMath::Lerp(InitialWaterZ, OuterFloodWaterZ, Alpha);
-	}
-
-	const float CentralFloodDuration =
-		FMath::Max(KINDA_SMALL_NUMBER, CentralFloodEndSeconds - OuterFloodEndSeconds);
-	if (RoundElapsedSeconds < CentralFloodEndSeconds)
-	{
-		const float Alpha = FMath::Clamp(
-			(RoundElapsedSeconds - OuterFloodEndSeconds) / CentralFloodDuration,
-			0.0f,
-			1.0f);
-		return FMath::Lerp(OuterFloodWaterZ, CentralFloodWaterZ, Alpha);
-	}
-
-	return CentralFloodWaterZ
-		+ FMath::Max(0.0f, RoundElapsedSeconds - CentralFloodEndSeconds)
-		* OvertimeRiseSpeed;
-}
-
-ESnowIslandWaterPressureStage
-ASnowIslandWaterPressureActor::CalculateWaterStageFromShrinkStage(
-	int32 ShrinkStage) const
-{
-	if (ShrinkStage <= 0)
-	{
-		return ESnowIslandWaterPressureStage::Stable;
-	}
-	if (ShrinkStage == 1)
-	{
-		return ESnowIslandWaterPressureStage::OuterFlood;
-	}
-	if (ShrinkStage == 2)
-	{
-		return ESnowIslandWaterPressureStage::CentralFlood;
-	}
-	return ESnowIslandWaterPressureStage::Overtime;
-}
-
-float ASnowIslandWaterPressureActor::CalculateWaterTargetZFromShrinkStage(
-	int32 ShrinkStage) const
-{
-	if (ShrinkStage <= 1)
-	{
-		return OuterFloodWaterZ;
-	}
-	if (ShrinkStage == 2)
-	{
-		return CentralFloodWaterZ;
-	}
-
-	const float OvertimeStepSeconds =
-		FMath::Max(0.0f, MapShrinkWaterDurationSeconds);
-	return CentralFloodWaterZ
-		+ FMath::Max(0, ShrinkStage - 2)
-			* OvertimeStepSeconds
-			* OvertimeRiseSpeed;
-}
-
-float ASnowIslandWaterPressureActor::CalculateEventDrivenWaterZ() const
-{
-	if (MapShrinkWaterDurationSeconds <= 0.0f)
-	{
-		return MapShrinkWaterTargetZ;
-	}
-
-	const UWorld* World = GetWorld();
-	const AGameStateBase* GameState = World ? World->GetGameState() : nullptr;
-	const float CurrentServerTime = GameState
-		? GameState->GetServerWorldTimeSeconds()
-		: MapShrinkWaterStartServerTime;
-	const float Alpha = FMath::Clamp(
-		(CurrentServerTime - MapShrinkWaterStartServerTime)
-			/ MapShrinkWaterDurationSeconds,
-		0.0f,
-		1.0f);
-	return FMath::Lerp(MapShrinkWaterStartZ, MapShrinkWaterTargetZ, Alpha);
 }
 
 void ASnowIslandWaterPressureActor::ApplyWaterZ(float WaterZ)
@@ -552,15 +489,4 @@ void ASnowIslandWaterPressureActor::RequestHazardDamage(
 		nullptr,
 		this,
 		UDamageType::StaticClass());
-}
-
-float ASnowIslandWaterPressureActor::GetRoundElapsedSeconds() const
-{
-	const UWorld* World = GetWorld();
-	const ASnowRumbleGameState* SnowRumbleGameState = World
-		? World->GetGameState<ASnowRumbleGameState>()
-		: nullptr;
-	return SnowRumbleGameState
-		? SnowRumbleGameState->GetRoundElapsedSeconds()
-		: 0.0f;
 }
