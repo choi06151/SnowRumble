@@ -9,6 +9,8 @@
 class ASnowRumbleCharacter;
 class UPhysicsConstraintComponent;
 class USkeletalMeshComponent;
+class USoundAttenuation;
+class USoundBase;
 
 UENUM(BlueprintType)
 enum class ESnowRumbleGrabHand : uint8
@@ -100,6 +102,11 @@ protected:
 
 	UFUNCTION()
 	void OnRep_GrabAttachmentType();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayGrabSound(
+		FVector_NetQuantize Location,
+		bool bReleased);
 
 	/** 서버가 잡기 입력과 현재 상태를 검사한다. */
 	bool CanStartGrabReach() const;
@@ -241,6 +248,15 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Socket")
 	FName LeftGrabHandBoneName = TEXT("hand_l");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Audio")
+	TObjectPtr<USoundBase> GrabSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Audio")
+	TObjectPtr<USoundBase> ReleaseGrabSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Audio")
+	TObjectPtr<USoundAttenuation> GrabSoundAttenuation;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0"))
 	float GrabTetherSlackDistance = 18.0f;

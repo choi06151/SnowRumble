@@ -21,6 +21,9 @@ UI 버튼, 눈덩이 투척과 폭발, 피해 피드백, 아이템 및 게시판
 - [x] 각 맵의 배경음악 시작 지점을 GameMode 또는 PlayerController에 연결한다.
 - [x] 눈덩이 충돌음과 캐릭터 피격음을 위치 기반 재생으로 유지하고, Blueprint에서 attenuation 자산을 지정할 수 있게 한다.
 - [x] 버튼을 가진 UI 위젯이 공통 hover/click 사운드를 각각 로컬 2D로 자동 재생하도록 연결한다.
+- [x] 눈 제작, 눈 굴리기, 잡기, 놓기, 점프 시작, 큰 눈덩이 폭발 사운드의 Blueprint 슬롯과 확정 이벤트를 연결한다.
+- [x] 눈 표면 발걸음 AnimNotify 사운드를 발 위치 기반 attenuation 재생으로 연결한다.
+- [x] 발밑 trace 결과를 눈길/일반길로 분류해 서로 다른 발걸음 사운드를 재생한다.
 
 ## 작업 배정
 
@@ -72,11 +75,19 @@ UI 버튼, 눈덩이 투척과 폭발, 피해 피드백, 아이템 및 게시판
 - 2026-08-23: 포디움 배경음악은 반복하지 않도록 `USnowRumbleBackgroundMusicSubsystem::PlayBackgroundMusic()`에 루프 여부를 추가했다. 기본값은 반복으로 유지하고, `APodiumPlayerController`만 비반복으로 요청한다. 포디움 사운드 자산 자체에 loop가 켜진 경우에도 곡 길이 기준 정지 타이머로 한 번 재생 후 멈추게 했다.
 - 2026-08-24: UI 상호작용음은 로컬 2D 재생으로 유지하고, 눈덩이 충돌음과 캐릭터 피격음만 공간음향 대상으로 좁혔다. `SnowRumbleAudio::PlaySoundAtLocation()`이 선택적 `USoundAttenuation`을 받게 했고, `ASnowballItem::ImpactSoundAttenuation`, `ASnowRumbleCharacter::DamageSoundAttenuation`으로 Blueprint 연결 지점을 추가했다. 피격음은 소유 클라이언트 전용 화면 피드백에서 분리해 서버 피격 확정 후 `MulticastPlayDamageSound()`가 피격자 위치에서 모든 화면에 재생한다. `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
 - 2026-08-24: `USnowRumbleAudioUserWidget`이 하위 `UButton`의 hover/click을 자동 탐색하고, `ButtonHoverSound`와 `ButtonClickSound`를 해당 로컬 플레이어에게만 2D로 각각 재생하게 했다. 메인메뉴·커스터마이징·이모션·로비 게시판·ESC·옵션·키 설정 행·보이스 메뉴/행을 공통 부모로 전환하고 기존 위젯별 클릭 사운드 자산은 제거했다. 컴파일과 `.lib` 생성은 통과했지만 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
+- 2026-08-24: 눈 제작 완료음(`SnowballCreationSound`), 굴리기 시작음(`RollingSound`), 큰 눈덩이 충돌음(`LargeImpactSound`), 잡기/놓기(`GrabSound`, `ReleaseGrabSound`), 점프 시작음(`JumpSound`)을 추가했다. 제작·굴리기·큰 눈덩이·잡기·놓기는 위치 기반으로, 점프는 성공한 로컬 입력에서 재생한다. UHT와 C++ 컴파일 및 `.lib` 생성은 통과했지만 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
+- 2026-08-24: C-26 발걸음 AnimNotify가 `SnowSurface`를 확인한 발 socket 위치에서 `FootstepSound`와 `FootstepSoundAttenuation`을 위치 기반으로 재생하도록 연결했다.
 
 ## 수동 작업
 
 - `WBP_MainMenu`, `WBP_Lobby`, `WBP_MainHUD`, `WBP_Options`, `WBP_LobbyBoard`, `WBP_VoiceMuteMenu`에서 버튼/패널 클릭 사운드를 재생할 WBP 이벤트를 연결한다.
 - 버튼을 사용하는 WBP에서 공통 부모의 `ButtonHoverSound`와 `ButtonClickSound`에 각각 사운드 자산을 지정한다. 공통 부모가 하위 `UButton`을 자동 연결하므로 각 버튼별 이벤트 사운드 노드는 추가하지 않는다.
+- `BP_SnowRumbleCharacter`에서 `JumpSound`를 지정한다.
+- `BP_SnowRumbleCharacter`에서 `FootstepSound`와 `FootstepSoundAttenuation`을 지정한다.
+- `BP_SnowRumbleCharacter`에서 `NormalFootstepSound`와 `NormalFootstepSoundAttenuation`도 지정한다. `SnowSurface` Actor Tag가 있는 바닥은 눈길 사운드, 없는 바닥은 일반길 사운드를 사용한다.
+- 캐릭터의 `SnowballCreationComponent`에서 `SnowballCreationSound`와 `SnowballCreationSoundAttenuation`을 지정한다.
+- 캐릭터의 `PlayerGrabComponent`에서 `GrabSound`, `ReleaseGrabSound`, `GrabSoundAttenuation`을 지정한다.
+- 눈덩이 Blueprint에서 `RollingSound`, `RollingSoundAttenuation`, `LargeImpactSound`, `ImpactSoundAttenuation`을 지정한다. `RollingSound`는 반드시 Loop 재생이 가능한 Sound Wave/Sound Cue로 설정한다. `LargeImpactSound`는 최대 성장 눈덩이 충돌에만 사용된다.
 - `BP_MainMenuGameMode`, `BP_LobbyGameMode`, `BP_SnowRumblePVPGameMode`, `BP_SnowmanModeGameMode`, `BP_SnowRumblePodiumGameMode`, `BP_CustomizationGameMode`에서 `BackgroundMusicSound` 또는 해당 컨트롤러 배경음악 자산을 지정한다.
 - `BP_SnowRumbleCharacter`와 관련 AnimBP/Blueprint에서 눈덩이 투척, 폭발, 피해, 상호작용, 잡기, 발걸음 사운드 자산을 연결한다.
 - `BP_SnowRumbleCharacter`에서 `DamageSound`와 `DamageSoundAttenuation`을 지정한다. 피격음은 피격자 위치에서 모든 참가자에게 거리감 있게 재생된다.
@@ -95,6 +106,10 @@ UI 버튼, 눈덩이 투척과 폭발, 피해 피드백, 아이템 및 게시판
 ### 결과 확인
 
 - [ ] UI 버튼 hover 시 `ButtonHoverSound`, click 시 `ButtonClickSound`가 해당 플레이어에게만 재생된다.
+- [ ] 눈 제작 완료와 눈 굴리기 시작 시 지정한 위치 기반 사운드가 재생된다.
+- [ ] 잡기 성공과 놓기 시 각각의 사운드가 재생된다.
+- [ ] 점프 성공 시 로컬 플레이어에게 점프 시작음이 재생된다.
+- [ ] 최대 성장 큰 눈덩이가 충돌할 때 `LargeImpactSound`가 재생된다.
 - [ ] 눈덩이 투척과 폭발에 사운드가 연결된다.
 - [ ] 눈덩이 충돌음이 충돌 위치 기준으로 가까울수록 크게, 멀수록 작게 들린다.
 - [ ] 피해 피드백과 아이템/게시판 상호작용 사운드가 연결된다.

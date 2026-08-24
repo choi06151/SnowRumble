@@ -2,11 +2,13 @@
 
 #include "SnowballCreationComponent.h"
 
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "Camera/CameraComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/GameStateBase.h"
 #include "Net/UnrealNetwork.h"
+#include "Sound/SoundBase.h"
 #include "SnowballItem.h"
 #include "SnowballEquipmentComponent.h"
 #include "TimerManager.h"
@@ -241,6 +243,7 @@ void USnowballCreationComponent::CompleteCreation()
 
 	if (CreatedSnowball)
 	{
+		MulticastPlayCreationSound(SpawnLocation);
 		CreatedSnowball->SettleOnGroundFromSurface(
 			SurfaceSpawnPoint,
 			CreationSurfaceNormal);
@@ -261,6 +264,19 @@ void USnowballCreationComponent::CompleteCreation()
 
 	SetCreatingState(false);
 	Character->ForceNetUpdate();
+}
+
+void USnowballCreationComponent::MulticastPlayCreationSound_Implementation(
+	FVector_NetQuantize Location)
+{
+	SnowRumbleAudio::PlaySoundAtLocation(
+		this,
+		SnowballCreationSound,
+		ESnowRumbleAudioMixChannel::Gameplay,
+		Location,
+		1.0f,
+		1.0f,
+		SnowballCreationSoundAttenuation);
 }
 
 bool USnowballCreationComponent::FindSnowSurface(
