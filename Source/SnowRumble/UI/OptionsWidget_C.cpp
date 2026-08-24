@@ -2,16 +2,23 @@
 
 #include "OptionsWidget_C.h"
 
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "Components/Button.h"
 #include "Components/PanelWidget.h"
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
 #include "Components/WidgetSwitcher.h"
+#include "CustomizationPlayerController_C.h"
+#include "LobbyPlayerController.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "../Player/SnowRumbleUserSettingsSubsystem_C.h"
 #include "Engine/GameInstance.h"
+#include "MainMenuPlayerController.h"
+#include "../Game/PodiumPlayerController.h"
 #include "OptionsKeyBindingRowWidget_C.h"
+#include "Kismet/GameplayStatics.h"
 #include "Sound/SoundClass.h"
+#include "Sound/SoundMix.h"
 
 namespace
 {
@@ -56,6 +63,12 @@ void UOptionsWidget::NativeConstruct()
 
 void UOptionsWidget::NativeDestruct()
 {
+	if (LiveAudioPreviewSoundMix)
+	{
+		UGameplayStatics::PopSoundMixModifier(this, LiveAudioPreviewSoundMix);
+		LiveAudioPreviewSoundMix = nullptr;
+	}
+
 	UnbindOptionButtons();
 
 	Super::NativeDestruct();
@@ -111,6 +124,8 @@ void UOptionsWidget::DiscardPendingOptionChanges()
 	InitializeDefaultKeyBindingRows();
 	RefreshSensitivityValueText();
 	RefreshAudioValueText();
+	ApplyBackgroundMusicPreviewVolume();
+	ApplyAudioPreviewSoundMix();
 	RefreshMicrophoneValueText();
 	RefreshKeyBindingPanel();
 	SetHasPendingOptionChanges(false);
@@ -198,6 +213,12 @@ void UOptionsWidget::BindOptionButtons()
 			this,
 			&UOptionsWidget::HandleSensitivitySliderValueChanged);
 	}
+	if (MasterVolumeSlider)
+	{
+		MasterVolumeSlider->OnValueChanged.AddUniqueDynamic(
+			this,
+			&UOptionsWidget::HandleMasterVolumeSliderValueChanged);
+	}
 	if (BgmVolumeSlider)
 	{
 		BgmVolumeSlider->OnValueChanged.AddUniqueDynamic(
@@ -209,6 +230,12 @@ void UOptionsWidget::BindOptionButtons()
 		SfxVolumeSlider->OnValueChanged.AddUniqueDynamic(
 			this,
 			&UOptionsWidget::HandleSfxVolumeSliderValueChanged);
+	}
+	if (VoiceVolumeSlider)
+	{
+		VoiceVolumeSlider->OnValueChanged.AddUniqueDynamic(
+			this,
+			&UOptionsWidget::HandleVoiceVolumeSliderValueChanged);
 	}
 	if (MicrophoneVolumeSlider)
 	{
@@ -264,6 +291,10 @@ void UOptionsWidget::UnbindOptionButtons()
 	{
 		SensitivitySlider->OnValueChanged.RemoveAll(this);
 	}
+	if (MasterVolumeSlider)
+	{
+		MasterVolumeSlider->OnValueChanged.RemoveAll(this);
+	}
 	if (BgmVolumeSlider)
 	{
 		BgmVolumeSlider->OnValueChanged.RemoveAll(this);
@@ -271,6 +302,10 @@ void UOptionsWidget::UnbindOptionButtons()
 	if (SfxVolumeSlider)
 	{
 		SfxVolumeSlider->OnValueChanged.RemoveAll(this);
+	}
+	if (VoiceVolumeSlider)
+	{
+		VoiceVolumeSlider->OnValueChanged.RemoveAll(this);
 	}
 	if (MicrophoneVolumeSlider)
 	{
@@ -339,6 +374,21 @@ void UOptionsWidget::HandleSensitivitySliderValueChanged(float NewValue)
 	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 }
 
+void UOptionsWidget::HandleMasterVolumeSliderValueChanged(float NewValue)
+{
+	if (bIsUpdatingAudioSliders)
+	{
+		return;
+	}
+
+	PendingMasterVolume = FMath::Clamp(NewValue, 0.0f, 1.0f);
+	RefreshAudioValueText();
+	ApplyAudioVolumeSettings();
+	ApplyAudioPreviewSoundMix();
+	ApplyBackgroundMusicPreviewVolume();
+	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
+}
+
 void UOptionsWidget::HandleBgmVolumeSliderValueChanged(float NewValue)
 {
 	if (bIsUpdatingAudioSliders)
@@ -348,6 +398,9 @@ void UOptionsWidget::HandleBgmVolumeSliderValueChanged(float NewValue)
 
 	PendingBgmVolume = FMath::Clamp(NewValue, 0.0f, 1.0f);
 	RefreshAudioValueText();
+	ApplyAudioVolumeSettings();
+	ApplyAudioPreviewSoundMix();
+	ApplyBackgroundMusicPreviewVolume();
 	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 }
 
@@ -360,6 +413,24 @@ void UOptionsWidget::HandleSfxVolumeSliderValueChanged(float NewValue)
 
 	PendingSfxVolume = FMath::Clamp(NewValue, 0.0f, 1.0f);
 	RefreshAudioValueText();
+	ApplyAudioVolumeSettings();
+	ApplyAudioPreviewSoundMix();
+	ApplyBackgroundMusicPreviewVolume();
+	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
+}
+
+void UOptionsWidget::HandleVoiceVolumeSliderValueChanged(float NewValue)
+{
+	if (bIsUpdatingAudioSliders)
+	{
+		return;
+	}
+
+	PendingVoiceVolume = FMath::Clamp(NewValue, 0.0f, 1.0f);
+	RefreshAudioValueText();
+	ApplyAudioVolumeSettings();
+	ApplyAudioPreviewSoundMix();
+	ApplyBackgroundMusicPreviewVolume();
 	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 }
 
@@ -445,9 +516,11 @@ void UOptionsWidget::ApplyPendingOptionChanges()
 
 	if (UserSettingsSubsystem)
 	{
+		UserSettingsSubsystem->SetMasterVolume(PendingMasterVolume);
 		UserSettingsSubsystem->SetMouseSensitivity(PendingMouseSensitivity);
 		UserSettingsSubsystem->SetBgmVolume(PendingBgmVolume);
 		UserSettingsSubsystem->SetSfxVolume(PendingSfxVolume);
+		UserSettingsSubsystem->SetVoiceVolume(PendingVoiceVolume);
 		UserSettingsSubsystem->SetMicrophoneVolume(PendingMicrophoneVolume);
 		UserSettingsSubsystem->SetMicrophoneMode(PendingMicrophoneMode);
 		for (const FSnowRumbleKeyBindingViewData& Row : KeyBindingRows)
@@ -464,6 +537,8 @@ void UOptionsWidget::ApplyPendingOptionChanges()
 			}
 		}
 		ApplyAudioVolumeSettings();
+		ApplyAudioPreviewSoundMix();
+		ApplyBackgroundMusicPreviewVolume();
 	}
 
 	if (APlayerController* PlayerController = GetOwningPlayer())
@@ -509,15 +584,24 @@ void UOptionsWidget::ResetCurrentOptionsCategory()
 			if (const USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem =
 				GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>())
 			{
+				PendingMasterVolume =
+					UserSettingsSubsystem->GetDefaultAudioVolume();
 				PendingBgmVolume =
 					UserSettingsSubsystem->GetDefaultAudioVolume();
 				PendingSfxVolume =
 					UserSettingsSubsystem->GetDefaultAudioVolume();
+				PendingVoiceVolume =
+					UserSettingsSubsystem->GetDefaultVoiceVolume();
 			}
 		}
-		if (BgmVolumeSlider || SfxVolumeSlider)
+		if (MasterVolumeSlider || BgmVolumeSlider || SfxVolumeSlider
+			|| VoiceVolumeSlider)
 		{
 			bIsUpdatingAudioSliders = true;
+			if (MasterVolumeSlider)
+			{
+				MasterVolumeSlider->SetValue(PendingMasterVolume);
+			}
 			if (BgmVolumeSlider)
 			{
 				BgmVolumeSlider->SetValue(PendingBgmVolume);
@@ -526,9 +610,16 @@ void UOptionsWidget::ResetCurrentOptionsCategory()
 			{
 				SfxVolumeSlider->SetValue(PendingSfxVolume);
 			}
+			if (VoiceVolumeSlider)
+			{
+				VoiceVolumeSlider->SetValue(PendingVoiceVolume);
+			}
 			bIsUpdatingAudioSliders = false;
 		}
 		RefreshAudioValueText();
+		ApplyAudioVolumeSettings();
+		ApplyAudioPreviewSoundMix();
+		ApplyBackgroundMusicPreviewVolume();
 		SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 		break;
 	case ESnowRumbleOptionsCategory::Microphone:
@@ -754,7 +845,11 @@ void UOptionsWidget::InitializeDefaultKeyBindingRows()
 	KeyBindingRows.Add(MakeKeyBindingRow(
 		TEXT("Emote"),
 		NSLOCTEXT("SnowRumble", "KeyBindingEmote", "이모션"),
-		EKeys::B));
+		EKeys::Tab));
+	KeyBindingRows.Add(MakeKeyBindingRow(
+		TEXT("KeyGuide"),
+		NSLOCTEXT("SnowRumble", "KeyBindingKeyGuide", "키 가이드"),
+		EKeys::T));
 	KeyBindingRows.Add(MakeKeyBindingRow(
 		TEXT("Chat"),
 		NSLOCTEXT("SnowRumble", "KeyBindingChat", "채팅"),
@@ -859,16 +954,27 @@ void UOptionsWidget::InitializeAudioSettings()
 			? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>()
 			: nullptr;
 
+	PendingMasterVolume = UserSettingsSubsystem
+		? UserSettingsSubsystem->GetMasterVolume()
+		: 1.0f;
 	PendingBgmVolume = UserSettingsSubsystem
 		? UserSettingsSubsystem->GetBgmVolume()
 		: 1.0f;
 	PendingSfxVolume = UserSettingsSubsystem
 		? UserSettingsSubsystem->GetSfxVolume()
 		: 1.0f;
+	PendingVoiceVolume = UserSettingsSubsystem
+		? UserSettingsSubsystem->GetVoiceVolume()
+		: 1.0f;
 
-	if (BgmVolumeSlider || SfxVolumeSlider)
+	if (MasterVolumeSlider || BgmVolumeSlider || SfxVolumeSlider
+		|| VoiceVolumeSlider)
 	{
 		bIsUpdatingAudioSliders = true;
+		if (MasterVolumeSlider)
+		{
+			MasterVolumeSlider->SetValue(PendingMasterVolume);
+		}
 		if (BgmVolumeSlider)
 		{
 			BgmVolumeSlider->SetValue(PendingBgmVolume);
@@ -877,10 +983,16 @@ void UOptionsWidget::InitializeAudioSettings()
 		{
 			SfxVolumeSlider->SetValue(PendingSfxVolume);
 		}
+		if (VoiceVolumeSlider)
+		{
+			VoiceVolumeSlider->SetValue(PendingVoiceVolume);
+		}
 		bIsUpdatingAudioSliders = false;
 	}
 
 	ApplyAudioVolumeSettings();
+	ApplyAudioPreviewSoundMix();
+	ApplyBackgroundMusicPreviewVolume();
 }
 
 void UOptionsWidget::InitializeMicrophoneSettings()
@@ -911,13 +1023,108 @@ void UOptionsWidget::InitializeMicrophoneSettings()
 
 void UOptionsWidget::ApplyAudioVolumeSettings() const
 {
+	const float MasterVolume = PendingMasterVolume;
 	if (BgmSoundClass)
 	{
-		BgmSoundClass->Properties.Volume = PendingBgmVolume;
+		BgmSoundClass->Properties.Volume = MasterVolume * PendingBgmVolume;
 	}
 	if (SfxSoundClass)
 	{
-		SfxSoundClass->Properties.Volume = PendingSfxVolume;
+		SfxSoundClass->Properties.Volume = MasterVolume * PendingSfxVolume;
+	}
+	if (VoiceSoundClass)
+	{
+		VoiceSoundClass->Properties.Volume = MasterVolume * PendingVoiceVolume;
+	}
+}
+
+void UOptionsWidget::ApplyAudioPreviewSoundMix()
+{
+	if (!GetWorld())
+	{
+		return;
+	}
+
+	if (!LiveAudioPreviewSoundMix)
+	{
+		LiveAudioPreviewSoundMix = NewObject<USoundMix>(this);
+		UGameplayStatics::PushSoundMixModifier(this, LiveAudioPreviewSoundMix);
+	}
+
+	const float MasterVolume = PendingMasterVolume;
+	const float BgmVolume = PendingBgmVolume;
+	const float SfxVolume = PendingSfxVolume;
+	const float VoiceVolume = PendingVoiceVolume;
+
+	if (BgmSoundClass)
+	{
+		UGameplayStatics::SetSoundMixClassOverride(
+			this,
+			LiveAudioPreviewSoundMix,
+			BgmSoundClass,
+			MasterVolume * BgmVolume,
+			1.0f,
+			0.0f,
+			true);
+	}
+
+	if (SfxSoundClass)
+	{
+		UGameplayStatics::SetSoundMixClassOverride(
+			this,
+			LiveAudioPreviewSoundMix,
+			SfxSoundClass,
+			MasterVolume * SfxVolume,
+			1.0f,
+			0.0f,
+			true);
+	}
+
+	if (VoiceSoundClass)
+	{
+		UGameplayStatics::SetSoundMixClassOverride(
+			this,
+			LiveAudioPreviewSoundMix,
+			VoiceSoundClass,
+			MasterVolume * VoiceVolume,
+			1.0f,
+			0.0f,
+			true);
+	}
+}
+
+void UOptionsWidget::ApplyBackgroundMusicPreviewVolume() const
+{
+	const float MasterVolume = PendingMasterVolume;
+	const float BgmVolume = PendingBgmVolume;
+
+	if (ASnowRumblePlayerController* SnowRumblePlayerController =
+		Cast<ASnowRumblePlayerController>(GetOwningPlayer()))
+	{
+		SnowRumblePlayerController->SetBackgroundMusicPreviewVolume(
+			MasterVolume,
+			BgmVolume);
+	}
+	if (AMainMenuPlayerController* MainMenuPlayerController =
+		Cast<AMainMenuPlayerController>(GetOwningPlayer()))
+	{
+		MainMenuPlayerController->SetBackgroundMusicPreviewVolume(
+			MasterVolume,
+			BgmVolume);
+	}
+	if (ACustomizationPlayerController* CustomizationPlayerController =
+		Cast<ACustomizationPlayerController>(GetOwningPlayer()))
+	{
+		CustomizationPlayerController->SetBackgroundMusicPreviewVolume(
+			MasterVolume,
+			BgmVolume);
+	}
+	if (APodiumPlayerController* PodiumPlayerController =
+		Cast<APodiumPlayerController>(GetOwningPlayer()))
+	{
+		PodiumPlayerController->SetBackgroundMusicPreviewVolume(
+			MasterVolume,
+			BgmVolume);
 	}
 }
 
@@ -991,9 +1198,17 @@ bool UOptionsWidget::HasPendingAudioChanges() const
 	const float SavedSfxVolume = UserSettingsSubsystem
 		? UserSettingsSubsystem->GetSfxVolume()
 		: 1.0f;
+	const float SavedMasterVolume = UserSettingsSubsystem
+		? UserSettingsSubsystem->GetMasterVolume()
+		: 1.0f;
+	const float SavedVoiceVolume = UserSettingsSubsystem
+		? UserSettingsSubsystem->GetVoiceVolume()
+		: 1.0f;
 
-	return !FMath::IsNearlyEqual(PendingBgmVolume, SavedBgmVolume, 0.001f)
-		|| !FMath::IsNearlyEqual(PendingSfxVolume, SavedSfxVolume, 0.001f);
+	return !FMath::IsNearlyEqual(PendingMasterVolume, SavedMasterVolume, 0.001f)
+		|| !FMath::IsNearlyEqual(PendingBgmVolume, SavedBgmVolume, 0.001f)
+		|| !FMath::IsNearlyEqual(PendingSfxVolume, SavedSfxVolume, 0.001f)
+		|| !FMath::IsNearlyEqual(PendingVoiceVolume, SavedVoiceVolume, 0.001f);
 }
 
 bool UOptionsWidget::HasPendingMicrophoneChanges() const
@@ -1072,6 +1287,12 @@ void UOptionsWidget::RefreshSensitivityValueText()
 
 void UOptionsWidget::RefreshAudioValueText()
 {
+	if (MasterVolumeValueText)
+	{
+		MasterVolumeValueText->SetText(FText::Format(
+			NSLOCTEXT("SnowRumble", "MasterVolumeValuePercent", "{0}%"),
+			FText::AsNumber(FMath::RoundToInt(PendingMasterVolume * 100.0f))));
+	}
 	if (BgmVolumeValueText)
 	{
 		BgmVolumeValueText->SetText(FText::Format(
@@ -1083,6 +1304,12 @@ void UOptionsWidget::RefreshAudioValueText()
 		SfxVolumeValueText->SetText(FText::Format(
 			NSLOCTEXT("SnowRumble", "SfxVolumeValuePercent", "{0}%"),
 			FText::AsNumber(FMath::RoundToInt(PendingSfxVolume * 100.0f))));
+	}
+	if (VoiceVolumeValueText)
+	{
+		VoiceVolumeValueText->SetText(FText::Format(
+			NSLOCTEXT("SnowRumble", "VoiceVolumeValuePercent", "{0}%"),
+			FText::AsNumber(FMath::RoundToInt(PendingVoiceVolume * 100.0f))));
 	}
 }
 

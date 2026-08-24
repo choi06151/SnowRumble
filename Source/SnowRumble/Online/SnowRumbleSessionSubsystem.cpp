@@ -21,11 +21,36 @@ namespace SnowRumbleSession
 	constexpr int32 MaximumPlayers = 8;
 	constexpr int32 MaximumSearchResults = 100;
 	constexpr int32 RoomCodeDigits = 6;
-	const TCHAR* HostTravelUrl = TEXT("/Game/Maps/L_Lobby?listen");
+	const TCHAR* LobbyGameModeTravelPath =
+		TEXT("/Game/Game/BP_LobbyGameMode.BP_LobbyGameMode_C");
+	const TCHAR* MainMenuGameModeTravelPath =
+		TEXT("/Game/Game/BP_MainMenuGameMode.BP_MainMenuGameMode_C");
+	const TCHAR* HostTravelUrl =
+		TEXT("/Game/Maps/L_Lobby?listen?game=/Game/Game/BP_LobbyGameMode.BP_LobbyGameMode_C");
+	const TCHAR* MainMenuTravelUrl =
+		TEXT("/Game/Maps/L_MainMenu?game=/Game/Game/BP_MainMenuGameMode.BP_MainMenuGameMode_C");
 	const FName RoomNameSettingKey(TEXT("SNOWRUMBLE_ROOM_NAME"));
 	const FName RoomCodeSettingKey(TEXT("SNOWRUMBLE_ROOM_CODE"));
 	const FName GameModeSettingKey(TEXT("SNOWRUMBLE_GAME_MODE"));
+	const TCHAR* LobbyMapName = TEXT("L_Lobby");
 	const TCHAR* TeamPvpModeName = TEXT("TeamPvP");
+
+	FString GetSessionMapName(UWorld* World)
+	{
+		return World ? UGameplayStatics::GetCurrentLevelName(World, true) : FString();
+	}
+
+	bool IsLobbyMapName(const FString& MapName)
+	{
+		return MapName.Equals(LobbyMapName, ESearchCase::IgnoreCase)
+			|| MapName.EndsWith(TEXT("/L_Lobby"), ESearchCase::IgnoreCase);
+	}
+
+	bool IsJoinableLobbySession(const FSnowRumbleSessionInfo& SessionInfo)
+	{
+		return SessionInfo.CurrentPlayers < SessionInfo.MaxPlayers
+			&& IsLobbyMapName(SessionInfo.MapName);
+	}
 }
 
 void USnowRumbleSessionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -46,6 +71,9 @@ void USnowRumbleSessionSubsystem::Initialize(FSubsystemCollectionBase& Collectio
 		NetworkFailureHandle = GEngine->OnNetworkFailure().AddUObject(
 			this,
 			&USnowRumbleSessionSubsystem::HandleNetworkFailure);
+		TravelFailureHandle = GEngine->OnTravelFailure().AddUObject(
+			this,
+			&USnowRumbleSessionSubsystem::HandleTravelFailure);
 	}
 }
 
@@ -60,6 +88,11 @@ void USnowRumbleSessionSubsystem::Deinitialize()
 	{
 		GEngine->OnNetworkFailure().Remove(NetworkFailureHandle);
 		NetworkFailureHandle.Reset();
+	}
+	if (GEngine && TravelFailureHandle.IsValid())
+	{
+		GEngine->OnTravelFailure().Remove(TravelFailureHandle);
+		TravelFailureHandle.Reset();
 	}
 
 	ClearCreateSessionDelegate();
@@ -155,7 +188,9 @@ void USnowRumbleSessionSubsystem::HostLanSession(
 			World,
 			FName(TEXT("/Game/Maps/L_Lobby")),
 			true,
-			TEXT("listen"));
+			FString::Printf(
+				TEXT("listen?game=%s"),
+				SnowRumbleSession::LobbyGameModeTravelPath));
 		return;
 	}
 
@@ -173,6 +208,12 @@ void USnowRumbleSessionSubsystem::HostLanSession(
 
 void USnowRumbleSessionSubsystem::CreateLanSession(int32 MaxPlayers)
 {
+	if (PendingHostRoomCode.IsEmpty())
+	{
+		PendingHostRoomCode = GenerateRoomCode();
+	}
+	CurrentRoomCode = PendingHostRoomCode;
+
 	IOnlineSessionPtr SessionInterface = GetSessionInterface();
 	if (!SessionInterface.IsValid())
 	{
@@ -206,7 +247,7 @@ void USnowRumbleSessionSubsystem::CreateLanSession(int32 MaxPlayers)
 		EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 	SessionSettings.Set(
 		SETTING_MAPNAME,
-		FString(TEXT("L_Lobby")),
+		FString(SnowRumbleSession::LobbyMapName),
 		EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 
 	UE_LOG(
@@ -243,16 +284,60 @@ void USnowRumbleSessionSubsystem::CreateLanSession(int32 MaxPlayers)
 
 void USnowRumbleSessionSubsystem::HandlePostLoadMap(UWorld* LoadedWorld)
 {
-	if (!bHostTravelPending
-		|| !LoadedWorld
+	if (!LoadedWorld
 		|| LoadedWorld->GetGameInstance() != GetGameInstance()
 		|| LoadedWorld->GetNetMode() != NM_ListenServer)
 	{
 		return;
 	}
 
-	bHostTravelPending = false;
-	CreateLanSession(PendingHostMaxPlayers);
+	if (bHostTravelPending)
+	{
+		bHostTravelPending = false;
+		CreateLanSession(PendingHostMaxPlayers);
+		return;
+	}
+
+	UpdateAdvertisedSessionMap(LoadedWorld);
+}
+
+void USnowRumbleSessionSubsystem::UpdateAdvertisedSessionMap(UWorld* LoadedWorld)
+{
+	IOnlineSessionPtr SessionInterface = GetSessionInterface();
+	if (!SessionInterface.IsValid())
+	{
+		return;
+	}
+
+	FNamedOnlineSession* NamedSession =
+		SessionInterface->GetNamedSession(LocalSessionName);
+	if (!NamedSession)
+	{
+		return;
+	}
+
+	const FString MapName = SnowRumbleSession::GetSessionMapName(LoadedWorld);
+	if (MapName.IsEmpty())
+	{
+		return;
+	}
+
+	FOnlineSessionSettings UpdatedSettings = NamedSession->SessionSettings;
+	UpdatedSettings.bAllowJoinInProgress =
+		SnowRumbleSession::IsLobbyMapName(MapName);
+	UpdatedSettings.Set(
+		SETTING_MAPNAME,
+		MapName,
+		EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
+
+	UE_LOG(
+		LogSnowRumbleSession,
+		Log,
+		TEXT("Updating advertised LAN session map. Map=%s AllowJoinInProgress=%d"),
+		*MapName,
+		UpdatedSettings.bAllowJoinInProgress ? 1 : 0);
+
+	SessionInterface->UpdateSession(LocalSessionName, UpdatedSettings, true);
 }
 
 void USnowRumbleSessionSubsystem::FindLanSessions()
@@ -454,8 +539,32 @@ void USnowRumbleSessionSubsystem::JoinSearchResult(
 		return;
 	}
 
+	if (SessionInterface->GetNamedSession(LocalSessionName))
+	{
+		DestroyLocalSessionIfPresent(TEXT("before join retry"));
+		SetOperationState(
+			Operation,
+			ESnowRumbleSessionState::Failed,
+			TEXT("이전 LAN 세션 상태를 정리했습니다. 다시 참가해 주세요."));
+		return;
+	}
+
 	const FOnlineSessionSearchResult& SearchResult =
 		ActiveSessionSearch->SearchResults[ResultIndex];
+	FString SearchResultMapName;
+	SearchResult.Session.SessionSettings.Get(
+		SETTING_MAPNAME,
+		SearchResultMapName);
+	if (!SnowRumbleSession::IsLobbyMapName(SearchResultMapName))
+	{
+		SetOperationState(
+			Operation,
+			ESnowRumbleSessionState::Failed,
+			TEXT("대기방 상태인 세션만 참가할 수 있습니다."));
+		SetPendingMainMenuAlarmMessage(TEXT("이미 시작된 방에는 참가할 수 없습니다."));
+		return;
+	}
+
 	FString SearchResultRoomCode;
 	SearchResult.Session.SessionSettings.Get(
 		SnowRumbleSession::RoomCodeSettingKey,
@@ -486,6 +595,7 @@ void USnowRumbleSessionSubsystem::JoinSearchResult(
 		ActiveSessionSearch->SearchResults[ResultIndex]))
 	{
 		ClearJoinSessionDelegate();
+		DestroyLocalSessionIfPresent(TEXT("join request failed"));
 		SetOperationState(
 			Operation,
 			ESnowRumbleSessionState::Failed,
@@ -501,6 +611,17 @@ USnowRumbleSessionSubsystem::GetSearchResults() const
 
 FString USnowRumbleSessionSubsystem::GetCurrentRoomCode() const
 {
+	if (!CurrentRoomCode.IsEmpty())
+	{
+		return CurrentRoomCode;
+	}
+
+	if (CurrentOperation == ESnowRumbleSessionOperation::Host
+		&& !PendingHostRoomCode.IsEmpty())
+	{
+		return PendingHostRoomCode;
+	}
+
 	return CurrentRoomCode;
 }
 
@@ -560,6 +681,10 @@ void USnowRumbleSessionSubsystem::HandleCreateSessionComplete(
 	}
 
 	bWasInLanSession = true;
+	if (CurrentRoomCode.IsEmpty() && !PendingHostRoomCode.IsEmpty())
+	{
+		CurrentRoomCode = PendingHostRoomCode;
+	}
 	SetOperationState(
 		ESnowRumbleSessionOperation::Host,
 		ESnowRumbleSessionState::Succeeded,
@@ -606,6 +731,9 @@ void USnowRumbleSessionSubsystem::HandleFindSessionsComplete(bool bWasSuccessful
 		Session.SessionSettings.Get(
 			SnowRumbleSession::GameModeSettingKey,
 			SessionInfo.GameModeName);
+		Session.SessionSettings.Get(
+			SETTING_MAPNAME,
+			SessionInfo.MapName);
 		SessionInfo.MaxPlayers =
 			Session.SessionSettings.NumPublicConnections;
 		SessionInfo.CurrentPlayers =
@@ -614,12 +742,13 @@ void USnowRumbleSessionSubsystem::HandleFindSessionsComplete(bool bWasSuccessful
 		UE_LOG(
 			LogSnowRumbleSession,
 			Log,
-			TEXT("Search result %d: Host='%s' RoomName='%s' RoomCode=%s GameMode=%s Players=%d/%d Ping=%d"),
+			TEXT("Search result %d: Host='%s' RoomName='%s' RoomCode=%s GameMode=%s Map=%s Players=%d/%d Ping=%d"),
 			Index,
 			*SessionInfo.HostName,
 			*SessionInfo.RoomName,
 			*SessionInfo.RoomCode,
 			*SessionInfo.GameModeName,
+			*SessionInfo.MapName,
 			SessionInfo.CurrentPlayers,
 			SessionInfo.MaxPlayers,
 			SessionInfo.PingMilliseconds);
@@ -632,7 +761,7 @@ void USnowRumbleSessionSubsystem::HandleFindSessionsComplete(bool bWasSuccessful
 	{
 		for (const FSnowRumbleSessionInfo& SessionInfo : SearchResults)
 		{
-			if (SessionInfo.CurrentPlayers < SessionInfo.MaxPlayers)
+			if (SnowRumbleSession::IsJoinableLobbySession(SessionInfo))
 			{
 				JoinSearchResult(
 					SessionInfo.ResultIndex,
@@ -655,6 +784,16 @@ void USnowRumbleSessionSubsystem::HandleFindSessionsComplete(bool bWasSuccessful
 		{
 			if (NormalizeRoomCode(SessionInfo.RoomCode) == PendingJoinRoomCode)
 			{
+				if (!SnowRumbleSession::IsLobbyMapName(SessionInfo.MapName))
+				{
+					SetOperationState(
+						ESnowRumbleSessionOperation::JoinByCode,
+						ESnowRumbleSessionState::Failed,
+						TEXT("이미 시작된 방에는 참가할 수 없습니다."));
+					SetPendingMainMenuAlarmMessage(TEXT("이미 시작된 방에는 참가할 수 없습니다."));
+					return;
+				}
+
 				if (SessionInfo.CurrentPlayers >= SessionInfo.MaxPlayers)
 				{
 					SetOperationState(
@@ -701,6 +840,8 @@ void USnowRumbleSessionSubsystem::HandleJoinSessionComplete(
 
 	if (Result != EOnJoinSessionCompleteResult::Success)
 	{
+		DestroyLocalSessionIfPresent(TEXT("join completed with failure"));
+
 		FString FailureMessage;
 		switch (Result)
 		{
@@ -769,8 +910,7 @@ void USnowRumbleSessionSubsystem::HandleNetworkFailure(
 	const FString& ErrorString)
 {
 	if (!World
-		|| World->GetGameInstance() != GetGameInstance()
-		|| World->GetNetMode() != NM_Client)
+		|| World->GetGameInstance() != GetGameInstance())
 	{
 		return;
 	}
@@ -789,7 +929,13 @@ void USnowRumbleSessionSubsystem::HandleNetworkFailure(
 	const bool bHasNamedSession =
 		SessionInterface.IsValid()
 		&& SessionInterface->GetNamedSession(LocalSessionName);
-	if (!bWasInLanSession && !bHasNamedSession)
+	const bool bWasJoiningOrJoined =
+		bWasInLanSession
+		|| bHasNamedSession
+		|| CurrentOperation == ESnowRumbleSessionOperation::Join
+		|| CurrentOperation == ESnowRumbleSessionOperation::QuickJoin
+		|| CurrentOperation == ESnowRumbleSessionOperation::JoinByCode;
+	if (!bWasJoiningOrJoined || World->GetNetMode() == NM_ListenServer)
 	{
 		return;
 	}
@@ -801,9 +947,48 @@ void USnowRumbleSessionSubsystem::HandleNetworkFailure(
 		ENetworkFailure::ToString(FailureType),
 		*ErrorString);
 
-	PendingMainMenuAlarmMessage =
-		TEXT("방장이 나가 방이 종료되었습니다.");
+	ReturnToMainMenuAfterSessionFailure(
+		TEXT("호스트의 연결이 해제되었습니다."));
+}
+
+void USnowRumbleSessionSubsystem::HandleTravelFailure(
+	UWorld* World,
+	ETravelFailure::Type FailureType,
+	const FString& ErrorString)
+{
+	if (!World
+		|| World->GetGameInstance() != GetGameInstance())
+	{
+		return;
+	}
+
+	const bool bWasJoiningOrJoined =
+		bWasInLanSession
+		|| CurrentOperation == ESnowRumbleSessionOperation::Join
+		|| CurrentOperation == ESnowRumbleSessionOperation::QuickJoin
+		|| CurrentOperation == ESnowRumbleSessionOperation::JoinByCode;
+	if (!bWasJoiningOrJoined || World->GetNetMode() == NM_ListenServer)
+	{
+		return;
+	}
+
+	UE_LOG(
+		LogSnowRumbleSession,
+		Warning,
+		TEXT("Travel failure detected. FailureType=%s Error='%s'"),
+		ETravelFailure::ToString(FailureType),
+		*ErrorString);
+
+	ReturnToMainMenuAfterSessionFailure(
+		TEXT("호스트의 연결이 해제되었습니다."));
+}
+
+void USnowRumbleSessionSubsystem::ReturnToMainMenuAfterSessionFailure(
+	const FString& AlarmMessage)
+{
+	UWorld* World = GetWorld();
 	LeaveLanSession();
+	PendingMainMenuAlarmMessage = AlarmMessage;
 
 	if (APlayerController* PlayerController =
 		GetGameInstance()
@@ -811,9 +996,18 @@ void USnowRumbleSessionSubsystem::HandleNetworkFailure(
 			: nullptr)
 	{
 		PlayerController->ClientTravel(
-			TEXT("/Game/Maps/L_MainMenu"),
+			SnowRumbleSession::MainMenuTravelUrl,
 			TRAVEL_Absolute);
+		return;
 	}
+
+	UGameplayStatics::OpenLevel(
+		World ? World : GetWorld(),
+		FName(TEXT("/Game/Maps/L_MainMenu")),
+		true,
+		FString::Printf(
+			TEXT("game=%s"),
+			SnowRumbleSession::MainMenuGameModeTravelPath));
 }
 
 FString USnowRumbleSessionSubsystem::NormalizeRoomCode(
@@ -887,4 +1081,25 @@ void USnowRumbleSessionSubsystem::ClearJoinSessionDelegate()
 			JoinSessionCompleteHandle);
 	}
 	JoinSessionCompleteHandle.Reset();
+}
+
+void USnowRumbleSessionSubsystem::DestroyLocalSessionIfPresent(
+	const TCHAR* Reason)
+{
+	IOnlineSessionPtr SessionInterface = GetSessionInterface();
+	if (!SessionInterface.IsValid()
+		|| !SessionInterface->GetNamedSession(LocalSessionName))
+	{
+		return;
+	}
+
+	UE_LOG(
+		LogSnowRumbleSession,
+		Log,
+		TEXT("Destroying local LAN session. Reason=%s SessionName=%s"),
+		Reason ? Reason : TEXT("unknown"),
+		*LocalSessionName.ToString());
+	SessionInterface->DestroySession(LocalSessionName);
+	bWasInLanSession = false;
+	CurrentRoomCode.Empty();
 }

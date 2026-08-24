@@ -2,6 +2,8 @@
 
 #include "HealthBarWidget.h"
 
+#include "../Game/SnowRumblePlayerState.h"
+#include "../Player/SnowRumbleCharacter.h"
 #include "../Player/SnowRumbleHealthComponent.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
@@ -21,6 +23,7 @@ void UHealthBarWidget::NativeConstruct()
 	{
 		UpdateHealthPresentation(0.0f, 1.0f);
 	}
+	UpdateObservedPlayerName();
 }
 
 void UHealthBarWidget::NativeDestruct()
@@ -42,14 +45,17 @@ void UHealthBarWidget::NativeTick(
 			ObservedHealthComponent->GetCurrentHealth(),
 			ObservedHealthComponent->GetMaxHealth());
 	}
+	UpdateObservedPlayerName();
 }
 
 void UHealthBarWidget::SetObservedActor(AActor* NewObservedActor)
 {
+	ObservedActor = NewObservedActor;
 	SetObservedHealthComponent(
 		NewObservedActor
 			? NewObservedActor->FindComponentByClass<USnowRumbleHealthComponent>()
 			: nullptr);
+	UpdateObservedPlayerName();
 }
 
 void UHealthBarWidget::SetObservedHealthComponent(
@@ -105,6 +111,24 @@ void UHealthBarWidget::UpdateHealthPresentation(
 			FText::AsNumber(FMath::RoundToInt(CurrentHealth)),
 			FText::AsNumber(FMath::RoundToInt(SafeMaxHealth))));
 	}
+}
+
+void UHealthBarWidget::UpdateObservedPlayerName()
+{
+	if (!PlayerNameText)
+	{
+		return;
+	}
+
+	const ASnowRumbleCharacter* Character =
+		Cast<ASnowRumbleCharacter>(ObservedActor);
+	const ASnowRumblePlayerState* PlayerState = Character
+		? Character->GetPlayerState<ASnowRumblePlayerState>()
+		: nullptr;
+	PlayerNameText->SetText(
+		PlayerState
+			? FText::FromString(PlayerState->GetLobbyPlayerName())
+			: FText::GetEmpty());
 }
 
 void UHealthBarWidget::HandleHealthChanged(

@@ -19,16 +19,18 @@
 - 커스터마이징 UI는 WidgetSwitcher로 메인 화면과 색칠하기 화면을 전환한다.
 - 시점변경 화면은 카메라를 돌리지 않고 프리뷰 캐릭터를 좌/우 버튼 press 동안 계속 회전한다.
 - 커스터마이징 레벨의 프리뷰 캐릭터는 커마 방 전용 애니메이션 에셋을 지정하거나 현재 애니메이션을 정지 상태로 둘 수 있다.
+- 메인메뉴 레벨에서 캐릭터를 possess한 경우에도 커스터마이징 프리뷰와 같이 이동·시점 입력과 중력을 막고, 메인메뉴 전용 애니메이션을 지정한 시점에서 정지하거나 재생하며 메인메뉴 전용 Mesh 스케일을 적용할 수 있다.
+- 메인메뉴와 커스터마이징 프리뷰 캐릭터는 각 맵의 표시용 pawn에서 그림자를 끈다.
 - 첫 외형 데이터는 몸 색상 `BodyColor`로 제한해 로컬 저장, 서버 복제, 캐릭터 머티리얼 적용 경로를 제공한다.
 - 메쉬 직접 드로잉 1차 범위는 커스터마이징 레벨 프리뷰에서 현재 브러시 색과 크기로 그리고, Stroke 단위 이전과 전체 초기화를 지원한다.
 - 페인트 trace는 기본적으로 몸 머티리얼 slot 0만 허용하고, 다른 slot 또는 알 수 없는 slot은 stroke 생성을 막는다.
 - 페인트 trace는 소프트웨어 커서의 좌상단 기준 표시를 보정해 원형 커서 중심에서 나가도록 자동 보정한다.
 - 페인트 stroke는 UV 좌표가 갑자기 멀리 이동하면 관절/UV seam으로 보고 선을 끊어 긴 튐 선을 만들지 않는다.
 - 색칠하기 버튼은 메인 화면에서 색칠하기 화면으로 전환하고, 색칠하기 화면에서 다시 누르면 메인 화면으로 돌아간다.
-- 색칠하기 화면은 고정 브러시 색 팔레트, 브러시 크기 조정 버튼, 전체 칠하기 버튼을 제공한다.
+- 색칠하기 화면은 36개 프리뷰 몸 색상 후보 버튼, 브러시 크기 조정 버튼, 전체 칠하기 버튼을 제공한다.
 - 모자 선택 화면은 색칠하기 버튼 옆의 모자 버튼으로 열고, 위/아래 버튼으로 현재 캐릭터 BP에 등록된 모자 StaticMesh 후보를 하나씩 순환한다.
 - 모자 선택 결과는 StaticMesh 자산 직접 참조가 아니라 `HatMeshIndex`로 저장·복제하고, 각 캐릭터 BP의 후보 배열에서 같은 인덱스를 장착한다.
-- 브러시 색은 빨강, 주황, 노랑, 초록, 파랑, 남색, 보라, 검정, 하양 팔레트 버튼으로만 선택한다.
+- 브러시 색 후보는 빨강·주황·노랑·초록·파랑·보라 계열의 명도 변형과 검정·회색·하양을 포함한 36개 색상으로 선택한다.
 - 현재 선택된 팔레트 버튼은 Pressed 상태 스타일로 유지한다.
 - 브러시 크기 버튼은 버튼을 누른 상태에서 마우스 휠로 선 두께를 작게 또는 크게 조정한다.
 - 게임 전체에서 기본 커서 BP 슬롯을 사용하고, 커스터마이징 색칠하기 화면에서는 BP 슬롯에 지정한 원형 커서 위젯으로 마우스 커서를 바꾼다.
@@ -48,6 +50,9 @@
 - [x] 좌/우 버튼을 누르고 있는 동안 프리뷰 캐릭터를 회전한다.
 - [x] 커스터마이징 레벨 프리뷰 캐릭터의 오버헤드 이름표 위젯을 숨긴다.
 - [x] 커스터마이징 레벨 프리뷰 캐릭터 전용 애니메이션 에셋과 정지 설정을 제공한다.
+- [x] 메인메뉴 레벨 캐릭터도 이동·시점 입력, 중력, MovementMode를 막고 전용 포즈 애니메이션 설정을 제공한다.
+- [x] 메인메뉴 레벨 캐릭터에만 적용할 Skeletal Mesh 스케일 설정을 제공한다.
+- [x] 메인메뉴와 커스터마이징 프리뷰 캐릭터의 표시용 pawn 그림자를 끈다.
 - [x] 로컬 플레이어의 몸 색상 선택 결과를 저장·불러온다.
 - [x] 방 참가 뒤 몸 색상 데이터를 서버가 검증해 다른 참가자에게 전달한다.
 - [x] 캐릭터 Mesh 머티리얼 파라미터에 복제된 몸 색상을 적용하는 공개 지점을 제공한다.
@@ -63,7 +68,7 @@
 - [x] 색칠하기 화면이 아닐 때 좌클릭으로 페인트 stroke가 생성되지 않게 한다.
 - [x] 색칠하기 버튼을 누르면 `CustomizationContentSwitcher` 인덱스 1 색칠하기 화면으로 전환한다.
 - [x] 색칠하기 화면에서 색칠하기 버튼을 다시 누르면 `CustomizationContentSwitcher` 인덱스 0 메인 화면으로 돌아간다.
-- [x] 색칠하기 화면의 브러시 색을 빨강, 주황, 노랑, 초록, 파랑, 남색, 보라, 검정, 하양 고정 팔레트 버튼으로 선택하게 한다.
+- [x] 색칠하기 화면에서 36개 고정 색상 버튼을 C++가 이름으로 자동 바인딩한다.
 - [x] 현재 선택된 브러시 색 버튼은 Pressed 상태 스타일로 표시한다.
 - [x] `BrushSizeButton`을 누른 상태에서 마우스 휠로 브러시 크기를 조정하게 한다.
 - [x] `FillBodyColorButton`이 현재 브러시 색을 `BodyColor`에 적용하게 한다.
@@ -103,6 +108,10 @@
   - `ACustomizationPlayerController::bPausePreviewAnimation`: 커스터마이징 방에서 프리뷰 캐릭터 애니메이션을 정지 상태로 둘지 결정
   - `ACustomizationPlayerController::PreviewAnimationPositionSeconds`: 단일 애니메이션 에셋을 적용할 때 고정할 재생 위치
   - `AMainMenuPlayerController::DefaultMouseCursorWidgetClass`: 메인메뉴와 메인메뉴 옵션에서 사용할 기본 소프트웨어 마우스 커서 위젯 클래스
+  - `AMainMenuPlayerController::MainMenuPreviewAnimationAsset`: 메인메뉴에서 조종 중인 캐릭터 Mesh에 적용할 단일 애니메이션 에셋
+  - `AMainMenuPlayerController::bPauseMainMenuPreviewAnimation`: 메인메뉴 포즈 애니메이션을 정지 상태로 둘지 결정
+  - `AMainMenuPlayerController::MainMenuPreviewAnimationPositionSeconds`: 메인메뉴 포즈 애니메이션을 적용할 때 고정할 재생 위치
+  - `AMainMenuPlayerController::MainMenuPreviewMeshScale`: 메인메뉴에서만 조종 중인 캐릭터 Skeletal Mesh에 곱할 스케일
   - `ASnowRumblePlayerController::DefaultMouseCursorWidgetClass`: 로비, PvP, 채팅, ESC 메뉴 등 인게임 UI에서 사용할 기본 소프트웨어 마우스 커서 위젯 클래스
   - `ACustomizationPlayerController::DefaultMouseCursorWidgetClass`: 커스터마이징 화면에서 평소에 사용할 기본 소프트웨어 마우스 커서 위젯 클래스
   - `ACustomizationPlayerController::PaintMouseCursorWidgetClass`: 색칠하기 화면에서 사용할 원형 소프트웨어 마우스 커서 위젯 클래스
@@ -229,6 +238,7 @@
 - 2026-08-14: 브러시 크기를 바꿀 때 trace 위치가 함께 밀려 보이는 문제에 대응해 `bUsePaintCursorCenterTraceOffset`이 현재 브러시 지름을 사용하지 않게 했다. 필요한 hotspot 보정은 브러시 크기와 무관한 `PaintCursorCenterTraceOffset`과 `PaintCursorScreenOffset`으로만 적용한다.
 - 2026-08-14: 위 변경은 UHT와 C++ 컴파일, `.lib` 생성까지 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 `LNK1104`로 보류됐다.
 - 2026-08-12: 모자 커스터마이징 첫 범위를 추가했다. `HatMeshComponent` 빈 슬롯, `CustomizationHatMeshes` 후보 배열, `HatMeshIndex` 저장·복제 데이터, `HatModeButton`/`HatPreviousButton`/`HatNextButton` UI 계약을 제공한다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됐다.
+- 2026-08-24: 기존 색상 버튼 자동 바인딩 방식을 유지하면서 27개 색상 버튼 프로퍼티·핸들러·Pressed 상태 갱신을 추가해 총 36개 팔레트 버튼을 지원한다. C++가 각 버튼의 RGB 스타일 색까지 초기화한다.
 - 2026-08-12: 색칠하기 브러시 색 선택을 언리얼 기본 컬러 피커에서 고정 팔레트 버튼으로 변경했다. WBP는 빨강, 주황, 노랑, 초록, 파랑, 남색, 보라, 검정, 하양 버튼만 배치하고, 선택된 색 버튼은 C++에서 Pressed 스타일로 유지된다.
 - 2026-08-12: 고정 팔레트 버튼 변경은 `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드를 통과했다.
 - 2026-08-12: 팔레트 버튼 클릭 시 하드코딩된 색 대신 해당 버튼의 WBP 스타일 Normal Tint와 BackgroundColor를 기준으로 브러시 색을 정하게 변경했다.
@@ -237,6 +247,9 @@
 - 2026-08-18: 위 입력 잠금 변경은 `git diff --check`와 C++ 컴파일 및 `.lib` 생성까지 통과했으나, 실행 중인 Unreal Editor PID 10272의 DLL 잠금 `LNK1104`로 최종 링크는 보류됐다.
 - 2026-08-18: 커스터마이징 프리뷰 캐릭터 입력 잠금이 CharacterMovement 속도, 중력, MovementMode까지 함께 고정하게 했다. 프리뷰 캐릭터가 공중에 있거나 지면이 없더라도 중력으로 떨어지지 않는다.
 - 2026-08-18: 위 프리뷰 고정 변경은 `git diff --check`와 C++ 컴파일을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
+- 2026-08-21: 메인메뉴 레벨에서도 possess된 캐릭터가 프리뷰처럼 고정되도록 `AMainMenuPlayerController`에 이동·시점 입력 ignore, CharacterMovement 중력·이동 모드 잠금, 단일 애니메이션 정지/재생 설정과 메인메뉴 전용 Mesh 스케일 설정을 추가했다. `ASnowRumbleCharacter`도 메인메뉴 컨트롤러 조종 중 Move/Look, HUD 생성, 이동속도 복구를 차단한다. `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-21: `bPauseMainMenuPreviewAnimation`을 꺼도 메인메뉴 애니메이션이 멈춘 상태로 남는 문제를 수정했다. pause가 꺼져 있으면 `MainMenuPreviewAnimationPositionSeconds` 위치에서 `Play(true)`로 재생을 시작한다. `git diff --check`는 통과했고, C++ 컴파일도 통과했으나 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
+- 2026-08-21: 커스터마이징 결과가 로비뿐 아니라 메인메뉴 프리뷰 캐릭터에도 적용되도록 했다. `AMainMenuPlayerController`가 로컬 `USnowRumbleCustomizationSubsystem`의 데이터를 읽어 possessed `ASnowRumbleCharacter`에 `ApplyCustomizationData()`로 적용한다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
 - 2026-08-18: 관절/UV seam 부근에서 페인트 선이 길게 튀는 현상을 완화했다. `PaintPointMaxDistance`보다 먼 UV 점프가 나오면 현재 stroke를 저장하고 새 stroke를 시작해 RenderTarget 위에서 멀리 떨어진 UV 섬끼리 직선으로 이어지지 않게 했다.
 - 2026-08-18: UV seam 튐 완화 변경은 `git diff --check`와 C++ 컴파일을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
 - 2026-08-18: `PaintModeButton`을 토글 버튼처럼 동작하게 변경했다. 메인 화면에서는 색칠하기 화면으로 들어가고, 색칠하기 화면에서 다시 누르면 `Main` 페이지로 돌아간다.
@@ -261,15 +274,18 @@
 - hit된 컴포넌트, 머티리얼 slot, UV를 확인해야 하면 커스터마이징 PlayerController BP의 `bShowPaintHitDebug`를 켠다.
 - 커스터마이징 PlayerController BP의 `PreviewAnimationAsset`에 커마 방에서 보여줄 포즈/애니메이션 에셋을 지정한다. 비워두면 기존 애니메이션 상태를 멈춘다.
 - 프리뷰를 완전히 고정하려면 `bPausePreviewAnimation`을 켜고, 특정 프레임 포즈를 쓰려면 `PreviewAnimationPositionSeconds`를 조정한다.
+- 메인메뉴 PlayerController BP의 `MainMenuPreviewAnimationAsset`에 메인메뉴에서 보여줄 포즈/애니메이션 에셋을 지정한다. 특정 프레임을 포즈로 쓰려면 `bPauseMainMenuPreviewAnimation`을 켜고 `MainMenuPreviewAnimationPositionSeconds`를 조정한다. 애니메이션을 계속 재생하려면 `bPauseMainMenuPreviewAnimation`을 끈다. 메인메뉴에서만 캐릭터 Mesh를 키우려면 `MainMenuPreviewMeshScale`을 1보다 크게 조정한다.
+- 메인메뉴 레벨에 캐릭터를 배치하거나 스폰한 뒤 메인메뉴 PlayerController가 possess하게 구성한다. C++은 possess된 Pawn에 대해서만 입력·중력 잠금과 포즈 적용을 수행한다.
 - 레벨에 캐릭터와 카메라를 배치하고, 카메라 액터 태그에 `CustomizationCamera`를 추가한다.
 - 커스터마이징 WBP에 `CustomizationContentSwitcher`를 배치하고 자식 순서를 0 메인, 1 색칠하기 `DrawPanel`로 맞춘다.
 - 메인 화면 버튼 이름을 `PaintModeButton`, `ReturnToLobbyButton`으로 맞춘다.
 - 회전 버튼 두 개를 배치하고 이름을 `RotateLeftButton`, `RotateRightButton`으로 맞춘다.
 - 회전 속도는 커스터마이징 PlayerController BP의 `PreviewRotationSpeedDegrees`에서 조정한다.
 - 하위 화면 공통 버튼 이름을 `BackButton`, `ApplyButton`, `ResetButton`으로 맞춘다.
-- 색칠하기 화면에는 브러시 색 버튼과 현재 색 표시 칸을 두지 않는다. 대신 `RedBrushColorButton`, `OrangeBrushColorButton`, `YellowBrushColorButton`, `GreenBrushColorButton`, `BlueBrushColorButton`, `IndigoBrushColorButton`, `PurpleBrushColorButton`, `BlackBrushColorButton`, `WhiteBrushColorButton`을 배치한다.
-- 각 팔레트 버튼은 실제 색상이 보이도록 WBP 버튼 스타일의 Normal Tint 또는 BackgroundColor를 맞춘다. C++은 버튼의 원래 Normal Tint와 BackgroundColor를 기준으로 실제 브러시 색을 정하고, 선택된 색 버튼은 Pressed 스타일로 유지한다.
+- 색칠하기 화면에 36개 색상 버튼을 배치하고 C++ 프로퍼티 이름과 동일하게 맞춘다. 기존 9개 이름에 더해 `LightRedBrushColorButton`, `DarkRedBrushColorButton`, `SoftRedBrushColorButton` 등 색상 이름을 따른다.
+- 버튼의 Normal Tint와 BackgroundColor를 별도로 설정하지 않아도 된다. C++가 지정된 RGB 값을 Normal/Hovered/Pressed/Disabled 스타일에 적용하고, 같은 값을 브러시 색으로 사용한다.
 - 색칠하기 화면에 브러시 크기 버튼을 배치하고 이름을 `BrushSizeButton`으로 맞춘다. 이 버튼을 누른 상태에서 마우스 휠을 위/아래로 움직이면 브러시 크기가 커지거나 작아진다.
+- 색칠하기 화면에 선택적으로 `BrushSizeSlider`라는 Slider를 배치한다. Slider의 0~1 값은 C++가 `MinPaintBrushSize`~`MaxPaintBrushSize` 범위로 변환하며, 버튼·휠 조절과 같은 브러시 크기 상태를 사용한다.
 - 색칠하기 화면에 전체 칠하기 버튼을 배치하고 이름을 `FillBodyColorButton`으로 맞춘다. 이 버튼은 현재 브러시 색을 캐릭터 `BodyColor`에 적용한다.
 - 현재 브러시 색 또는 크기를 UI에 표시하려면 WBP에서 `GetPaintBrushColor()`와 `GetPaintBrushSize()`를 바인딩한다.
 - 메인 화면에서 색칠하기 버튼 옆에 모자 버튼을 배치하고 이름을 `HatModeButton`으로 맞춘다.
@@ -294,10 +310,13 @@
 - [x] WidgetSwitcher 기반 커스터마이징 UI 전환 코드 변경 완료
 - [x] 프리뷰 캐릭터 좌/우 회전 코드 변경 완료
 - [x] 커스터마이징 프리뷰 캐릭터 애니메이션 설정 코드 변경 완료
+- [x] 메인메뉴 프리뷰 캐릭터 입력·중력 잠금과 포즈 애니메이션 설정 코드 변경 완료
+- [x] 메인메뉴 프리뷰 캐릭터 Mesh 스케일 설정 코드 변경 완료
 - [x] 몸 색상 저장·복제·머티리얼 적용 계약 완료
 - [x] 커스터마이징 레벨 검정 브러쉬 메쉬 드로잉 1차 코드 변경 완료
 - [x] 드로잉 stroke 저장·복제·로비/PvP 캐릭터 재적용 경로 완료
 - [x] 색칠하기 화면 브러시 색·크기·전체 칠하기 버튼 계약 완료
+- [x] `BrushSizeSlider`의 0~1 값과 기존 버튼·휠 브러시 크기 조절을 연결하는 계약 완료
 - [x] Stroke별 브러시 색·두께 저장과 로비/PvP 재적용 경로 완료
 - [x] 게임 전체 기본 마우스 커서 슬롯, 색칠하기 마우스 커서 슬롯, 페인트 커서 크기·색상 갱신 계약 완료
 - [x] 모자 StaticMesh 슬롯, 후보 배열, 선택 인덱스 저장·복제·적용 계약 완료
@@ -314,6 +333,10 @@
 - [ ] 커스터마이징 레벨에서 마우스를 움직여도 프리뷰 캐릭터 카메라가 회전하지 않고, 마우스 클릭/휠 기반 UI와 색칠하기 입력은 동작한다.
 - [ ] `CustomizationCamera` 태그가 붙은 카메라 시점으로 캐릭터가 보인다.
 - [ ] 커스터마이징 방 프리뷰 캐릭터가 지정한 `PreviewAnimationAsset`의 지정 시점 포즈로 정지한다.
+- [ ] 메인메뉴 레벨에서 possess된 캐릭터가 WASD와 마우스 이동으로 움직이거나 시점을 돌리지 않는다.
+- [ ] 메인메뉴 레벨에서 possess된 캐릭터가 중력으로 떨어지지 않고 제자리에 고정된다.
+- [ ] 메인메뉴 PlayerController BP의 `MainMenuPreviewAnimationAsset`, `bPauseMainMenuPreviewAnimation`, `MainMenuPreviewAnimationPositionSeconds` 설정에 따라 캐릭터가 원하는 프레임에 정지하거나 해당 프레임부터 재생된다.
+- [ ] 메인메뉴 PlayerController BP의 `MainMenuPreviewMeshScale`을 1보다 크게 설정하면 메인메뉴에서만 캐릭터 Mesh가 커진다.
 - [ ] `RotateLeftButton`을 누르고 있는 동안 프리뷰 캐릭터가 왼쪽으로 회전한다.
 - [ ] `RotateRightButton`을 누르고 있는 동안 프리뷰 캐릭터가 오른쪽으로 회전한다.
 - [ ] 좌/우 회전 버튼에서 손을 떼면 프리뷰 캐릭터 회전이 멈춘다.
@@ -329,7 +352,9 @@
 - [ ] `PaintModeButton`을 누르면 마우스 커서가 `PaintMouseCursorWidgetClass` 원형 커서로 바뀐다.
 - [ ] `BackButton`으로 메인 화면에 돌아오면 마우스 커서가 `DefaultMouseCursorWidgetClass` 기본 커서로 돌아온다.
 - [ ] 원형 커서 WBP의 `BrushCursorSizeBox`가 브러시 크기에 맞춰 커지거나 작아진다.
-- [ ] 빨강, 주황, 노랑, 초록, 파랑, 남색, 보라, 검정, 하양 팔레트 버튼을 누르면 이후 그리는 선 색이 해당 버튼의 WBP tint 색으로 바뀐다.
+- [ ] 36개 색상 버튼을 각각 누르면 해당 버튼 스타일 색으로 브러시 색이 바뀌고, 선택된 버튼이 Pressed 상태로 표시된다.
+- [ ] WBP에 `BrushSizeSlider`를 배치하면 Slider를 움직일 때 브러시 크기와 원형 커서 크기가 함께 바뀐다.
+- [ ] `BrushSizeButton`을 누른 상태에서 휠을 조절하면 `BrushSizeSlider` 위치도 현재 브러시 크기에 맞춰 갱신된다.
 - [ ] 현재 선택된 팔레트 버튼이 Pressed 상태 스타일로 유지된다.
 - [ ] 팔레트 버튼을 누르면 원형 커서 WBP의 `BrushCursorColorBorder` 또는 `BrushCursorColorImage` 표시 색이 같은 색으로 바뀐다.
 - [ ] 팔레트 버튼에서 색을 바꾼 뒤 캐릭터 Mesh를 좌클릭 드래그하면 새 색으로 선이 그려진다.

@@ -2,6 +2,7 @@
 
 #include "LobbyEscapeMenuWidget.h"
 
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "Components/Button.h"
 #include "InputCoreTypes.h"
 #include "LobbyPlayerController.h"

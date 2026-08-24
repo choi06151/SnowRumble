@@ -2,6 +2,7 @@
 
 #include "MainMenuWidget.h"
 
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "../Player/LocalPlayerIdentitySubsystem_C.h"
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"

@@ -28,7 +28,7 @@ const TArray<ESnowRumbleTeam>& GetScoreboardTeamOrder()
 		ESnowRumbleTeam::Purple,
 		ESnowRumbleTeam::Pink,
 		ESnowRumbleTeam::Blue,
-		ESnowRumbleTeam::White
+		ESnowRumbleTeam::Orange
 	};
 	return TeamOrder;
 }
@@ -195,15 +195,20 @@ void UMainHUDWidget::RefreshCombatHudPresentation()
 
 	const bool bShouldShowChargeBar =
 		LocalCharacter->IsChargingSnowball();
+	const bool bShouldShowGrabTimeBar =
+		!bShouldShowChargeBar
+		&& LocalCharacter->IsGrabAttached();
 	if (AimChargeProgressBar)
 	{
 		AimChargeProgressBar->SetVisibility(
-			bShouldShowChargeBar
+			(bShouldShowChargeBar || bShouldShowGrabTimeBar)
 				? ESlateVisibility::SelfHitTestInvisible
 				: ESlateVisibility::Collapsed);
 		AimChargeProgressBar->SetPercent(
 			bShouldShowChargeBar
 				? LocalCharacter->GetSnowballChargeProgress()
+				: bShouldShowGrabTimeBar
+					? LocalCharacter->GetGrabRemainingTimeProgress()
 				: 0.0f);
 	}
 }
@@ -628,7 +633,7 @@ UWidget* UMainHUDWidget::GetTeamScoreDisplayWidget(
 		return BlueTeamScoreRow
 			? BlueTeamScoreRow.Get()
 			: FindTeamScoreRowWidget(Team);
-	case ESnowRumbleTeam::White:
+	case ESnowRumbleTeam::Orange:
 		return WhiteTeamScoreRow
 			? WhiteTeamScoreRow.Get()
 			: FindTeamScoreRowWidget(Team);
@@ -669,7 +674,7 @@ UWidget* UMainHUDWidget::FindTeamScoreRowWidget(
 	case ESnowRumbleTeam::Blue:
 		RowName = TEXT("BlueTeamScoreRow");
 		break;
-	case ESnowRumbleTeam::White:
+	case ESnowRumbleTeam::Orange:
 		RowName = TEXT("WhiteTeamScoreRow");
 		break;
 	default:
@@ -701,7 +706,7 @@ UTextBlock* UMainHUDWidget::GetTeamScoreText(
 		return PinkTeamScoreText;
 	case ESnowRumbleTeam::Blue:
 		return BlueTeamScoreText;
-	case ESnowRumbleTeam::White:
+	case ESnowRumbleTeam::Orange:
 		return WhiteTeamScoreText;
 	default:
 		return nullptr;

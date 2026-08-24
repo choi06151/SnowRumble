@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "SnowRumbleAudioUserWidget.h"
 #include "../Online/SnowRumbleSessionSubsystem.h"
 #include "MainMenuWidget.generated.h"
 
@@ -14,7 +14,7 @@ class UWidget;
 class UWidgetAnimation;
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API UMainMenuWidget : public UUserWidget
+class SNOWRUMBLE_API UMainMenuWidget : public USnowRumbleAudioUserWidget
 {
 	GENERATED_BODY()
 
@@ -187,4 +187,5 @@ private:
 	void RefreshJoinButtonEnabled();
 
 	static const TArray<FSnowRumbleSessionInfo> EmptyResults;
+
 };

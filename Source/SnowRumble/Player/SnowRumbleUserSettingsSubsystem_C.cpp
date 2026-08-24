@@ -92,6 +92,12 @@ float USnowRumbleUserSettingsSubsystem::GetMaxMouseSensitivity() const
 	return MaxMouseSensitivity;
 }
 
+void USnowRumbleUserSettingsSubsystem::SetMasterVolume(float NewVolume)
+{
+	MasterVolume = FMath::Clamp(NewVolume, 0.0f, 1.0f);
+	SaveConfig();
+}
+
 void USnowRumbleUserSettingsSubsystem::SetBgmVolume(float NewVolume)
 {
 	BgmVolume = FMath::Clamp(NewVolume, 0.0f, 1.0f);
@@ -101,6 +107,18 @@ void USnowRumbleUserSettingsSubsystem::SetBgmVolume(float NewVolume)
 void USnowRumbleUserSettingsSubsystem::SetSfxVolume(float NewVolume)
 {
 	SfxVolume = FMath::Clamp(NewVolume, 0.0f, 1.0f);
+	SaveConfig();
+}
+
+void USnowRumbleUserSettingsSubsystem::SetVoiceVolume(float NewVolume)
+{
+	VoiceVolume = FMath::Clamp(NewVolume, 0.0f, 1.0f);
+	SaveConfig();
+}
+
+void USnowRumbleUserSettingsSubsystem::ResetMasterVolume()
+{
+	MasterVolume = DefaultAudioVolume;
 	SaveConfig();
 }
 
@@ -116,6 +134,17 @@ void USnowRumbleUserSettingsSubsystem::ResetSfxVolume()
 	SaveConfig();
 }
 
+void USnowRumbleUserSettingsSubsystem::ResetVoiceVolume()
+{
+	VoiceVolume = DefaultVoiceVolume;
+	SaveConfig();
+}
+
+float USnowRumbleUserSettingsSubsystem::GetMasterVolume() const
+{
+	return FMath::Clamp(MasterVolume, 0.0f, 1.0f);
+}
+
 float USnowRumbleUserSettingsSubsystem::GetBgmVolume() const
 {
 	return FMath::Clamp(BgmVolume, 0.0f, 1.0f);
@@ -126,9 +155,19 @@ float USnowRumbleUserSettingsSubsystem::GetSfxVolume() const
 	return FMath::Clamp(SfxVolume, 0.0f, 1.0f);
 }
 
+float USnowRumbleUserSettingsSubsystem::GetVoiceVolume() const
+{
+	return FMath::Clamp(VoiceVolume, 0.0f, 1.0f);
+}
+
 float USnowRumbleUserSettingsSubsystem::GetDefaultAudioVolume() const
 {
 	return DefaultAudioVolume;
+}
+
+float USnowRumbleUserSettingsSubsystem::GetDefaultVoiceVolume() const
+{
+	return DefaultVoiceVolume;
 }
 
 void USnowRumbleUserSettingsSubsystem::SetMicrophoneVolume(float NewVolume)

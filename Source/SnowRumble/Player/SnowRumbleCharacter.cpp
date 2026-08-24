@@ -3,6 +3,7 @@
 #include "SnowRumbleCharacter.h"
 
 #include "SnowRumbleHealthComponent.h"
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "../Game/SnowmanModeGameState_K.h"
 #include "../Game/SnowRumbleGameState_C.h"
 #include "../Game/SnowRumbleLobbyGameState.h"
@@ -10,6 +11,7 @@
 #include "../Game/SnowRumblePlayerState.h"
 #include "../Environment/SnowTrailRenderTargetManager_C.h"
 #include "../Interaction/LobbyInteractionBoard_C.h"
+#include "../Interaction/PhotoInteractionActor_C.h"
 #include "../Interaction/OutlineComponent.h"
 #include "../Item/GiftBox_C.h"
 #include "../Item/GiftBoxItemPickup_C.h"
@@ -21,7 +23,10 @@
 #include "../UI/EmoteRadialMenuWidget.h"
 #include "../UI/CustomizationPlayerController_C.h"
 #include "../UI/InteractionPromptWidget_C.h"
+#include "../UI/KeyGuideWidget_C.h"
 #include "../UI/MainHUDWidget.h"
+#include "../UI/MainMenuPlayerController.h"
+#include "../Game/PodiumPlayerController.h"
 #include "../UI/OverheadNameplateWidget_C.h"
 #include "../UI/SnowRumblePlayerController.h"
 #include "SnowRumbleCharacterAnimInstance_C.h"
@@ -52,6 +57,8 @@
 #include "InputCoreTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Misc/DateTime.h"
+#include "UnrealClient.h"
 #include "Net/UnrealNetwork.h"
 #include "NiagaraComponent.h"
 #include "TimerManager.h"
@@ -281,9 +288,18 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 		AActor* OutlinedActor = nullptr;
 		if (IsLocallyControlled()
 			&& CanPerformGameplayAction()
-			&& !FocusedLobbyBoard)
+			&& !FocusedLobbyBoard
+			&& !FocusedPhotoActor)
 		{
-			OutlinedActor = FindClosestLobbyBoardCandidate();
+			OutlinedActor = FindClosestPhotoInteractionCandidate();
+			if (!OutlinedActor)
+			{
+				OutlinedActor = FindClosestLobbyBoardCandidate();
+			}
+			if (!OutlinedActor)
+			{
+				OutlinedActor = FindClosestFrozenTeammateCandidate();
+			}
 			if (!OutlinedActor)
 			{
 				OutlinedActor = FindClosestGiftBoxCandidate();
@@ -294,11 +310,11 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 			}
 			if (!OutlinedActor
 				&& SnowballEquipmentComponent
+				&& !SnowballEquipmentComponent->IsRollingSnowball()
 				&& !SnowballEquipmentComponent->HasHeldSnowball())
 			{
-				OutlinedActor = SnowballEquipmentComponent->IsRollingSnowball()
-					? SnowballEquipmentComponent->GetRollingSnowball()
-					: SnowballEquipmentComponent->FindClosestPickupCandidate();
+				OutlinedActor =
+					SnowballEquipmentComponent->FindClosestPickupCandidate();
 			}
 		}
 
@@ -371,6 +387,13 @@ float ASnowRumbleCharacter::GetFrozenSecondsRemaining() const
 {
 	return HealthComponent
 		? HealthComponent->GetFrozenSecondsRemaining()
+		: 0.0f;
+}
+
+float ASnowRumbleCharacter::GetFrozenProgress() const
+{
+	return HealthComponent
+		? HealthComponent->GetFrozenProgress()
 		: 0.0f;
 }
 
@@ -521,6 +544,11 @@ FVector ASnowRumbleCharacter::GetGrabAttachedWorldLocation() const
 		: FVector::ZeroVector;
 }
 
+FVector ASnowRumbleCharacter::GetGrabbedByCharacterWorldLocation() const
+{
+	return GrabbedByCharacterWorldLocation;
+}
+
 FVector ASnowRumbleCharacter::GetRightHandGrabTargetLocation() const
 {
 	return PlayerGrabComponent
@@ -542,8 +570,20 @@ float ASnowRumbleCharacter::GetGrabReachAlpha() const
 		: 0.0f;
 }
 
+float ASnowRumbleCharacter::GetGrabRemainingTimeProgress() const
+{
+	return PlayerGrabComponent
+		? PlayerGrabComponent->GetGrabRemainingTimeProgress()
+		: 0.0f;
+}
+
 float ASnowRumbleCharacter::GetViewPitchDegrees() const
 {
+	if (FocusedPhotoActor && IsLocallyControlled())
+	{
+		return PhotoFocusViewPitchDegrees;
+	}
+
 	return FRotator::NormalizeAxis(GetBaseAimRotation().Pitch);
 }
 
@@ -592,6 +632,11 @@ bool ASnowRumbleCharacter::ShouldPreferSnowCreationOverGrab() const
 	return GetViewPitchAlpha() <= SnowCreationPreferredViewPitchAlpha;
 }
 
+bool ASnowRumbleCharacter::ShouldSuppressPvpWidgets() const
+{
+	return Cast<APodiumPlayerController>(Controller) != nullptr;
+}
+
 void ASnowRumbleCharacter::ApplyGrabbedByCharacter(
 	ASnowRumbleCharacter* GrabbingCharacter)
 {
@@ -602,8 +647,22 @@ void ASnowRumbleCharacter::ApplyGrabbedByCharacter(
 
 	GrabbedByCharacter = GrabbingCharacter;
 	bIsGrabbedByCharacter = true;
+	GrabbedByCharacterWorldLocation = GrabbingCharacter
+		? GrabbingCharacter->GetGrabAttachedWorldLocation()
+		: FVector::ZeroVector;
 	HandleGrabbedByCharacterChanged(true);
 	ForceNetUpdate();
+}
+
+void ASnowRumbleCharacter::SetGrabbedByCharacterWorldLocationFromServer(
+	const FVector& NewWorldLocation)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	GrabbedByCharacterWorldLocation = NewWorldLocation;
 }
 
 void ASnowRumbleCharacter::ClearGrabbedByCharacter(
@@ -618,6 +677,7 @@ void ASnowRumbleCharacter::ClearGrabbedByCharacter(
 
 	bIsGrabbedByCharacter = false;
 	GrabbedByCharacter = nullptr;
+	GrabbedByCharacterWorldLocation = FVector::ZeroVector;
 	HandleGrabbedByCharacterChanged(false);
 	ForceNetUpdate();
 }
@@ -693,6 +753,11 @@ float ASnowRumbleCharacter::GetSnowballCreationProgress() const
 
 ESnowRumbleTimedActionState ASnowRumbleCharacter::GetTimedActionState() const
 {
+	if (IsFrozen())
+	{
+		return ESnowRumbleTimedActionState::Frozen;
+	}
+
 	if (SnowballEquipmentComponent
 		&& SnowballEquipmentComponent->IsRollingSnowball())
 	{
@@ -723,6 +788,9 @@ float ASnowRumbleCharacter::GetTimedActionProgress() const
 				1.0f);
 		}
 		return 0.0f;
+
+	case ESnowRumbleTimedActionState::Frozen:
+		return GetFrozenProgress();
 
 	default:
 		return 0.0f;
@@ -776,18 +844,40 @@ void ASnowRumbleCharacter::RequestSnowFootstepEffect(FName FootSocketName)
 	}
 
 	FHitResult FootstepHit;
-	if (!FindSnowFootstepSurface(FootSocketName, FootstepHit))
+	if (!FindFootstepSurface(FootSocketName, FootstepHit))
 	{
 		return;
 	}
 
+	const bool bIsSnowSurface = FootstepHit.GetActor()
+		&& !SnowFootstepSurfaceTag.IsNone()
+		&& FootstepHit.GetActor()->ActorHasTag(SnowFootstepSurfaceTag);
+	USoundBase* FootstepSoundToPlay = bIsSnowSurface
+		? FootstepSound
+		: NormalFootstepSound;
+	USoundAttenuation* FootstepAttenuationToUse = bIsSnowSurface
+		? FootstepSoundAttenuation
+		: NormalFootstepSoundAttenuation;
 	LastSnowFootstepEffectTime = CurrentTime;
-	OnSnowFootstepEffect(
-		FootSocketName,
+	SnowRumbleAudio::PlaySoundAtLocation(
+		this,
+		FootstepSoundToPlay,
+		ESnowRumbleAudioMixChannel::Gameplay,
 		FootstepHit.ImpactPoint,
-		FootstepHit.ImpactNormal.GetSafeNormal());
+		1.0f,
+		1.0f,
+		FootstepAttenuationToUse);
+	if (bIsSnowSurface)
+	{
+		OnSnowFootstepEffect(
+			FootSocketName,
+			FootstepHit.ImpactPoint,
+			FootstepHit.ImpactNormal.GetSafeNormal());
+	}
 
-	if (bEnableSharedSnowTrailStamps && IsLocallyControlled())
+	if (bIsSnowSurface
+		&& bEnableSharedSnowTrailStamps
+		&& IsLocallyControlled())
 	{
 		RequestSharedSnowTrailStamp(
 			FootstepHit.ImpactPoint,
@@ -916,6 +1006,8 @@ void ASnowRumbleCharacter::NotifyItemPickupSucceeded()
 		return;
 	}
 
+	MulticastPlayCharacterFeedbackSound(
+		ESnowRumbleCharacterFeedbackSoundType::ItemPickup);
 	bIsPickingUpItem = true;
 	OnRep_IsPickingUpItem();
 
@@ -939,6 +1031,8 @@ void ASnowRumbleCharacter::NotifySnowballPickupSucceeded(bool bWasLargeSnowball)
 		return;
 	}
 
+	MulticastPlayCharacterFeedbackSound(
+		ESnowRumbleCharacterFeedbackSoundType::SnowballPickup);
 	bIsPickingUpItem = true;
 	OnRep_IsPickingUpItem();
 
@@ -973,6 +1067,8 @@ void ASnowRumbleCharacter::NotifySnowballThrowSucceeded(bool bWasLargeSnowball)
 		return;
 	}
 
+	MulticastPlayCharacterFeedbackSound(
+		ESnowRumbleCharacterFeedbackSoundType::SnowballThrow);
 	RequestAnimationTriggerFromServer(
 		bWasLargeSnowball
 			? ESnowRumbleCharacterAnimTrigger::ThrowLargeSnowball
@@ -983,7 +1079,7 @@ void ASnowRumbleCharacter::NotifySnowballThrowSucceeded(bool bWasLargeSnowball)
 
 void ASnowRumbleCharacter::RequestSnowballThrowReleaseFromNotify()
 {
-	if (!HasAuthority() && !IsLocallyControlled())
+	if (!IsLocallyControlled())
 	{
 		return;
 	}
@@ -1007,6 +1103,8 @@ void ASnowRumbleCharacter::NotifyItemInteractionSucceeded()
 		return;
 	}
 
+	MulticastPlayCharacterFeedbackSound(
+		ESnowRumbleCharacterFeedbackSoundType::ItemInteraction);
 	bIsInteractingWithItem = true;
 	OnRep_IsInteractingWithItem();
 
@@ -1023,6 +1121,17 @@ void ASnowRumbleCharacter::NotifyItemInteractionSucceeded()
 	RequestAnimationTriggerFromServer(
 		ESnowRumbleCharacterAnimTrigger::ItemInteraction);
 	ForceNetUpdate();
+}
+
+void ASnowRumbleCharacter::NotifyLobbyBoardInteractionSucceeded()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	MulticastPlayCharacterFeedbackSound(
+		ESnowRumbleCharacterFeedbackSoundType::LobbyBoardInteraction);
 }
 
 bool ASnowRumbleCharacter::ApplyGiftBoxItemEffectFromServer(
@@ -1120,11 +1229,16 @@ float ASnowRumbleCharacter::TakeDamage(
 		HealthComponent ? HealthComponent->ApplyDamage(AdjustedDamage) : 0.0f;
 	if (AppliedDamage > 0.0f)
 	{
+		if (SnowballEquipmentComponent)
+		{
+			SnowballEquipmentComponent->InterruptThrowStateFromServer();
+		}
 		StartHitReactAnimationState();
 		const FVector DamageCauserLocation = DamageCauser
 			? DamageCauser->GetActorLocation()
 			: GetActorLocation();
 		ClientRequestLocalDamageFeedback(AppliedDamage, DamageCauserLocation);
+		MulticastPlayDamageSound(GetActorLocation());
 	}
 
 	return AppliedDamage;
@@ -1201,6 +1315,13 @@ void ASnowRumbleCharacter::BeginPlay()
 void ASnowRumbleCharacter::EndPlay(
 	const EEndPlayReason::Type EndPlayReason)
 {
+	CancelTeammateRevive();
+	if (KeyGuideWidget)
+	{
+		KeyGuideWidget->RemoveFromParent();
+		KeyGuideWidget = nullptr;
+	}
+
 	if (InteractionPromptWidget)
 	{
 		InteractionPromptWidget->RemoveFromParent();
@@ -1435,8 +1556,10 @@ void ASnowRumbleCharacter::RefreshGiftItemEquipmentMeshes()
 
 	RefreshGiftItemEquipmentMeshSlot(
 		HotPackMeshComponent,
-		ItemEffects && ItemEffects->HasHotPack()
-			? HotPackEquipmentMesh
+		ItemEffects && ItemEffects->HasAnyHotPack()
+			? ItemEffects->HasGoldenHotPack()
+				? GoldenHotPackEquipmentMesh
+				: HotPackEquipmentMesh
 			: nullptr,
 		HotPackEquipmentAttachSocketName,
 		HotPackEquipmentRelativeLocation,
@@ -1801,6 +1924,105 @@ void ASnowRumbleCharacter::ClientFocusLobbyBoard_Implementation(
 	}
 }
 
+void ASnowRumbleCharacter::ClientFocusPhotoActor_Implementation(
+	APhotoInteractionActor* PhotoActor)
+{
+	if (!IsLocallyControlled() || !PhotoActor)
+	{
+		return;
+	}
+
+	if (FocusedLobbyBoard)
+	{
+		ClearLobbyBoardFocus();
+	}
+
+	APlayerController* PlayerController =
+		Cast<APlayerController>(GetController());
+	if (!PlayerController)
+	{
+		return;
+	}
+
+	FocusedPhotoActor = PhotoActor;
+	PhotoFocusViewPitchDegrees =
+		FRotator::NormalizeAxis(GetBaseAimRotation().Pitch);
+	if (PhotoInteractionWidget)
+	{
+		PhotoInteractionWidget->RemoveFromParent();
+		PhotoInteractionWidget = nullptr;
+	}
+	if (PhotoInteractionWidgetClass)
+	{
+		PhotoInteractionWidget =
+			CreateWidget<UUserWidget>(PlayerController, PhotoInteractionWidgetClass);
+		if (PhotoInteractionWidget)
+		{
+			PhotoInteractionWidget->AddToViewport(100);
+		}
+	}
+
+	if (UCharacterMovementComponent* MovementComponent = GetCharacterMovement())
+	{
+		bOrientRotationToMovementBeforePhotoFocus =
+			MovementComponent->bOrientRotationToMovement;
+		MovementComponent->bOrientRotationToMovement = false;
+	}
+	bUseControllerRotationYawBeforePhotoFocus = bUseControllerRotationYaw;
+	bUseControllerRotationYaw = true;
+
+	if (UCameraComponent* PhotoCamera =
+		PhotoActor->GetPhotoCameraComponent())
+	{
+		PhotoCamera->SetActive(true);
+	}
+
+	PlayerController->SetViewTargetWithBlend(PhotoActor, 0.15f);
+	PlayerController->SetInputMode(FInputModeGameOnly());
+	PlayerController->SetShowMouseCursor(false);
+	PlayerController->SetIgnoreMoveInput(false);
+	PlayerController->SetIgnoreLookInput(false);
+}
+
+void ASnowRumbleCharacter::ClosePhotoActorFocus()
+{
+	if (!IsLocallyControlled() || !FocusedPhotoActor)
+	{
+		return;
+	}
+
+	if (PhotoInteractionWidget)
+	{
+		PhotoInteractionWidget->RemoveFromParent();
+		PhotoInteractionWidget = nullptr;
+	}
+
+	if (UCameraComponent* PhotoCamera =
+		FocusedPhotoActor->GetPhotoCameraComponent())
+	{
+		PhotoCamera->SetActive(false);
+	}
+
+	if (APlayerController* PlayerController =
+		Cast<APlayerController>(GetController()))
+	{
+		PlayerController->SetViewTargetWithBlend(this, 0.15f);
+		PlayerController->SetInputMode(FInputModeGameOnly());
+		PlayerController->SetShowMouseCursor(false);
+		PlayerController->SetIgnoreMoveInput(false);
+		PlayerController->SetIgnoreLookInput(false);
+	}
+
+	if (UCharacterMovementComponent* MovementComponent = GetCharacterMovement())
+	{
+		MovementComponent->bOrientRotationToMovement =
+			bOrientRotationToMovementBeforePhotoFocus;
+	}
+	bUseControllerRotationYaw = bUseControllerRotationYawBeforePhotoFocus;
+
+	FocusedPhotoActor = nullptr;
+}
+
 void ASnowRumbleCharacter::RefreshHeldEquipmentMovementState()
 {
 	if (SnowballEquipmentComponent
@@ -1825,6 +2047,7 @@ void ASnowRumbleCharacter::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ASnowRumbleCharacter, bWaterSubmerged);
 	DOREPLIFETIME(ASnowRumbleCharacter, bIsGrabbedByCharacter);
 	DOREPLIFETIME(ASnowRumbleCharacter, GrabbedByCharacter);
+	DOREPLIFETIME(ASnowRumbleCharacter, GrabbedByCharacterWorldLocation);
 }
 
 void ASnowRumbleCharacter::PossessedBy(AController* NewController)
@@ -2014,7 +2237,8 @@ void ASnowRumbleCharacter::EnsureEmoteRadialMenuWidget()
 {
 	if (!IsLocallyControlled()
 		|| EmoteRadialMenuWidget
-		|| !EmoteRadialMenuWidgetClass)
+		|| !EmoteRadialMenuWidgetClass
+		|| ShouldSuppressPvpWidgets())
 	{
 		return;
 	}
@@ -2036,16 +2260,45 @@ void ASnowRumbleCharacter::EnsureEmoteRadialMenuWidget()
 	}
 }
 
-void ASnowRumbleCharacter::EnsureMainHUDWidget()
+void ASnowRumbleCharacter::EnsureKeyGuideWidget()
 {
 	if (!IsLocallyControlled()
-		|| MainHUDWidget
-		|| !MainHUDWidgetClass)
+		|| KeyGuideWidget
+		|| !KeyGuideWidgetClass
+		|| ShouldSuppressPvpWidgets())
 	{
 		return;
 	}
 
-	if (Cast<ACustomizationPlayerController>(Controller))
+	APlayerController* PlayerController = Cast<APlayerController>(Controller);
+	if (!PlayerController)
+	{
+		return;
+	}
+
+	KeyGuideWidget =
+		CreateWidget<UKeyGuideWidget>(
+			PlayerController,
+			KeyGuideWidgetClass);
+	if (KeyGuideWidget)
+	{
+		KeyGuideWidget->AddToViewport();
+		KeyGuideWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+void ASnowRumbleCharacter::EnsureMainHUDWidget()
+{
+	if (!IsLocallyControlled()
+		|| MainHUDWidget
+		|| !MainHUDWidgetClass
+		|| ShouldSuppressPvpWidgets())
+	{
+		return;
+	}
+
+	if (Cast<ACustomizationPlayerController>(Controller)
+		|| Cast<AMainMenuPlayerController>(Controller))
 	{
 		return;
 	}
@@ -2076,7 +2329,8 @@ void ASnowRumbleCharacter::EnsureInteractionPromptWidget()
 {
 	if (!IsLocallyControlled()
 		|| InteractionPromptWidget
-		|| !InteractionPromptWidgetClass)
+		|| !InteractionPromptWidgetClass
+		|| ShouldSuppressPvpWidgets())
 	{
 		return;
 	}
@@ -2161,9 +2415,21 @@ bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
 
 	if (!IsLocallyControlled()
 		|| !CanPerformGameplayAction()
-		|| FocusedLobbyBoard)
+		|| FocusedLobbyBoard
+		|| FocusedPhotoActor)
 	{
 		return false;
+	}
+
+	if (APhotoInteractionActor* PhotoActor =
+		FindClosestPhotoInteractionCandidate())
+	{
+		OutPromptText = NSLOCTEXT(
+			"SnowRumble",
+			"InteractPromptPhoto",
+			"E - 사진찍기");
+		OutPromptActor = PhotoActor;
+		return true;
 	}
 
 	if (ALobbyInteractionBoard* Board = FindClosestLobbyBoardCandidate())
@@ -2173,6 +2439,17 @@ bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
 			"InteractPromptBoard",
 			"E - 게시판");
 		OutPromptActor = Board;
+		return true;
+	}
+
+	if (ASnowRumbleCharacter* FrozenTeammate =
+		FindClosestFrozenTeammateCandidate())
+	{
+		OutPromptText = NSLOCTEXT(
+			"SnowRumble",
+			"InteractPromptReviveTeammate",
+			"E - 살리기");
+		OutPromptActor = FrozenTeammate;
 		return true;
 	}
 
@@ -2199,14 +2476,14 @@ bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
 	}
 
 	if (!SnowballEquipmentComponent
+		|| SnowballEquipmentComponent->IsRollingSnowball()
 		|| SnowballEquipmentComponent->HasHeldSnowball())
 	{
 		return false;
 	}
 
-	ASnowballItem* Snowball = SnowballEquipmentComponent->IsRollingSnowball()
-		? SnowballEquipmentComponent->GetRollingSnowball()
-		: SnowballEquipmentComponent->FindClosestPickupCandidate();
+	ASnowballItem* Snowball =
+		SnowballEquipmentComponent->FindClosestPickupCandidate();
 	if (!Snowball)
 	{
 		return false;
@@ -2290,6 +2567,83 @@ void ASnowRumbleCharacter::CloseEmoteRadialMenu()
 	}
 
 	bIsEmoteRadialMenuOpen = false;
+}
+
+void ASnowRumbleCharacter::OpenKeyGuideWidget()
+{
+	if (!IsLocallyControlled())
+	{
+		return;
+	}
+	if (bIsKeyGuideWidgetOpen)
+	{
+		return;
+	}
+
+	EnsureKeyGuideWidget();
+	if (!KeyGuideWidget)
+	{
+		return;
+	}
+
+	KeyGuideWidget->RefreshKeyGuideTexts();
+	KeyGuideWidget->SetVisibility(ESlateVisibility::Visible);
+
+	if (APlayerController* PlayerController =
+		Cast<APlayerController>(Controller))
+	{
+		if (ASnowRumblePlayerController* SnowRumblePlayerController =
+			Cast<ASnowRumblePlayerController>(PlayerController))
+		{
+			SnowRumblePlayerController->EnableDefaultCursorUiInput(
+				KeyGuideWidget,
+				false);
+		}
+		else
+		{
+			FInputModeGameAndUI InputMode;
+			InputMode.SetWidgetToFocus(KeyGuideWidget->TakeWidget());
+			InputMode.SetHideCursorDuringCapture(false);
+			InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			PlayerController->SetInputMode(InputMode);
+			PlayerController->SetShowMouseCursor(true);
+		}
+		PlayerController->SetIgnoreLookInput(true);
+	}
+
+	bIsKeyGuideWidgetOpen = true;
+}
+
+void ASnowRumbleCharacter::CloseKeyGuideWidget()
+{
+	const bool bWasKeyGuideWidgetOpen = bIsKeyGuideWidgetOpen;
+
+	if (KeyGuideWidget)
+	{
+		KeyGuideWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	if (IsLocallyControlled() && bWasKeyGuideWidgetOpen)
+	{
+		if (APlayerController* PlayerController =
+			Cast<APlayerController>(Controller))
+		{
+			if (ASnowRumblePlayerController* SnowRumblePlayerController =
+				Cast<ASnowRumblePlayerController>(PlayerController))
+			{
+				SnowRumblePlayerController->RestoreGameOnlyInput();
+			}
+			else
+			{
+				FInputModeGameOnly InputMode;
+				PlayerController->SetInputMode(InputMode);
+				PlayerController->SetShowMouseCursor(false);
+			}
+			PlayerController->SetIgnoreLookInput(false);
+		}
+	}
+
+	bIsKeyGuideWidgetOpen = false;
 }
 
 void ASnowRumbleCharacter::DrawRollingSnowballCollisionDebug() const
@@ -2406,6 +2760,17 @@ void ASnowRumbleCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 		EnhancedInputComponent->BindAction(EmoteAction, ETriggerEvent::Started, this, &ASnowRumbleCharacter::HandleEmoteStarted);
 		EnhancedInputComponent->BindAction(EmoteAction, ETriggerEvent::Completed, this, &ASnowRumbleCharacter::HandleEmoteCompleted);
 	}
+	if (KeyGuideAction)
+	{
+		EnhancedInputComponent->BindAction(KeyGuideAction, ETriggerEvent::Started, this, &ASnowRumbleCharacter::HandleKeyGuideStarted);
+		EnhancedInputComponent->BindAction(KeyGuideAction, ETriggerEvent::Completed, this, &ASnowRumbleCharacter::HandleKeyGuideCompleted);
+		EnhancedInputComponent->BindAction(KeyGuideAction, ETriggerEvent::Canceled, this, &ASnowRumbleCharacter::HandleKeyGuideCompleted);
+	}
+	PlayerInputComponent->BindKey(
+		EKeys::P,
+		IE_Pressed,
+		this,
+		&ASnowRumbleCharacter::HandlePhotoCapture);
 }
 
 void ASnowRumbleCharacter::Move(const FInputActionValue& Value)
@@ -2427,7 +2792,8 @@ void ASnowRumbleCharacter::Move(const FInputActionValue& Value)
 			return;
 		}
 	}
-	if (Cast<ACustomizationPlayerController>(Controller))
+	if (Cast<ACustomizationPlayerController>(Controller)
+		|| Cast<AMainMenuPlayerController>(Controller))
 	{
 		return;
 	}
@@ -2455,7 +2821,9 @@ void ASnowRumbleCharacter::Move(const FInputActionValue& Value)
 
 void ASnowRumbleCharacter::Look(const FInputActionValue& Value)
 {
-	if (bIsEmoteRadialMenuOpen || IsPvpMatchInputLocked())
+	if (bIsEmoteRadialMenuOpen
+		|| bIsKeyGuideWidgetOpen
+		|| IsPvpMatchInputLocked())
 	{
 		return;
 	}
@@ -2467,7 +2835,8 @@ void ASnowRumbleCharacter::Look(const FInputActionValue& Value)
 			return;
 		}
 	}
-	if (Cast<ACustomizationPlayerController>(Controller))
+	if (Cast<ACustomizationPlayerController>(Controller)
+		|| Cast<AMainMenuPlayerController>(Controller))
 	{
 		return;
 	}
@@ -2488,6 +2857,19 @@ void ASnowRumbleCharacter::Look(const FInputActionValue& Value)
 		CameraShoulderSide = LookAxisVector.X < 0.0f ? 1.0f : -1.0f;
 	}
 
+	if (FocusedPhotoActor)
+	{
+		// Keep the photo camera fixed and apply input only to the player's gaze.
+		AddControllerYawInput(LookAxisVector.X * MouseSensitivity);
+		const float PitchDelta = -LookAxisVector.Y * MouseSensitivity;
+		AddControllerPitchInput(PitchDelta);
+		PhotoFocusViewPitchDegrees = FMath::Clamp(
+			PhotoFocusViewPitchDegrees + PitchDelta,
+			CameraViewPitchMin,
+			CameraViewPitchMax);
+		return;
+	}
+
 	AddControllerYawInput(LookAxisVector.X * MouseSensitivity);
 	AddControllerPitchInput(-LookAxisVector.Y * MouseSensitivity);
 }
@@ -2497,7 +2879,8 @@ void ASnowRumbleCharacter::UpdateCameraZoomInput()
 	if (!IsLocallyControlled()
 		|| !Controller
 		|| FocusedLobbyBoard
-		|| bIsEmoteRadialMenuOpen)
+		|| bIsEmoteRadialMenuOpen
+		|| bIsKeyGuideWidgetOpen)
 	{
 		return;
 	}
@@ -2548,7 +2931,14 @@ void ASnowRumbleCharacter::StartJump()
 		&& (!SnowballEquipmentComponent
 			|| !SnowballEquipmentComponent->IsRollingSnowball()))
 	{
-		Jump();
+		if (CanJump())
+		{
+			Jump();
+			SnowRumbleAudio::PlaySound2D(
+				this,
+				JumpSound,
+				ESnowRumbleAudioMixChannel::Gameplay);
+		}
 	}
 }
 
@@ -2629,12 +3019,30 @@ void ASnowRumbleCharacter::HandleInteractStarted()
 	{
 		bIsInteractHeld = true;
 		bUsedInteractForRolling = false;
+		const ASnowRumbleCharacter* OutlinedTeammate = OutlineComponent
+			? Cast<ASnowRumbleCharacter>(OutlineComponent->GetOutlinedActor())
+			: nullptr;
+		if (OutlinedTeammate
+			&& OutlinedTeammate == FindClosestFrozenTeammateCandidate())
+		{
+			TryStartTeammateRevive();
+			return;
+		}
 		OnInteractInput(true);
 	}
 }
 
 void ASnowRumbleCharacter::HandleInteractCompleted()
 {
+	if (bIsRevivingTeammate)
+	{
+		CancelTeammateRevive();
+		bIsInteractHeld = false;
+		bUsedInteractForRolling = false;
+		OnInteractInput(false);
+		return;
+	}
+
 	if (SnowballEquipmentComponent)
 	{
 		if (bUsedInteractForRolling)
@@ -2645,8 +3053,24 @@ void ASnowRumbleCharacter::HandleInteractCompleted()
 		{
 			ClearLobbyBoardFocus();
 		}
+		else if (FocusedPhotoActor)
+		{
+			ClosePhotoActorFocus();
+		}
 		else if (bIsInteractHeld && CanPerformGameplayAction())
 		{
+			const APhotoInteractionActor* OutlinedPhotoActor = OutlineComponent
+				? Cast<APhotoInteractionActor>(
+					OutlineComponent->GetOutlinedActor())
+				: nullptr;
+			if (OutlinedPhotoActor
+				&& OutlinedPhotoActor
+					== FindClosestPhotoInteractionCandidate())
+			{
+				TryInteractWithPhotoActor();
+			}
+			else
+			{
 			const ALobbyInteractionBoard* OutlinedBoard = OutlineComponent
 				? Cast<ALobbyInteractionBoard>(OutlineComponent->GetOutlinedActor())
 				: nullptr;
@@ -2667,6 +3091,7 @@ void ASnowRumbleCharacter::HandleInteractCompleted()
 			else
 			{
 				SnowballEquipmentComponent->TryPickupSnowball();
+			}
 			}
 		}
 	}
@@ -2689,6 +3114,19 @@ void ASnowRumbleCharacter::HandleAimCompleted()
 {
 	if (SnowballEquipmentComponent)
 	{
+		if (SnowballEquipmentComponent->IsCharging())
+		{
+			if (IsLocallyControlled() && GetWorld())
+			{
+				PostThrowAimCameraEndTime =
+					GetWorld()->GetTimeSeconds() + PostThrowCameraHoldSeconds;
+			}
+
+			SnowballEquipmentComponent->ReleaseChargedSnowball();
+			OnAimInput(false);
+			return;
+		}
+
 		SnowballEquipmentComponent->SetAiming(false);
 	}
 	OnAimInput(false);
@@ -2959,6 +3397,19 @@ void ASnowRumbleCharacter::HandleEmoteCompleted()
 	OnEmoteInput(false);
 }
 
+void ASnowRumbleCharacter::HandleKeyGuideStarted()
+{
+	if (CanPerformGameplayAction())
+	{
+		OpenKeyGuideWidget();
+	}
+}
+
+void ASnowRumbleCharacter::HandleKeyGuideCompleted()
+{
+	CloseKeyGuideWidget();
+}
+
 void ASnowRumbleCharacter::ApplyInputMappingContext()
 {
 	const APlayerController* PlayerController = Cast<APlayerController>(Controller);
@@ -3034,7 +3485,8 @@ void ASnowRumbleCharacter::ApplyInputMappingContext()
 			ApplySavedKey(AimAction, EKeys::RightMouseButton, TEXT("Aim"));
 			ApplySavedKey(ActionAction, EKeys::LeftMouseButton, TEXT("Action"));
 			ApplySavedKey(DropEquipmentAction, EKeys::Q, TEXT("DropEquipment"));
-			ApplySavedKey(EmoteAction, EKeys::B, TEXT("Emote"));
+			ApplySavedKey(EmoteAction, EKeys::Tab, TEXT("Emote"));
+			ApplySavedKey(KeyGuideAction, EKeys::T, TEXT("KeyGuide"));
 			ApplySavedKey(
 				MicrophonePushToTalkAction,
 				EKeys::K,
@@ -3161,7 +3613,6 @@ void ASnowRumbleCharacter::HandleGrabbedByCharacterChanged(bool bNewGrabbed)
 		}
 		MovementComponent->StopMovementImmediately();
 		if (HealthComponent
-			&& !HealthComponent->IsFrozen()
 			&& !HealthComponent->IsDead()
 			&& !bTiebreakerSpectator
 			&& !bWaterSubmerged
@@ -3190,6 +3641,13 @@ void ASnowRumbleCharacter::HandleGrabbedByCharacterChanged(bool bNewGrabbed)
 		MovementComponent->bOrientRotationToMovement =
 			bOrientRotationToMovementBeforeGrabbedByCharacter;
 		bUseControllerRotationYaw = bUseControllerRotationYawBeforeGrabbedByCharacter;
+	}
+	else if (HealthComponent
+		&& HealthComponent->IsFrozen()
+		&& !HealthComponent->IsDead())
+	{
+		MovementComponent->StopMovementImmediately();
+		MovementComponent->DisableMovement();
 	}
 }
 
@@ -3277,6 +3735,41 @@ ALobbyInteractionBoard* ASnowRumbleCharacter::FindClosestLobbyBoardCandidate()
 	return ClosestBoard;
 }
 
+APhotoInteractionActor*
+ASnowRumbleCharacter::FindClosestPhotoInteractionCandidate() const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return nullptr;
+	}
+
+	const FVector CharacterLocation = GetActorLocation();
+	float ClosestDistanceSquared = TNumericLimits<float>::Max();
+	APhotoInteractionActor* ClosestPhotoActor = nullptr;
+	for (TActorIterator<APhotoInteractionActor> Iterator(World);
+		Iterator;
+		++Iterator)
+	{
+		APhotoInteractionActor* Candidate = *Iterator;
+		if (!Candidate || !Candidate->CanInteractWith(this))
+		{
+			continue;
+		}
+
+		const float DistanceSquared = FVector::DistSquared(
+			CharacterLocation,
+			Candidate->GetActorLocation());
+		if (DistanceSquared <= ClosestDistanceSquared)
+		{
+			ClosestDistanceSquared = DistanceSquared;
+			ClosestPhotoActor = Candidate;
+		}
+	}
+
+	return ClosestPhotoActor;
+}
+
 AGiftBox* ASnowRumbleCharacter::FindClosestGiftBoxCandidate() const
 {
 	UWorld* World = GetWorld();
@@ -3344,6 +3837,66 @@ ASnowRumbleCharacter::FindClosestGiftBoxItemPickupCandidate() const
 	return ClosestPickup;
 }
 
+ASnowRumbleCharacter*
+ASnowRumbleCharacter::FindClosestFrozenTeammateCandidate() const
+{
+	if (!GiftItemEffectComponent
+		|| !GiftItemEffectComponent->HasAnyHotPack())
+	{
+		return nullptr;
+	}
+
+	const ASnowRumblePlayerState* OwnerPlayerState =
+		GetPlayerState<ASnowRumblePlayerState>();
+	if (!OwnerPlayerState
+		|| OwnerPlayerState->GetLobbyTeam() == ESnowRumbleTeam::None)
+	{
+		return nullptr;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return nullptr;
+	}
+
+	const float MaxDistanceSquared =
+		FMath::Square(TeammateReviveInteractionDistance);
+	const FVector CharacterLocation = GetActorLocation();
+	float ClosestDistanceSquared = MaxDistanceSquared;
+	ASnowRumbleCharacter* ClosestTeammate = nullptr;
+	for (TActorIterator<ASnowRumbleCharacter> Iterator(World);
+		Iterator;
+		++Iterator)
+	{
+		ASnowRumbleCharacter* Candidate = *Iterator;
+		const ASnowRumblePlayerState* CandidatePlayerState = Candidate
+			? Candidate->GetPlayerState<ASnowRumblePlayerState>()
+			: nullptr;
+		if (!Candidate
+			|| Candidate == this
+			|| !Candidate->IsFrozen()
+			|| Candidate->IsDead()
+			|| !CandidatePlayerState
+			|| CandidatePlayerState->GetLobbyTeam()
+				!= OwnerPlayerState->GetLobbyTeam())
+		{
+			continue;
+		}
+
+		const float DistanceSquared = FVector::DistSquared(
+			CharacterLocation,
+			Candidate->GetActorLocation());
+		if (DistanceSquared <= ClosestDistanceSquared)
+		{
+			ClosestDistanceSquared = DistanceSquared;
+			ClosestTeammate = Candidate;
+		}
+	}
+
+	return ClosestTeammate;
+}
+
 void ASnowRumbleCharacter::TryInteractWithLobbyBoard()
 {
 	if (!IsLocallyControlled() || !CanPerformGameplayAction())
@@ -3367,6 +3920,49 @@ void ASnowRumbleCharacter::TryInteractWithLobbyBoard()
 	{
 		ServerTryInteractWithLobbyBoard(Board);
 	}
+}
+
+void ASnowRumbleCharacter::TryInteractWithPhotoActor()
+{
+	if (!IsLocallyControlled())
+	{
+		return;
+	}
+
+	APhotoInteractionActor* PhotoActor =
+		FindClosestPhotoInteractionCandidate();
+	if (!PhotoActor)
+	{
+		return;
+	}
+
+	if (HasAuthority())
+	{
+		ServerTryInteractWithPhotoActor_Implementation(PhotoActor);
+	}
+	else
+	{
+		ServerTryInteractWithPhotoActor(PhotoActor);
+	}
+}
+
+void ASnowRumbleCharacter::HandlePhotoCapture()
+{
+	if (!IsLocallyControlled() || !FocusedPhotoActor)
+	{
+		return;
+	}
+
+	const FString Timestamp =
+		FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S"));
+	FScreenshotRequest::RequestScreenshot(
+		FString::Printf(TEXT("Photo_%s"), *Timestamp),
+		false,
+		false);
+	SnowRumbleAudio::PlaySound2D(
+		this,
+		PhotoCaptureSound,
+		ESnowRumbleAudioMixChannel::UserInterface);
 }
 
 void ASnowRumbleCharacter::TryInteractWithGiftBox()
@@ -3424,6 +4020,74 @@ void ASnowRumbleCharacter::TryPickupGiftBoxItem()
 	else
 	{
 		ServerTryPickupGiftBoxItem(Pickup);
+	}
+}
+
+void ASnowRumbleCharacter::TryStartTeammateRevive()
+{
+	if (!IsLocallyControlled()
+		|| !CanPerformGameplayAction()
+		|| bIsRevivingTeammate)
+	{
+		return;
+	}
+
+	ASnowRumbleCharacter* TargetCharacter = OutlineComponent
+		? Cast<ASnowRumbleCharacter>(OutlineComponent->GetOutlinedActor())
+		: nullptr;
+	if (!TargetCharacter || TargetCharacter != FindClosestFrozenTeammateCandidate())
+	{
+		return;
+	}
+
+	bIsRevivingTeammate = true;
+	TeammateReviveTarget = TargetCharacter;
+	bUsedInteractForRolling = true;
+	OnInteractInput(true);
+
+	if (UWorld* World = GetWorld())
+	{
+		const float HoldSeconds = TeammateReviveHoldSeconds
+			* (GiftItemEffectComponent->HasGoldenHotPack() ? 2.0f : 1.0f);
+		World->GetTimerManager().SetTimer(
+			TeammateReviveTimerHandle,
+			this,
+			&ASnowRumbleCharacter::CompleteTeammateRevive,
+			FMath::Max(0.0f, HoldSeconds),
+			false);
+	}
+}
+
+void ASnowRumbleCharacter::CancelTeammateRevive()
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(TeammateReviveTimerHandle);
+	}
+	bIsRevivingTeammate = false;
+	TeammateReviveTarget = nullptr;
+}
+
+void ASnowRumbleCharacter::CompleteTeammateRevive()
+{
+	if (!bIsRevivingTeammate
+		|| !bIsInteractHeld
+		|| !TeammateReviveTarget.IsValid()
+		|| !CanPerformGameplayAction())
+	{
+		CancelTeammateRevive();
+		return;
+	}
+
+	ASnowRumbleCharacter* TargetCharacter = TeammateReviveTarget.Get();
+	bIsRevivingTeammate = false;
+	if (HasAuthority())
+	{
+		ServerReviveFrozenTeammate_Implementation(TargetCharacter);
+	}
+	else
+	{
+		ServerReviveFrozenTeammate(TargetCharacter);
 	}
 }
 
@@ -3526,6 +4190,19 @@ void ASnowRumbleCharacter::ServerTryInteractWithLobbyBoard_Implementation(
 	Board->Interact(this);
 }
 
+void ASnowRumbleCharacter::ServerTryInteractWithPhotoActor_Implementation(
+	APhotoInteractionActor* PhotoActor)
+{
+	if (!CanPerformGameplayAction()
+		|| !PhotoActor
+		|| !PhotoActor->CanInteractWith(this))
+	{
+		return;
+	}
+
+	PhotoActor->Interact(this);
+}
+
 void ASnowRumbleCharacter::ServerTryOpenGiftBox_Implementation(
 	AGiftBox* GiftBox)
 {
@@ -3553,6 +4230,19 @@ void ASnowRumbleCharacter::ServerTryPickupGiftBoxItem_Implementation(
 	}
 
 	Pickup->TryPickup(this);
+}
+
+void ASnowRumbleCharacter::ServerReviveFrozenTeammate_Implementation(
+	ASnowRumbleCharacter* TargetCharacter)
+{
+	if (!CanPerformGameplayAction()
+		|| !GiftItemEffectComponent
+		|| !GiftItemEffectComponent->ReviveFrozenTeammate(TargetCharacter))
+	{
+		return;
+	}
+
+	NotifyItemInteractionSucceeded();
 }
 
 void ASnowRumbleCharacter::ServerRequestLobbyBoardAction_Implementation(
@@ -3593,6 +4283,7 @@ bool ASnowRumbleCharacter::CanPerformGameplayAction() const
 		&& !bIsPickingUpItem
 		&& !bIsInteractingWithItem
 		&& !bIsEmoteRadialMenuOpen
+		&& !bIsKeyGuideWidgetOpen
 		&& !bTiebreakerSpectator
 		&& !bIsGrabbedByCharacter
 		&& !IsHangingFromWorldGrab()
@@ -3733,7 +4424,9 @@ void ASnowRumbleCharacter::RefreshPvpMatchInputLock()
 	const bool bUiInputActive =
 		FocusedLobbyBoard
 		|| bIsEmoteRadialMenuOpen
+		|| bIsKeyGuideWidgetOpen
 		|| Cast<ACustomizationPlayerController>(PlayerController)
+		|| Cast<AMainMenuPlayerController>(PlayerController)
 		|| (SnowRumblePlayerController
 			&& SnowRumblePlayerController->IsGameplayUiInputOpen());
 
@@ -3823,9 +4516,21 @@ bool ASnowRumbleCharacter::FindSnowFootstepSurface(
 	FName FootSocketName,
 	FHitResult& OutFootstepHit) const
 {
-	if (!GetMesh()
-		|| FootSocketName.IsNone()
-		|| SnowFootstepSurfaceTag.IsNone())
+	if (!FindFootstepSurface(FootSocketName, OutFootstepHit))
+	{
+		return false;
+	}
+
+	return OutFootstepHit.GetActor()
+		&& !SnowFootstepSurfaceTag.IsNone()
+		&& OutFootstepHit.GetActor()->ActorHasTag(SnowFootstepSurfaceTag);
+}
+
+bool ASnowRumbleCharacter::FindFootstepSurface(
+	FName FootSocketName,
+	FHitResult& OutFootstepHit) const
+{
+	if (!GetMesh() || FootSocketName.IsNone())
 	{
 		return false;
 	}
@@ -3860,10 +4565,7 @@ bool ASnowRumbleCharacter::FindSnowFootstepSurface(
 		TraceEnd,
 		ECC_Visibility,
 		QueryParams);
-	const bool bHitSnowSurface = bHit
-		&& OutFootstepHit.GetActor()
-		&& OutFootstepHit.GetActor()->ActorHasTag(SnowFootstepSurfaceTag);
-	if (!bHitSnowSurface)
+	if (!bHit)
 	{
 		if (const ASnowTrailRenderTargetManager* SnowTrailManager =
 			ASnowTrailRenderTargetManager::FindSnowTrailManager(this))
@@ -3873,22 +4575,18 @@ bool ASnowRumbleCharacter::FindSnowFootstepSurface(
 				UE_LOG(
 					LogSnowTrailCharacter,
 					Warning,
-					TEXT("[SnowTrail] Foot trace failed Character=%s Foot=%s Hit=%d HitActor=%s HasTag=%d Start=%s End=%s Tag=%s"),
+					TEXT("[SnowTrail] Foot trace failed Character=%s Foot=%s Hit=%d HitActor=%s Start=%s End=%s Tag=%s"),
 					*GetNameSafe(this),
 					*FootSocketName.ToString(),
 					bHit ? 1 : 0,
 					*GetNameSafe(OutFootstepHit.GetActor()),
-					OutFootstepHit.GetActor()
-						&& OutFootstepHit.GetActor()->ActorHasTag(SnowFootstepSurfaceTag)
-							? 1
-							: 0,
 					*TraceStart.ToCompactString(),
 					*TraceEnd.ToCompactString(),
 					*SnowFootstepSurfaceTag.ToString());
 			}
 		}
 	}
-	return bHitSnowSurface;
+	return bHit;
 }
 
 bool ASnowRumbleCharacter::FindSnowFootstepSurfaceAtLocation(
@@ -4185,6 +4883,19 @@ void ASnowRumbleCharacter::ClientRequestLocalDamageFeedback_Implementation(
 	OnLocalDamageFeedbackRequested(AppliedDamage, DamageCauserLocation);
 }
 
+void ASnowRumbleCharacter::MulticastPlayDamageSound_Implementation(
+	FVector_NetQuantize DamageLocation)
+{
+	SnowRumbleAudio::PlaySoundAtLocation(
+		this,
+		DamageSound,
+		ESnowRumbleAudioMixChannel::Gameplay,
+		DamageLocation,
+		1.0f,
+		1.0f,
+		DamageSoundAttenuation);
+}
+
 FVector ASnowRumbleCharacter::CalculateLocalDamageCameraShakeOffset() const
 {
 	const UWorld* World = GetWorld();
@@ -4270,6 +4981,38 @@ void ASnowRumbleCharacter::MulticastPlayEmote_Implementation(int32 EmoteIndex)
 	PlayEmoteMontage(EmoteIndex);
 }
 
+void ASnowRumbleCharacter::MulticastPlayCharacterFeedbackSound_Implementation(
+	ESnowRumbleCharacterFeedbackSoundType FeedbackSoundType)
+{
+	USoundBase* FeedbackSound = nullptr;
+	switch (FeedbackSoundType)
+	{
+	case ESnowRumbleCharacterFeedbackSoundType::ItemPickup:
+		FeedbackSound = ItemPickupSound;
+		break;
+	case ESnowRumbleCharacterFeedbackSoundType::SnowballPickup:
+		FeedbackSound = SnowballPickupSound;
+		break;
+	case ESnowRumbleCharacterFeedbackSoundType::SnowballThrow:
+		FeedbackSound = SnowballThrowSound;
+		break;
+	case ESnowRumbleCharacterFeedbackSoundType::ItemInteraction:
+		FeedbackSound = ItemInteractionSound;
+		break;
+	case ESnowRumbleCharacterFeedbackSoundType::LobbyBoardInteraction:
+		FeedbackSound = LobbyBoardInteractionSound;
+		break;
+	default:
+		break;
+	}
+
+	SnowRumbleAudio::PlaySoundAtLocation(
+		this,
+		FeedbackSound,
+		ESnowRumbleAudioMixChannel::Gameplay,
+		GetActorLocation());
+}
+
 void ASnowRumbleCharacter::PlayServerDirectedEmote(int32 EmoteIndex)
 {
 	if (!HasAuthority() || !IsValidEmoteIndex(EmoteIndex))
@@ -4278,6 +5021,32 @@ void ASnowRumbleCharacter::PlayServerDirectedEmote(int32 EmoteIndex)
 	}
 
 	MulticastPlayEmote(EmoteIndex);
+}
+
+void ASnowRumbleCharacter::PlayRandomServerDirectedEmote()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	TArray<int32> ValidEmoteIndices;
+	ValidEmoteIndices.Reserve(EmoteMontages.Num());
+	for (int32 EmoteIndex = 0; EmoteIndex < EmoteMontages.Num(); ++EmoteIndex)
+	{
+		if (IsValidEmoteIndex(EmoteIndex))
+		{
+			ValidEmoteIndices.Add(EmoteIndex);
+		}
+	}
+
+	if (ValidEmoteIndices.IsEmpty())
+	{
+		return;
+	}
+
+	const int32 RandomIndex = FMath::RandHelper(ValidEmoteIndices.Num());
+	PlayServerDirectedEmote(ValidEmoteIndices[RandomIndex]);
 }
 
 void ASnowRumbleCharacter::ApplyMovementSpeed()
@@ -4290,6 +5059,7 @@ void ASnowRumbleCharacter::ApplyMovementSpeed()
 				: 1.0f;
 		MovementComponent->MaxWalkSpeed =
 			(Cast<ACustomizationPlayerController>(Controller)
+				|| Cast<AMainMenuPlayerController>(Controller)
 				? 0.0f
 				: IsPvpMatchInputLocked()
 				? 0.0f

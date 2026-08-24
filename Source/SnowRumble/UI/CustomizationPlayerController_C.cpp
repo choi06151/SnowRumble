@@ -4,9 +4,11 @@
 
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
+#include "../Audio/SnowRumbleBackgroundMusicSubsystem_C.h"
 #include "Components/Border.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/Image.h"
+#include "Components/PrimitiveComponent.h"
 #include "Components/SizeBox.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/WidgetComponent.h"
@@ -27,6 +29,28 @@
 #include "Widgets/Colors/SColorPicker.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "../Player/SnowRumbleCustomizationSubsystem_C.h"
+#include "Sound/SoundBase.h"
+
+namespace
+{
+void DisableCustomizationActorShadowCasting(AActor* Actor)
+{
+	if (!Actor)
+	{
+		return;
+	}
+
+	TArray<UPrimitiveComponent*> PrimitiveComponents;
+	Actor->GetComponents(PrimitiveComponents);
+	for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
+	{
+		if (PrimitiveComponent)
+		{
+			PrimitiveComponent->SetCastShadow(false);
+		}
+	}
+}
+}
 
 void ACustomizationPlayerController::BeginPlay()
 {
@@ -41,6 +65,7 @@ void ACustomizationPlayerController::BeginPlay()
 		EnsurePaintRenderTarget();
 		ApplyCustomizationCameraView();
 		ShowCustomizationMenu();
+		PlayBackgroundMusic();
 	}
 }
 
@@ -217,6 +242,29 @@ void ACustomizationPlayerController::AdjustPaintBrushSizeFromWheel(
 		SafeMinSize,
 		SafeMaxSize);
 	UpdatePaintMouseCursorPresentation();
+}
+
+void ACustomizationPlayerController::SetPaintBrushSizeFromNormalizedValue(
+	float NormalizedValue)
+{
+	const float SafeMinSize = FMath::Max(1.0f, MinPaintBrushSize);
+	const float SafeMaxSize = FMath::Max(SafeMinSize, MaxPaintBrushSize);
+	const float SafeNormalizedValue = FMath::Clamp(NormalizedValue, 0.0f, 1.0f);
+	PaintStrokeThickness = FMath::Lerp(
+		SafeMinSize,
+		SafeMaxSize,
+		SafeNormalizedValue);
+	UpdatePaintMouseCursorPresentation();
+}
+
+float ACustomizationPlayerController::GetPaintBrushSizeNormalizedValue() const
+{
+	const float SafeMinSize = FMath::Max(1.0f, MinPaintBrushSize);
+	const float SafeMaxSize = FMath::Max(SafeMinSize, MaxPaintBrushSize);
+	return FMath::GetRangePct(
+		SafeMinSize,
+		SafeMaxSize,
+		PaintStrokeThickness);
 }
 
 float ACustomizationPlayerController::GetPaintBrushSize() const
@@ -415,6 +463,22 @@ void ACustomizationPlayerController::SetPaintCursorActive(
 	ApplyCurrentMouseCursorWidget();
 }
 
+void ACustomizationPlayerController::SetBackgroundMusicPreviewVolume(
+	float MasterVolume,
+	float BgmVolume)
+{
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->SetBackgroundMusicPreviewVolume(
+				MasterVolume,
+				BgmVolume);
+		}
+	}
+}
+
 void ACustomizationPlayerController::ApplyCustomizationCameraView()
 {
 	if (CustomizationCameraTag.IsNone())
@@ -565,6 +629,8 @@ void ACustomizationPlayerController::ApplyPreviewAnimationSettings()
 		return;
 	}
 
+	DisableCustomizationActorShadowCasting(PreviewCharacter);
+
 	TArray<USkeletalMeshComponent*> MeshComponents;
 	PreviewCharacter->GetComponents(MeshComponents);
 	for (USkeletalMeshComponent* MeshComponent : MeshComponents)
@@ -611,6 +677,35 @@ void ACustomizationPlayerController::ApplyPreviewDataToCharacter()
 		if (PaintRenderTarget)
 		{
 			PreviewCharacter->SetCustomizationPaintTexture(PaintRenderTarget);
+		}
+	}
+}
+
+void ACustomizationPlayerController::PlayBackgroundMusic()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->PlayBackgroundMusic(BackgroundMusicSound);
+		}
+	}
+}
+
+void ACustomizationPlayerController::StopBackgroundMusic()
+{
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->StopBackgroundMusic();
 		}
 	}
 }

@@ -69,14 +69,14 @@
   - `ULobbyBoardWidget`: 게시판 WBP가 상속할 C++ 부모 위젯이다.
   - `ULobbyBoardWidget::BoardActionButton0~3`: WBP에서 같은 이름의 Button을 만들면 자동으로 `ELobbyBoardAction::Action0~3` 서버 요청에 연결된다.
   - `ULobbyBoardWidget::CloseFocusButton`: WBP에서 같은 이름의 Button을 만들면 게시판 포커스 해제에 연결된다.
-  - `ULobbyBoardWidget::RedTeamButton`, `SkyTeamButton`, `GreenTeamButton`, `YellowTeamButton`, `PurpleTeamButton`, `PinkTeamButton`, `BlueTeamButton`, `WhiteTeamButton`: WBP에서 같은 이름의 Button을 만들면 팀 색 선택 이벤트에 자동 연결된다.
+  - `ULobbyBoardWidget::RedTeamButton`, `SkyTeamButton`, `GreenTeamButton`, `YellowTeamButton`, `PurpleTeamButton`, `PinkTeamButton`, `BlueTeamButton`, `OrangeTeamButton`: WBP에서 같은 이름의 Button을 만들면 팀 색 선택 이벤트에 자동 연결된다. 기존 `WhiteTeamButton` 이름도 호환 fallback으로 인식한다.
   - `ASnowRumbleLobbyGameState::GetReadyPlayerCount()`: 현재 준비 완료한 플레이어 수를 반환한다.
   - `ASnowRumbleLobbyGameState::GetReadyRequiredPlayerCount()`: 호스트를 제외한 준비 필요 플레이어 수를 반환한다.
   - `ASnowRumbleLobbyGameState::CanStartLobbyMatch()`: 참가자 수와 팀 선택을 검사하고, 호스트를 제외한 모든 참가자가 준비 완료했을 때만 true를 반환한다.
   - `ASnowRumbleLobbyGameState::GetLobbyMode()`: 현재 선택된 로비 게임 모드를 반환한다.
   - `ASnowRumbleLobbyGameState::SetLobbyModeFromServer(ESnowRumbleLobbyMode NewLobbyMode)`: 서버가 로비 게임 모드를 변경하고 UI 갱신 이벤트를 알린다.
   - `ULobbyBoardWidget::PvpModeButton`, `SnowmanModeButton`: WBP에서 같은 이름의 Button을 만들면 호스트 화면에서 현재 로비 모드 상태 변경에 자동 연결된다.
-  - `ULobbyBoardWidget::RedTeamCountText`, `SkyTeamCountText`, `GreenTeamCountText`, `YellowTeamCountText`, `PurpleTeamCountText`, `PinkTeamCountText`, `BlueTeamCountText`, `WhiteTeamCountText`: WBP에서 같은 이름의 TextBlock을 만들면 현재 색별 선택 인원 수를 숫자로 자동 표시한다.
+  - `ULobbyBoardWidget::RedTeamCountText`, `SkyTeamCountText`, `GreenTeamCountText`, `YellowTeamCountText`, `PurpleTeamCountText`, `PinkTeamCountText`, `BlueTeamCountText`, `OrangeTeamCountText`: WBP에서 같은 이름의 TextBlock을 만들면 현재 색별 선택 인원 수를 숫자로 자동 표시한다. 기존 `WhiteTeamCountText` 이름도 호환 fallback으로 인식한다.
   - `ULobbyBoardWidget::ReadyStartButton`: WBP에서 같은 이름의 Button을 만들면 로컬 호스트는 게임 시작, 클라이언트는 준비 토글에 자동 연결된다.
   - `ULobbyBoardWidget::ReadyStartButtonText`: WBP에서 같은 이름의 TextBlock을 만들면 로컬 호스트는 `게임 시작`, 준비 전 클라이언트는 `준비 완료`, 준비 후 클라이언트는 `준비 취소`로 자동 표시된다.
   - `ULobbyWidget::ReadyPlayerCountText`: 기존 `WBP_Lobby`에 있으면 호스트를 제외한 준비 완료 인원 수와 준비 필요 인원 수를 `0 / 1` 형식으로 자동 표시한다.
@@ -153,8 +153,8 @@
 - `BP_LobbyInteractionBoard_C`의 `FocusCameraComponent` 위치와 회전을 원하는 게시판 포커스 구도로 조정한다.
 - Unreal Editor에서 `ULobbyBoardWidget`을 부모로 하는 게시판 WBP를 만든다.
 - 게시판 WBP 안에 필요한 Button을 만들고 이름을 `BoardActionButton0`, `BoardActionButton1`, `BoardActionButton2`, `BoardActionButton3`, `CloseFocusButton` 중 필요한 이름으로 맞춘다.
-- 팀 색 버튼은 `RedTeamButton`, `SkyTeamButton`, `GreenTeamButton`, `YellowTeamButton`, `PurpleTeamButton`, `PinkTeamButton`, `BlueTeamButton`, `WhiteTeamButton` 이름으로 만든다.
-- 팀 색 인원 수 텍스트는 `RedTeamCountText`, `SkyTeamCountText`, `GreenTeamCountText`, `YellowTeamCountText`, `PurpleTeamCountText`, `PinkTeamCountText`, `BlueTeamCountText`, `WhiteTeamCountText` 이름으로 만든다.
+- 팀 색 버튼은 `RedTeamButton`, `SkyTeamButton`, `GreenTeamButton`, `YellowTeamButton`, `PurpleTeamButton`, `PinkTeamButton`, `BlueTeamButton`, `OrangeTeamButton` 이름으로 만든다.
+- 팀 색 인원 수 텍스트는 `RedTeamCountText`, `SkyTeamCountText`, `GreenTeamCountText`, `YellowTeamCountText`, `PurpleTeamCountText`, `PinkTeamCountText`, `BlueTeamCountText`, `OrangeTeamCountText` 이름으로 만든다.
 - 로비 모드 버튼은 `PvpModeButton`, `SnowmanModeButton` 이름으로 만든다.
 - 준비/시작 버튼은 `ReadyStartButton` 이름으로 만들고, 버튼 안의 텍스트는 `ReadyStartButtonText` 이름으로 만든다.
 - 기존 `WBP_Lobby`에는 필요한 TextBlock 또는 Border를 `ReadyPlayerCountText`, `CurrentGameModeText`, `LocalPlayerNameText`, `LocalTeamColorText`, `LocalReadyStateText`, `LocalTeamColorBorder` 이름으로 만든다.
@@ -197,6 +197,7 @@
 - 2026-08-09: 게시판 월드 UI와 `ULobbyBoardWidget`, `LobbyBoardWidgetInteractionComponent` 추가 후 `git diff --check`는 통과했다. `LobbyBoardWidget_C.cpp`, `LobbyInteractionBoard_C.cpp`, `Module.SnowRumble.cpp`, `SnowRumbleCharacter.cpp` 컴파일은 통과했지만, 실행 중인 Unreal Editor 프로세스가 `Binaries/Win64/UnrealEditor-SnowRumble.dll`을 잡고 있어 링크가 `LNK1104`로 실패했다. 에디터 종료 후 재빌드 확인이 필요하다.
 - 2026-08-09: 게시판 WBP 버튼 클릭이 안 되는 문제에 대응해 `BoardWidgetComponent`가 `Visibility` trace를 block하도록 보강하고, 포커스 중 좌클릭 감지를 입력 바인딩 대신 Tick 기반 `WasInputKeyJustPressed/Released`로 처리하게 했다. `git diff --check`와 관련 C++ 컴파일은 통과했으며, 링크는 실행 중인 Unreal Editor DLL 잠금으로 `LNK1104` 실패했다.
 - 2026-08-09: 게시판 WBP 클릭 판정을 마우스 화면 좌표 deproject 기반으로 바꿨다. 포커스 중 마우스 좌표에서 월드 ray를 만들고, 현재 게시판의 `BoardWidgetComponent`에 대해 직접 `LineTraceComponent`를 수행한 hit result를 `LobbyBoardWidgetInteractionComponent`의 custom hit result로 넣은 뒤 pointer press/release를 전달한다. `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드가 `Result: Succeeded`로 완료됐다.
+- 2026-08-24: 게시판의 8번째 팀을 White에서 Orange로 변경했다. 팀 enum·서버 배정·팀 색상·게시판 버튼/인원수 표시를 Orange 기준으로 연결하고, 기존 `WhiteTeamButton`과 `WhiteTeamCountText` WBP 이름은 fallback으로 유지한다.
 - 2026-08-09: `BoardWidgetComponent`의 collision trace 의존을 제거하고, 마우스 ray와 위젯 컴포넌트 평면의 교차점을 직접 계산해 위젯 사각형 안일 때 custom hit result를 구성하도록 바꿨다. `git diff --check`와 `SnowRumbleCharacter.cpp` 컴파일은 통과했으며, 링크는 실행 중인 Unreal Editor DLL 잠금으로 `LNK1104` 실패했다.
 - 2026-08-09: 다중 게시판 WidgetComponent 클릭 후보 지원 후 `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드가 `Result: Succeeded`로 완료됐다.
 - 2026-08-09: 기능 구현 전 단계로 `ULobbyBoardWidget`에 팀 색 버튼 8개와 로비 모드 버튼 2개의 자동 바인딩을 추가했다. 현재는 WBP 이벤트까지만 전달하고 실제 팀 색·모드 변경 서버 기능은 범위 밖으로 둔다.
