@@ -56,6 +56,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Map Pressure")
 	void CompleteMapShrinkFromBlueprint();
 
+	/** 클라이언트가 PvP 맵과 제한된 Warmup을 완료했음을 서버에 알린다. */
+	void NotifyPvpPlayerReady(APlayerController* PlayerController);
+
 protected:
 	/** PvP 맵에서 재생할 배경음악이다. */
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Audio")
@@ -76,7 +79,19 @@ private:
 	bool bLoadingScreensHidden = false;
 	bool bStartCountdownStarted = false;
 	bool bMatchIntroStarted = false;
+	bool bPvpLoadingTimedOut = false;
 	int32 MatchIntroTeamIndex = 0;
+	TSet<TWeakObjectPtr<APlayerController>> ReadyPvpPlayers;
+	FTimerHandle PvpReadyTimeoutTimerHandle;
+	FTimerHandle PvpLoadingFailureTravelTimerHandle;
+
+	/** 최초 PvP 진입에서 모든 클라이언트 Ready를 기다리는 최대 시간이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Loading", meta = (ClampMin = "1.0"))
+	float PvpReadyTimeoutSeconds = 45.0f;
+
+	/** 로딩 실패 안내가 잠시 보인 뒤 로비로 이동하는 지연이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Loading", meta = (ClampMin = "0.0"))
+	float PvpLoadingFailureReturnDelaySeconds = 1.5f;
 
 	/** PvP 맵 시작 후 입력을 잠글 카운트다운 시간이다. */
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Match", meta = (ClampMin = "0.0"))
@@ -132,6 +147,15 @@ private:
 
 	/** 모든 예상 플레이어가 접속하면 전체 클라이언트의 로딩창을 닫는다. */
 	void TryDismissLoadingScreens();
+
+	/** 현재 PvP 맵에서 Ready를 제출한 유효한 플레이어 수를 반환한다. */
+	int32 GetReadyPvpPlayerCount() const;
+
+	/** PvP Ready 타임아웃으로 전체 매치를 취소하고 로비 복귀를 예약한다. */
+	void CancelPvpMatchForLoadingTimeout();
+
+	/** 로딩 타임아웃 안내 후 서버가 로비로 이동한다. */
+	void ReturnToLobbyAfterPvpLoadingTimeout();
 
 	/** PvP 맵 로딩이 끝난 뒤 서버 확정 시작 카운트다운을 시작한다. */
 	void StartMatchCountdownAfterLoading();

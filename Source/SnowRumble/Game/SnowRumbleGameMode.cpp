@@ -84,16 +84,28 @@ ASnowRumbleGameMode::ASnowRumbleGameMode()
 	DefaultPawnClass = ASnowRumbleCharacter::StaticClass();
 	bUseSeamlessTravel = true;
 
+#if WITH_EDITOR
 	if (IConsoleVariable* AllowPieSeamlessTravel =
 		IConsoleManager::Get().FindConsoleVariable(TEXT("net.AllowPIESeamlessTravel")))
 	{
 		AllowPieSeamlessTravel->Set(1);
 	}
+#endif
 }
 
 void ASnowRumbleGameMode::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (ExpectedPlayerCount > 0)
+	{
+		GetWorldTimerManager().SetTimer(
+			PvpReadyTimeoutTimerHandle,
+			this,
+			&ASnowRumbleGameMode::CancelPvpMatchForLoadingTimeout,
+			PvpReadyTimeoutSeconds,
+			false);
+	}
 
 	if (ASnowRumbleGameState* SnowRumbleGameState =
 		GetGameState<ASnowRumbleGameState>())
@@ -120,6 +132,10 @@ void ASnowRumbleGameMode::InitGame(
 	bLoadingScreensHidden = false;
 	bStartCountdownStarted = false;
 	bMatchIntroStarted = false;
+	bPvpLoadingTimedOut = false;
+	ReadyPvpPlayers.Reset();
+	GetWorldTimerManager().ClearTimer(PvpReadyTimeoutTimerHandle);
+	GetWorldTimerManager().ClearTimer(PvpLoadingFailureTravelTimerHandle);
 	MatchIntroTeamIndex = 0;
 	MatchIntroTeams.Reset();
 	MapShrinkStage = 0;
@@ -179,14 +195,16 @@ void ASnowRumbleGameMode::BroadcastBackgroundMusic() const
 
 void ASnowRumbleGameMode::TryDismissLoadingScreens()
 {
-	if (bLoadingScreensDismissed)
+	if (bLoadingScreensDismissed || bPvpLoadingTimedOut)
 	{
 		return;
 	}
 
 	const int32 RequiredPlayerCount =
 		ExpectedPlayerCount > 0 ? ExpectedPlayerCount : GetNumPlayers();
-	if (RequiredPlayerCount <= 0 || GetNumPlayers() < RequiredPlayerCount)
+	if (RequiredPlayerCount <= 0
+		|| GetNumPlayers() < RequiredPlayerCount
+		|| GetReadyPvpPlayerCount() < RequiredPlayerCount)
 	{
 		return;
 	}
@@ -206,6 +224,102 @@ void ASnowRumbleGameMode::TryDismissLoadingScreens()
 		World->GetTimerManager().SetTimerForNextTick(
 			this,
 			&ASnowRumbleGameMode::StartMatchCountdownAfterLoading);
+	}
+}
+
+void ASnowRumbleGameMode::NotifyPvpPlayerReady(
+	APlayerController* PlayerController)
+{
+	if (!HasAuthority()
+		|| bLoadingScreensDismissed
+		|| bPvpLoadingTimedOut
+		|| !PlayerController)
+	{
+		return;
+	}
+
+	ReadyPvpPlayers.Add(PlayerController);
+	BroadcastLoadingProgress();
+	TryDismissLoadingScreens();
+}
+
+int32 ASnowRumbleGameMode::GetReadyPvpPlayerCount() const
+{
+	int32 ReadyCount = 0;
+	for (const TWeakObjectPtr<APlayerController>& PlayerController : ReadyPvpPlayers)
+	{
+		if (PlayerController.IsValid())
+		{
+			++ReadyCount;
+		}
+	}
+	return ReadyCount;
+}
+
+void ASnowRumbleGameMode::CancelPvpMatchForLoadingTimeout()
+{
+	if (!HasAuthority()
+		|| bLoadingScreensDismissed
+		|| bPvpLoadingTimedOut)
+	{
+		return;
+	}
+
+	bPvpLoadingTimedOut = true;
+	bLoadingScreensDismissed = true;
+	GetWorldTimerManager().ClearTimer(PvpReadyTimeoutTimerHandle);
+	GetWorldTimerManager().ClearTimer(MatchIntroTimerHandle);
+
+	if (UWorld* World = GetWorld())
+	{
+		for (FConstPlayerControllerIterator It =
+			World->GetPlayerControllerIterator();
+			It;
+			++It)
+		{
+			if (ASnowRumblePlayerController* PlayerController =
+				Cast<ASnowRumblePlayerController>(It->Get()))
+			{
+				PlayerController->ClientShowPersonalTextAlarm(
+					NSLOCTEXT(
+						"SnowRumble",
+						"PvpLoadingTimeout",
+						"PvP 로딩 시간이 초과되어 로비로 돌아갑니다."));
+				PlayerController->ClientHideLoadingScreen();
+			}
+		}
+	}
+
+	GetWorldTimerManager().SetTimer(
+		PvpLoadingFailureTravelTimerHandle,
+		this,
+		&ASnowRumbleGameMode::ReturnToLobbyAfterPvpLoadingTimeout,
+		PvpLoadingFailureReturnDelaySeconds,
+		false);
+}
+
+void ASnowRumbleGameMode::ReturnToLobbyAfterPvpLoadingTimeout()
+{
+	if (!HasAuthority() || LobbyReturnTravelUrl.IsEmpty())
+	{
+		return;
+	}
+
+	FString TravelUrl = LobbyReturnTravelUrl;
+	EnsureSnowRumbleTravelOption(TravelUrl, TEXT("?listen"));
+	EnsureSnowRumbleTravelOptionValue(
+		TravelUrl,
+		TEXT("game"),
+		SnowRumbleLobbyGameModeTravelPath);
+
+	if (USnowRumbleMatchSubsystem* MatchSubsystem = GetMatchSubsystem())
+	{
+		MatchSubsystem->ResetPvPMatch();
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		World->ServerTravel(TravelUrl);
 	}
 }
 
@@ -1259,6 +1373,8 @@ void ASnowRumbleGameMode::BroadcastLoadingProgress()
 
 	const int32 RequiredPlayerCount =
 		ExpectedPlayerCount > 0 ? ExpectedPlayerCount : GetNumPlayers();
+	const int32 LoadedPlayerCount =
+		ExpectedPlayerCount > 0 ? GetReadyPvpPlayerCount() : GetNumPlayers();
 	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
 		It;
 		++It)
@@ -1267,7 +1383,7 @@ void ASnowRumbleGameMode::BroadcastLoadingProgress()
 			Cast<ASnowRumblePlayerController>(It->Get()))
 		{
 			PlayerController->ClientUpdateLoadingProgress(
-				GetNumPlayers(),
+				LoadedPlayerCount,
 				RequiredPlayerCount);
 		}
 	}

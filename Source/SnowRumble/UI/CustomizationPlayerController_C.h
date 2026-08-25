@@ -216,6 +216,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Preview")
 	float PreviewCharacterZOffset = 0.0f;
 
+	/** 커스터마이징 레벨에서만 적용할 프리뷰 캐릭터 Mesh 배율이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Preview", meta = (ClampMin = "0.1", ClampMax = "3.0"))
+	float PreviewCharacterMeshScale = 1.15f;
+
 	/** 커스터마이징 방에서 프리뷰 캐릭터에 사용할 단일 애니메이션 에셋이다. 비워두면 현재 애니메이션을 그대로 멈춘다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Preview")
 	TObjectPtr<UAnimationAsset> PreviewAnimationAsset;
@@ -332,6 +336,9 @@ private:
 
 	/** 프리뷰 캐릭터의 최종 Z 위치를 보정한다. */
 	void ApplyPreviewCharacterZOffset();
+
+	/** 커스터마이징 레벨의 프리뷰 캐릭터 Mesh 크기를 적용한다. */
+	void ApplyPreviewCharacterMeshScale();
 
 	/** 커스터마이징 방 전용 애니메이션 에셋과 정지 상태를 프리뷰 캐릭터에 적용한다. */
 	void ApplyPreviewAnimationSettings();

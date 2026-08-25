@@ -17,6 +17,7 @@ class UUserWidget;
 class UVoiceMuteMenuWidget;
 class ACameraActor;
 class USoundBase;
+class ASnowRumbleCharacter;
 
 UCLASS(Blueprintable)
 class SNOWRUMBLE_API ASnowRumblePlayerController : public APlayerController
@@ -336,6 +337,15 @@ private:
 	/** 현재 저장된 마이크 설정에 맞춰 로컬 입력 상태를 갱신한다. */
 	void RefreshMicrophoneInputState();
 
+	/** PvP 월드에서 맵·Pawn·HUD 초기화 후 Ready 제출을 예약한다. */
+	void TrySchedulePvpReadyHandshake();
+
+	/** 제한된 Warmup 시간이 지나고 Pawn이 준비되면 서버에 Ready를 제출한다. */
+	void TryNotifyPvpReady();
+
+	UFUNCTION(Server, Reliable)
+	void ServerNotifyPvpReady(const FString& PvpMapName);
+
 	/** PvP 팀 소개용 임시 카메라 이동을 갱신한다. */
 	void UpdatePvpIntroCamera(float DeltaTime);
 
@@ -354,6 +364,9 @@ private:
 
 	/** 채팅 위젯 인스턴스가 없으면 생성한다. */
 	UChatWidget* EnsureChatWidget();
+
+	/** PvP 팀 소개 연출 중 PlayerController 소유 WBP를 숨기거나 복원한다. */
+	void SetPvpIntroWidgetsHidden(bool bShouldHide);
 
 	/** 서버가 채팅을 받을 클라이언트인지 확인한다. */
 	bool ShouldReceiveChatMessage(
@@ -378,6 +391,8 @@ private:
 	TWeakObjectPtr<UAudioComponent> BackgroundMusicComponent;
 
 	bool bChatInputIgnoringPawnInput = false;
+	bool bPvpIntroWidgetsHidden = false;
+	ESlateVisibility PvpIntroChatVisibility = ESlateVisibility::Visible;
 
 	FTransform PvpIntroCameraCurrentStartTransform;
 	FTransform PvpIntroCameraDollyStartTransform;
@@ -403,4 +418,8 @@ private:
 
 	TSet<FString> RegisteredRemoteVoiceTalkerIds;
 	TSet<FString> ManuallyMutedVoicePlayerKeys;
+
+	FString PvpReadyMapName;
+	float PvpReadyWarmupElapsedSeconds = 0.0f;
+	bool bPvpReadySubmitted = false;
 };

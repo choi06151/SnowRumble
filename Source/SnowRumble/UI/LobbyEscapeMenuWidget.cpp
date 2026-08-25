@@ -125,6 +125,10 @@ void ULobbyEscapeMenuWidget::HandleSettingsButtonClicked()
 void ULobbyEscapeMenuWidget::HandleInviteFriendsButtonClicked()
 {
 	OnInviteFriendsRequested();
+	if (LobbyPlayerController)
+	{
+		LobbyPlayerController->OpenSteamSessionInviteUI();
+	}
 }
 
 void ULobbyEscapeMenuWidget::HandleBackButtonClicked()

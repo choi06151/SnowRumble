@@ -4,7 +4,9 @@
 
 #include "../Audio/SnowRumbleAudioHelpers.h"
 #include "Components/Button.h"
+#include "Components/ComboBoxString.h"
 #include "Components/PanelWidget.h"
+#include "Components/ProgressBar.h"
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
 #include "Components/WidgetSwitcher.h"
@@ -19,6 +21,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundClass.h"
 #include "Sound/SoundMix.h"
+#include "AudioCaptureCore.h"
 
 namespace
 {
@@ -51,6 +54,7 @@ void UOptionsWidget::NativeConstruct()
 	InitializeSensitivitySetting();
 	InitializeAudioSettings();
 	InitializeMicrophoneSettings();
+	RefreshMicrophoneDeviceList();
 	InitializeDefaultKeyBindingRows();
 	BindOptionButtons();
 	RefreshSensitivityValueText();
@@ -63,6 +67,8 @@ void UOptionsWidget::NativeConstruct()
 
 void UOptionsWidget::NativeDestruct()
 {
+	StopMicrophoneTest();
+
 	if (LiveAudioPreviewSoundMix)
 	{
 		UGameplayStatics::PopSoundMixModifier(this, LiveAudioPreviewSoundMix);
@@ -72,6 +78,14 @@ void UOptionsWidget::NativeDestruct()
 	UnbindOptionButtons();
 
 	Super::NativeDestruct();
+}
+
+void UOptionsWidget::NativeTick(
+	const FGeometry& MyGeometry,
+	float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+	RefreshMicrophoneTestDisplay(InDeltaTime);
 }
 
 void UOptionsWidget::SetOptionsCategory(
@@ -121,6 +135,7 @@ void UOptionsWidget::DiscardPendingOptionChanges()
 	InitializeSensitivitySetting();
 	InitializeAudioSettings();
 	InitializeMicrophoneSettings();
+	RefreshMicrophoneDeviceList();
 	InitializeDefaultKeyBindingRows();
 	RefreshSensitivityValueText();
 	RefreshAudioValueText();
@@ -255,6 +270,18 @@ void UOptionsWidget::BindOptionButtons()
 			this,
 			&UOptionsWidget::HandleMicrophoneAlwaysOnButtonClicked);
 	}
+	if (MicrophoneDeviceComboBox)
+	{
+		MicrophoneDeviceComboBox->OnSelectionChanged.AddUniqueDynamic(
+			this,
+			&UOptionsWidget::HandleMicrophoneDeviceSelectionChanged);
+	}
+	if (MicrophoneTestButton)
+	{
+		MicrophoneTestButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UOptionsWidget::HandleMicrophoneTestButtonClicked);
+	}
 }
 
 void UOptionsWidget::UnbindOptionButtons()
@@ -318,6 +345,14 @@ void UOptionsWidget::UnbindOptionButtons()
 	if (MicrophoneAlwaysOnButton)
 	{
 		MicrophoneAlwaysOnButton->OnClicked.RemoveAll(this);
+	}
+	if (MicrophoneDeviceComboBox)
+	{
+		MicrophoneDeviceComboBox->OnSelectionChanged.RemoveAll(this);
+	}
+	if (MicrophoneTestButton)
+	{
+		MicrophoneTestButton->OnClicked.RemoveAll(this);
 	}
 }
 
@@ -462,6 +497,37 @@ void UOptionsWidget::HandleMicrophoneAlwaysOnButtonClicked()
 	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 }
 
+void UOptionsWidget::HandleMicrophoneDeviceSelectionChanged(
+	FString SelectedItem,
+	ESelectInfo::Type SelectionType)
+{
+	if (bIsUpdatingMicrophoneDeviceComboBox
+		|| SelectionType == ESelectInfo::Direct)
+	{
+		return;
+	}
+
+	PendingMicrophoneDeviceName = SelectedItem;
+	PendingMicrophoneDeviceId =
+		MicrophoneDeviceIdsByName.FindRef(SelectedItem);
+	OnMicrophoneDeviceChanged(
+		PendingMicrophoneDeviceId,
+		PendingMicrophoneDeviceName);
+	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
+}
+
+void UOptionsWidget::HandleMicrophoneTestButtonClicked()
+{
+	if (bIsMicrophoneTestActive)
+	{
+		StopMicrophoneTest();
+	}
+	else
+	{
+		StartMicrophoneTest();
+	}
+}
+
 void UOptionsWidget::HandleKeyRowRebindRequested(FName BindingId)
 {
 	BeginKeyRebind(BindingId);
@@ -523,6 +589,7 @@ void UOptionsWidget::ApplyPendingOptionChanges()
 		UserSettingsSubsystem->SetVoiceVolume(PendingVoiceVolume);
 		UserSettingsSubsystem->SetMicrophoneVolume(PendingMicrophoneVolume);
 		UserSettingsSubsystem->SetMicrophoneMode(PendingMicrophoneMode);
+		UserSettingsSubsystem->SetMicrophoneDeviceId(PendingMicrophoneDeviceId);
 		for (const FSnowRumbleKeyBindingViewData& Row : KeyBindingRows)
 		{
 			if (Row.CurrentKey == Row.DefaultKey)
@@ -632,6 +699,8 @@ void UOptionsWidget::ResetCurrentOptionsCategory()
 					UserSettingsSubsystem->GetDefaultMicrophoneVolume();
 				PendingMicrophoneMode =
 					UserSettingsSubsystem->GetDefaultMicrophoneMode();
+				PendingMicrophoneDeviceId.Reset();
+				PendingMicrophoneDeviceName = TEXT("기본 장치");
 			}
 		}
 		if (MicrophoneVolumeSlider)
@@ -643,6 +712,15 @@ void UOptionsWidget::ResetCurrentOptionsCategory()
 		RefreshMicrophoneValueText();
 		OnMicrophoneModeChanged(PendingMicrophoneMode);
 		RefreshMicrophoneModeButtonSelection();
+		if (MicrophoneDeviceComboBox)
+		{
+			bIsUpdatingMicrophoneDeviceComboBox = true;
+			MicrophoneDeviceComboBox->SetSelectedOption(PendingMicrophoneDeviceName);
+			bIsUpdatingMicrophoneDeviceComboBox = false;
+		}
+		OnMicrophoneDeviceChanged(
+			PendingMicrophoneDeviceId,
+			PendingMicrophoneDeviceName);
 		SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 		break;
 	default:
@@ -1009,6 +1087,10 @@ void UOptionsWidget::InitializeMicrophoneSettings()
 	PendingMicrophoneMode = UserSettingsSubsystem
 		? UserSettingsSubsystem->GetMicrophoneMode()
 		: ESnowRumbleMicrophoneMode::PushToTalk;
+	PendingMicrophoneDeviceId = UserSettingsSubsystem
+		? UserSettingsSubsystem->GetMicrophoneDeviceId()
+		: FString();
+	PendingMicrophoneDeviceName = TEXT("기본 장치");
 
 	if (MicrophoneVolumeSlider)
 	{
@@ -1019,6 +1101,237 @@ void UOptionsWidget::InitializeMicrophoneSettings()
 
 	OnMicrophoneModeChanged(PendingMicrophoneMode);
 	RefreshMicrophoneModeButtonSelection();
+}
+
+void UOptionsWidget::RefreshMicrophoneDeviceList()
+{
+	if (!MicrophoneDeviceComboBox)
+	{
+		return;
+	}
+
+	MicrophoneDeviceIdsByName.Reset();
+	MicrophoneDeviceIndicesByName.Reset();
+	bIsUpdatingMicrophoneDeviceComboBox = true;
+	MicrophoneDeviceComboBox->ClearOptions();
+
+	const FString DefaultDeviceName = TEXT("기본 장치");
+	MicrophoneDeviceComboBox->AddOption(DefaultDeviceName);
+	MicrophoneDeviceIdsByName.Add(DefaultDeviceName, FString());
+	MicrophoneDeviceIndicesByName.Add(DefaultDeviceName, INDEX_NONE);
+
+	Audio::FAudioCapture AudioCapture;
+	TArray<Audio::FCaptureDeviceInfo> Devices;
+	AudioCapture.GetCaptureDevicesAvailable(Devices);
+	for (int32 DeviceIndex = 0; DeviceIndex < Devices.Num(); ++DeviceIndex)
+	{
+		const Audio::FCaptureDeviceInfo& Device = Devices[DeviceIndex];
+		if (Device.DeviceName.IsEmpty())
+		{
+			continue;
+		}
+
+		FString DisplayName = Device.DeviceName;
+		if (MicrophoneDeviceIdsByName.Contains(DisplayName))
+		{
+			DisplayName = FString::Printf(
+				TEXT("%s (%s)"),
+				*Device.DeviceName,
+				*Device.DeviceId);
+		}
+		MicrophoneDeviceComboBox->AddOption(DisplayName);
+		MicrophoneDeviceIdsByName.Add(DisplayName, Device.DeviceId);
+		MicrophoneDeviceIndicesByName.Add(DisplayName, DeviceIndex);
+	}
+
+	PendingMicrophoneDeviceName = DefaultDeviceName;
+	for (const TPair<FString, FString>& Device : MicrophoneDeviceIdsByName)
+	{
+		if (Device.Value == PendingMicrophoneDeviceId)
+		{
+			PendingMicrophoneDeviceName = Device.Key;
+			break;
+		}
+	}
+	MicrophoneDeviceComboBox->SetSelectedOption(PendingMicrophoneDeviceName);
+	bIsUpdatingMicrophoneDeviceComboBox = false;
+}
+
+void UOptionsWidget::StartMicrophoneTest()
+{
+	StopMicrophoneTest();
+
+	MicrophoneTestCapture = MakeUnique<Audio::FAudioCapture>();
+	Audio::FAudioCaptureDeviceParams CaptureParams;
+	CaptureParams.DeviceIndex = MicrophoneDeviceIndicesByName.FindRef(
+		PendingMicrophoneDeviceName);
+
+	const bool bStreamOpened = MicrophoneTestCapture->OpenAudioCaptureStream(
+		CaptureParams,
+		[this](
+			const void* AudioData,
+			int32 NumFrames,
+			int32 NumChannels,
+			int32 SampleRate,
+			double StreamTime,
+			bool bOverFlow)
+		{
+			HandleMicrophoneCapture(
+				AudioData,
+				NumFrames,
+				NumChannels,
+				SampleRate,
+				StreamTime,
+				bOverFlow);
+		},
+		1024);
+
+	if (!bStreamOpened || !MicrophoneTestCapture->StartStream())
+	{
+		MicrophoneTestCapture->AbortStream();
+		MicrophoneTestCapture.Reset();
+		bIsMicrophoneTestActive = false;
+		const FText StatusText = NSLOCTEXT(
+			"SnowRumble",
+			"MicrophoneTestOpenFailed",
+			"마이크를 열 수 없습니다.");
+		if (MicrophoneTestStatusText)
+		{
+			MicrophoneTestStatusText->SetText(StatusText);
+		}
+		OnMicrophoneTestStateChanged(false, false, 0.0f, StatusText);
+		return;
+	}
+
+	{
+		FScopeLock Lock(&MicrophoneTestCaptureCriticalSection);
+		PendingMicrophoneInputLevel = 0.0f;
+	}
+	DisplayedMicrophoneInputLevel = 0.0f;
+	bIsMicrophoneTestActive = true;
+	const FText StatusText = NSLOCTEXT(
+		"SnowRumble",
+		"MicrophoneTestListening",
+		"마이크 입력을 확인하는 중입니다.");
+	if (MicrophoneTestStatusText)
+	{
+		MicrophoneTestStatusText->SetText(StatusText);
+	}
+	if (MicrophoneTestButton)
+	{
+		MicrophoneTestButton->SetIsEnabled(true);
+	}
+	OnMicrophoneTestStateChanged(true, false, 0.0f, StatusText);
+}
+
+void UOptionsWidget::StopMicrophoneTest()
+{
+	if (MicrophoneTestCapture)
+	{
+		MicrophoneTestCapture->AbortStream();
+		MicrophoneTestCapture.Reset();
+	}
+
+	bIsMicrophoneTestActive = false;
+	DisplayedMicrophoneInputLevel = 0.0f;
+	{
+		FScopeLock Lock(&MicrophoneTestCaptureCriticalSection);
+		PendingMicrophoneInputLevel = 0.0f;
+	}
+
+	const FText StatusText = NSLOCTEXT(
+		"SnowRumble",
+		"MicrophoneTestStopped",
+		"마이크 테스트가 중지되었습니다.");
+	if (MicrophoneTestStatusText)
+	{
+		MicrophoneTestStatusText->SetText(StatusText);
+	}
+	if (MicrophoneInputLevelProgressBar)
+	{
+		MicrophoneInputLevelProgressBar->SetPercent(0.0f);
+	}
+	OnMicrophoneTestStateChanged(false, false, 0.0f, StatusText);
+}
+
+void UOptionsWidget::HandleMicrophoneCapture(
+	const void* AudioData,
+	int32 NumFrames,
+	int32 NumChannels,
+	int32 SampleRate,
+	double StreamTime,
+	bool bOverFlow)
+{
+	if (!AudioData || NumFrames <= 0 || NumChannels <= 0)
+	{
+		return;
+	}
+
+	const float* Samples = static_cast<const float*>(AudioData);
+	const int32 NumSamples = NumFrames * NumChannels;
+	double SumSquares = 0.0;
+	for (int32 SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
+	{
+		const double Sample = Samples[SampleIndex];
+		SumSquares += Sample * Sample;
+	}
+
+	const float RmsLevel = FMath::Clamp(
+		static_cast<float>(FMath::Sqrt(SumSquares / NumSamples)) * 4.0f,
+		0.0f,
+		1.0f);
+	FScopeLock Lock(&MicrophoneTestCaptureCriticalSection);
+	PendingMicrophoneInputLevel = FMath::Max(
+		PendingMicrophoneInputLevel * 0.35f,
+		RmsLevel);
+}
+
+void UOptionsWidget::RefreshMicrophoneTestDisplay(float InDeltaTime)
+{
+	float InputLevel = 0.0f;
+	{
+		FScopeLock Lock(&MicrophoneTestCaptureCriticalSection);
+		InputLevel = PendingMicrophoneInputLevel;
+		PendingMicrophoneInputLevel = FMath::Max(
+			0.0f,
+			PendingMicrophoneInputLevel - InDeltaTime * 1.5f);
+	}
+
+	DisplayedMicrophoneInputLevel = FMath::FInterpTo(
+		DisplayedMicrophoneInputLevel,
+		InputLevel,
+		InDeltaTime,
+		12.0f);
+	if (MicrophoneInputLevelProgressBar)
+	{
+		MicrophoneInputLevelProgressBar->SetPercent(
+			DisplayedMicrophoneInputLevel);
+	}
+
+	if (!bIsMicrophoneTestActive)
+	{
+		return;
+	}
+
+	const bool bInputDetected = DisplayedMicrophoneInputLevel >= 0.035f;
+	const FText StatusText = bInputDetected
+		? NSLOCTEXT(
+			"SnowRumble",
+			"MicrophoneTestInputDetected",
+			"마이크 입력이 감지되었습니다.")
+		: NSLOCTEXT(
+			"SnowRumble",
+			"MicrophoneTestWaitingForInput",
+			"마이크 입력을 기다리는 중입니다.");
+	if (MicrophoneTestStatusText)
+	{
+		MicrophoneTestStatusText->SetText(StatusText);
+	}
+	OnMicrophoneTestStateChanged(
+		true,
+		bInputDetected,
+		DisplayedMicrophoneInputLevel,
+		StatusText);
 }
 
 void UOptionsWidget::ApplyAudioVolumeSettings() const
@@ -1226,11 +1539,16 @@ bool UOptionsWidget::HasPendingMicrophoneChanges() const
 			? UserSettingsSubsystem->GetMicrophoneMode()
 			: ESnowRumbleMicrophoneMode::PushToTalk;
 
+	const FString SavedMicrophoneDeviceId = UserSettingsSubsystem
+		? UserSettingsSubsystem->GetMicrophoneDeviceId()
+		: FString();
+
 	return !FMath::IsNearlyEqual(
 			PendingMicrophoneVolume,
 			SavedMicrophoneVolume,
 			0.001f)
-		|| PendingMicrophoneMode != SavedMicrophoneMode;
+		|| PendingMicrophoneMode != SavedMicrophoneMode
+		|| PendingMicrophoneDeviceId != SavedMicrophoneDeviceId;
 }
 
 float UOptionsWidget::ConvertSliderValueToSensitivity(
