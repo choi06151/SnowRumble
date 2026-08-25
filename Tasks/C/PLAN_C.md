@@ -334,6 +334,8 @@
 - 2026-08-23: C-21 키 가이드 입력 슬롯을 추가했다. 캐릭터 BP는 `KeyGuideAction`과 `KeyGuideWidgetClass`를 지정할 수 있고, 기본 `T`/`KeyGuide` 키 설정으로 누르는 동안만 로컬 안내 WBP를 표시한다.
 - 2026-08-23: C-21 키 가이드 WBP 부모를 추가했다. `UKeyGuideWidget`은 현재 로컬 키 설정을 읽어 WBP의 키 표시 TextBlock만 자동 갱신하고, 이모션 기본 키 설정은 `Tab`으로 정리했다.
 - 2026-08-23: C-21 마이크 입력 점검을 보강했다. `K` 눌러서 말하기 시작 시 VoiceInterface 로컬 토커 등록을 보장하고, 마이크 입력·토커 등록·StartTalking/StopTalking 로그를 남기며 `N/M` 직접 키 바인딩 누락도 보강했다.
+- 2026-08-25: C-21 옵션 마이크 테스트를 추가했다. `AudioCaptureCore` PCM 콜백으로 선택 장치 RMS 입력 레벨을 확인하고 `MicrophoneTestStatusText`/`MicrophoneInputLevelProgressBar`와 `OnMicrophoneTestStateChanged`로 WBP에 전달하며, 빌드 검증을 통과했다.
+- 2026-08-25: C-11 액세서리별 보정 요청을 반영했다. 모자·안경·코·귀마개 후보 배열에 대응하는 `Customization*RelativeTransforms`를 추가하고, 미지정 항목은 기존 공용 Transform으로 fallback하도록 구현했다. 빌드 검증을 통과했다.
 - 2026-08-24: C-21 음성채팅 마이크 입력 회귀를 보강했다. 로컬 PlayerController BeginPlay에서 로컬 보이스 토커를 선등록하고 PTT off 상태는 즉시 `StopTalking()`으로 되돌리며, GameState 플레이어 목록 기준 원격 토커를 `RegisterRemoteTalker()`로 등록해 LAN/NULL 세션에서 수신 처리 누락 가능성을 줄였다. `DefaultEngine.ini`에는 `MaxLocalTalkers`, `MaxRemoteTalkers`, `VoiceNotificationDelta`, `bDuckingOptOut` 보이스 설정을 명시했다.
 - 2026-08-23: C-05 포디움 승리 팀 배치 규칙을 조정했다. 승리 팀원이 1~3명이면 `Podium_Team1`부터 순차 배치하고, 4명이면 `Podium_Team1`~`Podium_Team4`를 무작위로 섞어 배치한다.
 - 2026-08-24: 사진 모드에 `PhotoInteractionWidgetClass` 전용 WBP 슬롯을 추가했다. 사진 액터 카메라는 고정하고, 사진 모드 진입 시 WBP를 viewport에 생성·종료 시 제거하며 마우스 입력은 플레이어의 컨트롤 회전과 시선에 반영한다.

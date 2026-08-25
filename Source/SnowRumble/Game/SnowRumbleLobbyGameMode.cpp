@@ -86,11 +86,13 @@ ASnowRumbleLobbyGameMode::ASnowRumbleLobbyGameMode()
 	SnowmanModeGameModeClass = ASnowmanModeGameMode::StaticClass();
 	bUseSeamlessTravel = true;
 
+#if WITH_EDITOR
 	if (IConsoleVariable* AllowPieSeamlessTravel =
 		IConsoleManager::Get().FindConsoleVariable(TEXT("net.AllowPIESeamlessTravel")))
 	{
 		AllowPieSeamlessTravel->Set(1);
 	}
+#endif
 }
 
 void ASnowRumbleLobbyGameMode::BeginPlay()

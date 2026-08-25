@@ -963,6 +963,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Identity")
 	FVector OverheadNameRelativeLocation = FVector(0.0f, 0.0f, 130.0f);
 
+	/** 모자를 장착했을 때 이름표에 추가할 상대 Z 오프셋이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Identity")
+	float OverheadNameplateHatZOffset = 0.0f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Identity", meta = (ClampMin = "1.0"))
 	FVector2D OverheadNameplateDrawSize = FVector2D(220.0f, 64.0f);
 
@@ -1180,6 +1184,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Hat")
 	FVector CustomizationHatRelativeScale = FVector::OneVector;
 
+	/** 모자 Mesh 배열 인덱스별 상대 Transform이다. 항목이 없으면 공용 기본값을 사용한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Hat")
+	TArray<FTransform> CustomizationHatRelativeTransforms;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Glasses")
 	TArray<TObjectPtr<UStaticMesh>> CustomizationGlassesMeshes;
 
@@ -1194,6 +1202,10 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Glasses")
 	FVector CustomizationGlassesRelativeScale = FVector::OneVector;
+
+	/** 안경 Mesh 배열 인덱스별 상대 Transform이다. 항목이 없으면 공용 기본값을 사용한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Glasses")
+	TArray<FTransform> CustomizationGlassesRelativeTransforms;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Nose")
 	TArray<TObjectPtr<UStaticMesh>> CustomizationNoseMeshes;
@@ -1210,6 +1222,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Nose")
 	FVector CustomizationNoseRelativeScale = FVector::OneVector;
 
+	/** 코 Mesh 배열 인덱스별 상대 Transform이다. 항목이 없으면 공용 기본값을 사용한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Nose")
+	TArray<FTransform> CustomizationNoseRelativeTransforms;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Earmuffs")
 	TArray<TObjectPtr<UStaticMesh>> CustomizationEarmuffsMeshes;
 
@@ -1224,6 +1240,10 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Earmuffs")
 	FVector CustomizationEarmuffsRelativeScale = FVector::OneVector;
+
+	/** 귀마개 Mesh 배열 인덱스별 상대 Transform이다. 항목이 없으면 공용 기본값을 사용한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Earmuffs")
+	TArray<FTransform> CustomizationEarmuffsRelativeTransforms;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Scarf")
 	TObjectPtr<UStaticMesh> ScarfMesh;

@@ -70,6 +70,28 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogSnowTrailCharacter, Log, All);
 
+namespace
+{
+FTransform ResolveCustomizationAccessoryTransform(
+	const TArray<FTransform>& RelativeTransformOverrides,
+	int32 MeshIndex,
+	const FVector& DefaultLocation,
+	const FRotator& DefaultRotation,
+	const FVector& DefaultScale)
+{
+	if (RelativeTransformOverrides.IsValidIndex(MeshIndex))
+	{
+		return RelativeTransformOverrides[MeshIndex];
+	}
+
+	FTransform DefaultTransform;
+	DefaultTransform.SetLocation(DefaultLocation);
+	DefaultTransform.SetRotation(DefaultRotation.Quaternion());
+	DefaultTransform.SetScale3D(DefaultScale);
+	return DefaultTransform;
+}
+}
+
 ASnowRumbleCharacter::ASnowRumbleCharacter()
 {
 	GetCapsuleComponent()->InitCapsuleSize(42.0f, 96.0f);
@@ -1534,6 +1556,7 @@ void ASnowRumbleCharacter::ApplyCustomizationData(
 	RefreshCustomizationGlassesMesh();
 	RefreshCustomizationNoseMesh();
 	RefreshCustomizationEarmuffsMesh();
+	RefreshOverheadNameplateComponentSettings();
 	RedrawCustomizationPaintTexture();
 }
 
@@ -1604,12 +1627,15 @@ void ASnowRumbleCharacter::RefreshCustomizationHatMesh()
 			AttachSocketName);
 	}
 
-	HatMeshComponent->SetRelativeLocation(CustomizationHatRelativeLocation);
-	HatMeshComponent->SetRelativeRotation(CustomizationHatRelativeRotation);
-	HatMeshComponent->SetRelativeScale3D(CustomizationHatRelativeScale);
-
 	const int32 HatMeshIndex = NormalizeCustomizationHatMeshIndex(
 		AppliedCustomizationData.HatMeshIndex);
+	HatMeshComponent->SetRelativeTransform(
+		ResolveCustomizationAccessoryTransform(
+			CustomizationHatRelativeTransforms,
+			HatMeshIndex,
+			CustomizationHatRelativeLocation,
+			CustomizationHatRelativeRotation,
+			CustomizationHatRelativeScale));
 	UStaticMesh* HatMesh = HatMeshIndex != INDEX_NONE
 		? CustomizationHatMeshes[HatMeshIndex]
 		: nullptr;
@@ -1631,12 +1657,16 @@ void ASnowRumbleCharacter::RefreshCustomizationGlassesMesh()
 			FAttachmentTransformRules::SnapToTargetNotIncludingScale,
 			CustomizationGlassesAttachSocketName);
 	}
-	GlassesMeshComponent->SetRelativeLocation(CustomizationGlassesRelativeLocation);
-	GlassesMeshComponent->SetRelativeRotation(CustomizationGlassesRelativeRotation);
-	GlassesMeshComponent->SetRelativeScale3D(CustomizationGlassesRelativeScale);
 	const int32 Index = NormalizeCustomizationAccessoryMeshIndex(
 		ESnowRumbleCustomizationAccessory::Glasses,
 		AppliedCustomizationData.GlassesMeshIndex);
+	GlassesMeshComponent->SetRelativeTransform(
+		ResolveCustomizationAccessoryTransform(
+			CustomizationGlassesRelativeTransforms,
+			Index,
+			CustomizationGlassesRelativeLocation,
+			CustomizationGlassesRelativeRotation,
+			CustomizationGlassesRelativeScale));
 	UStaticMesh* AccessoryMesh = Index != INDEX_NONE ? CustomizationGlassesMeshes[Index] : nullptr;
 	GlassesMeshComponent->SetStaticMesh(AccessoryMesh);
 	GlassesMeshComponent->SetVisibility(AccessoryMesh != nullptr, true);
@@ -1655,12 +1685,16 @@ void ASnowRumbleCharacter::RefreshCustomizationNoseMesh()
 			FAttachmentTransformRules::SnapToTargetNotIncludingScale,
 			CustomizationNoseAttachSocketName);
 	}
-	NoseMeshComponent->SetRelativeLocation(CustomizationNoseRelativeLocation);
-	NoseMeshComponent->SetRelativeRotation(CustomizationNoseRelativeRotation);
-	NoseMeshComponent->SetRelativeScale3D(CustomizationNoseRelativeScale);
 	const int32 Index = NormalizeCustomizationAccessoryMeshIndex(
 		ESnowRumbleCustomizationAccessory::Nose,
 		AppliedCustomizationData.NoseMeshIndex);
+	NoseMeshComponent->SetRelativeTransform(
+		ResolveCustomizationAccessoryTransform(
+			CustomizationNoseRelativeTransforms,
+			Index,
+			CustomizationNoseRelativeLocation,
+			CustomizationNoseRelativeRotation,
+			CustomizationNoseRelativeScale));
 	UStaticMesh* AccessoryMesh = Index != INDEX_NONE ? CustomizationNoseMeshes[Index] : nullptr;
 	NoseMeshComponent->SetStaticMesh(AccessoryMesh);
 	NoseMeshComponent->SetVisibility(AccessoryMesh != nullptr, true);
@@ -1679,12 +1713,16 @@ void ASnowRumbleCharacter::RefreshCustomizationEarmuffsMesh()
 			FAttachmentTransformRules::SnapToTargetNotIncludingScale,
 			CustomizationEarmuffsAttachSocketName);
 	}
-	EarmuffsMeshComponent->SetRelativeLocation(CustomizationEarmuffsRelativeLocation);
-	EarmuffsMeshComponent->SetRelativeRotation(CustomizationEarmuffsRelativeRotation);
-	EarmuffsMeshComponent->SetRelativeScale3D(CustomizationEarmuffsRelativeScale);
 	const int32 Index = NormalizeCustomizationAccessoryMeshIndex(
 		ESnowRumbleCustomizationAccessory::Earmuffs,
 		AppliedCustomizationData.EarmuffsMeshIndex);
+	EarmuffsMeshComponent->SetRelativeTransform(
+		ResolveCustomizationAccessoryTransform(
+			CustomizationEarmuffsRelativeTransforms,
+			Index,
+			CustomizationEarmuffsRelativeLocation,
+			CustomizationEarmuffsRelativeRotation,
+			CustomizationEarmuffsRelativeScale));
 	UStaticMesh* AccessoryMesh = Index != INDEX_NONE ? CustomizationEarmuffsMeshes[Index] : nullptr;
 	EarmuffsMeshComponent->SetStaticMesh(AccessoryMesh);
 	EarmuffsMeshComponent->SetVisibility(AccessoryMesh != nullptr, true);
@@ -2361,7 +2399,17 @@ void ASnowRumbleCharacter::RefreshOverheadNameplateComponentSettings()
 		return;
 	}
 
-	OverheadNameplateComponent->SetRelativeLocation(OverheadNameRelativeLocation);
+	FVector NameplateRelativeLocation = OverheadNameRelativeLocation;
+	const int32 HatMeshIndex = NormalizeCustomizationHatMeshIndex(
+		AppliedCustomizationData.HatMeshIndex);
+	const bool bHasHat = HatMeshIndex != INDEX_NONE
+		&& CustomizationHatMeshes.IsValidIndex(HatMeshIndex)
+		&& CustomizationHatMeshes[HatMeshIndex] != nullptr;
+	if (bHasHat)
+	{
+		NameplateRelativeLocation.Z += OverheadNameplateHatZOffset;
+	}
+	OverheadNameplateComponent->SetRelativeLocation(NameplateRelativeLocation);
 	OverheadNameplateComponent->SetWidgetSpace(EWidgetSpace::World);
 	OverheadNameplateComponent->SetDrawAtDesiredSize(true);
 	OverheadNameplateComponent->SetDrawSize(OverheadNameplateDrawSize);
