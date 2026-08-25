@@ -261,7 +261,6 @@ void ULoadingScreenSubsystem::ShowLoadingScreen(
 	bLoadingScreenRequested = true;
 	LoadingScreenWidgetClass = WidgetClass;
 
-	StartMoviePlayerLoadingScreen();
 	EnsureLoadingScreenWidget();
 	AddLoadingScreenWidgetToViewport();
 }
@@ -431,6 +430,9 @@ void ULoadingScreenSubsystem::HandlePostLoadMapWithWorld(UWorld* LoadedWorld)
 	{
 		return;
 	}
+
+	// 이전 전환에서 남아 있을 수 있는 MoviePlayer를 정리하고 WBP만 유지한다.
+	StopMoviePlayerLoadingScreen();
 
 	if (LoadingScreenWidget)
 	{

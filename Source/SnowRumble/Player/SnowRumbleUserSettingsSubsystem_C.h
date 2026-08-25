@@ -158,10 +158,10 @@ private:
 	float SfxVolume = 1.0f;
 
 	UPROPERTY(Config)
-	float VoiceVolume = 1.0f;
+	float VoiceVolume = DefaultVoiceVolume;
 
 	UPROPERTY(Config)
-	float MicrophoneVolume = 1.0f;
+	float MicrophoneVolume = DefaultMicrophoneVolume;
 
 	UPROPERTY(Config)
 	ESnowRumbleMicrophoneMode MicrophoneMode =
@@ -177,8 +177,10 @@ private:
 	static constexpr float MaxMouseSensitivity = 3.0f;
 	static constexpr float DefaultMouseSensitivity = 1.0f;
 	static constexpr float DefaultAudioVolume = 1.0f;
-	static constexpr float DefaultVoiceVolume = 1.0f;
-	static constexpr float DefaultMicrophoneVolume = 1.0f;
+	static constexpr float MaxVoiceVolume = 2.0f;
+	static constexpr float MaxMicrophoneVolume = 2.0f;
+	static constexpr float DefaultVoiceVolume = 1.5f;
+	static constexpr float DefaultMicrophoneVolume = 1.5f;
 	static constexpr ESnowRumbleMicrophoneMode DefaultMicrophoneMode =
 		ESnowRumbleMicrophoneMode::PushToTalk;
 };

@@ -106,6 +106,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Main Menu")
 	TObjectPtr<UTextBlock> AlarmText;
 
+	/** 메인메뉴 주요 버튼이 호버·눌림 상태일 때 내부 텍스트에 적용할 남색이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Main Menu")
+	FLinearColor MainMenuButtonActiveTextColor = FLinearColor(0.02f, 0.08f, 0.32f, 1.0f);
+
 	/** WBP에 같은 이름으로 만든 메인메뉴 진입 알림 애니메이션이다. */
 	UPROPERTY(Transient, meta = (BindWidgetAnimOptional))
 	TObjectPtr<UWidgetAnimation> MainMenuAlarmAnimation;
@@ -185,6 +189,13 @@ private:
 	FText GetSessionProgressAlarmText(
 		ESnowRumbleSessionOperation Operation) const;
 	void RefreshJoinButtonEnabled();
+	void BindTargetButtonTextColor(UButton* Button);
+	void UnbindTargetButtonTextColor(UButton* Button);
+
+	UFUNCTION()
+	void RefreshTargetButtonTextColors();
+
+	TMap<TObjectPtr<UTextBlock>, FSlateColor> TargetButtonTextDefaultColors;
 
 	static const TArray<FSnowRumbleSessionInfo> EmptyResults;
 

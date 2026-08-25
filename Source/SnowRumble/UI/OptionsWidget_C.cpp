@@ -26,6 +26,9 @@
 
 namespace
 {
+constexpr float SnowRumbleMaxVoiceVolume = 2.0f;
+constexpr float SnowRumbleMaxMicrophoneVolume = 2.0f;
+
 FSnowRumbleKeyBindingViewData MakeKeyBindingRow(
 	const FName BindingId,
 	const FText& DisplayName,
@@ -488,7 +491,8 @@ void UOptionsWidget::HandleVoiceVolumeSliderValueChanged(float NewValue)
 		return;
 	}
 
-	PendingVoiceVolume = FMath::Clamp(NewValue, 0.0f, 1.0f);
+	PendingVoiceVolume =
+		FMath::Clamp(NewValue, 0.0f, SnowRumbleMaxVoiceVolume);
 	RefreshAudioValueText();
 	ApplyAudioVolumeSettings();
 	ApplyAudioPreviewSoundMix();
@@ -503,7 +507,8 @@ void UOptionsWidget::HandleMicrophoneVolumeSliderValueChanged(float NewValue)
 		return;
 	}
 
-	PendingMicrophoneVolume = FMath::Clamp(NewValue, 0.0f, 1.0f);
+	PendingMicrophoneVolume =
+		FMath::Clamp(NewValue, 0.0f, SnowRumbleMaxMicrophoneVolume);
 	RefreshMicrophoneValueText();
 	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 }
@@ -1115,6 +1120,8 @@ void UOptionsWidget::InitializeAudioSettings()
 		}
 		if (VoiceVolumeSlider)
 		{
+			VoiceVolumeSlider->SetMinValue(0.0f);
+			VoiceVolumeSlider->SetMaxValue(SnowRumbleMaxVoiceVolume);
 			VoiceVolumeSlider->SetValue(PendingVoiceVolume);
 		}
 		bIsUpdatingAudioSliders = false;
@@ -1147,6 +1154,8 @@ void UOptionsWidget::InitializeMicrophoneSettings()
 	if (MicrophoneVolumeSlider)
 	{
 		bIsUpdatingMicrophoneSlider = true;
+		MicrophoneVolumeSlider->SetMinValue(0.0f);
+		MicrophoneVolumeSlider->SetMaxValue(SnowRumbleMaxMicrophoneVolume);
 		MicrophoneVolumeSlider->SetValue(PendingMicrophoneVolume);
 		bIsUpdatingMicrophoneSlider = false;
 	}
@@ -1354,7 +1363,9 @@ void UOptionsWidget::HandleMicrophoneCapture(
 	}
 
 	const float RmsLevel = FMath::Clamp(
-		static_cast<float>(FMath::Sqrt(SumSquares / NumSamples)) * 4.0f,
+		static_cast<float>(FMath::Sqrt(SumSquares / NumSamples))
+			* 4.0f
+			* FMath::Max(0.0f, PendingMicrophoneVolume),
 		0.0f,
 		1.0f);
 	FScopeLock Lock(&MicrophoneTestCaptureCriticalSection);

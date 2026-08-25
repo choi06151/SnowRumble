@@ -97,15 +97,12 @@ void ASnowRumbleGameMode::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (ExpectedPlayerCount > 0)
-	{
-		GetWorldTimerManager().SetTimer(
-			PvpReadyTimeoutTimerHandle,
-			this,
-			&ASnowRumbleGameMode::CancelPvpMatchForLoadingTimeout,
-			PvpReadyTimeoutSeconds,
-			false);
-	}
+	GetWorldTimerManager().SetTimer(
+		PvpReadyTimeoutTimerHandle,
+		this,
+		&ASnowRumbleGameMode::CancelPvpMatchForLoadingTimeout,
+		PvpReadyTimeoutSeconds,
+		false);
 
 	if (ASnowRumbleGameState* SnowRumbleGameState =
 		GetGameState<ASnowRumbleGameState>())
@@ -128,6 +125,14 @@ void ASnowRumbleGameMode::InitGame(
 	ExpectedPlayerCount = ExpectedPlayersOption.IsEmpty()
 		? 0
 		: FMath::Max(0, FCString::Atoi(*ExpectedPlayersOption));
+	if (ExpectedPlayerCount <= 0)
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("SnowRumble PvP started without a valid ExpectedPlayers option. Options=%s"),
+			*Options);
+	}
 	bLoadingScreensDismissed = false;
 	bLoadingScreensHidden = false;
 	bStartCountdownStarted = false;
@@ -1373,8 +1378,7 @@ void ASnowRumbleGameMode::BroadcastLoadingProgress()
 
 	const int32 RequiredPlayerCount =
 		ExpectedPlayerCount > 0 ? ExpectedPlayerCount : GetNumPlayers();
-	const int32 LoadedPlayerCount =
-		ExpectedPlayerCount > 0 ? GetReadyPvpPlayerCount() : GetNumPlayers();
+	const int32 LoadedPlayerCount = GetReadyPvpPlayerCount();
 	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
 		It;
 		++It)
