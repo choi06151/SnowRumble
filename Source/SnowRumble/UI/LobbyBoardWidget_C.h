@@ -348,9 +348,6 @@ private:
 	/** 현재 선택된 게시판 옵션 버튼의 눌림 표시를 갱신한다. */
 	void RefreshSelectedButtonVisuals();
 
-	/** 주황 팀 버튼의 기본·호버·선택 색을 주황색으로 초기화한다. */
-	void ApplyOrangeTeamButtonColor();
-
 	/** 버튼 기본 스타일을 보관한 뒤 선택 상태에서는 Pressed 스타일을 유지한다. */
 	void SetButtonSelectedVisual(UButton* Button, bool bSelected);
 
