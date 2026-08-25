@@ -197,9 +197,7 @@ float ASnowRumbleGameState::GetRoundElapsedSeconds() const
 
 FText ASnowRumbleGameState::GetRoundElapsedTimeText() const
 {
-	return FText::Format(
-		NSLOCTEXT("SnowRumble", "RoundElapsedTimeFormat", "경기 시간 {0}"),
-		FormatSecondsAsClock(GetRoundElapsedSeconds()));
+	return FormatSecondsAsClock(GetRoundElapsedSeconds());
 }
 
 float ASnowRumbleGameState::GetSecondsUntilNextMapShrink() const
@@ -220,21 +218,13 @@ float ASnowRumbleGameState::GetSecondsUntilNextMapShrink() const
 
 FText ASnowRumbleGameState::GetMapShrinkCountdownText() const
 {
-	if (bMapShrinkInProgress)
-	{
-		return NSLOCTEXT(
-			"SnowRumble",
-			"MapShrinkInProgressText",
-			"맵이 축소됩니다!");
-	}
-
 	const int32 DisplaySeconds =
 		FMath::Max(0, FMath::CeilToInt(GetSecondsUntilNextMapShrink()));
 	return FText::Format(
 		NSLOCTEXT(
 			"SnowRumble",
 			"MapShrinkCountdownFormat",
-			"{0}초 후 맵이 축소됩니다"),
+			"{0}초 후"),
 		FText::AsNumber(DisplaySeconds));
 }
 

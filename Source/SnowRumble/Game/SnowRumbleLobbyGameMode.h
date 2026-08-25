@@ -65,6 +65,9 @@ protected:
 	/** 현재 대기방에서 해당 팀에 배정된 인원을 센다. */
 	int32 CountLobbyTeamPlayers(ESnowRumbleTeam Team) const;
 
+	/** PvP travel과 로딩 UI에 사용할 예상 참가 인원을 서버 상태에서 확정한다. */
+	int32 ResolveExpectedMatchPlayerCount() const;
+
 	/** 현재 참가 인원과 서버가 고른 PvP 후보 레벨을 URL 옵션에 포함한다. */
 	FString BuildMatchTravelUrl(int32 ExpectedPlayerCount);
 

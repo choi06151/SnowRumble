@@ -289,7 +289,7 @@ void UMainHUDWidget::RefreshCurrentRoundPresentation()
 	CurrentRoundText->SetText(SnowRumbleGameState->IsTiebreakerRound()
 		? NSLOCTEXT("SnowRumble", "CurrentRoundTiebreaker", "단판승부")
 		: FText::Format(
-			NSLOCTEXT("SnowRumble", "CurrentRoundFormat", "라운드 {0} / {1}"),
+			NSLOCTEXT("SnowRumble", "CurrentRoundFormat", "{0} / {1}"),
 			FText::AsNumber(SnowRumbleGameState->GetCurrentRoundNumber()),
 			FText::AsNumber(SnowRumbleGameState->GetRoundLimit())));
 	CurrentRoundText->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
@@ -297,7 +297,7 @@ void UMainHUDWidget::RefreshCurrentRoundPresentation()
 
 void UMainHUDWidget::RefreshMatchTimerPresentation()
 {
-	if (!MatchElapsedTimeText && !MapShrinkCountdownText)
+	if (!MatchElapsedTimeText && !MapShrinkCountdownText && !MapShrinkStatusText)
 	{
 		return;
 	}
@@ -332,6 +332,10 @@ void UMainHUDWidget::RefreshMatchTimerPresentation()
 		if (MapShrinkCountdownText)
 		{
 			MapShrinkCountdownText->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		if (MapShrinkStatusText)
+		{
+			MapShrinkStatusText->SetVisibility(ESlateVisibility::Collapsed);
 		}
 		return;
 	}
@@ -369,6 +373,24 @@ void UMainHUDWidget::RefreshMatchTimerPresentation()
 		else
 		{
 			MapShrinkCountdownText->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+
+	if (MapShrinkStatusText)
+	{
+		if (bShouldShowMatchTimers
+			&& !SnowRumbleGameState->IsTiebreakerRound())
+		{
+			MapShrinkStatusText->SetText(
+				SnowRumbleGameState->IsMapShrinkInProgress()
+					? NSLOCTEXT("SnowRumble", "MapShrinkInProgressStatus", "축소중")
+					: NSLOCTEXT("SnowRumble", "MapShrinkPendingStatus", "축소됩니다"));
+			MapShrinkStatusText->SetVisibility(
+				ESlateVisibility::SelfHitTestInvisible);
+		}
+		else
+		{
+			MapShrinkStatusText->SetVisibility(ESlateVisibility::Collapsed);
 		}
 	}
 }

@@ -57,3 +57,4 @@ PvP 최초 진입에서 컨트롤러 수가 아니라 각 클라이언트의 맵
 - `Config/DefaultEngine.ini`에서 `r.PSOPrecaching`, `r.PSOPrecache.Components`, `r.PSOPrecache.Resources`, `r.ShaderPipelineCache.Enabled`, `r.ShaderPipelineCache.SaveBoundPSOLog`를 활성화했다.
 - `Config/DefaultGame.ini`에서 Material Shader Code 공유 패키징 설정을 활성화했다. 실제 PSO 수집은 PIE/패키징 빌드에서 플레이 경로를 실행해 수행한다.
 - 2026-08-25: `SnowRumbleEditor Win64 Development` 빌드 성공.
+- 2026-08-25: 패키징 QA에서 로비 2명이 준비 후 시작해도 PvP `ExpectedPlayers`가 0으로 들어가 무한 로딩되는 경로를 보강했다. 로비 서버가 travel URL과 로딩 UI에 사용할 예상 인원을 `LobbyGameState` 기준으로 확정하고, 비어 있으면 실제 연결된 PlayerController 수로 fallback한다. PvP GameMode는 `ExpectedPlayers` 옵션 누락 시 경고 로그를 남기고 Ready 타임아웃을 항상 걸어 무한 대기를 막는다.

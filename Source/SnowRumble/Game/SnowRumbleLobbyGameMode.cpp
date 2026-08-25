@@ -119,14 +119,23 @@ void ASnowRumbleLobbyGameMode::RequestStartMatch(
 		return;
 	}
 
+	const int32 ExpectedPlayerCount = ResolveExpectedMatchPlayerCount();
 	PendingMatchTravelUrl =
 		LobbyGameState->GetLobbyMode() == ESnowRumbleLobbyMode::Snowman
-			? BuildSnowmanModeTravelUrl(LobbyGameState->GetLobbyPlayers().Num())
-			: BuildMatchTravelUrl(LobbyGameState->GetLobbyPlayers().Num());
+			? BuildSnowmanModeTravelUrl(ExpectedPlayerCount)
+			: BuildMatchTravelUrl(ExpectedPlayerCount);
 	if (PendingMatchTravelUrl.IsEmpty())
 	{
 		return;
 	}
+
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("SnowRumble lobby match travel: expected=%d connected=%d url=%s"),
+		ExpectedPlayerCount,
+		GetNumPlayers(),
+		*PendingMatchTravelUrl);
 
 	bMatchTravelPending = true;
 	ShowMatchLoadingScreens();
@@ -350,6 +359,36 @@ int32 ASnowRumbleLobbyGameMode::CountLobbyTeamPlayers(
 		: 0;
 }
 
+int32 ASnowRumbleLobbyGameMode::ResolveExpectedMatchPlayerCount() const
+{
+	const ASnowRumbleLobbyGameState* LobbyGameState =
+		GetGameState<ASnowRumbleLobbyGameState>();
+	const int32 LobbyPlayerCount = LobbyGameState
+		? LobbyGameState->GetLobbyPlayers().Num()
+		: 0;
+	if (LobbyPlayerCount > 0)
+	{
+		return LobbyPlayerCount;
+	}
+
+	// 패키징/전환 타이밍에서 PlayerArray가 비어 보이면 실제 연결 컨트롤러 수를 사용한다.
+	int32 ConnectedPlayerCount = 0;
+	if (const UWorld* World = GetWorld())
+	{
+		for (FConstPlayerControllerIterator It =
+				World->GetPlayerControllerIterator();
+			It;
+			++It)
+		{
+			if (It->Get())
+			{
+				++ConnectedPlayerCount;
+			}
+		}
+	}
+	return ConnectedPlayerCount;
+}
+
 FString ASnowRumbleLobbyGameMode::BuildMatchTravelUrl(
 	int32 ExpectedPlayerCount)
 {
@@ -567,9 +606,7 @@ void ASnowRumbleLobbyGameMode::ShowMatchLoadingScreens()
 
 	const ASnowRumbleLobbyGameState* LobbyGameState =
 		GetGameState<ASnowRumbleLobbyGameState>();
-	const int32 ExpectedPlayerCount = LobbyGameState
-		? LobbyGameState->GetLobbyPlayers().Num()
-		: 0;
+	const int32 ExpectedPlayerCount = ResolveExpectedMatchPlayerCount();
 	const FSnowRumbleLoadingMapPresentation LoadingMapPresentation =
 		GetLoadingMapPresentation(PendingMatchMapPackageName);
 
