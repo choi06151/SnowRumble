@@ -67,6 +67,15 @@
 - 2026-08-07: 최재원(C)의 개발 스타일을 C++ 위주로 확정. C Task는 서버 권한·복제·공용 계약을 C++ 중심으로 먼저 고정하고 Blueprint는 표현·연결 책임으로 분리한다.
 - 2026-08-24: C-11 커스터마이징 색상 후보를 기존 버튼 이름 자동 바인딩 방식으로 유지하면서 27개 버튼 프로퍼티·핸들러와 C++ RGB 스타일 초기화를 추가해 총 36개 팔레트를 지원한다. WBP 버튼 생성·배치는 사용자 작업으로 남겼다.
 - 2026-08-24: C-11에 선택적 `BrushSizeSlider` 자동 바인딩을 추가했다. 0~1 Slider 값을 기존 `MinPaintBrushSize`~`MaxPaintBrushSize` 범위로 변환하고 버튼·휠 조절과 상태를 공유한다.
+- 2026-08-25: C-11 커스터마이징 장착 범위를 모자 단일 슬롯에서 모자·안경·코·귀마개 4종으로 확장했다. 각 액세서리에 StaticMeshComponent, 후보 배열, 소켓명과 Transform 보정값을 제공하고, 선택 인덱스를 로컬 저장·PlayerState 복제·로비/PvP 적용 경로에 포함했다.
+- 2026-08-25: C-11 커스터마이징 WBP 버튼 자동 바인딩을 추가했다. `GlassesModeButton`, `NoseModeButton`, `EarmuffsModeButton`으로 카테고리를 전환하고, `*ItemButton_N` 이름 규칙을 UniformGrid 버튼에 적용하면 `_0` 장착 해제와 `_1` 이후 후보 Mesh 선택이 자동 연결된다.
+- 2026-08-25: 사용하지 않는 기존 메인/드로잉 화면 대신 액세서리 전용 WidgetSwitcher를 사용하도록 정리했다. 인덱스는 0 모자, 1 안경, 2 코, 3 귀마개이며 진입 시 0번을 표시한다.
+- 2026-08-25: 커스터마이징 프리뷰 회전에 A/D 키 입력을 추가했다. 기존 좌우 화살표 버튼 회전은 유지하고, A는 왼쪽, D는 오른쪽으로 동일한 `PreviewRotationSpeedDegrees`를 사용한다.
+- 2026-08-25: 브러시 크기 `BrushSizeSlider`의 Hover 커서를 `EMouseCursor::Default`로 고정해 커스터마이징 기본/페인트 커서가 유지되게 했다.
+- 2026-08-25: 브러시 크기 슬라이더의 마우스 캡처 시작·종료 이벤트에서도 커스터마이징 커서를 재적용하도록 보강했다. Unreal 빌드가 성공했다.
+- 2026-08-25: 페인트 커서 활성 중 매 프레임 커서 위젯을 재적용해 브러시 크기 슬라이더 드래그 중에도 원형 페인트 커서를 유지하게 했다.
+- 2026-08-25: `SSlider`가 드래그 중 `ResizeLeftRight` 커서를 반환하는 경로를 확인해, PaintMode에서는 `Default`뿐 아니라 resize/hand 등 UI 커서 타입에도 `PaintMouseCursorWidgetClass` 원형 커서를 등록하게 보강했다. C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 최종 링크는 보류됐다.
+- 2026-08-25: C-11 브러쉬 최소/최대 범위가 256을 넘어도 슬라이더의 0~1 정규화와 원형 페인트 커서 크기가 전체 범위를 반영하도록 보완했다.
 - 2026-08-24: C-06/C-28 얼음·Grab 연동을 추가했다. 서버는 얼은 대상의 같은 팀 Grab만 허용하고, 얼음 행동 제한을 유지한 채 tether 운반을 지원하며 사망 시 자동 해제한다.
 - 2026-08-24: C-09 눈덩이 투척 충돌에 같은 팀 피해·넉백 무시를 추가했다. 서버가 눈덩이 Owner와 피격 캐릭터의 `LobbyTeam`을 비교하고, 같은 팀이면 충돌 연출만 유지한다.
 - 2026-08-24: C-09 눈덩이 피해가 `GrowthProgress`에 따라 1배에서 기본 최대 3배까지 증가하도록 `MaximumGrowthDamageMultiplier`를 추가했다. 기존 차지 피해 배율은 유지한다.
@@ -328,6 +337,8 @@
 - 2026-08-24: 사진 스크린샷 표시용 WBP 부모 `ULatestPhotoScreenshotWidget`을 추가했다. WBP에서 `LatestScreenshotImage` Image를 바인딩하면 `Saved/Screenshots` 아래 최신 `Photo_*.png`를 로드해 표시하고, `RefreshLatestScreenshot()`로 수동 갱신할 수 있다.
 - 2026-08-24: `ULatestPhotoScreenshotWidget`이 `FScreenshotRequest::OnScreenshotRequestProcessed()`를 구독하게 해 사진 촬영 저장이 끝나면 열린 WBP의 `LatestScreenshotImage`가 최신 사진으로 자동 갱신되도록 했다.
 - 2026-08-24: C-30 공간 효과음 범위를 눈덩이 충돌음과 캐릭터 피격음으로 좁혔다. UI 상호작용음은 로컬 2D로 유지하고, `ImpactSoundAttenuation`과 `DamageSoundAttenuation`을 Blueprint 연결 슬롯으로 추가했다.
+- 2026-08-25: C-30 눈덩이 투척 휘두르기 사운드가 캐릭터 위치 기반으로 재생되도록 `SnowballThrowSoundAttenuation` Blueprint 슬롯을 추가하고 연결했다.
+- 2026-08-25: 핫팩 아군 부활 중에도 기존 눈 제작용 머리 위 ProgressBar를 재사용하도록 `RevivingTeammate` timed action과 0~1 진행도 계산을 추가했다.
 - 2026-08-24: C-09 공중 작은 눈덩이 투척 보정을 추가했다. 서버 release 시점에 공중이면 기존 공중 투척 모션과 함께 피해 1.5배, 속도 기본 1.2배를 적용하고, 속도 배율은 `AirborneThrowSpeedMultiplier`로 조정 가능하게 했다.
 - 2026-08-24: C-30 UI 버튼 공통 클릭음을 추가했다. `USnowRumbleAudioUserWidget`이 버튼을 자동 연결하고 단일 `ButtonInteractionSound`를 로컬 2D로 재생하며, 기존 UI별 클릭 사운드는 제거했다.
 - 2026-08-24: C-30 UI 사운드를 hover/click 슬롯으로 분리했다. `ButtonHoverSound`와 `ButtonClickSound`를 각각의 이벤트에 사용한다.

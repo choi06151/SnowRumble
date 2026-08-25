@@ -71,7 +71,8 @@ enum class ESnowRumbleTimedActionState : uint8
 	None,
 	CreatingSnowball,
 	RollingSnowball,
-	Frozen
+	Frozen,
+	RevivingTeammate
 };
 
 UENUM(BlueprintType)
@@ -394,6 +395,17 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization|Hat")
 	int32 NormalizeCustomizationHatMeshIndex(int32 HatMeshIndex) const;
 
+	/** 액세서리 종류별 후보 Static Mesh 개수를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization|Accessory")
+	int32 GetCustomizationAccessoryOptionCount(
+		ESnowRumbleCustomizationAccessory Accessory) const;
+
+	/** 액세서리 종류별 선택 인덱스를 후보 배열 범위로 정리한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization|Accessory")
+	int32 NormalizeCustomizationAccessoryMeshIndex(
+		ESnowRumbleCustomizationAccessory Accessory,
+		int32 MeshIndex) const;
+
 	/** 서버가 확정한 게시판 상호작용에 맞춰 소유 클라이언트 카메라를 게시판으로 돌린다. */
 	UFUNCTION(Client, Reliable)
 	void ClientFocusLobbyBoard(ALobbyInteractionBoard* Board);
@@ -582,6 +594,9 @@ protected:
 	void RefreshCustomizationFromPlayerState();
 
 	void RefreshCustomizationHatMesh();
+	void RefreshCustomizationGlassesMesh();
+	void RefreshCustomizationNoseMesh();
+	void RefreshCustomizationEarmuffsMesh();
 
 	/** 목도리 Mesh를 캐릭터 Mesh 소켓에 붙이고 표시 상태를 갱신한다. */
 	void RefreshScarfMesh();
@@ -961,6 +976,15 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Customization|Hat")
 	TObjectPtr<UStaticMeshComponent> HatMeshComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Customization|Glasses")
+	TObjectPtr<UStaticMeshComponent> GlassesMeshComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Customization|Nose")
+	TObjectPtr<UStaticMeshComponent> NoseMeshComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Customization|Earmuffs")
+	TObjectPtr<UStaticMeshComponent> EarmuffsMeshComponent;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Customization|Scarf")
 	TObjectPtr<UStaticMeshComponent> ScarfMeshComponent;
 
@@ -1131,6 +1155,51 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Hat")
 	FVector CustomizationHatRelativeScale = FVector::OneVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Glasses")
+	TArray<TObjectPtr<UStaticMesh>> CustomizationGlassesMeshes;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Glasses")
+	FName CustomizationGlassesAttachSocketName = TEXT("GlassesSocket");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Glasses")
+	FVector CustomizationGlassesRelativeLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Glasses")
+	FRotator CustomizationGlassesRelativeRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Glasses")
+	FVector CustomizationGlassesRelativeScale = FVector::OneVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Nose")
+	TArray<TObjectPtr<UStaticMesh>> CustomizationNoseMeshes;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Nose")
+	FName CustomizationNoseAttachSocketName = TEXT("NoseSocket");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Nose")
+	FVector CustomizationNoseRelativeLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Nose")
+	FRotator CustomizationNoseRelativeRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Nose")
+	FVector CustomizationNoseRelativeScale = FVector::OneVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Earmuffs")
+	TArray<TObjectPtr<UStaticMesh>> CustomizationEarmuffsMeshes;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Earmuffs")
+	FName CustomizationEarmuffsAttachSocketName = TEXT("EarmuffsSocket");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Earmuffs")
+	FVector CustomizationEarmuffsRelativeLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Earmuffs")
+	FRotator CustomizationEarmuffsRelativeRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Earmuffs")
+	FVector CustomizationEarmuffsRelativeScale = FVector::OneVector;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Scarf")
 	TObjectPtr<UStaticMesh> ScarfMesh;
@@ -1338,6 +1407,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")
 	TObjectPtr<USoundBase> SnowballThrowSound;
 
+	/** 눈덩이 투척 휘두르기 사운드에 적용할 위치 기반 attenuation 설정이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")
+	TObjectPtr<USoundAttenuation> SnowballThrowSoundAttenuation;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")
 	TObjectPtr<USoundBase> JumpSound;
 
@@ -1486,6 +1559,8 @@ public:
 	bool bIsRevivingTeammate = false;
 	TWeakObjectPtr<ASnowRumbleCharacter> TeammateReviveTarget;
 	FTimerHandle TeammateReviveTimerHandle;
+	float TeammateReviveHoldDurationSeconds = 0.0f;
+	double TeammateReviveStartTime = -1.0;
 	bool bLobbyBoardPointerPressed = false;
 	bool bLocalSnowEffectActive = false;
 	bool bDistanceSnowTrailActive = false;

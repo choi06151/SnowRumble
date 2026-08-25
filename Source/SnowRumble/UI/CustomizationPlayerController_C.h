@@ -106,6 +106,27 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization|Hat")
 	int32 GetPreviewHatMeshIndex() const;
 
+	/** 액세서리 종류별 프리뷰 Static Mesh 선택 인덱스를 설정한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization|Accessory")
+	void SetPreviewAccessoryMeshIndex(
+		ESnowRumbleCustomizationAccessory Accessory,
+		int32 NewMeshIndex);
+
+	/** 액세서리 종류별 이전 후보를 선택한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization|Accessory")
+	void SelectPreviousPreviewAccessory(
+		ESnowRumbleCustomizationAccessory Accessory);
+
+	/** 액세서리 종류별 다음 후보를 선택한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization|Accessory")
+	void SelectNextPreviewAccessory(
+		ESnowRumbleCustomizationAccessory Accessory);
+
+	/** 액세서리 종류별 현재 프리뷰 선택 인덱스를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization|Accessory")
+	int32 GetPreviewAccessoryMeshIndex(
+		ESnowRumbleCustomizationAccessory Accessory) const;
+
 	/** 마지막으로 완료한 드로잉 선 하나를 제거한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
 	void UndoLastPaintStroke();
@@ -133,6 +154,10 @@ public:
 	/** 색칠하기 페이지 진입 여부에 따라 마우스 커서를 전환한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization|Cursor")
 	void SetPaintCursorActive(bool bNewPaintCursorActive);
+
+	/** 슬라이더나 다른 UI가 마우스를 캡처한 뒤 커스터마이징 커서를 다시 적용한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization|Cursor")
+	void RefreshCustomizationMouseCursor();
 
 	/** 현재 재생 중인 배경음악의 볼륨 프리뷰를 갱신한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Audio")
@@ -232,12 +257,12 @@ protected:
 	float PaintBrushWheelStep = 2.0f;
 
 	/** 브러시 크기의 최소값이다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "1.0", ClampMax = "256.0"))
-	float MinPaintBrushSize = 1.0f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "1.0", ClampMax = "1024.0"))
+	float MinPaintBrushSize = 5.0f;
 
 	/** 브러시 크기의 최대값이다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "1.0", ClampMax = "256.0"))
-	float MaxPaintBrushSize = 96.0f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "1.0", ClampMax = "1024.0"))
+	float MaxPaintBrushSize = 70.0f;
 
 	/** 머티리얼 UV 방향에 맞춰 드로잉 RenderTarget Y축을 뒤집을지 정한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint")

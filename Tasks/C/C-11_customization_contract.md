@@ -30,6 +30,14 @@
 - 색칠하기 화면은 36개 프리뷰 몸 색상 후보 버튼, 브러시 크기 조정 버튼, 전체 칠하기 버튼을 제공한다.
 - 모자 선택 화면은 색칠하기 버튼 옆의 모자 버튼으로 열고, 위/아래 버튼으로 현재 캐릭터 BP에 등록된 모자 StaticMesh 후보를 하나씩 순환한다.
 - 모자 선택 결과는 StaticMesh 자산 직접 참조가 아니라 `HatMeshIndex`로 저장·복제하고, 각 캐릭터 BP의 후보 배열에서 같은 인덱스를 장착한다.
+- 모자·안경·코·귀마개는 각각 독립된 StaticMesh 슬롯과 `HatSocket`, `GlassesSocket`, `NoseSocket`, `EarmuffsSocket` 장착 소켓을 사용한다.
+- 네 액세서리 선택 결과는 각 Mesh 인덱스로 저장·복제하며, 캐릭터 BP의 후보 배열과 위치·회전·스케일 보정값으로 프리뷰·로비·PvP에 동일하게 적용한다.
+- 커스터마이징 WBP는 액세서리 전용 WidgetSwitcher 인덱스 0~3을 사용한다. 0은 모자, 1은 안경, 2는 코, 3은 귀마개이며 진입 시 0번 모자를 표시한다.
+- 커스터마이징 프리뷰 회전은 기존 좌우 버튼을 유지하며, A는 왼쪽 회전, D는 오른쪽 회전으로도 동작한다. WASD 이동과 카메라 룩 잠금은 유지한다.
+- 브러시 크기 슬라이더 위에서도 슬라이더 전용 Hover 커서를 사용하지 않고 커스터마이징 기본/페인트 커서를 유지한다.
+- 브러시 크기 슬라이더를 클릭해 마우스 캡처가 시작·종료될 때도 커스터마이징 기본/페인트 커서를 다시 적용한다.
+- 브러시 크기 슬라이더를 드래그하는 동안에도 페인트 원형 커서를 매 프레임 유지한다.
+- 색칠하기 화면에서는 슬라이더가 드래그 중 반환하는 `ResizeLeftRight` 같은 UI 커서 타입에도 원형 페인트 커서 위젯을 등록해 기본 슬라이더 커서로 바뀌지 않게 한다.
 - 브러시 색 후보는 빨강·주황·노랑·초록·파랑·보라 계열의 명도 변형과 검정·회색·하양을 포함한 36개 색상으로 선택한다.
 - 현재 선택된 팔레트 버튼은 Pressed 상태 스타일로 유지한다.
 - 브러시 크기 버튼은 버튼을 누른 상태에서 마우스 휠로 선 두께를 작게 또는 크게 조정한다.
@@ -75,12 +83,17 @@
 - [x] 캐릭터에 빈 모자 StaticMesh 슬롯을 만들고 커스터마이징 데이터의 선택 인덱스로 Mesh를 장착하게 한다.
 - [x] 모자 선택 화면과 위/아래 버튼 자동 바인딩 계약을 제공한다.
 - [x] 모자 선택 결과를 로컬 저장, PlayerState 복제, 로비/PvP 캐릭터 적용 경로에 포함한다.
+- [x] 안경·코·귀마개 StaticMesh 컴포넌트 슬롯과 후보 배열·소켓·Transform 보정 프로퍼티를 추가한다.
+- [x] 네 액세서리 Mesh 인덱스를 로컬 저장, PlayerState 복제, 로비/PvP 캐릭터 적용 경로에 포함한다.
+- [x] `HatItemButton_0`처럼 이름이 일치하는 WBP 버튼을 자동 탐색해 카테고리와 Mesh 인덱스를 연결한다.
+- [x] 기존 좌우 회전 버튼을 유지하면서 커스터마이징 화면의 A/D 키를 프리뷰 캐릭터 회전에 연결한다.
 - [x] Stroke별 브러시 색과 두께를 저장·복제 데이터에 포함한다.
 - [x] 메인메뉴, 로비/PvP 계열, 커스터마이징 PlayerController BP 슬롯에 기본 커서 위젯을 지정할 수 있게 한다.
 - [x] 커스터마이징 PlayerController BP 슬롯에 색칠하기 커서 위젯을 지정할 수 있게 한다.
 - [x] 색칠하기 페이지 진입 시 원형 페인트 커서로 전환하고, 메인 페이지에서는 기본 커서로 되돌린다.
 - [x] 페인트 커서 위젯의 `BrushCursorSizeBox`가 현재 브러시 크기를 반영하게 한다.
 - [x] 페인트 커서 위젯의 `BrushCursorColorBorder` 또는 `BrushCursorColorImage`가 현재 브러시 색을 반영하게 한다.
+- [x] 색칠하기 페이지에서는 슬라이더 드래그 중 사용되는 resize 커서 타입에도 원형 페인트 커서 위젯을 적용한다.
 - [ ] 로컬 플레이어의 얼굴 표정 선택 결과를 저장·불러온다.
 - [ ] 로비 외형과 경기 장비 외형 데이터를 분리한다.
 - [ ] S가 제작한 드로잉·얼굴 표정 자산에 결과를 연결할 공개 지점을 제공한다.
@@ -149,9 +162,14 @@
   - `ASnowRumbleCharacter::CustomizationBodyColorParameterName`: 몸 색 Vector Parameter 이름. 기본값은 `BodyColor`
   - `ASnowRumbleCharacter::CustomizationPaintTextureParameterName`: 드로잉 Texture Parameter 이름. 기본값은 `PaintTexture`
   - `ASnowRumbleCharacter::HatMeshComponent`: 모자 표시용 빈 StaticMeshComponent 슬롯
+  - `ASnowRumbleCharacter::GlassesMeshComponent`, `NoseMeshComponent`, `EarmuffsMeshComponent`: 안경·코·귀마개 표시용 StaticMeshComponent 슬롯
   - `ASnowRumbleCharacter::CustomizationHatMeshes`: 캐릭터 BP에서 지정하는 모자 StaticMesh 후보 배열
   - `ASnowRumbleCharacter::CustomizationHatAttachSocketName`: 모자를 붙일 Skeletal Mesh 소켓 이름. 기본값은 `HatSocket`
   - `ASnowRumbleCharacter::CustomizationHatRelativeLocation`, `CustomizationHatRelativeRotation`, `CustomizationHatRelativeScale`: 소켓 기준 모자 위치·회전·스케일 보정값
+  - `ASnowRumbleCharacter::CustomizationGlassesMeshes`, `CustomizationNoseMeshes`, `CustomizationEarmuffsMeshes`: 캐릭터 BP에서 지정하는 액세서리 후보 배열
+  - `ASnowRumbleCharacter::CustomizationGlassesAttachSocketName`, `CustomizationNoseAttachSocketName`, `CustomizationEarmuffsAttachSocketName`: 기본값이 각각 `GlassesSocket`, `NoseSocket`, `EarmuffsSocket`인 장착 소켓 이름
+  - `ASnowRumbleCharacter::Customization*RelativeLocation`, `Customization*RelativeRotation`, `Customization*RelativeScale`: 액세서리별 소켓 기준 Transform 보정값
+  - `ACustomizationPlayerController::SetPreviewAccessoryMeshIndex(...)`, `SelectPreviousPreviewAccessory(...)`, `SelectNextPreviewAccessory(...)`, `GetPreviewAccessoryMeshIndex(...)`: 네 액세서리 공통 프리뷰 선택 API
   - `ASnowRumbleCharacter::GetCustomizationHatOptionCount()`: 현재 캐릭터 BP에 등록된 모자 후보 수를 반환한다.
   - `ASnowRumbleCharacter::NormalizeCustomizationHatMeshIndex(int32)`: 후보 배열 기준으로 유효한 모자 인덱스인지 정리하고, 유효하지 않으면 `INDEX_NONE`을 반환한다.
   - `ACustomizationPlayerController::UndoLastPaintStroke()`: 마지막 완료 Stroke 제거
@@ -198,6 +216,14 @@
   - `ACustomizationPlayerController::PreviewRotationSpeedDegrees`: 회전 버튼 press 중 프리뷰 캐릭터가 초당 회전하는 각도
 - 인계 대상: S-01, S-02, S-08
 
+## 수동 작업
+- 캐릭터 Skeletal Mesh Skeleton Tree에 `HatSocket`, `GlassesSocket`, `NoseSocket`, `EarmuffsSocket`을 생성한다. 각 소켓의 기준 본과 초기 Transform은 실제 모델 얼굴 위치에 맞춘다.
+- 캐릭터 Blueprint에서 `CustomizationHatMeshes`, `CustomizationGlassesMeshes`, `CustomizationNoseMeshes`, `CustomizationEarmuffsMeshes` 후보 배열을 같은 순서로 구성하고, 각 액세서리의 Attach Socket Name과 Relative Location/Rotation/Scale을 조정한다.
+- 커스터마이징 WBP에서 `SetPreviewAccessoryMeshIndex` 또는 이전/다음 공통 API를 액세서리별 버튼에 연결한다. 현재 선택 표시는 `GetPreviewAccessoryMeshIndex`와 `GetCustomizationAccessoryOptionCount`를 사용한다.
+- 카테고리 버튼 이름은 `HatModeButton`, `GlassesModeButton`, `NoseModeButton`, `EarmuffsModeButton`으로 맞추고, WidgetSwitcher의 0번부터 모자·안경·코·귀마개 페이지를 순서대로 배치한다.
+- 후보 버튼은 ScrollBox 아래 UniformGridPanel에 배치하고 `HatItemButton_0`, `HatItemButton_1`, `GlassesItemButton_0`, `NoseItemButton_0`, `EarmuffsItemButton_0`처럼 이름을 지정한다. 각 카테고리의 `_0`은 장착 해제이며 `_1`부터 후보 배열 0번이다. UniformGrid의 Column 수는 3으로 설정한다.
+- 실제 Static Mesh 제작·임포트와 소켓 위치 조정은 C++ 변경과 분리해 자산 수정자(S/사용자)가 수행한다.
+
 ## 범위 밖
 - 드로잉 UI 레이아웃과 모델 제작
 
@@ -227,6 +253,7 @@
 - 2026-08-11: 별도 시점변경 화면 없이 `RotateLeftButton`/`RotateRightButton`을 누르면 현재 페이지에서 바로 프리뷰 캐릭터가 회전하게 했다.
 - 2026-08-11: 회전 버튼 좌우 방향을 실제 화면 기준에 맞게 반대로 조정하고, 커스터마이징 레벨 프리뷰 캐릭터의 `OverheadNameplateComponent`를 숨기게 했다.
 - 2026-08-11: 색칠하기 화면 버튼 계약을 구체화했다. `BrushColorButton`은 언리얼 기본 컬러 피커를 열고, `BrushSizeButton`은 press 중 마우스 휠로 브러시 크기를 조정하며, `FillBodyColorButton`은 현재 브러시 색을 `BodyColor`에 적용한다. Stroke별 색과 두께도 저장·복제 데이터에 포함했다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-25: 커스터마이징 장착 슬롯을 모자 단일 종류에서 안경·코·귀마개까지 확장했다. 네 액세서리의 인덱스 데이터와 서버 복제 경로, 캐릭터 StaticMeshComponent 장착 슬롯, 후보 순환용 공통 프리뷰 API를 추가했다. UHT와 C++ 컴파일은 통과했으며 최종 DLL 링크는 실행 중인 에디터의 DLL 잠금으로 보류됐다.
 - 2026-08-11: 사용자가 커스터마이징 WBP의 `CustomizationContentSwitcher` 1번 인덱스에 색칠하기 `DrawPanel`을 배치한 구조에 맞춰 `PaintMode` 전환 인덱스를 1번으로 조정했다.
 - 2026-08-11: 현재 브러시 색 표시 칸 계약을 추가했다. WBP에 `BrushColorPreviewBorder` 또는 `BrushColorPreviewImage`를 배치하면 컬러 피커에서 고른 현재 브러시 색을 자동 표시한다.
 - 2026-08-11: 마우스 커서 슬롯 계약을 추가했다. 메인메뉴, 로비/PvP 계열, 커스터마이징 PlayerController BP의 `DefaultMouseCursorWidgetClass`는 게임 전체 기본 커서로 적용되고, 커스터마이징 `PaintMouseCursorWidgetClass`는 색칠하기 원형 커서로 자동 전환된다. 페인트 커서 내부 `BrushCursorSizeBox`는 현재 브러시 크기에 맞춰 지름을 갱신한다.
@@ -268,7 +295,7 @@
 - 커스터마이징 PlayerController BP의 `PaintMouseCursorWidgetClass`에 색칠하기 모드에서 사용할 원형 커서 WBP를 지정한다.
 - 원형 커서 WBP 안에 `SizeBox`를 만들고 이름을 `BrushCursorSizeBox`로 맞추면 브러시 크기에 따라 커서 지름이 자동 조정된다.
 - 원형 커서 WBP 안에 현재 색을 입힐 Border 또는 Image를 만들고 이름을 `BrushCursorColorBorder` 또는 `BrushCursorColorImage`로 맞추면 브러시 색에 따라 커서 색이 자동 조정된다.
-- 원형 커서 지름이 너무 작거나 크면 커스터마이징 PlayerController BP의 `PaintCursorBrushSizeScale`, `MinPaintCursorDiameter`, `MaxPaintCursorDiameter`를 조정한다.
+- 브러쉬 기본 범위는 `MinPaintBrushSize=5`, `MaxPaintBrushSize=70`이며, 원형 커서 지름의 최소 표시값은 `MinPaintCursorDiameter`를 사용하고 최대 표시값은 `MaxPaintCursorDiameter`와 현재 `MaxPaintBrushSize * PaintCursorBrushSizeScale` 중 큰 값을 사용한다.
 - 페인트 trace가 커서 이미지의 중심과 전체적으로 조금 어긋나면 커스터마이징 PlayerController BP의 `PaintCursorCenterTraceOffset` 또는 `PaintCursorScreenOffset`을 작게 조정한다. X 양수는 오른쪽, Y 양수는 아래쪽으로 trace를 옮긴다. 이 값은 브러시 크기별 보정이나 부위별·회전별 UV 오차 보정용이 아니라 고정 hotspot 미세 보정용이다.
 - 몸만 칠하려면 커스터마이징 PlayerController BP의 `PaintAllowedMaterialIndex`를 기본값 0으로 둔다. 모든 머티리얼 slot을 칠해야 하는 테스트에서는 -1로 바꾼다.
 - hit된 컴포넌트, 머티리얼 slot, UV를 확인해야 하면 커스터마이징 PlayerController BP의 `bShowPaintHitDebug`를 켠다.

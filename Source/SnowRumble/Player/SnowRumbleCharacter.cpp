@@ -163,6 +163,27 @@ ASnowRumbleCharacter::ASnowRumbleCharacter()
 	HatMeshComponent->SetGenerateOverlapEvents(false);
 	HatMeshComponent->SetVisibility(false);
 
+	GlassesMeshComponent =
+		CreateDefaultSubobject<UStaticMeshComponent>(TEXT("GlassesMeshComponent"));
+	GlassesMeshComponent->SetupAttachment(GetMesh(), TEXT("GlassesSocket"));
+	GlassesMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	GlassesMeshComponent->SetGenerateOverlapEvents(false);
+	GlassesMeshComponent->SetVisibility(false);
+
+	NoseMeshComponent =
+		CreateDefaultSubobject<UStaticMeshComponent>(TEXT("NoseMeshComponent"));
+	NoseMeshComponent->SetupAttachment(GetMesh(), TEXT("NoseSocket"));
+	NoseMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	NoseMeshComponent->SetGenerateOverlapEvents(false);
+	NoseMeshComponent->SetVisibility(false);
+
+	EarmuffsMeshComponent =
+		CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EarmuffsMeshComponent"));
+	EarmuffsMeshComponent->SetupAttachment(GetMesh(), TEXT("EarmuffsSocket"));
+	EarmuffsMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	EarmuffsMeshComponent->SetGenerateOverlapEvents(false);
+	EarmuffsMeshComponent->SetVisibility(false);
+
 	ScarfMeshComponent =
 		CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ScarfMeshComponent"));
 	ScarfMeshComponent->SetupAttachment(GetMesh(), TEXT("ScarfSocket"));
@@ -759,6 +780,11 @@ ESnowRumbleTimedActionState ASnowRumbleCharacter::GetTimedActionState() const
 		return ESnowRumbleTimedActionState::Frozen;
 	}
 
+	if (bIsRevivingTeammate)
+	{
+		return ESnowRumbleTimedActionState::RevivingTeammate;
+	}
+
 	if (SnowballEquipmentComponent
 		&& SnowballEquipmentComponent->IsRollingSnowball())
 	{
@@ -792,6 +818,24 @@ float ASnowRumbleCharacter::GetTimedActionProgress() const
 
 	case ESnowRumbleTimedActionState::Frozen:
 		return GetFrozenProgress();
+
+	case ESnowRumbleTimedActionState::RevivingTeammate:
+		if (TeammateReviveHoldDurationSeconds <= 0.0f
+			|| TeammateReviveStartTime < 0.0)
+		{
+			return 0.0f;
+		}
+		if (const UWorld* World = GetWorld())
+		{
+			const double ElapsedSeconds =
+				World->GetTimeSeconds() - TeammateReviveStartTime;
+			return FMath::Clamp(
+				static_cast<float>(ElapsedSeconds)
+					/ TeammateReviveHoldDurationSeconds,
+				0.0f,
+				1.0f);
+		}
+		return 0.0f;
 
 	default:
 		return 0.0f;
@@ -1391,6 +1435,9 @@ void ASnowRumbleCharacter::ApplyCustomizationData(
 	}
 
 	RefreshCustomizationHatMesh();
+	RefreshCustomizationGlassesMesh();
+	RefreshCustomizationNoseMesh();
+	RefreshCustomizationEarmuffsMesh();
 	RedrawCustomizationPaintTexture();
 }
 
@@ -1410,6 +1457,37 @@ int32 ASnowRumbleCharacter::NormalizeCustomizationHatMeshIndex(
 	return CustomizationHatMeshes.IsValidIndex(HatMeshIndex)
 		? HatMeshIndex
 		: INDEX_NONE;
+}
+
+int32 ASnowRumbleCharacter::GetCustomizationAccessoryOptionCount(
+	ESnowRumbleCustomizationAccessory Accessory) const
+{
+	switch (Accessory)
+	{
+	case ESnowRumbleCustomizationAccessory::Hat:
+		return CustomizationHatMeshes.Num();
+	case ESnowRumbleCustomizationAccessory::Glasses:
+		return CustomizationGlassesMeshes.Num();
+	case ESnowRumbleCustomizationAccessory::Nose:
+		return CustomizationNoseMeshes.Num();
+	case ESnowRumbleCustomizationAccessory::Earmuffs:
+		return CustomizationEarmuffsMeshes.Num();
+	default:
+		return 0;
+	}
+}
+
+int32 ASnowRumbleCharacter::NormalizeCustomizationAccessoryMeshIndex(
+	ESnowRumbleCustomizationAccessory Accessory,
+	int32 MeshIndex) const
+{
+	if (MeshIndex < 0)
+	{
+		return INDEX_NONE;
+	}
+
+	const int32 OptionCount = GetCustomizationAccessoryOptionCount(Accessory);
+	return MeshIndex < OptionCount ? MeshIndex : INDEX_NONE;
 }
 
 void ASnowRumbleCharacter::RefreshCustomizationHatMesh()
@@ -1442,6 +1520,78 @@ void ASnowRumbleCharacter::RefreshCustomizationHatMesh()
 
 	HatMeshComponent->SetStaticMesh(HatMesh);
 	HatMeshComponent->SetVisibility(HatMesh != nullptr, true);
+}
+
+void ASnowRumbleCharacter::RefreshCustomizationGlassesMesh()
+{
+	if (!GlassesMeshComponent)
+	{
+		return;
+	}
+	if (USkeletalMeshComponent* CharacterMesh = GetMesh())
+	{
+		GlassesMeshComponent->AttachToComponent(
+			CharacterMesh,
+			FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+			CustomizationGlassesAttachSocketName);
+	}
+	GlassesMeshComponent->SetRelativeLocation(CustomizationGlassesRelativeLocation);
+	GlassesMeshComponent->SetRelativeRotation(CustomizationGlassesRelativeRotation);
+	GlassesMeshComponent->SetRelativeScale3D(CustomizationGlassesRelativeScale);
+	const int32 Index = NormalizeCustomizationAccessoryMeshIndex(
+		ESnowRumbleCustomizationAccessory::Glasses,
+		AppliedCustomizationData.GlassesMeshIndex);
+	UStaticMesh* AccessoryMesh = Index != INDEX_NONE ? CustomizationGlassesMeshes[Index] : nullptr;
+	GlassesMeshComponent->SetStaticMesh(AccessoryMesh);
+	GlassesMeshComponent->SetVisibility(AccessoryMesh != nullptr, true);
+}
+
+void ASnowRumbleCharacter::RefreshCustomizationNoseMesh()
+{
+	if (!NoseMeshComponent)
+	{
+		return;
+	}
+	if (USkeletalMeshComponent* CharacterMesh = GetMesh())
+	{
+		NoseMeshComponent->AttachToComponent(
+			CharacterMesh,
+			FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+			CustomizationNoseAttachSocketName);
+	}
+	NoseMeshComponent->SetRelativeLocation(CustomizationNoseRelativeLocation);
+	NoseMeshComponent->SetRelativeRotation(CustomizationNoseRelativeRotation);
+	NoseMeshComponent->SetRelativeScale3D(CustomizationNoseRelativeScale);
+	const int32 Index = NormalizeCustomizationAccessoryMeshIndex(
+		ESnowRumbleCustomizationAccessory::Nose,
+		AppliedCustomizationData.NoseMeshIndex);
+	UStaticMesh* AccessoryMesh = Index != INDEX_NONE ? CustomizationNoseMeshes[Index] : nullptr;
+	NoseMeshComponent->SetStaticMesh(AccessoryMesh);
+	NoseMeshComponent->SetVisibility(AccessoryMesh != nullptr, true);
+}
+
+void ASnowRumbleCharacter::RefreshCustomizationEarmuffsMesh()
+{
+	if (!EarmuffsMeshComponent)
+	{
+		return;
+	}
+	if (USkeletalMeshComponent* CharacterMesh = GetMesh())
+	{
+		EarmuffsMeshComponent->AttachToComponent(
+			CharacterMesh,
+			FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+			CustomizationEarmuffsAttachSocketName);
+	}
+	EarmuffsMeshComponent->SetRelativeLocation(CustomizationEarmuffsRelativeLocation);
+	EarmuffsMeshComponent->SetRelativeRotation(CustomizationEarmuffsRelativeRotation);
+	EarmuffsMeshComponent->SetRelativeScale3D(CustomizationEarmuffsRelativeScale);
+	const int32 Index = NormalizeCustomizationAccessoryMeshIndex(
+		ESnowRumbleCustomizationAccessory::Earmuffs,
+		AppliedCustomizationData.EarmuffsMeshIndex);
+	UStaticMesh* AccessoryMesh = Index != INDEX_NONE ? CustomizationEarmuffsMeshes[Index] : nullptr;
+	EarmuffsMeshComponent->SetStaticMesh(AccessoryMesh);
+	EarmuffsMeshComponent->SetVisibility(AccessoryMesh != nullptr, true);
 }
 
 void ASnowRumbleCharacter::RefreshScarfMesh()
@@ -4059,8 +4209,10 @@ void ASnowRumbleCharacter::TryStartTeammateRevive()
 
 	if (UWorld* World = GetWorld())
 	{
-		const float HoldSeconds = TeammateReviveHoldSeconds
+	const float HoldSeconds = TeammateReviveHoldSeconds
 			* (GiftItemEffectComponent->HasGoldenHotPack() ? 2.0f : 1.0f);
+		TeammateReviveHoldDurationSeconds = FMath::Max(0.0f, HoldSeconds);
+		TeammateReviveStartTime = World->GetTimeSeconds();
 		World->GetTimerManager().SetTimer(
 			TeammateReviveTimerHandle,
 			this,
@@ -4078,6 +4230,8 @@ void ASnowRumbleCharacter::CancelTeammateRevive()
 	}
 	bIsRevivingTeammate = false;
 	TeammateReviveTarget = nullptr;
+	TeammateReviveHoldDurationSeconds = 0.0f;
+	TeammateReviveStartTime = -1.0;
 }
 
 void ASnowRumbleCharacter::CompleteTeammateRevive()
@@ -5022,7 +5176,12 @@ void ASnowRumbleCharacter::MulticastPlayCharacterFeedbackSound_Implementation(
 		this,
 		FeedbackSound,
 		ESnowRumbleAudioMixChannel::Gameplay,
-		GetActorLocation());
+		GetActorLocation(),
+		1.0f,
+		1.0f,
+		FeedbackSoundType == ESnowRumbleCharacterFeedbackSoundType::SnowballThrow
+			? SnowballThrowSoundAttenuation
+			: nullptr);
 }
 
 void ASnowRumbleCharacter::PlayServerDirectedEmote(int32 EmoteIndex)
