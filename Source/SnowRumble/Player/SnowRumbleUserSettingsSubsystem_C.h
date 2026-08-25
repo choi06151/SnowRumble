@@ -27,6 +27,7 @@ public:
 	FSnowRumbleUserSettingsChanged OnMicrophoneSettingsChanged;
 
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Input")
 	void SetKeyBinding(FName BindingId, FKey NewKey);
@@ -130,7 +131,17 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|User Settings|Microphone")
 	FString GetMicrophoneDeviceId() const;
 
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Language")
+	void SetLanguageCulture(const FString& NewCulture);
+
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|User Settings|Language")
+	FString GetLanguageCulture() const;
+
 private:
+	void ApplyLanguageCulture(const FString& Culture);
+	void AddSnowRumbleLocalizationPath(TArray<FString>& LocalizationPaths);
+	static void LogLanguageProbe(const FString& Culture);
+
 	UPROPERTY(Config)
 	TMap<FName, FKey> KeyBindings;
 
@@ -158,6 +169,9 @@ private:
 
 	UPROPERTY(Config)
 	FString MicrophoneDeviceId;
+
+	UPROPERTY(Config)
+	FString LanguageCulture = TEXT("ko");
 
 	static constexpr float MinMouseSensitivity = 0.2f;
 	static constexpr float MaxMouseSensitivity = 3.0f;

@@ -81,7 +81,6 @@ void ULobbyBoardWidget::NativeConstruct()
 
 	ResolveBoardButtons();
 	ResolveTeamCountTexts();
-	ApplyOrangeTeamButtonColor();
 	BindBoardButtons();
 	RefreshTeamCountTexts();
 	RefreshReadyStartButtonText();
@@ -869,14 +868,16 @@ void ULobbyBoardWidget::RefreshReadyStartButtonText()
 
 	if (IsRequestingPlayerHost())
 	{
-		ReadyStartButtonText->SetText(FText::FromString(TEXT("게임 시작")));
+		ReadyStartButtonText->SetText(
+			NSLOCTEXT("SnowRumble", "LobbyBoardStartGame", "게임 시작"));
 		return;
 	}
 
 	const ASnowRumblePlayerState* PlayerState = GetRequestingPlayerState();
 	const bool bReady = PlayerState && PlayerState->IsLobbyReady();
-	ReadyStartButtonText->SetText(FText::FromString(
-		bReady ? TEXT("준비 취소") : TEXT("준비 완료")));
+	ReadyStartButtonText->SetText(bReady
+		? NSLOCTEXT("SnowRumble", "LobbyBoardCancelReady", "준비 취소")
+		: NSLOCTEXT("SnowRumble", "LobbyBoardReady", "준비 완료"));
 }
 
 void ULobbyBoardWidget::RefreshMatchRoundLimitText()
@@ -999,23 +1000,6 @@ void ULobbyBoardWidget::SetButtonSelectedVisual(UButton* Button, bool bSelected)
 	SelectedStyle.SetHovered(CachedStyle->Pressed);
 	SelectedStyle.SetPressed(CachedStyle->Pressed);
 	Button->SetStyle(SelectedStyle);
-}
-
-void ULobbyBoardWidget::ApplyOrangeTeamButtonColor()
-{
-	if (!OrangeTeamButton)
-	{
-		return;
-	}
-
-	FButtonStyle Style = OrangeTeamButton->GetStyle();
-	const FSlateColor OrangeColor(
-		FLinearColor(1.0f, 0.35f, 0.05f, 1.0f));
-	Style.Normal.TintColor = OrangeColor;
-	Style.Hovered.TintColor = OrangeColor;
-	Style.Pressed.TintColor = OrangeColor;
-	Style.Disabled.TintColor = OrangeColor;
-	OrangeTeamButton->SetStyle(Style);
 }
 
 void ULobbyBoardWidget::SubmitMatchRoundLimit(int32 NewRoundLimit)

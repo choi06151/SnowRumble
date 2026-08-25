@@ -1,0 +1,1974 @@
+﻿# SnowRumble English translation.
+# Fill out your copyright notice in the Description page of Project Settings.
+# 
+msgid ""
+msgstr ""
+"Project-Id-Version: SnowRumble\n"
+"POT-Creation-Date: 2026-08-25 09:52\n"
+"PO-Revision-Date: 2026-08-25 09:52\n"
+"Language-Team: \n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. Key:	11CE2FBA48DBAA0BF6D63A985EB0EC86
+#. SourceLocation:	/Game/WBP/WBP_ChatWidget.WBP_ChatWidget_C:WidgetTree.ChatChannelText.Text
+#: /Game/WBP/WBP_ChatWidget.WBP_ChatWidget_C:WidgetTree.ChatChannelText.Text
+msgctxt ",11CE2FBA48DBAA0BF6D63A985EB0EC86"
+msgid "전체:"
+msgstr "Total:"
+
+#. Key:	5D41555445A0A9DCC7E58694622A962A
+#. SourceLocation:	/Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.text.Text
+#: /Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.text.Text
+msgctxt ",5D41555445A0A9DCC7E58694622A962A"
+msgid "코 1"
+msgstr "Nose 1"
+
+#. Key:	3256814F48A6458B0DB1A2B7B3616AB3
+#. SourceLocation:	/Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock.Text
+#: /Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock.Text
+msgctxt ",3256814F48A6458B0DB1A2B7B3616AB3"
+msgid "그리기"
+msgstr "Draw"
+
+#. Key:	343329234B900348641B54B7381F7236
+#. SourceLocation:	/Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_0.Text
+#: /Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_0.Text
+msgctxt ",343329234B900348641B54B7381F7236"
+msgid "로비로 돌아가기"
+msgstr "Return to Lobby"
+
+#. Key:	30B51F9548B07B701ABFDDA0EF1ABCCF
+#. SourceLocation:	/Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_1.Text
+#: /Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_1.Text
+msgctxt ",30B51F9548B07B701ABFDDA0EF1ABCCF"
+msgid "되돌리기"
+msgstr "Undo"
+
+#. Key:	C4BEA224419CE1E6FE7611AF6CDD922D
+#. SourceLocation:	/Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_10.Text
+#: /Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_10.Text
+msgctxt ",C4BEA224419CE1E6FE7611AF6CDD922D"
+msgid "안경 1"
+msgstr "Glasses 1"
+
+#. Key:	43DA0445482D544D44855896B948D0F2
+#. SourceLocation:	/Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_2.Text
+#: /Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_2.Text
+msgctxt ",43DA0445482D544D44855896B948D0F2"
+msgid "초기화"
+msgstr "Reset"
+
+#. Key:	984C35A2407A46D17D276386A3D347B3
+#. SourceLocation:	/Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_3.Text
+#: /Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_3.Text
+msgctxt ",984C35A2407A46D17D276386A3D347B3"
+msgid "안경"
+msgstr "Glasses"
+
+#. Key:	588431DC4EF48894E22E7D972321AFCD
+#. SourceLocation:	/Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_362.Text
+#: /Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_362.Text
+msgctxt ",588431DC4EF48894E22E7D972321AFCD"
+msgid "모자"
+msgstr "Hat"
+
+#. Key:	609A3C1C48C8A53C757273B495149547
+#. SourceLocation:	/Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_4.Text
+#: /Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_4.Text
+msgctxt ",609A3C1C48C8A53C757273B495149547"
+msgid "캐릭터 회전"
+msgstr "Rotate Character"
+
+#. Key:	DE8605BF4B3926A9EE1334907096A1E8
+#. SourceLocation:	/Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_5.Text
+#: /Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_5.Text
+msgctxt ",DE8605BF4B3926A9EE1334907096A1E8"
+msgid "브러쉬 크기"
+msgstr "Brush Size"
+
+#. Key:	6E1E0A294E9E80364BCD598D19355641
+#. SourceLocation:	/Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_6.Text
+#: /Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_6.Text
+msgctxt ",6E1E0A294E9E80364BCD598D19355641"
+msgid "색 채우기"
+msgstr "Fill Color"
+
+#. Key:	419D386B4450E2A0DCCABDAC0E2E9B88
+#. SourceLocation:	/Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_7.Text
+#: /Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_7.Text
+msgctxt ",419D386B4450E2A0DCCABDAC0E2E9B88"
+msgid "코"
+msgstr "Nose"
+
+#. Key:	62DB179B441449C7ABA3A8B29A3E9AF2
+#. SourceLocation:	/Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_719.Text
+#: /Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_719.Text
+msgctxt ",62DB179B441449C7ABA3A8B29A3E9AF2"
+msgid "모자 1"
+msgstr "Hat 1"
+
+#. Key:	764D46F447104857A7C5398B112405B7
+#. SourceLocation:	/Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_8.Text
+#: /Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_8.Text
+msgctxt ",764D46F447104857A7C5398B112405B7"
+msgid "귀마개"
+msgstr "Earmuffs"
+
+#. Key:	1E2BB1A3432BBA047043E6A52B0BDEE0
+#. SourceLocation:	/Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_9.Text
+#: /Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.TextBlock_9.Text
+msgctxt ",1E2BB1A3432BBA047043E6A52B0BDEE0"
+msgid "캐릭터 편집"
+msgstr "Edit Character"
+
+#. Key:	9C6669394D928C398A53F49EBA96DCBE
+#. SourceLocation:	/Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.texwd.Text
+#: /Game/WBP/WBP_CustomWidget.WBP_CustomWidget_C:WidgetTree.texwd.Text
+msgctxt ",9C6669394D928C398A53F49EBA96DCBE"
+msgid "귀마개 1"
+msgstr "Earmuffs 1"
+
+#. Key:	AAE066A648C5578EA093EC8CDF131513
+#. SourceLocation:	/Game/WBP/WBP_EmoteRadialMenuWidget.WBP_EmoteRadialMenuWidget_C:WidgetTree.TextBlock.Text
+#: /Game/WBP/WBP_EmoteRadialMenuWidget.WBP_EmoteRadialMenuWidget_C:WidgetTree.TextBlock.Text
+msgctxt ",AAE066A648C5578EA093EC8CDF131513"
+msgid "옆으로 "
+msgstr "Strafe "
+
+#. Key:	37F1D4A1435AB413F6F9CE9AC3231F02
+#. SourceLocation:	/Game/WBP/WBP_EmoteRadialMenuWidget.WBP_EmoteRadialMenuWidget_C:WidgetTree.TextBlock_1.Text
+#: /Game/WBP/WBP_EmoteRadialMenuWidget.WBP_EmoteRadialMenuWidget_C:WidgetTree.TextBlock_1.Text
+msgctxt ",37F1D4A1435AB413F6F9CE9AC3231F02"
+msgid "힙합"
+msgstr "Hip Hop"
+
+#. Key:	DEF7239742856D4C425B459C0CD29522
+#. SourceLocation:	/Game/WBP/WBP_EmoteRadialMenuWidget.WBP_EmoteRadialMenuWidget_C:WidgetTree.TextBlock_102.Text
+#: /Game/WBP/WBP_EmoteRadialMenuWidget.WBP_EmoteRadialMenuWidget_C:WidgetTree.TextBlock_102.Text
+msgctxt ",DEF7239742856D4C425B459C0CD29522"
+msgid "닭 "
+msgstr "Chicken "
+
+#. Key:	BED789D34C3FECDF19289C8B22F18570
+#. SourceLocation:	/Game/WBP/WBP_EmoteRadialMenuWidget.WBP_EmoteRadialMenuWidget_C:WidgetTree.TextBlock_2.Text
+#: /Game/WBP/WBP_EmoteRadialMenuWidget.WBP_EmoteRadialMenuWidget_C:WidgetTree.TextBlock_2.Text
+msgctxt ",BED789D34C3FECDF19289C8B22F18570"
+msgid "럼바"
+msgstr "Rumba"
+
+#. Key:	E051376249D95E50F62DFEA4E7541A44
+#. SourceLocation:	/Game/WBP/WBP_EmoteRadialMenuWidget.WBP_EmoteRadialMenuWidget_C:WidgetTree.TextBlock_3.Text
+#: /Game/WBP/WBP_EmoteRadialMenuWidget.WBP_EmoteRadialMenuWidget_C:WidgetTree.TextBlock_3.Text
+msgctxt ",E051376249D95E50F62DFEA4E7541A44"
+msgid "실리"
+msgstr "Silly"
+
+#. Key:	05B2CB4E41B0E307CF19AB8B6FCD1B72
+#. SourceLocation:	/Game/WBP/WBP_EmoteRadialMenuWidget.WBP_EmoteRadialMenuWidget_C:WidgetTree.TextBlock_4.Text
+#: /Game/WBP/WBP_EmoteRadialMenuWidget.WBP_EmoteRadialMenuWidget_C:WidgetTree.TextBlock_4.Text
+msgctxt ",05B2CB4E41B0E307CF19AB8B6FCD1B72"
+msgid "박수"
+msgstr "Clap"
+
+#. Key:	FEAA15B74A1CEBC34FA4278CEF073A5A
+#. SourceLocation:	/Game/WBP/WBP_EmoteRadialMenuWidget.WBP_EmoteRadialMenuWidget_C:WidgetTree.TextBlock_5.Text
+#: /Game/WBP/WBP_EmoteRadialMenuWidget.WBP_EmoteRadialMenuWidget_C:WidgetTree.TextBlock_5.Text
+msgctxt ",FEAA15B74A1CEBC34FA4278CEF073A5A"
+msgid "스텝"
+msgstr "Step"
+
+#. Key:	425D8E9D409C233792F9FEBAFF80568B
+#. SourceLocation:	/Game/WBP/WBP_EmoteRadialMenuWidget.WBP_EmoteRadialMenuWidget_C:WidgetTree.TextBlock_6.Text
+#: /Game/WBP/WBP_EmoteRadialMenuWidget.WBP_EmoteRadialMenuWidget_C:WidgetTree.TextBlock_6.Text
+msgctxt ",425D8E9D409C233792F9FEBAFF80568B"
+msgid "트위스트"
+msgstr "Twist"
+
+#. Key:	DFBDAC104F248E338EA5F487E53909BB
+#. SourceLocation:	/Game/WBP/WBP_KeyGuideWidget.WBP_KeyGuideWidget_C:WidgetTree.TextBlock.Text
+#: /Game/WBP/WBP_KeyGuideWidget.WBP_KeyGuideWidget_C:WidgetTree.TextBlock.Text
+msgctxt ",DFBDAC104F248E338EA5F487E53909BB"
+msgid "눈 만들기 : (눈 보면서)"
+msgstr "Make Snow: (Looking at Snow)"
+
+#. Key:	78FB972143960E090A5ECAAF101EB896
+#. SourceLocation:	/Game/WBP/WBP_KeyGuideWidget.WBP_KeyGuideWidget_C:WidgetTree.TextBlock_1.Text
+#: /Game/WBP/WBP_KeyGuideWidget.WBP_KeyGuideWidget_C:WidgetTree.TextBlock_1.Text
+msgctxt ",78FB972143960E090A5ECAAF101EB896"
+msgid "조준 : (눈 들고)"
+msgstr "Aim: (Holding Snow)"
+
+#. Key:	FCE9363D4AB21BD5070AD19B7F594DB5
+#. SourceLocation:	/Game/WBP/WBP_KeyGuideWidget.WBP_KeyGuideWidget_C:WidgetTree.TextBlock_147.Text
+#: /Game/WBP/WBP_KeyGuideWidget.WBP_KeyGuideWidget_C:WidgetTree.TextBlock_147.Text
+msgctxt ",FCE9363D4AB21BD5070AD19B7F594DB5"
+msgid "이동 : "
+msgstr "Move: "
+
+#. Key:	E8A28E1D4AF99F73336768A37D2B453C
+#. SourceLocation:	/Game/WBP/WBP_KeyGuideWidget.WBP_KeyGuideWidget_C:WidgetTree.TextBlock_2.Text
+#: /Game/WBP/WBP_KeyGuideWidget.WBP_KeyGuideWidget_C:WidgetTree.TextBlock_2.Text
+msgctxt ",E8A28E1D4AF99F73336768A37D2B453C"
+msgid "눈 던지기 : (조준 상태)"
+msgstr "Throw Snow: (Aiming)"
+
+#. Key:	F7C0F5174245E7B0C9F309A287D65637
+#. SourceLocation:	/Game/WBP/WBP_KeyGuideWidget.WBP_KeyGuideWidget_C:WidgetTree.TextBlock_3.Text
+#: /Game/WBP/WBP_KeyGuideWidget.WBP_KeyGuideWidget_C:WidgetTree.TextBlock_3.Text
+msgctxt ",F7C0F5174245E7B0C9F309A287D65637"
+msgid "이모션 : "
+msgstr "Emote: "
+
+#. Key:	9E6D96CE4D2628FF99CDA394699D23BB
+#. SourceLocation:	/Game/WBP/WBP_KeyGuideWidget.WBP_KeyGuideWidget_C:WidgetTree.TextBlock_4.Text
+#: /Game/WBP/WBP_KeyGuideWidget.WBP_KeyGuideWidget_C:WidgetTree.TextBlock_4.Text
+msgctxt ",9E6D96CE4D2628FF99CDA394699D23BB"
+msgid "눈 잡기 : "
+msgstr "Grab Snow: "
+
+#. Key:	9057BEE944D12BCCB284E9ABD1AE0AA4
+#. SourceLocation:	/Game/WBP/WBP_KeyGuideWidget.WBP_KeyGuideWidget_C:WidgetTree.TextBlock_5.Text
+#: /Game/WBP/WBP_KeyGuideWidget.WBP_KeyGuideWidget_C:WidgetTree.TextBlock_5.Text
+msgctxt ",9057BEE944D12BCCB284E9ABD1AE0AA4"
+msgid "눈 굴리기 :  (유지)"
+msgstr "Roll Snow: (Hold)"
+
+#. Key:	E16934704F929D9398A2A0AD139CD113
+#. SourceLocation:	/Game/WBP/WBP_KeyGuideWidget.WBP_KeyGuideWidget_C:WidgetTree.TextBlock_6.Text
+#: /Game/WBP/WBP_KeyGuideWidget.WBP_KeyGuideWidget_C:WidgetTree.TextBlock_6.Text
+msgctxt ",E16934704F929D9398A2A0AD139CD113"
+msgid "음소거 : "
+msgstr "Mute: "
+
+#. Key:	72EF0153440D32F0B071CEBE293805DA
+#. SourceLocation:	/Game/WBP/WBP_KeyGuideWidget.WBP_KeyGuideWidget_C:WidgetTree.TextBlock_7.Text
+#: /Game/WBP/WBP_KeyGuideWidget.WBP_KeyGuideWidget_C:WidgetTree.TextBlock_7.Text
+msgctxt ",72EF0153440D32F0B071CEBE293805DA"
+msgid "음성 채널 변경  : "
+msgstr "Change Voice Channel: "
+
+#. Key:	D2B6759144227FBF8C7F2AB551BE033E
+#. SourceLocation:	/Game/WBP/WBP_KeyGuideWidget.WBP_KeyGuideWidget_C:WidgetTree.TextBlock_8.Text
+#: /Game/WBP/WBP_KeyGuideWidget.WBP_KeyGuideWidget_C:WidgetTree.TextBlock_8.Text
+msgctxt ",D2B6759144227FBF8C7F2AB551BE033E"
+msgid "키 가이드 표시  :"
+msgstr "Show Key Guide:"
+
+#. Key:	1A59D0E8443CEEE042769BAAFC8368B2
+#. SourceLocation:	/Game/WBP/WBP_KeyGuideWidget.WBP_KeyGuideWidget_C:WidgetTree.TextBlock_9.Text
+#: /Game/WBP/WBP_KeyGuideWidget.WBP_KeyGuideWidget_C:WidgetTree.TextBlock_9.Text
+msgctxt ",1A59D0E8443CEEE042769BAAFC8368B2"
+msgid "채팅창  : "
+msgstr "Chat: "
+
+#. Key:	50AC7A5549ACC5756CC791A4AEF11D2A
+#. SourceLocation:	/Game/WBP/WBP_LoadingScreenWidget.WBP_LoadingScreenWidget_C:WidgetTree.TextBlock.Text
+#: /Game/WBP/WBP_LoadingScreenWidget.WBP_LoadingScreenWidget_C:WidgetTree.TextBlock.Text
+msgctxt ",50AC7A5549ACC5756CC791A4AEF11D2A"
+msgid "맵 정보"
+msgstr "Map Info"
+
+#. Key:	10A4A7764F38F18FA2D62DAF8D8BCF99
+#. SourceLocation:	/Game/WBP/WBP_LoadingScreenWidget.WBP_LoadingScreenWidget_C:WidgetTree.TextBlock_0.Text
+#: /Game/WBP/WBP_LoadingScreenWidget.WBP_LoadingScreenWidget_C:WidgetTree.TextBlock_0.Text
+msgctxt ",10A4A7764F38F18FA2D62DAF8D8BCF99"
+msgid "게임 Tip"
+msgstr "Game Tip"
+
+#. Key:	36155ECC4F5F0A5A040E1098EC9D83B9
+#. SourceLocation:	/Game/WBP/WBP_LoadingScreenWidget.WBP_LoadingScreenWidget_C:WidgetTree.TextBlock_1.Text
+#: /Game/WBP/WBP_LoadingScreenWidget.WBP_LoadingScreenWidget_C:WidgetTree.TextBlock_1.Text
+msgctxt ",36155ECC4F5F0A5A040E1098EC9D83B9"
+msgid "눈덩이를 크게"
+msgstr "Make a Bigger Snowball"
+
+#. Key:	5C773CCC4E1C458DFEA5B3A61E79241F
+#. SourceLocation:	/Game/WBP/WBP_LoadingScreenWidget.WBP_LoadingScreenWidget_C:WidgetTree.TextBlock_2.Text
+#: /Game/WBP/WBP_LoadingScreenWidget.WBP_LoadingScreenWidget_C:WidgetTree.TextBlock_2.Text
+msgctxt ",5C773CCC4E1C458DFEA5B3A61E79241F"
+msgid "눈마을 광장"
+msgstr "Snow Village Plaza"
+
+#. Key:	04395BF246A7428AA0BA37A884BB274B
+#. SourceLocation:	/Game/WBP/WBP_LoadingScreenWidget.WBP_LoadingScreenWidget_C:WidgetTree.TextBlock_3.Text
+#: /Game/WBP/WBP_LoadingScreenWidget.WBP_LoadingScreenWidget_C:WidgetTree.TextBlock_3.Text
+msgctxt ",04395BF246A7428AA0BA37A884BB274B"
+msgid "마을 중심지로 가면 아이템을 얻을 수 있어요!"
+msgstr "You can find items in the center of the village!"
+
+#. Key:	B5EE65124552FAB767663CB800067EA4
+#. SourceLocation:	/Game/WBP/WBP_LoadingScreenWidget.WBP_LoadingScreenWidget_C:WidgetTree.TextBlock_4.Text
+#: /Game/WBP/WBP_LoadingScreenWidget.WBP_LoadingScreenWidget_C:WidgetTree.TextBlock_4.Text
+msgctxt ",B5EE65124552FAB767663CB800067EA4"
+msgid "굴리면 데미지가 올라가요!"
+msgstr "Rolling it increases its damage!"
+
+#. Key:	CC8DE28340E5CB7173652E9F0B75106E
+#. SourceLocation:	/Game/WBP/WBP_Lobby.WBP_Lobby_C:WidgetTree.RoomCodeTextBlock.Text
+#: /Game/WBP/WBP_Lobby.WBP_Lobby_C:WidgetTree.RoomCodeTextBlock.Text
+msgctxt ",CC8DE28340E5CB7173652E9F0B75106E"
+msgid "ABc"
+msgstr "ABc"
+
+#. Key:	79F188294483E40E2E765FA35FFC7C27
+#. SourceLocation:	/Game/WBP/WBP_Lobby.WBP_Lobby_C:WidgetTree.TextBlock.Text
+#: /Game/WBP/WBP_Lobby.WBP_Lobby_C:WidgetTree.TextBlock.Text
+msgctxt ",79F188294483E40E2E765FA35FFC7C27"
+msgid "팀 색상"
+msgstr "Team Color"
+
+#. Key:	63F634F04A7DB3FB93D8FFB891BE0F6F
+#. SourceLocation:	/Game/WBP/WBP_Lobby.WBP_Lobby_C:WidgetTree.TextBlock_0.Text
+#: /Game/WBP/WBP_Lobby.WBP_Lobby_C:WidgetTree.TextBlock_0.Text
+msgctxt ",63F634F04A7DB3FB93D8FFB891BE0F6F"
+msgid "이름"
+msgstr "Name"
+
+#. Key:	08F97EFD422E7AB7750BC78630D0B836
+#. SourceLocation:	/Game/WBP/WBP_Lobby.WBP_Lobby_C:WidgetTree.TextBlock_1.Text
+#: /Game/WBP/WBP_Lobby.WBP_Lobby_C:WidgetTree.TextBlock_1.Text
+msgctxt ",08F97EFD422E7AB7750BC78630D0B836"
+msgid "준비 상태 "
+msgstr "Ready Status "
+
+#. Key:	C2622209443906EFD3C7138D8BF0BB4A
+#. SourceLocation:	/Game/WBP/WBP_Lobby.WBP_Lobby_C:WidgetTree.TextBlock_2.Text
+#: /Game/WBP/WBP_Lobby.WBP_Lobby_C:WidgetTree.TextBlock_2.Text
+msgctxt ",C2622209443906EFD3C7138D8BF0BB4A"
+msgid "게임 모드"
+msgstr "Game Mode"
+
+#. Key:	A747EACC46B348911DF8E48144F99D4E
+#. SourceLocation:	/Game/WBP/WBP_Lobby.WBP_Lobby_C:WidgetTree.TextBlock_3.Text
+#: /Game/WBP/WBP_Lobby.WBP_Lobby_C:WidgetTree.TextBlock_3.Text
+msgctxt ",A747EACC46B348911DF8E48144F99D4E"
+msgid "준비 완료"
+msgstr "Ready"
+
+#. Key:	9B49FF59468E10F110D4F890553F1522
+#. SourceLocation:	/Game/WBP/WBP_Lobby.WBP_Lobby_C:WidgetTree.TextBlock_4.Text
+#: /Game/WBP/WBP_Lobby.WBP_Lobby_C:WidgetTree.TextBlock_4.Text
+msgctxt ",9B49FF59468E10F110D4F890553F1522"
+msgid "판 수"
+msgstr "Rounds"
+
+#. Key:	EDC6DF92430B7E9D0A1C178D8F209BDB
+#. SourceLocation:	/Game/WBP/WBP_Lobby.WBP_Lobby_C:WidgetTree.TextBlock_5.Text
+#: /Game/WBP/WBP_Lobby.WBP_Lobby_C:WidgetTree.TextBlock_5.Text
+msgctxt ",EDC6DF92430B7E9D0A1C178D8F209BDB"
+msgid "게임 속도"
+msgstr "Game Speed"
+
+#. Key:	DFD705C848761EF01F8EF78DAE062F6D
+#. SourceLocation:	/Game/WBP/WBP_Lobby.WBP_Lobby_C:WidgetTree.TextBlock_52.Text
+#: /Game/WBP/WBP_Lobby.WBP_Lobby_C:WidgetTree.TextBlock_52.Text
+msgctxt ",DFD705C848761EF01F8EF78DAE062F6D"
+msgid "방 코드:"
+msgstr "Room Code:"
+
+#. Key:	080EE2374A2BE9875EC8708164AA7B9A
+#. SourceLocation:	/Game/WBP/WBP_Lobby.WBP_Lobby_C:WidgetTree.TextBlock_6.Text
+#: /Game/WBP/WBP_Lobby.WBP_Lobby_C:WidgetTree.TextBlock_6.Text
+msgctxt ",080EE2374A2BE9875EC8708164AA7B9A"
+msgid "현재 방 설정 "
+msgstr "Current Room Settings "
+
+#. Key:	CA178ABF439520688E211A92A741A46D
+#. SourceLocation:	/Game/WBP/WBP_Lobby.WBP_Lobby_C:WidgetTree.VoiceSpeakingNamesText.Text
+#: /Game/WBP/WBP_Lobby.WBP_Lobby_C:WidgetTree.VoiceSpeakingNamesText.Text
+msgctxt ",CA178ABF439520688E211A92A741A46D"
+msgid "Text Block"
+msgstr "Text Block"
+
+#. Key:	781D76FE4D82FBE5C758C7BA4EB74C91
+#. SourceLocation:	/Game/WBP/WBP_LobbyBoardWidget_C.WBP_LobbyBoardWidget_C_C:WidgetTree.ReadyStartButtonText.Text
+#: /Game/WBP/WBP_LobbyBoardWidget_C.WBP_LobbyBoardWidget_C_C:WidgetTree.ReadyStartButtonText.Text
+msgctxt ",781D76FE4D82FBE5C758C7BA4EB74C91"
+msgid "준비하기"
+msgstr "Ready Up"
+
+#. Key:	076BE6EB47A549C023C3AB995A9BD922
+#. SourceLocation:	/Game/WBP/WBP_LobbyBoardWidget_C.WBP_LobbyBoardWidget_C_C:WidgetTree.TextBlock.Text
+#: /Game/WBP/WBP_LobbyBoardWidget_C.WBP_LobbyBoardWidget_C_C:WidgetTree.TextBlock.Text
+msgctxt ",076BE6EB47A549C023C3AB995A9BD922"
+msgid "게임 설정"
+msgstr "Game Settings"
+
+#. Key:	806551864694660E5096B58D1C102793
+#. SourceLocation:	/Game/WBP/WBP_LobbyBoardWidget_C.WBP_LobbyBoardWidget_C_C:WidgetTree.TextBlock_1.Text
+#: /Game/WBP/WBP_LobbyBoardWidget_C.WBP_LobbyBoardWidget_C_C:WidgetTree.TextBlock_1.Text
+msgctxt ",806551864694660E5096B58D1C102793"
+msgid "팀 섞기"
+msgstr "Shuffle Teams"
+
+#. Key:	F3B4539B4F092ADA551B8A958D106DFF
+#. SourceLocation:	/Game/WBP/WBP_LobbyBoardWidget_C.WBP_LobbyBoardWidget_C_C:WidgetTree.TextBlock_2.Text
+#: /Game/WBP/WBP_LobbyBoardWidget_C.WBP_LobbyBoardWidget_C_C:WidgetTree.TextBlock_2.Text
+msgctxt ",F3B4539B4F092ADA551B8A958D106DFF"
+msgid "모드 선택"
+msgstr "Select Mode"
+
+#. Key:	9D10F54A496661F5C01EA599B26A4C7C
+#. SourceLocation:	/Game/WBP/WBP_LobbyEscapeWidget.WBP_LobbyEscapeWidget_C:WidgetTree.TextBlock.Text
+#: /Game/WBP/WBP_LobbyEscapeWidget.WBP_LobbyEscapeWidget_C:WidgetTree.TextBlock.Text
+msgctxt ",9D10F54A496661F5C01EA599B26A4C7C"
+msgid "친구 부르기"
+msgstr "Invite Friends"
+
+#. Key:	C1666E5D4CF28ADA154E0199DB081D86
+#. SourceLocation:	/Game/WBP/WBP_LobbyEscapeWidget.WBP_LobbyEscapeWidget_C:WidgetTree.TextBlock_1.Text
+#: /Game/WBP/WBP_LobbyEscapeWidget.WBP_LobbyEscapeWidget_C:WidgetTree.TextBlock_1.Text
+msgctxt ",C1666E5D4CF28ADA154E0199DB081D86"
+msgid "설정"
+msgstr "Settings"
+
+#. Key:	B134B5074234533FB0FDE085BD61AD19
+#. SourceLocation:	/Game/WBP/WBP_LobbyEscapeWidget.WBP_LobbyEscapeWidget_C:WidgetTree.TextBlock_177.Text
+#: /Game/WBP/WBP_LobbyEscapeWidget.WBP_LobbyEscapeWidget_C:WidgetTree.TextBlock_177.Text
+msgctxt ",B134B5074234533FB0FDE085BD61AD19"
+msgid "돌아가기"
+msgstr "Go Back"
+
+#. Key:	7C8B143B4F0386EC26DDB49A64BB70A3
+#. SourceLocation:	/Game/WBP/WBP_LobbyEscapeWidget.WBP_LobbyEscapeWidget_C:WidgetTree.TextBlock_2.Text
+#: /Game/WBP/WBP_LobbyEscapeWidget.WBP_LobbyEscapeWidget_C:WidgetTree.TextBlock_2.Text
+msgctxt ",7C8B143B4F0386EC26DDB49A64BB70A3"
+msgid "메인 메뉴로 이동"
+msgstr "Go to Main Menu"
+
+#. Key:	F2C41D6E4EB7546875AAFDA6FD9EE31D
+#. SourceLocation:	/Game/WBP/WBP_LobbyTeamBoardWidget.WBP_LobbyTeamBoardWidget_C:WidgetTree.RedTeamCountText.Text
+#: /Game/WBP/WBP_LobbyTeamBoardWidget.WBP_LobbyTeamBoardWidget_C:WidgetTree.RedTeamCountText.Text
+msgctxt ",F2C41D6E4EB7546875AAFDA6FD9EE31D"
+msgid "0"
+msgstr "0"
+
+#. Key:	E405242C44A75BBD1BB0E68D5AA4FC6B
+#. SourceLocation:	/Game/WBP/WBP_LobbyTeamBoardWidget.WBP_LobbyTeamBoardWidget_C:WidgetTree.TextBlock.Text
+#: /Game/WBP/WBP_LobbyTeamBoardWidget.WBP_LobbyTeamBoardWidget_C:WidgetTree.TextBlock.Text
+msgctxt ",E405242C44A75BBD1BB0E68D5AA4FC6B"
+msgid "명"
+msgstr "Players"
+
+#. Key:	6B2716E94342BAA6EBA9428CB5927985
+#. SourceLocation:	/Game/WBP/WBP_LobbyTeamBoardWidget.WBP_LobbyTeamBoardWidget_C:WidgetTree.TextBlock_1.Text
+#: /Game/WBP/WBP_LobbyTeamBoardWidget.WBP_LobbyTeamBoardWidget_C:WidgetTree.TextBlock_1.Text
+msgctxt ",6B2716E94342BAA6EBA9428CB5927985"
+msgid "주황팀"
+msgstr "Orange Team"
+
+#. Key:	10D8D066487A92D4B10A138A63C366FB
+#. SourceLocation:	/Game/WBP/WBP_LobbyTeamBoardWidget.WBP_LobbyTeamBoardWidget_C:WidgetTree.TextBlock_10.Text
+#: /Game/WBP/WBP_LobbyTeamBoardWidget.WBP_LobbyTeamBoardWidget_C:WidgetTree.TextBlock_10.Text
+msgctxt ",10D8D066487A92D4B10A138A63C366FB"
+msgid "노랑팀"
+msgstr "Yellow Team"
+
+#. Key:	28D010F945444CA2C109BDA7DCB1DEDB
+#. SourceLocation:	/Game/WBP/WBP_LobbyTeamBoardWidget.WBP_LobbyTeamBoardWidget_C:WidgetTree.TextBlock_13.Text
+#: /Game/WBP/WBP_LobbyTeamBoardWidget.WBP_LobbyTeamBoardWidget_C:WidgetTree.TextBlock_13.Text
+msgctxt ",28D010F945444CA2C109BDA7DCB1DEDB"
+msgid "보라팀"
+msgstr "Purple Team"
+
+#. Key:	32AE5A424EFA502746DE718F4639EB3C
+#. SourceLocation:	/Game/WBP/WBP_LobbyTeamBoardWidget.WBP_LobbyTeamBoardWidget_C:WidgetTree.TextBlock_16.Text
+#: /Game/WBP/WBP_LobbyTeamBoardWidget.WBP_LobbyTeamBoardWidget_C:WidgetTree.TextBlock_16.Text
+msgctxt ",32AE5A424EFA502746DE718F4639EB3C"
+msgid "분홍팀"
+msgstr "Pink Team"
+
+#. Key:	8681C5A349B03198780052BE2BA3639F
+#. SourceLocation:	/Game/WBP/WBP_LobbyTeamBoardWidget.WBP_LobbyTeamBoardWidget_C:WidgetTree.TextBlock_19.Text
+#: /Game/WBP/WBP_LobbyTeamBoardWidget.WBP_LobbyTeamBoardWidget_C:WidgetTree.TextBlock_19.Text
+msgctxt ",8681C5A349B03198780052BE2BA3639F"
+msgid "하늘팀"
+msgstr "Sky Blue Team"
+
+#. Key:	26AF30D0465D2470658D83826665DF36
+#. SourceLocation:	/Game/WBP/WBP_LobbyTeamBoardWidget.WBP_LobbyTeamBoardWidget_C:WidgetTree.TextBlock_281.Text
+#: /Game/WBP/WBP_LobbyTeamBoardWidget.WBP_LobbyTeamBoardWidget_C:WidgetTree.TextBlock_281.Text
+msgctxt ",26AF30D0465D2470658D83826665DF36"
+msgid "빨강팀"
+msgstr "Red Team"
+
+#. Key:	F4EAFB1741988BC136FE9A84778C0AC0
+#. SourceLocation:	/Game/WBP/WBP_LobbyTeamBoardWidget.WBP_LobbyTeamBoardWidget_C:WidgetTree.TextBlock_4.Text
+#: /Game/WBP/WBP_LobbyTeamBoardWidget.WBP_LobbyTeamBoardWidget_C:WidgetTree.TextBlock_4.Text
+msgctxt ",F4EAFB1741988BC136FE9A84778C0AC0"
+msgid "파랑팀"
+msgstr "Blue Team"
+
+#. Key:	0A47326A4FD8FFFE321F50BD03A75185
+#. SourceLocation:	/Game/WBP/WBP_LobbyTeamBoardWidget.WBP_LobbyTeamBoardWidget_C:WidgetTree.TextBlock_7.Text
+#: /Game/WBP/WBP_LobbyTeamBoardWidget.WBP_LobbyTeamBoardWidget_C:WidgetTree.TextBlock_7.Text
+msgctxt ",0A47326A4FD8FFFE321F50BD03A75185"
+msgid "초록팀"
+msgstr "Green Team"
+
+#. Key:	2D140E074C6690EB97B35880E3C15A6A
+#. SourceLocation:	/Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.CurrentRoundText.Text
+#: /Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.CurrentRoundText.Text
+msgctxt ",2D140E074C6690EB97B35880E3C15A6A"
+msgid "1"
+msgstr "1"
+
+#. Key:	39334E2D4EBD37840728ECBF26A652D4
+#. SourceLocation:	/Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.EndRoundResultText.Text
+#: /Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.EndRoundResultText.Text
+msgctxt ",39334E2D4EBD37840728ECBF26A652D4"
+msgid "wdw"
+msgstr "wdw"
+
+#. Key:	EFA5AAF94F4A15577AA3A39AE12D218E
+#. SourceLocation:	/Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.RedTeamScoreText.Text
+#: /Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.RedTeamScoreText.Text
+msgctxt ",EFA5AAF94F4A15577AA3A39AE12D218E"
+msgid "3"
+msgstr "3"
+
+#. Key:	109ED66647F50163316000BB35C0FA05
+#. SourceLocation:	/Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.StartCountdownText.Text
+#: /Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.StartCountdownText.Text
+msgctxt ",109ED66647F50163316000BB35C0FA05"
+msgid "3"
+msgstr "3"
+
+#. Key:	7F3542B44B6C4452DC2529A11F261909
+#. SourceLocation:	/Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.Text.Text
+#: /Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.Text.Text
+msgctxt ",7F3542B44B6C4452DC2529A11F261909"
+msgid "보라"
+msgstr "Purple"
+
+#. Key:	C727EC6643522C41592DEB90CD102A07
+#. SourceLocation:	/Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.TextBlock.Text
+#: /Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.TextBlock.Text
+msgctxt ",C727EC6643522C41592DEB90CD102A07"
+msgid "파랑"
+msgstr "Blue"
+
+#. Key:	8AA4FF934BA4C3075EF225838DACFDC2
+#. SourceLocation:	/Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.TextBlock_10.Text
+#: /Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.TextBlock_10.Text
+msgctxt ",8AA4FF934BA4C3075EF225838DACFDC2"
+msgid "하늘"
+msgstr "Sky Blue"
+
+#. Key:	3F90774646A740FE74FD9A99F8DB00FD
+#. SourceLocation:	/Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.TextBlock_12.Text
+#: /Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.TextBlock_12.Text
+msgctxt ",3F90774646A740FE74FD9A99F8DB00FD"
+msgid "하양"
+msgstr "White"
+
+#. Key:	0264CE8844F76F16D756B69C770EE353
+#. SourceLocation:	/Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.TextBlock_2.Text
+#: /Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.TextBlock_2.Text
+msgctxt ",0264CE8844F76F16D756B69C770EE353"
+msgid "초록"
+msgstr "Green"
+
+#. Key:	70BC36884000611BDED51EA4AC26F143
+#. SourceLocation:	/Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.TextBlock_295.Text
+#: /Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.TextBlock_295.Text
+msgctxt ",70BC36884000611BDED51EA4AC26F143"
+msgid "빨강"
+msgstr "Red"
+
+#. Key:	F06EEDE8487B614F2AB511BA33473CA2
+#. SourceLocation:	/Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.TextBlock_4.Text
+#: /Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.TextBlock_4.Text
+msgctxt ",F06EEDE8487B614F2AB511BA33473CA2"
+msgid "노랑"
+msgstr "Yellow"
+
+#. Key:	433648294A3A4C322F85EB9278E6B5A9
+#. SourceLocation:	/Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.TextBlock_8.Text
+#: /Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.TextBlock_8.Text
+msgctxt ",433648294A3A4C322F85EB9278E6B5A9"
+msgid "분홍"
+msgstr "Pink"
+
+#. Key:	A466FBD84FF3958B07C01F97EE5C972E
+#. SourceLocation:	/Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.YellowTeamScoreText.Text
+#: /Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C:WidgetTree.YellowTeamScoreText.Text
+msgctxt ",A466FBD84FF3958B07C01F97EE5C972E"
+msgid "3"
+msgstr "3"
+
+#. Key:	TextBlockDefaultValue
+#. SourceLocation:	/Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.MainMenuAlarmText.Text
+#: /Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.MainMenuAlarmText.Text
+msgctxt "UMG,TextBlockDefaultValue"
+msgid "Text Block"
+msgstr "Text Block"
+
+#. Key:	A858692A4952C7E6C3115F99DBC6D82B
+#. SourceLocation:	/Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.PlayerNameTextBox.HintText
+#: /Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.PlayerNameTextBox.HintText
+msgctxt ",A858692A4952C7E6C3115F99DBC6D82B"
+msgid "구운 감자"
+msgstr "Baked Potato"
+
+#. Key:	858A0DF643213814CF94F1A46A499D91
+#. SourceLocation:	/Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.TextBlock.Text
+#: /Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.TextBlock.Text
+msgctxt ",858A0DF643213814CF94F1A46A499D91"
+msgid "게임 조작법"
+msgstr "Controls"
+
+#. Key:	497C2BE446D905082A79A1863B8734D5
+#. SourceLocation:	/Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.TextBlock_0.Text
+#: /Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.TextBlock_0.Text
+msgctxt ",497C2BE446D905082A79A1863B8734D5"
+msgid "방 만들기"
+msgstr "Create Room"
+
+#. Key:	587F1C2A4AD03EB441C2B6AD10941ADC
+#. SourceLocation:	/Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.TextBlock_1.Text
+#: /Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.TextBlock_1.Text
+msgctxt ",587F1C2A4AD03EB441C2B6AD10941ADC"
+msgid "빠른 참가"
+msgstr "Quick Join"
+
+#. Key:	771E07E04C070E9008D616861C849186
+#. SourceLocation:	/Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.TextBlock_2.Text
+#: /Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.TextBlock_2.Text
+msgctxt ",771E07E04C070E9008D616861C849186"
+msgid "참여하기"
+msgstr "Join"
+
+#. Key:	39C153164DA1B67D5FD5E6A266BABDDA
+#. SourceLocation:	/Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.TextBlock_244.Text
+#: /Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.TextBlock_244.Text
+msgctxt ",39C153164DA1B67D5FD5E6A266BABDDA"
+msgid "입력"
+msgstr "Input"
+
+#. Key:	A693F1CD44826509590B63AF6F00A7DF
+#. SourceLocation:	/Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.TextBlock_3.Text
+#: /Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.TextBlock_3.Text
+msgctxt ",A693F1CD44826509590B63AF6F00A7DF"
+msgid "캐릭터 편집"
+msgstr "Edit Character"
+
+#. Key:	9120EF2046F40CDBE84B369D97CB073B
+#. SourceLocation:	/Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.TextBlock_329.Text
+#: /Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.TextBlock_329.Text
+msgctxt ",9120EF2046F40CDBE84B369D97CB073B"
+msgid "취소"
+msgstr "Cancel"
+
+#. Key:	B878540949AC7118E1184BAF5429ED01
+#. SourceLocation:	/Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.TextBlock_4.Text
+#: /Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.TextBlock_4.Text
+msgctxt ",B878540949AC7118E1184BAF5429ED01"
+msgid "이름 설정"
+msgstr "Set Name"
+
+#. Key:	CA4C3382437915445E591EA5BED6520D
+#. SourceLocation:	/Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.TextBlock_5.Text
+#: /Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.TextBlock_5.Text
+msgctxt ",CA4C3382437915445E591EA5BED6520D"
+msgid "설정"
+msgstr "Settings"
+
+#. Key:	452CF8C54D17FE391FA958A48EC67109
+#. SourceLocation:	/Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.TextBlock_6.Text
+#: /Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.TextBlock_6.Text
+msgctxt ",452CF8C54D17FE391FA958A48EC67109"
+msgid "참여할 방의 코드를 입력해주세요."
+msgstr "Enter the code of the room you want to join."
+
+#. Key:	4C614F1F47ADD4A14EF91ABBE852A56F
+#. SourceLocation:	/Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.TextBlock_96.Text
+#: /Game/WBP/WBP_MainMenu.WBP_MainMenu_C:WidgetTree.TextBlock_96.Text
+msgctxt ",4C614F1F47ADD4A14EF91ABBE852A56F"
+msgid "방 코드"
+msgstr "Room Code"
+
+#. Key:	F31C398747CBA336E821C1A6A3129A43
+#. SourceLocation:	/Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock.Text
+#: /Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock.Text
+msgctxt ",F31C398747CBA336E821C1A6A3129A43"
+msgid "소리"
+msgstr "Audio"
+
+#. Key:	2C448D2344FD658FBCBFD2A4D2833B49
+#. SourceLocation:	/Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_0.Text
+#: /Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_0.Text
+msgctxt ",2C448D2344FD658FBCBFD2A4D2833B49"
+msgid "마우스 감도"
+msgstr "Mouse Sensitivity"
+
+#. Key:	31BC7E9643D4005B48A5A48E4B9655E8
+#. SourceLocation:	/Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_1.Text
+#: /Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_1.Text
+msgctxt ",31BC7E9643D4005B48A5A48E4B9655E8"
+msgid "조작"
+msgstr "Controls"
+
+#. Key:	D167F7D74888C6D5F574BD8A7415A72D
+#. SourceLocation:	/Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_10.Text
+#: /Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_10.Text
+msgctxt ",D167F7D74888C6D5F574BD8A7415A72D"
+msgid "눌러서 말하기"
+msgstr "Push to Talk"
+
+#. Key:	BE3D1C924476EBD513859A8394F5CD92
+#. SourceLocation:	/Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_11.Text
+#: /Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_11.Text
+msgctxt ",BE3D1C924476EBD513859A8394F5CD92"
+msgid "항상 말하기"
+msgstr "Always On"
+
+#. Key:	4F73B12F40A05BDF82FEB58E5B245A5B
+#. SourceLocation:	/Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_112.Text
+#: /Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_112.Text
+msgctxt ",4F73B12F40A05BDF82FEB58E5B245A5B"
+msgid "감도"
+msgstr "Sensitivity"
+
+#. Key:	0ED6EF1C4CC4086A51A58F821DD2FFDB
+#. SourceLocation:	/Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_12.Text
+#: /Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_12.Text
+msgctxt ",0ED6EF1C4CC4086A51A58F821DD2FFDB"
+msgid "설정"
+msgstr "Settings"
+
+#. Key:	55BA9B6F4854BA75D5F9CBA71A8446D7
+#. SourceLocation:	/Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_13.Text
+#: /Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_13.Text
+msgctxt ",55BA9B6F4854BA75D5F9CBA71A8446D7"
+msgid "마이크 선택"
+msgstr "Select Microphone"
+
+#. Key:	767FBD7D43BC6D49A65677BD0884040F
+#. SourceLocation:	/Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_15.Text
+#: /Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_15.Text
+msgctxt ",767FBD7D43BC6D49A65677BD0884040F"
+msgid "마이크 확인"
+msgstr "Test Microphone"
+
+#. Key:	182BE936450C0349D64FF58FBE770B97
+#. SourceLocation:	/Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_2.Text
+#: /Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_2.Text
+msgctxt ",182BE936450C0349D64FF58FBE770B97"
+msgid "마이크"
+msgstr "Microphone"
+
+#. Key:	489F0AC84F78E1BF3888D98AD8D1734B
+#. SourceLocation:	/Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_3.Text
+#: /Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_3.Text
+msgctxt ",489F0AC84F78E1BF3888D98AD8D1734B"
+msgid "초기화"
+msgstr "Reset"
+
+#. Key:	5BAC54474B2A1ED0C64EC181D7CAD749
+#. SourceLocation:	/Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_4.Text
+#: /Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_4.Text
+msgctxt ",5BAC54474B2A1ED0C64EC181D7CAD749"
+msgid "나가기"
+msgstr "Exit"
+
+#. Key:	23B6AAE14E5D135D776B4E8FDEBA6DEB
+#. SourceLocation:	/Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_5.Text
+#: /Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_5.Text
+msgctxt ",23B6AAE14E5D135D776B4E8FDEBA6DEB"
+msgid "적용"
+msgstr "Apply"
+
+#. Key:	C987AA1F4C8C64728444E0AB1EDA8B7D
+#. SourceLocation:	/Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_6.Text
+#: /Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_6.Text
+msgctxt ",C987AA1F4C8C64728444E0AB1EDA8B7D"
+msgid "마이크 방식"
+msgstr "Microphone Mode"
+
+#. Key:	BDEE41094A564E9BF2C82FB209CC3A81
+#. SourceLocation:	/Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_7.Text
+#: /Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_7.Text
+msgctxt ",BDEE41094A564E9BF2C82FB209CC3A81"
+msgid "마이크 소리"
+msgstr "Microphone Volume"
+
+#. Key:	4C1AE9CF4E1DCF0C7C18B1BFAFB9B9B3
+#. SourceLocation:	/Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_8.Text
+#: /Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_8.Text
+msgctxt ",4C1AE9CF4E1DCF0C7C18B1BFAFB9B9B3"
+msgid "배경 음악"
+msgstr "Background Music"
+
+#. Key:	482BB3B04C14BE6D6CA0EE9BFB30936C
+#. SourceLocation:	/Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_9.Text
+#: /Game/WBP/WBP_OptionWidget.WBP_OptionWidget_C:WidgetTree.TextBlock_9.Text
+msgctxt ",482BB3B04C14BE6D6CA0EE9BFB30936C"
+msgid "효과음"
+msgstr "Sound Effects"
+
+#. Key:	70F2BD4B4AC414467FAAF19BA73B72F7
+#. SourceLocation:	/Game/WBP/WBP_PhotoInteracter.WBP_PhotoInteracter_C:WidgetTree.TextBlock_0.Text
+#: /Game/WBP/WBP_PhotoInteracter.WBP_PhotoInteracter_C:WidgetTree.TextBlock_0.Text
+msgctxt ",70F2BD4B4AC414467FAAF19BA73B72F7"
+msgid "사진찍기 - P"
+msgstr "Take Photo - P"
+
+#. Key:	FAAEEAC54BEA87892A351A920FBABBB6
+#. SourceLocation:	/Game/WBP/WBP_VoiceMuteWidget.WBP_VoiceMuteWidget_C:WidgetTree.TextBlock_71.Text
+#: /Game/WBP/WBP_VoiceMuteWidget.WBP_VoiceMuteWidget_C:WidgetTree.TextBlock_71.Text
+msgctxt ",FAAEEAC54BEA87892A351A920FBABBB6"
+msgid "닫기"
+msgstr "Close"
+
+#. Key:	PodiumReturnSubtitleCountdown
+#. SourceLocation:	Source/SnowRumble/Game/PodiumGameMode.cpp(26)
+#: Source/SnowRumble/Game/PodiumGameMode.cpp(26)
+msgctxt "SnowRumble,PodiumReturnSubtitleCountdown"
+msgid "{0}초 후 로비로 돌아갑니다."
+msgstr ""
+
+#. Key:	SnowmanModeStartCountdownGo
+#. SourceLocation:	Source/SnowRumble/Game/SnowmanModeGameState_K.cpp(145)
+#: Source/SnowRumble/Game/SnowmanModeGameState_K.cpp(145)
+msgctxt "SnowRumble,SnowmanModeStartCountdownGo"
+msgid "시작!"
+msgstr ""
+
+#. Key:	SnowmanModeElapsedTimeFormat
+#. SourceLocation:	Source/SnowRumble/Game/SnowmanModeGameState_K.cpp(195)
+#: Source/SnowRumble/Game/SnowmanModeGameState_K.cpp(195)
+msgctxt "SnowRumble,SnowmanModeElapsedTimeFormat"
+msgid "경기 시간 {0}"
+msgstr ""
+
+#. Key:	EventLogPlayerFrozen
+#. SourceLocation:	Source/SnowRumble/Game/SnowRumbleGameMode.cpp(1134)
+#: Source/SnowRumble/Game/SnowRumbleGameMode.cpp(1134)
+msgctxt "SnowRumble,EventLogPlayerFrozen"
+msgid "{0}님이 얼었습니다"
+msgstr ""
+
+#. Key:	EventLogPlayerDead
+#. SourceLocation:	Source/SnowRumble/Game/SnowRumbleGameMode.cpp(1143)
+#: Source/SnowRumble/Game/SnowRumbleGameMode.cpp(1143)
+msgctxt "SnowRumble,EventLogPlayerDead"
+msgid "{0}님이 죽었습니다"
+msgstr ""
+
+#. Key:	PvpLoadingTimeout
+#. SourceLocation:	Source/SnowRumble/Game/SnowRumbleGameMode.cpp(284)
+#: Source/SnowRumble/Game/SnowRumbleGameMode.cpp(284)
+msgctxt "SnowRumble,PvpLoadingTimeout"
+msgid "PvP 로딩 시간이 초과되어 로비로 돌아갑니다."
+msgstr ""
+
+#. Key:	GiftBoxClassMissing
+#. SourceLocation:	Source/SnowRumble/Game/SnowRumbleGameMode.cpp(858)
+#: Source/SnowRumble/Game/SnowRumbleGameMode.cpp(858)
+msgctxt "SnowRumble,GiftBoxClassMissing"
+msgid "선물상자 클래스가 설정되지 않았습니다"
+msgstr ""
+
+#. Key:	GiftBoxTargetPointMissing
+#. SourceLocation:	Source/SnowRumble/Game/SnowRumbleGameMode.cpp(870)
+#: Source/SnowRumble/Game/SnowRumbleGameMode.cpp(870)
+msgctxt "SnowRumble,GiftBoxTargetPointMissing"
+msgid "선물상자 TargetPoint가 없습니다"
+msgstr ""
+
+#. Key:	GiftBoxSantaDroppedGift
+#. SourceLocation:	Source/SnowRumble/Game/SnowRumbleGameMode.cpp(904)
+#: Source/SnowRumble/Game/SnowRumbleGameMode.cpp(904)
+msgctxt "SnowRumble,GiftBoxSantaDroppedGift"
+msgid "산타가 선물을 흘렸다네"
+msgstr ""
+
+#. Key:	GiftBoxSantaDroppedGiftLog
+#. SourceLocation:	Source/SnowRumble/Game/SnowRumbleGameMode.cpp(908)
+#: Source/SnowRumble/Game/SnowRumbleGameMode.cpp(908)
+msgctxt "SnowRumble,GiftBoxSantaDroppedGiftLog"
+msgid "산타가 선물을 흘렸다네"
+msgstr ""
+
+#. Key:	MatchStartCountdownGo
+#. SourceLocation:	Source/SnowRumble/Game/SnowRumbleGameState_C.cpp(178)
+#: Source/SnowRumble/Game/SnowRumbleGameState_C.cpp(178)
+msgctxt "SnowRumble,MatchStartCountdownGo"
+msgid "시작!"
+msgstr ""
+
+#. Key:	RoundElapsedTimeFormat
+#. SourceLocation:	Source/SnowRumble/Game/SnowRumbleGameState_C.cpp(201)
+#: Source/SnowRumble/Game/SnowRumbleGameState_C.cpp(201)
+msgctxt "SnowRumble,RoundElapsedTimeFormat"
+msgid "경기 시간 {0}"
+msgstr ""
+
+#. Key:	MapShrinkInProgressText
+#. SourceLocation:	Source/SnowRumble/Game/SnowRumbleGameState_C.cpp(225)
+#: Source/SnowRumble/Game/SnowRumbleGameState_C.cpp(225)
+msgctxt "SnowRumble,MapShrinkInProgressText"
+msgid "맵이 축소됩니다!"
+msgstr ""
+
+#. Key:	MapShrinkCountdownFormat
+#. SourceLocation:	Source/SnowRumble/Game/SnowRumbleGameState_C.cpp(234)
+#: Source/SnowRumble/Game/SnowRumbleGameState_C.cpp(234)
+msgctxt "SnowRumble,MapShrinkCountdownFormat"
+msgid "{0}초 후 맵이 축소됩니다"
+msgstr ""
+
+#. Key:	LobbyInvalidStartNeedTwoTeams
+#. SourceLocation:	Source/SnowRumble/Game/SnowRumbleLobbyGameState.cpp(106)
+#: Source/SnowRumble/Game/SnowRumbleLobbyGameState.cpp(106)
+msgctxt "SnowRumble,LobbyInvalidStartNeedTwoTeams"
+msgid "두 개 이상의 팀이 있어야 게임을 시작할 수 있습니다."
+msgstr ""
+
+#. Key:	LobbyInvalidStartNotReady
+#. SourceLocation:	Source/SnowRumble/Game/SnowRumbleLobbyGameState.cpp(117)
+#: Source/SnowRumble/Game/SnowRumbleLobbyGameState.cpp(117)
+msgctxt "SnowRumble,LobbyInvalidStartNotReady"
+msgid "모든 플레이어가 준비 완료해야 시작할 수 있습니다."
+msgstr ""
+
+#. Key:	LobbyRoomSettingsChangedAlarm
+#. SourceLocation:	Source/SnowRumble/Game/SnowRumbleLobbyGameState.cpp(295)
+#: Source/SnowRumble/Game/SnowRumbleLobbyGameState.cpp(295)
+msgctxt "SnowRumble,LobbyRoomSettingsChangedAlarm"
+msgid "방장이 방설정을 변경하였습니다"
+msgstr ""
+
+#. Key:	LobbyInvalidStartNeedPlayers
+#. SourceLocation:	Source/SnowRumble/Game/SnowRumbleLobbyGameState.cpp(77)
+#: Source/SnowRumble/Game/SnowRumbleLobbyGameState.cpp(77)
+msgctxt "SnowRumble,LobbyInvalidStartNeedPlayers"
+msgid "게임 시작에는 최소 2명이 필요합니다."
+msgstr ""
+
+#. Key:	LobbyInvalidStartTooManyPlayers
+#. SourceLocation:	Source/SnowRumble/Game/SnowRumbleLobbyGameState.cpp(84)
+#: Source/SnowRumble/Game/SnowRumbleLobbyGameState.cpp(84)
+msgctxt "SnowRumble,LobbyInvalidStartTooManyPlayers"
+msgid "게임 시작은 최대 8명까지 가능합니다."
+msgstr ""
+
+#. Key:	LobbyInvalidStartNeedTeam
+#. SourceLocation:	Source/SnowRumble/Game/SnowRumbleLobbyGameState.cpp(95)
+#: Source/SnowRumble/Game/SnowRumbleLobbyGameState.cpp(95)
+msgctxt "SnowRumble,LobbyInvalidStartNeedTeam"
+msgid "모든 플레이어가 팀 색을 선택해야 합니다."
+msgstr ""
+
+#. Key:	LobbyEventPlayerJoined
+#. SourceLocation:	Source/SnowRumble/Game/SnowRumblePlayerState.cpp(313)
+#: Source/SnowRumble/Game/SnowRumblePlayerState.cpp(313)
+msgctxt "SnowRumble,LobbyEventPlayerJoined"
+msgid "{0}님이 접속했습니다"
+msgstr ""
+
+#. Key:	LobbyEventPlayerReady
+#. SourceLocation:	Source/SnowRumble/Game/SnowRumblePlayerState.cpp(347)
+#: Source/SnowRumble/Game/SnowRumblePlayerState.cpp(347)
+msgctxt "SnowRumble,LobbyEventPlayerReady"
+msgid "{0}님이 준비 완료했습니다"
+msgstr ""
+
+#. Key:	GiftRewardGoldenHotPack
+#. SourceLocation:	Source/SnowRumble/Item/GiftBox_C.cpp(100)
+#: Source/SnowRumble/Item/GiftBox_C.cpp(100)
+msgctxt "SnowRumble,GiftRewardGoldenHotPack"
+msgid "황금 핫팩"
+msgstr ""
+
+#. Key:	GiftRewardGoldenShovel
+#. SourceLocation:	Source/SnowRumble/Item/GiftBox_C.cpp(105)
+#: Source/SnowRumble/Item/GiftBox_C.cpp(105)
+msgctxt "SnowRumble,GiftRewardGoldenShovel"
+msgid "황금 눈삽"
+msgstr ""
+
+#. Key:	GiftRewardGoldenDuckMaker
+#. SourceLocation:	Source/SnowRumble/Item/GiftBox_C.cpp(110)
+#: Source/SnowRumble/Item/GiftBox_C.cpp(110)
+msgctxt "SnowRumble,GiftRewardGoldenDuckMaker"
+msgid "황금 눈오리 제작기"
+msgstr ""
+
+#. Key:	GiftRewardGoldenFishBread
+#. SourceLocation:	Source/SnowRumble/Item/GiftBox_C.cpp(115)
+#: Source/SnowRumble/Item/GiftBox_C.cpp(115)
+msgctxt "SnowRumble,GiftRewardGoldenFishBread"
+msgid "황금 붕어빵"
+msgstr ""
+
+#. Key:	GiftRewardCampfireKit
+#. SourceLocation:	Source/SnowRumble/Item/GiftBox_C.cpp(120)
+#: Source/SnowRumble/Item/GiftBox_C.cpp(120)
+msgctxt "SnowRumble,GiftRewardCampfireKit"
+msgid "모닥불 키트"
+msgstr ""
+
+#. Key:	GiftRewardGoldFallback
+#. SourceLocation:	Source/SnowRumble/Item/GiftBox_C.cpp(362)
+#: Source/SnowRumble/Item/GiftBox_C.cpp(362)
+msgctxt "SnowRumble,GiftRewardGoldFallback"
+msgid "황금 아이템"
+msgstr ""
+
+#. Key:	GiftRewardRedFallback
+#. SourceLocation:	Source/SnowRumble/Item/GiftBox_C.cpp(363)
+#: Source/SnowRumble/Item/GiftBox_C.cpp(363)
+msgctxt "SnowRumble,GiftRewardRedFallback"
+msgid "빨간 상자 아이템"
+msgstr ""
+
+#. Key:	GiftRewardBoots
+#. SourceLocation:	Source/SnowRumble/Item/GiftBox_C.cpp(72)
+#: Source/SnowRumble/Item/GiftBox_C.cpp(72)
+msgctxt "SnowRumble,GiftRewardBoots"
+msgid "부츠"
+msgstr ""
+
+#. Key:	GiftRewardPadding
+#. SourceLocation:	Source/SnowRumble/Item/GiftBox_C.cpp(77)
+#: Source/SnowRumble/Item/GiftBox_C.cpp(77)
+msgctxt "SnowRumble,GiftRewardPadding"
+msgid "패딩"
+msgstr ""
+
+#. Key:	GiftRewardGloves
+#. SourceLocation:	Source/SnowRumble/Item/GiftBox_C.cpp(82)
+#: Source/SnowRumble/Item/GiftBox_C.cpp(82)
+msgctxt "SnowRumble,GiftRewardGloves"
+msgid "장갑"
+msgstr ""
+
+#. Key:	GiftRewardRustyShovel
+#. SourceLocation:	Source/SnowRumble/Item/GiftBox_C.cpp(87)
+#: Source/SnowRumble/Item/GiftBox_C.cpp(87)
+msgctxt "SnowRumble,GiftRewardRustyShovel"
+msgid "녹슨 눈삽"
+msgstr ""
+
+#. Key:	GiftRewardRustyDuckMaker
+#. SourceLocation:	Source/SnowRumble/Item/GiftBox_C.cpp(92)
+#: Source/SnowRumble/Item/GiftBox_C.cpp(92)
+msgctxt "SnowRumble,GiftRewardRustyDuckMaker"
+msgid "녹슨 눈오리 제작기"
+msgstr ""
+
+#. Key:	EventLogGiftItemPickedUp
+#. SourceLocation:	Source/SnowRumble/Item/GiftBoxItemPickup_C.cpp(223)
+#: Source/SnowRumble/Item/GiftBoxItemPickup_C.cpp(223)
+msgctxt "SnowRumble,EventLogGiftItemPickedUp"
+msgid "{0}님이 {1}을 획득했습니다"
+msgstr ""
+
+#. Key:	PersonalGiftItemPickedUp
+#. SourceLocation:	Source/SnowRumble/Item/GiftBoxItemPickup_C.cpp(230)
+#: Source/SnowRumble/Item/GiftBoxItemPickup_C.cpp(230)
+msgctxt "SnowRumble,PersonalGiftItemPickedUp"
+msgid "획득: {0}"
+msgstr ""
+
+#. Key:	InteractPromptPhoto
+#. SourceLocation:	Source/SnowRumble/Player/SnowRumbleCharacter.cpp(2745)
+#: Source/SnowRumble/Player/SnowRumbleCharacter.cpp(2745)
+msgctxt "SnowRumble,InteractPromptPhoto"
+msgid "E - 사진찍기"
+msgstr ""
+
+#. Key:	InteractPromptBoard
+#. SourceLocation:	Source/SnowRumble/Player/SnowRumbleCharacter.cpp(2755)
+#: Source/SnowRumble/Player/SnowRumbleCharacter.cpp(2755)
+msgctxt "SnowRumble,InteractPromptBoard"
+msgid "E - 게시판"
+msgstr ""
+
+#. Key:	InteractPromptReviveTeammate
+#. SourceLocation:	Source/SnowRumble/Player/SnowRumbleCharacter.cpp(2766)
+#: Source/SnowRumble/Player/SnowRumbleCharacter.cpp(2766)
+msgctxt "SnowRumble,InteractPromptReviveTeammate"
+msgid "E - 살리기"
+msgstr ""
+
+#. Key:	InteractPromptGiftBox
+#. SourceLocation:	Source/SnowRumble/Player/SnowRumbleCharacter.cpp(2776)
+#: Source/SnowRumble/Player/SnowRumbleCharacter.cpp(2776)
+msgctxt "SnowRumble,InteractPromptGiftBox"
+msgid "E - 선물상자"
+msgstr ""
+
+#. Key:	InteractPromptGiftBoxItem
+#. SourceLocation:	Source/SnowRumble/Player/SnowRumbleCharacter.cpp(2787)
+#: Source/SnowRumble/Player/SnowRumbleCharacter.cpp(2787)
+msgctxt "SnowRumble,InteractPromptGiftBoxItem"
+msgid "E - {0}"
+msgstr ""
+
+#. Key:	InteractPromptSnowball
+#. SourceLocation:	Source/SnowRumble/Player/SnowRumbleCharacter.cpp(2810)
+#: Source/SnowRumble/Player/SnowRumbleCharacter.cpp(2810)
+msgctxt "SnowRumble,InteractPromptSnowball"
+msgid "E - 눈덩이"
+msgstr ""
+
+#. Key:	ChatChannelTeam
+#. SourceLocation:	Source/SnowRumble/UI/ChatWidget_C.cpp(20)
+#: Source/SnowRumble/UI/ChatWidget_C.cpp(20)
+msgctxt "SnowRumble,ChatChannelTeam"
+msgid "팀"
+msgstr "Team"
+
+#. Key:	ChatMessageFormat
+#. SourceLocation:	Source/SnowRumble/UI/ChatWidget_C.cpp(201)
+#: Source/SnowRumble/UI/ChatWidget_C.cpp(201)
+msgctxt "SnowRumble,ChatMessageFormat"
+msgid "[{0}] {1}: {2}"
+msgstr "[{0}] {1}: {2}"
+
+#. Key:	ChatChannelAll
+#. SourceLocation:	Source/SnowRumble/UI/ChatWidget_C.cpp(23)
+#: Source/SnowRumble/UI/ChatWidget_C.cpp(23)
+msgctxt "SnowRumble,ChatChannelAll"
+msgid "전체"
+msgstr "All"
+
+#. Key:	HealthBarText
+#. SourceLocation:	Source/SnowRumble/UI/HealthBarWidget.cpp(110)
+#: Source/SnowRumble/UI/HealthBarWidget.cpp(110)
+msgctxt "SnowRumble,HealthBarText"
+msgid "{0} / {1}"
+msgstr "{0} / {1}"
+
+#. Key:	KeyGuideUnassigned
+#. SourceLocation:	Source/SnowRumble/UI/KeyGuideWidget_C.cpp(105)
+#: Source/SnowRumble/UI/KeyGuideWidget_C.cpp(105)
+msgctxt "SnowRumble,KeyGuideUnassigned"
+msgid "미할당"
+msgstr "Unassigned"
+
+#. Key:	KeyGuideLeftMouse
+#. SourceLocation:	Source/SnowRumble/UI/KeyGuideWidget_C.cpp(109)
+#: Source/SnowRumble/UI/KeyGuideWidget_C.cpp(109)
+msgctxt "SnowRumble,KeyGuideLeftMouse"
+msgid "좌클릭"
+msgstr "Left Click"
+
+#. Key:	KeyGuideRightMouse
+#. SourceLocation:	Source/SnowRumble/UI/KeyGuideWidget_C.cpp(113)
+#: Source/SnowRumble/UI/KeyGuideWidget_C.cpp(113)
+msgctxt "SnowRumble,KeyGuideRightMouse"
+msgid "우클릭"
+msgstr "Right Click"
+
+#. Key:	KeyGuideMiddleMouse
+#. SourceLocation:	Source/SnowRumble/UI/KeyGuideWidget_C.cpp(117)
+#: Source/SnowRumble/UI/KeyGuideWidget_C.cpp(117)
+msgctxt "SnowRumble,KeyGuideMiddleMouse"
+msgid "휠클릭"
+msgstr "Middle Click"
+
+#. Key:	KeyGuideSpace
+#. SourceLocation:	Source/SnowRumble/UI/KeyGuideWidget_C.cpp(121)
+#: Source/SnowRumble/UI/KeyGuideWidget_C.cpp(121)
+msgctxt "SnowRumble,KeyGuideSpace"
+msgid "Space"
+msgstr "Space"
+
+#. Key:	KeyGuideShift
+#. SourceLocation:	Source/SnowRumble/UI/KeyGuideWidget_C.cpp(125)
+#: Source/SnowRumble/UI/KeyGuideWidget_C.cpp(125)
+msgctxt "SnowRumble,KeyGuideShift"
+msgid "Shift"
+msgstr "Shift"
+
+#. Key:	KeyGuideCtrl
+#. SourceLocation:	Source/SnowRumble/UI/KeyGuideWidget_C.cpp(129)
+#: Source/SnowRumble/UI/KeyGuideWidget_C.cpp(129)
+msgctxt "SnowRumble,KeyGuideCtrl"
+msgid "Ctrl"
+msgstr "Ctrl"
+
+#. Key:	KeyGuideAlt
+#. SourceLocation:	Source/SnowRumble/UI/KeyGuideWidget_C.cpp(133)
+#: Source/SnowRumble/UI/KeyGuideWidget_C.cpp(133)
+msgctxt "SnowRumble,KeyGuideAlt"
+msgid "Alt"
+msgstr "Alt"
+
+#. Key:	KeyGuideMoveFormat
+#. SourceLocation:	Source/SnowRumble/UI/KeyGuideWidget_C.cpp(44)
+#: Source/SnowRumble/UI/KeyGuideWidget_C.cpp(44)
+msgctxt "SnowRumble,KeyGuideMoveFormat"
+msgid "{0}{1}{2}{3}"
+msgstr "{0}{1}{2}{3}"
+
+#. Key:	TravelLoadingMessage
+#. SourceLocation:	Source/SnowRumble/UI/LoadingScreenSubsystem.cpp(108)
+#: Source/SnowRumble/UI/LoadingScreenSubsystem.cpp(108)
+msgctxt "SnowRumble,TravelLoadingMessage"
+msgid "Preparing arena..."
+msgstr "Preparing arena..."
+
+#. Key:	TravelLoadingTeamTitle
+#. SourceLocation:	Source/SnowRumble/UI/LoadingScreenSubsystem.cpp(124)
+#: Source/SnowRumble/UI/LoadingScreenSubsystem.cpp(124)
+msgctxt "SnowRumble,TravelLoadingTeamTitle"
+msgid "Team"
+msgstr "Team"
+
+#. Key:	TravelLoadingTeamFallback
+#. SourceLocation:	Source/SnowRumble/UI/LoadingScreenSubsystem.cpp(157)
+#: Source/SnowRumble/UI/LoadingScreenSubsystem.cpp(157)
+msgctxt "SnowRumble,TravelLoadingTeamFallback"
+msgid "Player"
+msgstr "Player"
+
+#. Key:	TravelLoadingTitle
+#. SourceLocation:	Source/SnowRumble/UI/LoadingScreenSubsystem.cpp(180)
+#: Source/SnowRumble/UI/LoadingScreenSubsystem.cpp(180)
+msgctxt "SnowRumble,TravelLoadingTitle"
+msgid "Loading PvP Match"
+msgstr "Loading PvP Match"
+
+#. Key:	TravelLoadingMapTitle
+#. SourceLocation:	Source/SnowRumble/UI/LoadingScreenSubsystem.cpp(187)
+#: Source/SnowRumble/UI/LoadingScreenSubsystem.cpp(187)
+msgctxt "SnowRumble,TravelLoadingMapTitle"
+msgid "{0}"
+msgstr "{0}"
+
+#. Key:	LoadingPlayerCountFormat
+#. SourceLocation:	Source/SnowRumble/UI/LoadingScreenSubsystem.cpp(332)
+#: Source/SnowRumble/UI/LoadingScreenSubsystem.cpp(332)
+msgctxt "SnowRumble,LoadingPlayerCountFormat"
+msgid "{0} / {1}"
+msgstr "{0} / {1}"
+
+#. Key:	DefaultLoadingScreenText
+#. SourceLocation:	Source/SnowRumble/UI/LoadingScreenWidget.cpp(154)
+#: Source/SnowRumble/UI/LoadingScreenWidget.cpp(154)
+msgctxt "SnowRumble,DefaultLoadingScreenText"
+msgid "Loading..."
+msgstr "Loading..."
+
+#. Key:	LoadingPlayerJoinMessage
+#. SourceLocation:	Source/SnowRumble/UI/LoadingScreenWidget.cpp(69)
+#: Source/SnowRumble/UI/LoadingScreenWidget.cpp(69)
+msgctxt "SnowRumble,LoadingPlayerJoinMessage"
+msgid "플레이어 접속 중..."
+msgstr "Connecting players..."
+
+#. Key:	LobbyBoardInvalidHostOnlyRound
+#. SourceLocation:	Source/SnowRumble/UI/LobbyBoardWidget_C.cpp(1028)
+#: Source/SnowRumble/UI/LobbyBoardWidget_C.cpp(1028)
+msgctxt "SnowRumble,LobbyBoardInvalidHostOnlyRound"
+msgid "라운드 수는 호스트만 변경할 수 있습니다."
+msgstr "Only the host can change the number of rounds."
+
+#. Key:	LobbyBoardInvalidHostOnlyGameSpeed
+#. SourceLocation:	Source/SnowRumble/UI/LobbyBoardWidget_C.cpp(1049)
+#: Source/SnowRumble/UI/LobbyBoardWidget_C.cpp(1049)
+msgctxt "SnowRumble,LobbyBoardInvalidHostOnlyGameSpeed"
+msgid "게임 속도는 호스트만 변경할 수 있습니다."
+msgstr "Only the host can change the game speed."
+
+#. Key:	LobbyBoardInvalidHostOnlyShuffle
+#. SourceLocation:	Source/SnowRumble/UI/LobbyBoardWidget_C.cpp(1070)
+#: Source/SnowRumble/UI/LobbyBoardWidget_C.cpp(1070)
+msgctxt "SnowRumble,LobbyBoardInvalidHostOnlyShuffle"
+msgid "팀 섞기는 호스트만 사용할 수 있습니다."
+msgstr "Only the host can shuffle teams."
+
+#. Key:	LobbyBoardInvalidShuffleNeedPlayers
+#. SourceLocation:	Source/SnowRumble/UI/LobbyBoardWidget_C.cpp(1087)
+#: Source/SnowRumble/UI/LobbyBoardWidget_C.cpp(1087)
+msgctxt "SnowRumble,LobbyBoardInvalidShuffleNeedPlayers"
+msgid "선택한 팀 수보다 플레이어가 적습니다."
+msgstr "There are fewer players than selected teams."
+
+#. Key:	LobbyBoardInvalidHostOnlySoloShuffle
+#. SourceLocation:	Source/SnowRumble/UI/LobbyBoardWidget_C.cpp(1108)
+#: Source/SnowRumble/UI/LobbyBoardWidget_C.cpp(1108)
+msgctxt "SnowRumble,LobbyBoardInvalidHostOnlySoloShuffle"
+msgid "개인전 섞기는 호스트만 사용할 수 있습니다."
+msgstr "Only the host can shuffle individual players."
+
+#. Key:	LobbyBoardInvalidStartFallback
+#. SourceLocation:	Source/SnowRumble/UI/LobbyBoardWidget_C.cpp(682)
+#: Source/SnowRumble/UI/LobbyBoardWidget_C.cpp(682)
+msgctxt "SnowRumble,LobbyBoardInvalidStartFallback"
+msgid "게임을 시작할 수 없습니다."
+msgstr "Unable to start the game."
+
+#. Key:	LobbyBoardInvalidTeamChangeWhileReady
+#. SourceLocation:	Source/SnowRumble/UI/LobbyBoardWidget_C.cpp(774)
+#: Source/SnowRumble/UI/LobbyBoardWidget_C.cpp(774)
+msgctxt "SnowRumble,LobbyBoardInvalidTeamChangeWhileReady"
+msgid "준비 완료 상태에서는 팀 색을 변경할 수 없습니다."
+msgstr "Team color cannot be changed while ready."
+
+#. Key:	LobbyBoardInvalidHostOnlySetting
+#. SourceLocation:	Source/SnowRumble/UI/LobbyBoardWidget_C.cpp(832)
+#: Source/SnowRumble/UI/LobbyBoardWidget_C.cpp(832)
+msgctxt "SnowRumble,LobbyBoardInvalidHostOnlySetting"
+msgid "방 설정은 호스트만 변경할 수 있습니다."
+msgstr "Only the host can change room settings."
+
+#. Key:	LobbyBoardStartGame
+#. SourceLocation:	Source/SnowRumble/UI/LobbyBoardWidget_C.cpp(873)
+#: Source/SnowRumble/UI/LobbyBoardWidget_C.cpp(873)
+msgctxt "SnowRumble,LobbyBoardStartGame"
+msgid "게임 시작"
+msgstr "Start Game"
+
+#. Key:	LobbyBoardCancelReady
+#. SourceLocation:	Source/SnowRumble/UI/LobbyBoardWidget_C.cpp(880)
+#: Source/SnowRumble/UI/LobbyBoardWidget_C.cpp(880)
+msgctxt "SnowRumble,LobbyBoardCancelReady"
+msgid "준비 취소"
+msgstr "Cancel Ready"
+
+#. Key:	LobbyBoardReady
+#. SourceLocation:	Source/SnowRumble/UI/LobbyBoardWidget_C.cpp(881)
+#: Source/SnowRumble/UI/LobbyBoardWidget_C.cpp(881)
+msgctxt "SnowRumble,LobbyBoardReady"
+msgid "준비 완료"
+msgstr "Ready"
+
+#. Key:	LobbyMatchRoundLimitFormat
+#. SourceLocation:	Source/SnowRumble/UI/LobbyBoardWidget_C.cpp(899)
+#: Source/SnowRumble/UI/LobbyBoardWidget_C.cpp(899)
+msgctxt "SnowRumble,LobbyMatchRoundLimitFormat"
+msgid "{0} 라운드"
+msgstr "{0} Rounds"
+
+#. Key:	LobbyControllerInvalidTeamChangeWhileReady
+#. SourceLocation:	Source/SnowRumble/UI/LobbyPlayerController.cpp(383)
+#: Source/SnowRumble/UI/LobbyPlayerController.cpp(383)
+msgctxt "SnowRumble,LobbyControllerInvalidTeamChangeWhileReady"
+msgid "준비 완료 상태에서는 팀 색을 변경할 수 없습니다."
+msgstr "Team color cannot be changed while ready."
+
+#. Key:	LobbyInvalidPlayerName
+#. SourceLocation:	Source/SnowRumble/UI/LobbyWidget.cpp(138)
+#: Source/SnowRumble/UI/LobbyWidget.cpp(138)
+msgctxt "SnowRumble,LobbyInvalidPlayerName"
+msgid "적합하지 않은 이름입니다."
+msgstr "This name is not valid."
+
+#. Key:	LobbyInvalidTeamChangeWhileReady
+#. SourceLocation:	Source/SnowRumble/UI/LobbyWidget.cpp(161)
+#: Source/SnowRumble/UI/LobbyWidget.cpp(161)
+msgctxt "SnowRumble,LobbyInvalidTeamChangeWhileReady"
+msgid "준비 완료 상태에서는 팀 색을 변경할 수 없습니다."
+msgstr "Team color cannot be changed while ready."
+
+#. Key:	LobbyInvalidStartFallback
+#. SourceLocation:	Source/SnowRumble/UI/LobbyWidget.cpp(189)
+#: Source/SnowRumble/UI/LobbyWidget.cpp(189)
+msgctxt "SnowRumble,LobbyInvalidStartFallback"
+msgid "게임을 시작할 수 없습니다."
+msgstr "Unable to start the game."
+
+#. Key:	LobbyModePvp
+#. SourceLocation:	Source/SnowRumble/UI/LobbyWidget.cpp(23)
+#: Source/SnowRumble/UI/LobbyWidget.cpp(23)
+msgctxt "SnowRumble,LobbyModePvp"
+msgid "PvP"
+msgstr "PvP"
+
+#. Key:	LobbyModeSnowman
+#. SourceLocation:	Source/SnowRumble/UI/LobbyWidget.cpp(25)
+#: Source/SnowRumble/UI/LobbyWidget.cpp(25)
+msgctxt "SnowRumble,LobbyModeSnowman"
+msgid "눈사람 모드"
+msgstr "Snowman Mode"
+
+#. Key:	LobbyGameSpeedSlow
+#. SourceLocation:	Source/SnowRumble/UI/LobbyWidget.cpp(36)
+#: Source/SnowRumble/UI/LobbyWidget.cpp(36)
+msgctxt "SnowRumble,LobbyGameSpeedSlow"
+msgid "느리게"
+msgstr "Slow"
+
+#. Key:	LobbyGameSpeedFast
+#. SourceLocation:	Source/SnowRumble/UI/LobbyWidget.cpp(38)
+#: Source/SnowRumble/UI/LobbyWidget.cpp(38)
+msgctxt "SnowRumble,LobbyGameSpeedFast"
+msgid "빠르게"
+msgstr "Fast"
+
+#. Key:	LobbyRoundLimitFormat
+#. SourceLocation:	Source/SnowRumble/UI/LobbyWidget.cpp(391)
+#: Source/SnowRumble/UI/LobbyWidget.cpp(391)
+msgctxt "SnowRumble,LobbyRoundLimitFormat"
+msgid "{0} 라운드"
+msgstr "{0} Rounds"
+
+#. Key:	LobbyGameSpeedNormal
+#. SourceLocation:	Source/SnowRumble/UI/LobbyWidget.cpp(41)
+#: Source/SnowRumble/UI/LobbyWidget.cpp(41)
+msgctxt "SnowRumble,LobbyGameSpeedNormal"
+msgid "보통"
+msgstr "Normal"
+
+#. Key:	LobbyTeamUnselectedFallback
+#. SourceLocation:	Source/SnowRumble/UI/LobbyWidget.cpp(417)
+#: Source/SnowRumble/UI/LobbyWidget.cpp(417)
+msgctxt "SnowRumble,LobbyTeamUnselectedFallback"
+msgid "미선택"
+msgstr "Unselected"
+
+#. Key:	LobbyReadyStateReady
+#. SourceLocation:	Source/SnowRumble/UI/LobbyWidget.cpp(424)
+#: Source/SnowRumble/UI/LobbyWidget.cpp(424)
+msgctxt "SnowRumble,LobbyReadyStateReady"
+msgid "준비 완료"
+msgstr "Ready"
+
+#. Key:	LobbyReadyStateNotReady
+#. SourceLocation:	Source/SnowRumble/UI/LobbyWidget.cpp(425)
+#: Source/SnowRumble/UI/LobbyWidget.cpp(425)
+msgctxt "SnowRumble,LobbyReadyStateNotReady"
+msgid "준비 전"
+msgstr "Not Ready"
+
+#. Key:	LobbyTeamRed
+#. SourceLocation:	Source/SnowRumble/UI/LobbyWidget.cpp(50)
+#: Source/SnowRumble/UI/LobbyWidget.cpp(50)
+msgctxt "SnowRumble,LobbyTeamRed"
+msgid "빨강"
+msgstr "Red"
+
+#. Key:	LobbyTeamSky
+#. SourceLocation:	Source/SnowRumble/UI/LobbyWidget.cpp(52)
+#: Source/SnowRumble/UI/LobbyWidget.cpp(52)
+msgctxt "SnowRumble,LobbyTeamSky"
+msgid "하늘"
+msgstr "Sky Blue"
+
+#. Key:	LobbyTeamGreen
+#. SourceLocation:	Source/SnowRumble/UI/LobbyWidget.cpp(54)
+#: Source/SnowRumble/UI/LobbyWidget.cpp(54)
+msgctxt "SnowRumble,LobbyTeamGreen"
+msgid "초록"
+msgstr "Green"
+
+#. Key:	LobbyTeamYellow
+#. SourceLocation:	Source/SnowRumble/UI/LobbyWidget.cpp(56)
+#: Source/SnowRumble/UI/LobbyWidget.cpp(56)
+msgctxt "SnowRumble,LobbyTeamYellow"
+msgid "노랑"
+msgstr "Yellow"
+
+#. Key:	LobbyTeamPurple
+#. SourceLocation:	Source/SnowRumble/UI/LobbyWidget.cpp(58)
+#: Source/SnowRumble/UI/LobbyWidget.cpp(58)
+msgctxt "SnowRumble,LobbyTeamPurple"
+msgid "보라"
+msgstr "Purple"
+
+#. Key:	LobbyTeamPink
+#. SourceLocation:	Source/SnowRumble/UI/LobbyWidget.cpp(60)
+#: Source/SnowRumble/UI/LobbyWidget.cpp(60)
+msgctxt "SnowRumble,LobbyTeamPink"
+msgid "핑크"
+msgstr "Pink"
+
+#. Key:	LobbyTeamBlue
+#. SourceLocation:	Source/SnowRumble/UI/LobbyWidget.cpp(62)
+#: Source/SnowRumble/UI/LobbyWidget.cpp(62)
+msgctxt "SnowRumble,LobbyTeamBlue"
+msgid "파랑"
+msgstr "Blue"
+
+#. Key:	LobbyTeamOrange
+#. SourceLocation:	Source/SnowRumble/UI/LobbyWidget.cpp(64)
+#: Source/SnowRumble/UI/LobbyWidget.cpp(64)
+msgctxt "SnowRumble,LobbyTeamOrange"
+msgid "주황"
+msgstr "Orange"
+
+#. Key:	LobbyTeamUnselected
+#. SourceLocation:	Source/SnowRumble/UI/LobbyWidget.cpp(66)
+#: Source/SnowRumble/UI/LobbyWidget.cpp(66)
+msgctxt "SnowRumble,LobbyTeamUnselected"
+msgid "미선택"
+msgstr "Unselected"
+
+#. Key:	CurrentRoundTiebreaker
+#. SourceLocation:	Source/SnowRumble/UI/MainHUDWidget.cpp(290)
+#: Source/SnowRumble/UI/MainHUDWidget.cpp(290)
+msgctxt "SnowRumble,CurrentRoundTiebreaker"
+msgid "단판승부"
+msgstr "Single Round"
+
+#. Key:	CurrentRoundFormat
+#. SourceLocation:	Source/SnowRumble/UI/MainHUDWidget.cpp(292)
+#: Source/SnowRumble/UI/MainHUDWidget.cpp(292)
+msgctxt "SnowRumble,CurrentRoundFormat"
+msgid "라운드 {0} / {1}"
+msgstr "Round {0} / {1}"
+
+#. Key:	MatchWinnerFormat
+#. SourceLocation:	Source/SnowRumble/UI/MainHUDWidget.cpp(418)
+#: Source/SnowRumble/UI/MainHUDWidget.cpp(418)
+msgctxt "SnowRumble,MatchWinnerFormat"
+msgid "{0} 1등"
+msgstr "{0} - 1st Place"
+
+#. Key:	RoundWinnerFormat
+#. SourceLocation:	Source/SnowRumble/UI/MainHUDWidget.cpp(421)
+#: Source/SnowRumble/UI/MainHUDWidget.cpp(421)
+msgctxt "SnowRumble,RoundWinnerFormat"
+msgid "{0} 승리"
+msgstr "{0} Wins"
+
+#. Key:	MainMenuNoSessionFound
+#. SourceLocation:	Source/SnowRumble/UI/MainMenuWidget.cpp(197)
+#: Source/SnowRumble/UI/MainMenuWidget.cpp(197)
+msgctxt "SnowRumble,MainMenuNoSessionFound"
+msgid "방이 존재하지 않습니다."
+msgstr "The room does not exist."
+
+#. Key:	MainMenuInvalidPlayerName
+#. SourceLocation:	Source/SnowRumble/UI/MainMenuWidget.cpp(417)
+#: Source/SnowRumble/UI/MainMenuWidget.cpp(417)
+msgctxt "SnowRumble,MainMenuInvalidPlayerName"
+msgid "적합하지 않은 이름입니다."
+msgstr "This name is not valid."
+
+#. Key:	MainMenuHostInProgress
+#. SourceLocation:	Source/SnowRumble/UI/MainMenuWidget.cpp(519)
+#: Source/SnowRumble/UI/MainMenuWidget.cpp(519)
+msgctxt "SnowRumble,MainMenuHostInProgress"
+msgid "방 생성중..."
+msgstr "Creating room..."
+
+#. Key:	MainMenuSearchInProgress
+#. SourceLocation:	Source/SnowRumble/UI/MainMenuWidget.cpp(521)
+#: Source/SnowRumble/UI/MainMenuWidget.cpp(521)
+msgctxt "SnowRumble,MainMenuSearchInProgress"
+msgid "방 찾는중..."
+msgstr "Finding rooms..."
+
+#. Key:	MainMenuJoinInProgress
+#. SourceLocation:	Source/SnowRumble/UI/MainMenuWidget.cpp(525)
+#: Source/SnowRumble/UI/MainMenuWidget.cpp(525)
+msgctxt "SnowRumble,MainMenuJoinInProgress"
+msgid "방 참가중..."
+msgstr "Joining room..."
+
+#. Key:	KeyBindingUnassigned
+#. SourceLocation:	Source/SnowRumble/UI/OptionsKeyBindingRowWidget_C.cpp(85)
+#: Source/SnowRumble/UI/OptionsKeyBindingRowWidget_C.cpp(85)
+msgctxt "SnowRumble,KeyBindingUnassigned"
+msgid "미할당"
+msgstr "Unassigned"
+
+#. Key:	MicrophoneTestOpenFailed
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(1271)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(1271)
+msgctxt "SnowRumble,MicrophoneTestOpenFailed"
+msgid "마이크를 열 수 없습니다."
+msgstr "Unable to open the microphone."
+
+#. Key:	MicrophoneTestListening
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(1289)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(1289)
+msgctxt "SnowRumble,MicrophoneTestListening"
+msgid "마이크 입력을 확인하는 중입니다."
+msgstr "Checking microphone input."
+
+#. Key:	MicrophoneTestStopped
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(1319)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(1319)
+msgctxt "SnowRumble,MicrophoneTestStopped"
+msgid "마이크 테스트가 중지되었습니다."
+msgstr "Microphone test stopped."
+
+#. Key:	MicrophoneTestInputDetected
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(1395)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(1395)
+msgctxt "SnowRumble,MicrophoneTestInputDetected"
+msgid "마이크 입력이 감지되었습니다."
+msgstr "Microphone input detected."
+
+#. Key:	MicrophoneTestWaitingForInput
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(1399)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(1399)
+msgctxt "SnowRumble,MicrophoneTestWaitingForInput"
+msgid "마이크 입력을 기다리는 중입니다."
+msgstr "Waiting for microphone input."
+
+#. Key:	SensitivityValuePercent
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(1677)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(1677)
+msgctxt "SnowRumble,SensitivityValuePercent"
+msgid "{0}%"
+msgstr "{0}%"
+
+#. Key:	MasterVolumeValuePercent
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(1688)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(1688)
+msgctxt "SnowRumble,MasterVolumeValuePercent"
+msgid "{0}%"
+msgstr "{0}%"
+
+#. Key:	BgmVolumeValuePercent
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(1694)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(1694)
+msgctxt "SnowRumble,BgmVolumeValuePercent"
+msgid "{0}%"
+msgstr "{0}%"
+
+#. Key:	SfxVolumeValuePercent
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(1700)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(1700)
+msgctxt "SnowRumble,SfxVolumeValuePercent"
+msgid "{0}%"
+msgstr "{0}%"
+
+#. Key:	VoiceVolumeValuePercent
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(1706)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(1706)
+msgctxt "SnowRumble,VoiceVolumeValuePercent"
+msgid "{0}%"
+msgstr "{0}%"
+
+#. Key:	MicrophoneVolumeValuePercent
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(1716)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(1716)
+msgctxt "SnowRumble,MicrophoneVolumeValuePercent"
+msgid "{0}%"
+msgstr "{0}%"
+
+#. Key:	KeyBindingResetRequested
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(618)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(618)
+msgctxt "SnowRumble,KeyBindingResetRequested"
+msgid "{0} 기본값 복원"
+msgstr "Restore {0} Defaults"
+
+#. Key:	KeyBindingAllResetRequested
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(797)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(797)
+msgctxt "SnowRumble,KeyBindingAllResetRequested"
+msgid "키 설정 기본값 복원"
+msgstr "Restore Key Bindings Defaults"
+
+#. Key:	KeyBindingRebindPending
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(826)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(826)
+msgctxt "SnowRumble,KeyBindingRebindPending"
+msgid "{0} 키 입력 대기 중"
+msgstr "Waiting for {0} key input"
+
+#. Key:	KeyBindingRebindCanceled
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(846)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(846)
+msgctxt "SnowRumble,KeyBindingRebindCanceled"
+msgid "{0} 키 변경 취소"
+msgstr "Cancel {0} key change"
+
+#. Key:	KeyBindingInvalidKey
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(870)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(870)
+msgctxt "SnowRumble,KeyBindingInvalidKey"
+msgid "사용할 수 없는 키입니다"
+msgstr "This key cannot be used."
+
+#. Key:	KeyBindingChanged
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(910)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(910)
+msgctxt "SnowRumble,KeyBindingChanged"
+msgid "{0} 키를 {1}(으)로 변경"
+msgstr "Change {0} key to {1}"
+
+#. Key:	KeyBindingMoveForward
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(937)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(937)
+msgctxt "SnowRumble,KeyBindingMoveForward"
+msgid "앞으로 이동"
+msgstr "Move Forward"
+
+#. Key:	KeyBindingMoveBackward
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(941)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(941)
+msgctxt "SnowRumble,KeyBindingMoveBackward"
+msgid "뒤로 이동"
+msgstr "Move Backward"
+
+#. Key:	KeyBindingMoveLeft
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(945)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(945)
+msgctxt "SnowRumble,KeyBindingMoveLeft"
+msgid "왼쪽 이동"
+msgstr "Move Left"
+
+#. Key:	KeyBindingMoveRight
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(949)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(949)
+msgctxt "SnowRumble,KeyBindingMoveRight"
+msgid "오른쪽 이동"
+msgstr "Move Right"
+
+#. Key:	KeyBindingJump
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(953)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(953)
+msgctxt "SnowRumble,KeyBindingJump"
+msgid "점프"
+msgstr "Jump"
+
+#. Key:	KeyBindingSprint
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(957)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(957)
+msgctxt "SnowRumble,KeyBindingSprint"
+msgid "달리기"
+msgstr "Sprint"
+
+#. Key:	KeyBindingInteract
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(961)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(961)
+msgctxt "SnowRumble,KeyBindingInteract"
+msgid "상호작용"
+msgstr "Interact"
+
+#. Key:	KeyBindingAim
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(965)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(965)
+msgctxt "SnowRumble,KeyBindingAim"
+msgid "조준"
+msgstr "Aim"
+
+#. Key:	KeyBindingAction
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(969)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(969)
+msgctxt "SnowRumble,KeyBindingAction"
+msgid "행동"
+msgstr "Action"
+
+#. Key:	KeyBindingDropEquipment
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(973)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(973)
+msgctxt "SnowRumble,KeyBindingDropEquipment"
+msgid "장비 내려놓기"
+msgstr "Drop Equipment"
+
+#. Key:	KeyBindingEmote
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(977)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(977)
+msgctxt "SnowRumble,KeyBindingEmote"
+msgid "이모션"
+msgstr "Emote"
+
+#. Key:	KeyBindingKeyGuide
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(981)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(981)
+msgctxt "SnowRumble,KeyBindingKeyGuide"
+msgid "키 가이드"
+msgstr "Key Guide"
+
+#. Key:	KeyBindingChat
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(985)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(985)
+msgctxt "SnowRumble,KeyBindingChat"
+msgid "채팅"
+msgstr "Chat"
+
+#. Key:	KeyBindingMicrophonePushToTalk
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(989)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(989)
+msgctxt "SnowRumble,KeyBindingMicrophonePushToTalk"
+msgid "마이크 입력"
+msgstr "Microphone Input"
+
+#. Key:	KeyBindingMicrophoneChannelToggle
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(993)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(993)
+msgctxt "SnowRumble,KeyBindingMicrophoneChannelToggle"
+msgid "마이크 채널 전환"
+msgstr "Switch Microphone Channel"
+
+#. Key:	KeyBindingVoiceTargetMute
+#. SourceLocation:	Source/SnowRumble/UI/OptionsWidget_C.cpp(997)
+#: Source/SnowRumble/UI/OptionsWidget_C.cpp(997)
+msgctxt "SnowRumble,KeyBindingVoiceTargetMute"
+msgid "플레이어 음소거"
+msgstr "Mute Player"
+
+#. Key:	PodiumWinnerRedTeam
+#. SourceLocation:	Source/SnowRumble/UI/PodiumWinnerWidget.cpp(14)
+#: Source/SnowRumble/UI/PodiumWinnerWidget.cpp(14)
+msgctxt "SnowRumble,PodiumWinnerRedTeam"
+msgid "빨강 팀 우승"
+msgstr "Red Team Wins"
+
+#. Key:	PodiumWinnerSkyTeam
+#. SourceLocation:	Source/SnowRumble/UI/PodiumWinnerWidget.cpp(16)
+#: Source/SnowRumble/UI/PodiumWinnerWidget.cpp(16)
+msgctxt "SnowRumble,PodiumWinnerSkyTeam"
+msgid "하늘 팀 우승"
+msgstr "Sky Blue Team Wins"
+
+#. Key:	PodiumWinnerGreenTeam
+#. SourceLocation:	Source/SnowRumble/UI/PodiumWinnerWidget.cpp(18)
+#: Source/SnowRumble/UI/PodiumWinnerWidget.cpp(18)
+msgctxt "SnowRumble,PodiumWinnerGreenTeam"
+msgid "초록 팀 우승"
+msgstr "Green Team Wins"
+
+#. Key:	PodiumWinnerYellowTeam
+#. SourceLocation:	Source/SnowRumble/UI/PodiumWinnerWidget.cpp(20)
+#: Source/SnowRumble/UI/PodiumWinnerWidget.cpp(20)
+msgctxt "SnowRumble,PodiumWinnerYellowTeam"
+msgid "노랑 팀 우승"
+msgstr "Yellow Team Wins"
+
+#. Key:	PodiumWinnerPurpleTeam
+#. SourceLocation:	Source/SnowRumble/UI/PodiumWinnerWidget.cpp(22)
+#: Source/SnowRumble/UI/PodiumWinnerWidget.cpp(22)
+msgctxt "SnowRumble,PodiumWinnerPurpleTeam"
+msgid "보라 팀 우승"
+msgstr "Purple Team Wins"
+
+#. Key:	PodiumWinnerPinkTeam
+#. SourceLocation:	Source/SnowRumble/UI/PodiumWinnerWidget.cpp(24)
+#: Source/SnowRumble/UI/PodiumWinnerWidget.cpp(24)
+msgctxt "SnowRumble,PodiumWinnerPinkTeam"
+msgid "분홍 팀 우승"
+msgstr "Pink Team Wins"
+
+#. Key:	PodiumWinnerBlueTeam
+#. SourceLocation:	Source/SnowRumble/UI/PodiumWinnerWidget.cpp(26)
+#: Source/SnowRumble/UI/PodiumWinnerWidget.cpp(26)
+msgctxt "SnowRumble,PodiumWinnerBlueTeam"
+msgid "파랑 팀 우승"
+msgstr "Blue Team Wins"
+
+#. Key:	PodiumWinnerOrangeTeam
+#. SourceLocation:	Source/SnowRumble/UI/PodiumWinnerWidget.cpp(28)
+#: Source/SnowRumble/UI/PodiumWinnerWidget.cpp(28)
+msgctxt "SnowRumble,PodiumWinnerOrangeTeam"
+msgid "주황 팀 우승"
+msgstr "Orange Team Wins"
+
+#. Key:	PodiumWinnerNoTeam
+#. SourceLocation:	Source/SnowRumble/UI/PodiumWinnerWidget.cpp(31)
+#: Source/SnowRumble/UI/PodiumWinnerWidget.cpp(31)
+msgctxt "SnowRumble,PodiumWinnerNoTeam"
+msgid "우승 팀 없음"
+msgstr "No Winning Team"
+
+#. Key:	VoiceMuteMenuMissing
+#. SourceLocation:	Source/SnowRumble/UI/SnowRumblePlayerController.cpp(1255)
+#: Source/SnowRumble/UI/SnowRumblePlayerController.cpp(1255)
+msgctxt "SnowRumble,VoiceMuteMenuMissing"
+msgid "음소거 메뉴가 설정되지 않았습니다"
+msgstr "Mute menu is not configured."
+
+#. Key:	VoiceChannelTeam
+#. SourceLocation:	Source/SnowRumble/UI/SnowRumblePlayerController.cpp(1292)
+#: Source/SnowRumble/UI/SnowRumblePlayerController.cpp(1292)
+msgctxt "SnowRumble,VoiceChannelTeam"
+msgid "팀으로 말하기"
+msgstr "Talk to Team"
+
+#. Key:	VoiceChannelAll
+#. SourceLocation:	Source/SnowRumble/UI/SnowRumblePlayerController.cpp(1293)
+#: Source/SnowRumble/UI/SnowRumblePlayerController.cpp(1293)
+msgctxt "SnowRumble,VoiceChannelAll"
+msgid "전체로 말하기"
+msgstr "Talk to Everyone"
+
+#. Key:	PvpIntroRedTeam
+#. SourceLocation:	Source/SnowRumble/UI/SnowRumblePlayerController.cpp(1588)
+#: Source/SnowRumble/UI/SnowRumblePlayerController.cpp(1588)
+msgctxt "SnowRumble,PvpIntroRedTeam"
+msgid "빨간팀"
+msgstr "Red Team"
+
+#. Key:	PvpIntroSkyTeam
+#. SourceLocation:	Source/SnowRumble/UI/SnowRumblePlayerController.cpp(1590)
+#: Source/SnowRumble/UI/SnowRumblePlayerController.cpp(1590)
+msgctxt "SnowRumble,PvpIntroSkyTeam"
+msgid "하늘팀"
+msgstr "Sky Blue Team"
+
+#. Key:	PvpIntroGreenTeam
+#. SourceLocation:	Source/SnowRumble/UI/SnowRumblePlayerController.cpp(1592)
+#: Source/SnowRumble/UI/SnowRumblePlayerController.cpp(1592)
+msgctxt "SnowRumble,PvpIntroGreenTeam"
+msgid "초록팀"
+msgstr "Green Team"
+
+#. Key:	PvpIntroYellowTeam
+#. SourceLocation:	Source/SnowRumble/UI/SnowRumblePlayerController.cpp(1594)
+#: Source/SnowRumble/UI/SnowRumblePlayerController.cpp(1594)
+msgctxt "SnowRumble,PvpIntroYellowTeam"
+msgid "노란팀"
+msgstr "Yellow Team"
+
+#. Key:	PvpIntroPurpleTeam
+#. SourceLocation:	Source/SnowRumble/UI/SnowRumblePlayerController.cpp(1596)
+#: Source/SnowRumble/UI/SnowRumblePlayerController.cpp(1596)
+msgctxt "SnowRumble,PvpIntroPurpleTeam"
+msgid "보라팀"
+msgstr "Purple Team"
+
+#. Key:	PvpIntroPinkTeam
+#. SourceLocation:	Source/SnowRumble/UI/SnowRumblePlayerController.cpp(1598)
+#: Source/SnowRumble/UI/SnowRumblePlayerController.cpp(1598)
+msgctxt "SnowRumble,PvpIntroPinkTeam"
+msgid "분홍팀"
+msgstr "Pink Team"
+
+#. Key:	PvpIntroBlueTeam
+#. SourceLocation:	Source/SnowRumble/UI/SnowRumblePlayerController.cpp(1600)
+#: Source/SnowRumble/UI/SnowRumblePlayerController.cpp(1600)
+msgctxt "SnowRumble,PvpIntroBlueTeam"
+msgid "파란팀"
+msgstr "Blue Team"
+
+#. Key:	PvpIntroOrangeTeam
+#. SourceLocation:	Source/SnowRumble/UI/SnowRumblePlayerController.cpp(1602)
+#: Source/SnowRumble/UI/SnowRumblePlayerController.cpp(1602)
+msgctxt "SnowRumble,PvpIntroOrangeTeam"
+msgid "주황팀"
+msgstr "Orange Team"
+
+#. Key:	PvpIntroUnknownTeam
+#. SourceLocation:	Source/SnowRumble/UI/SnowRumblePlayerController.cpp(1604)
+#: Source/SnowRumble/UI/SnowRumblePlayerController.cpp(1604)
+msgctxt "SnowRumble,PvpIntroUnknownTeam"
+msgid "팀 소개"
+msgstr "Team Introduction"
+
+#. Key:	SpectatorViewTargetId
+#. SourceLocation:	Source/SnowRumble/UI/SpectatorWidget_C.cpp(35)
+#: Source/SnowRumble/UI/SpectatorWidget_C.cpp(35)
+msgctxt "SnowRumble,SpectatorViewTargetId"
+msgid "ID: {0}"
+msgstr "ID: {0}"
+
+#. Key:	VoiceMuteUnmuteButton
+#. SourceLocation:	Source/SnowRumble/UI/VoiceMutePlayerRowWidget_C.cpp(45)
+#: Source/SnowRumble/UI/VoiceMutePlayerRowWidget_C.cpp(45)
+msgctxt "SnowRumble,VoiceMuteUnmuteButton"
+msgid "해제"
+msgstr "Disable"
+
+#. Key:	VoiceMuteMuteButton
+#. SourceLocation:	Source/SnowRumble/UI/VoiceMutePlayerRowWidget_C.cpp(46)
+#: Source/SnowRumble/UI/VoiceMutePlayerRowWidget_C.cpp(46)
+msgctxt "SnowRumble,VoiceMuteMuteButton"
+msgid "음소거"
+msgstr "Mute"
