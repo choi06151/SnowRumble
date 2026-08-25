@@ -76,6 +76,16 @@ void USnowRumbleSessionSubsystem::Initialize(FSubsystemCollectionBase& Collectio
 			this,
 			&USnowRumbleSessionSubsystem::HandleTravelFailure);
 	}
+
+	if (IOnlineSessionPtr SessionInterface = GetSessionInterface();
+		SessionInterface.IsValid())
+	{
+		SessionUserInviteAcceptedHandle =
+			SessionInterface->AddOnSessionUserInviteAcceptedDelegate_Handle(
+				FOnSessionUserInviteAcceptedDelegate::CreateUObject(
+					this,
+					&USnowRumbleSessionSubsystem::HandleSessionUserInviteAccepted));
+	}
 }
 
 void USnowRumbleSessionSubsystem::Deinitialize()
@@ -99,6 +109,14 @@ void USnowRumbleSessionSubsystem::Deinitialize()
 	ClearCreateSessionDelegate();
 	ClearFindSessionsDelegate();
 	ClearJoinSessionDelegate();
+	if (IOnlineSessionPtr SessionInterface = GetSessionInterface();
+		SessionInterface.IsValid()
+		&& SessionUserInviteAcceptedHandle.IsValid())
+	{
+		SessionInterface->ClearOnSessionUserInviteAcceptedDelegate_Handle(
+			SessionUserInviteAcceptedHandle);
+	}
+	SessionUserInviteAcceptedHandle.Reset();
 	ActiveSessionSearch.Reset();
 
 	if (IOnlineSessionPtr SessionInterface = GetSessionInterface();
@@ -234,6 +252,7 @@ void USnowRumbleSessionSubsystem::CreateLanSession(int32 MaxPlayers)
 	SessionSettings.bAllowInvites = bUseSteam;
 	SessionSettings.bUsesPresence = bUseSteam;
 	SessionSettings.bUseLobbiesIfAvailable = bUseSteam;
+	SessionSettings.bAllowJoinViaPresence = bUseSteam;
 	SessionSettings.NumPublicConnections = MaxPlayers;
 	SessionSettings.Set(
 		SnowRumbleSession::RoomNameSettingKey,
@@ -699,6 +718,38 @@ bool USnowRumbleSessionSubsystem::ShowSessionInviteUI()
 		bShown ? 1 : 0,
 		*LocalSessionName.ToString());
 	return bShown;
+}
+
+void USnowRumbleSessionSubsystem::HandleSessionUserInviteAccepted(
+	const bool bWasSuccessful,
+	const int32 ControllerId,
+	FUniqueNetIdPtr UserId,
+	const FOnlineSessionSearchResult& InviteResult)
+{
+	UE_LOG(
+		LogSnowRumbleSession,
+		Log,
+		TEXT("Session invite accepted. Success=%d ControllerId=%d ValidResult=%d"),
+		bWasSuccessful ? 1 : 0,
+		ControllerId,
+		InviteResult.IsValid() ? 1 : 0);
+
+	if (!IsSteamSubsystem() || !bWasSuccessful || !InviteResult.IsValid())
+	{
+		SetPendingMainMenuAlarmMessage(TEXT("Steam 초대를 처리하지 못했습니다."));
+		return;
+	}
+
+	if (IsOperationInProgress())
+	{
+		SetPendingMainMenuAlarmMessage(TEXT("다른 세션 요청이 진행 중입니다."));
+		return;
+	}
+
+	ActiveSessionSearch = MakeShared<FOnlineSessionSearch>();
+	ActiveSessionSearch->SearchResults.Add(InviteResult);
+	SearchResults.Reset();
+	JoinSearchResult(0, ESnowRumbleSessionOperation::Join);
 }
 
 void USnowRumbleSessionSubsystem::SetOperationState(
