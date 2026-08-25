@@ -397,6 +397,14 @@ void ULoadingScreenSubsystem::StartMoviePlayerLoadingScreen()
 		return;
 	}
 
+	const UWorld* World = GetWorld();
+	if (World && World->GetNetMode() == NM_Client)
+	{
+		// Temporary validation: skip MoviePlayer on remote clients to test
+		// whether manual-stop MoviePlayer blocks network travel.
+		return;
+	}
+
 	FLoadingScreenAttributes LoadingScreenAttributes;
 	LoadingScreenAttributes.bAutoCompleteWhenLoadingCompletes = false;
 	LoadingScreenAttributes.bMoviesAreSkippable = false;
