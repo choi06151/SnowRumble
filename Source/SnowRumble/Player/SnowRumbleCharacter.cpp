@@ -25,12 +25,14 @@
 #include "../UI/InteractionPromptWidget_C.h"
 #include "../UI/KeyGuideWidget_C.h"
 #include "../UI/MainHUDWidget.h"
+#include "../UI/SpectatorWidget_C.h"
 #include "../UI/MainMenuPlayerController.h"
 #include "../Game/PodiumPlayerController.h"
 #include "../UI/OverheadNameplateWidget_C.h"
 #include "../UI/SnowRumblePlayerController.h"
 #include "SnowRumbleCharacterAnimInstance_C.h"
 #include "Animation/AnimMontage.h"
+#include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Components/CapsuleComponent.h"
@@ -303,6 +305,14 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 			TargetFieldOfView,
 			DeltaSeconds,
 			AimFieldOfViewInterpSpeed));
+	}
+	if (IsLocallyControlled())
+	{
+		UpdateReplicatedSpectatorCameraView();
+		if (bLifeStateSpectating)
+		{
+			UpdateLocalSpectatorCameraView();
+		}
 	}
 
 	if (OutlineComponent)
@@ -656,7 +666,83 @@ bool ASnowRumbleCharacter::ShouldPreferSnowCreationOverGrab() const
 
 bool ASnowRumbleCharacter::ShouldSuppressPvpWidgets() const
 {
-	return Cast<APodiumPlayerController>(Controller) != nullptr;
+	return bPvpIntroWidgetsHidden
+		|| Cast<APodiumPlayerController>(Controller) != nullptr;
+}
+
+void ASnowRumbleCharacter::SetPvpIntroWidgetsHidden(bool bShouldHide)
+{
+	if (!IsLocallyControlled())
+	{
+		return;
+	}
+
+	if (bShouldHide)
+	{
+		if (bPvpIntroWidgetsHidden)
+		{
+			return;
+		}
+
+		bPvpIntroWidgetsHidden = true;
+		if (EmoteRadialMenuWidget)
+		{
+			PvpIntroEmoteVisibility = EmoteRadialMenuWidget->GetVisibility();
+			CloseEmoteRadialMenu();
+			EmoteRadialMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		if (KeyGuideWidget)
+		{
+			PvpIntroKeyGuideVisibility = KeyGuideWidget->GetVisibility();
+			KeyGuideWidget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		if (MainHUDWidget)
+		{
+			PvpIntroMainHUDVisibility = MainHUDWidget->GetVisibility();
+			MainHUDWidget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		if (InteractionPromptWidget)
+		{
+			PvpIntroInteractionPromptVisibility =
+				InteractionPromptWidget->GetVisibility();
+			InteractionPromptWidget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		if (SpectatorWidget)
+		{
+			PvpIntroSpectatorVisibility = SpectatorWidget->GetVisibility();
+			SpectatorWidget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		bIsKeyGuideWidgetOpen = false;
+		return;
+	}
+
+	if (!bPvpIntroWidgetsHidden)
+	{
+		return;
+	}
+
+	bPvpIntroWidgetsHidden = false;
+	if (EmoteRadialMenuWidget)
+	{
+		EmoteRadialMenuWidget->SetVisibility(PvpIntroEmoteVisibility);
+	}
+	if (KeyGuideWidget)
+	{
+		KeyGuideWidget->SetVisibility(PvpIntroKeyGuideVisibility);
+	}
+	if (MainHUDWidget)
+	{
+		MainHUDWidget->SetVisibility(PvpIntroMainHUDVisibility);
+	}
+	if (InteractionPromptWidget)
+	{
+		InteractionPromptWidget->SetVisibility(
+			PvpIntroInteractionPromptVisibility);
+	}
+	if (SpectatorWidget)
+	{
+		SpectatorWidget->SetVisibility(PvpIntroSpectatorVisibility);
+	}
 }
 
 void ASnowRumbleCharacter::ApplyGrabbedByCharacter(
@@ -1371,6 +1457,16 @@ void ASnowRumbleCharacter::EndPlay(
 	{
 		InteractionPromptWidget->RemoveFromParent();
 		InteractionPromptWidget = nullptr;
+	}
+	if (SpectatorWidget)
+	{
+		SpectatorWidget->RemoveFromParent();
+		SpectatorWidget = nullptr;
+	}
+	if (SpectatorCameraActor)
+	{
+		SpectatorCameraActor->Destroy();
+		SpectatorCameraActor = nullptr;
 	}
 
 	Super::EndPlay(EndPlayReason);
@@ -2199,6 +2295,10 @@ void ASnowRumbleCharacter::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ASnowRumbleCharacter, bIsGrabbedByCharacter);
 	DOREPLIFETIME(ASnowRumbleCharacter, GrabbedByCharacter);
 	DOREPLIFETIME(ASnowRumbleCharacter, GrabbedByCharacterWorldLocation);
+	DOREPLIFETIME(ASnowRumbleCharacter, ReplicatedSpectatorCameraLocation);
+	DOREPLIFETIME(ASnowRumbleCharacter, ReplicatedSpectatorCameraRotation);
+	DOREPLIFETIME(ASnowRumbleCharacter, ReplicatedSpectatorCameraFieldOfView);
+	DOREPLIFETIME(ASnowRumbleCharacter, bHasReplicatedSpectatorCameraView);
 }
 
 void ASnowRumbleCharacter::PossessedBy(AController* NewController)
@@ -2520,6 +2620,14 @@ void ASnowRumbleCharacter::RefreshInteractionPromptWidget()
 	{
 		return;
 	}
+	if (bPvpIntroWidgetsHidden)
+	{
+		if (InteractionPromptWidget)
+		{
+			InteractionPromptWidget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		return;
+	}
 
 	EnsureInteractionPromptWidget();
 	if (!InteractionPromptWidget)
@@ -2661,7 +2769,7 @@ bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
 
 void ASnowRumbleCharacter::OpenEmoteRadialMenu()
 {
-	if (!IsLocallyControlled())
+	if (!IsLocallyControlled() || bPvpIntroWidgetsHidden)
 	{
 		return;
 	}
@@ -2733,7 +2841,7 @@ void ASnowRumbleCharacter::CloseEmoteRadialMenu()
 
 void ASnowRumbleCharacter::OpenKeyGuideWidget()
 {
-	if (!IsLocallyControlled())
+	if (!IsLocallyControlled() || bPvpIntroWidgetsHidden)
 	{
 		return;
 	}
@@ -2875,6 +2983,19 @@ void ASnowRumbleCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 	{
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ASnowRumbleCharacter::StartJump);
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ASnowRumbleCharacter::StopJump);
+	}
+	if (IsLocallyControlled())
+	{
+		PlayerInputComponent->BindKey(
+			EKeys::A,
+			IE_Pressed,
+			this,
+			&ASnowRumbleCharacter::SelectPreviousSpectatorViewTarget);
+		PlayerInputComponent->BindKey(
+			EKeys::D,
+			IE_Pressed,
+			this,
+			&ASnowRumbleCharacter::SelectNextSpectatorViewTarget);
 	}
 	if (MicrophonePushToTalkAction)
 	{
@@ -3714,9 +3835,10 @@ void ASnowRumbleCharacter::HandleFrozenChanged(bool bIsFrozen)
 	{
 		if (!HealthComponent || !HealthComponent->IsDead())
 		{
-			MovementComponent->SetMovementMode(MOVE_Walking);
+		MovementComponent->SetMovementMode(MOVE_Walking);
 		}
 	}
+	RefreshLifeStateSpectator();
 }
 
 void ASnowRumbleCharacter::HandleDeathChanged(bool bIsDead)
@@ -3745,6 +3867,303 @@ void ASnowRumbleCharacter::HandleDeathChanged(bool bIsDead)
 	}
 	StopJumping();
 	ApplyMovementSpeed();
+	RefreshLifeStateSpectator();
+}
+
+void ASnowRumbleCharacter::RefreshLifeStateSpectator()
+{
+	if (!IsLocallyControlled())
+	{
+		return;
+	}
+
+	const bool bShouldSpectate = IsFrozen() || IsDead();
+	if (!bShouldSpectate)
+	{
+		if (bLifeStateSpectating)
+		{
+			bLifeStateSpectating = false;
+			SpectatorViewTargets.Reset();
+			SpectatorViewTargetIndex = INDEX_NONE;
+			if (SpectatorWidget)
+			{
+				SpectatorWidget->RemoveFromParent();
+				SpectatorWidget = nullptr;
+			}
+			if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
+			{
+				PlayerController->SetViewTargetWithBlend(this, 0.15f);
+			}
+		}
+		return;
+	}
+
+	if (!bLifeStateSpectating)
+	{
+		bLifeStateSpectating = true;
+		RefreshSpectatorViewTargets();
+	}
+	else
+	{
+		ApplySpectatorViewTarget();
+	}
+}
+
+bool ASnowRumbleCharacter::IsSpectatorViewTargetCandidate(
+	const ASnowRumbleCharacter* Candidate) const
+{
+	return Candidate
+		&& Candidate->GetPlayerState()
+		&& !Candidate->bTiebreakerSpectator;
+}
+
+void ASnowRumbleCharacter::RefreshSpectatorViewTargets()
+{
+	if (!bLifeStateSpectating)
+	{
+		return;
+	}
+
+	ASnowRumbleCharacter* PreviousTarget = nullptr;
+	if (SpectatorViewTargets.IsValidIndex(SpectatorViewTargetIndex))
+	{
+		PreviousTarget = SpectatorViewTargets[SpectatorViewTargetIndex].Get();
+	}
+
+	SpectatorViewTargets.Reset();
+	for (TActorIterator<ASnowRumbleCharacter> It(GetWorld()); It; ++It)
+	{
+		if (IsSpectatorViewTargetCandidate(*It))
+		{
+			SpectatorViewTargets.Add(*It);
+		}
+	}
+	SpectatorViewTargets.Sort([](
+		const TWeakObjectPtr<ASnowRumbleCharacter>& Left,
+		const TWeakObjectPtr<ASnowRumbleCharacter>& Right)
+	{
+		const APlayerState* LeftState = Left.IsValid()
+			? Left->GetPlayerState()
+			: nullptr;
+		const APlayerState* RightState = Right.IsValid()
+			? Right->GetPlayerState()
+			: nullptr;
+		return LeftState && RightState
+			? LeftState->GetPlayerId() < RightState->GetPlayerId()
+			: Left.IsValid();
+	});
+
+	SpectatorViewTargetIndex = INDEX_NONE;
+	if (PreviousTarget)
+	{
+		for (int32 Index = 0; Index < SpectatorViewTargets.Num(); ++Index)
+		{
+			if (SpectatorViewTargets[Index].Get() == PreviousTarget)
+			{
+				SpectatorViewTargetIndex = Index;
+				break;
+			}
+		}
+	}
+	if (SpectatorViewTargetIndex == INDEX_NONE && SpectatorViewTargets.Num() > 0)
+	{
+		for (int32 Index = 0; Index < SpectatorViewTargets.Num(); ++Index)
+		{
+			if (SpectatorViewTargets[Index].Get() == this)
+			{
+				SpectatorViewTargetIndex = Index;
+				break;
+			}
+		}
+		if (SpectatorViewTargetIndex == INDEX_NONE)
+		{
+			SpectatorViewTargetIndex = 0;
+		}
+	}
+	ApplySpectatorViewTarget();
+}
+
+void ASnowRumbleCharacter::ApplySpectatorViewTarget()
+{
+	if (!bLifeStateSpectating)
+	{
+		return;
+	}
+
+	ASnowRumbleCharacter* ViewTarget = SpectatorViewTargets.IsValidIndex(SpectatorViewTargetIndex)
+		? SpectatorViewTargets[SpectatorViewTargetIndex].Get()
+		: nullptr;
+	if (!ViewTarget)
+	{
+		if (SpectatorWidget)
+		{
+			SpectatorWidget->RemoveFromParent();
+			SpectatorWidget = nullptr;
+		}
+		return;
+	}
+
+	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
+	{
+		if (!SpectatorCameraActor)
+		{
+			if (UWorld* World = GetWorld())
+			{
+				FActorSpawnParameters SpawnParameters;
+				SpawnParameters.Owner = PlayerController;
+				SpawnParameters.SpawnCollisionHandlingOverride =
+					ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+				SpectatorCameraActor = World->SpawnActor<ACameraActor>(
+					ACameraActor::StaticClass(),
+					FTransform::Identity,
+					SpawnParameters);
+			}
+		}
+		if (SpectatorCameraActor)
+		{
+			PlayerController->SetViewTargetWithBlend(
+				SpectatorCameraActor,
+				0.15f);
+		}
+	}
+	if (SpectatorWidgetClass && !SpectatorWidget)
+	{
+		if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
+		{
+			SpectatorWidget = CreateWidget<USpectatorWidget>(
+				PlayerController,
+				SpectatorWidgetClass);
+			if (SpectatorWidget)
+			{
+				SpectatorWidget->AddToViewport(30);
+			}
+		}
+	}
+	if (SpectatorWidget)
+	{
+		SpectatorWidget->SetSpectatorViewTarget(ViewTarget);
+	}
+}
+
+void ASnowRumbleCharacter::UpdateReplicatedSpectatorCameraView()
+{
+	if (!IsLocallyControlled() || !FollowCamera || !GetController())
+	{
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const APlayerController* PlayerController =
+		Cast<APlayerController>(GetController());
+	const APlayerCameraManager* CameraManager = PlayerController
+		? PlayerController->PlayerCameraManager
+		: nullptr;
+	if (!CameraManager)
+	{
+		return;
+	}
+
+	const FVector CameraLocation = CameraManager->GetCameraLocation();
+	const FRotator CameraRotation = CameraManager->GetCameraRotation();
+	const float CameraFieldOfView = CameraManager->GetFOVAngle();
+	const double CurrentTime = World->GetTimeSeconds();
+	const bool bChanged =
+		!bHasReplicatedSpectatorCameraView
+		|| FVector::DistSquared(CameraLocation, LastSentSpectatorCameraLocation) > 1.0f
+		|| !CameraRotation.Equals(LastSentSpectatorCameraRotation, 0.1f)
+		|| !FMath::IsNearlyEqual(
+			CameraFieldOfView,
+			LastSentSpectatorCameraFieldOfView,
+			0.1f);
+	if (!bChanged)
+	{
+		return;
+	}
+	if (LastSpectatorCameraUpdateTime >= 0.0
+		&& CurrentTime - LastSpectatorCameraUpdateTime < 0.05)
+	{
+		return;
+	}
+
+	LastSentSpectatorCameraLocation = CameraLocation;
+	LastSentSpectatorCameraRotation = CameraRotation;
+	LastSentSpectatorCameraFieldOfView = CameraFieldOfView;
+	LastSpectatorCameraUpdateTime = CurrentTime;
+	ServerUpdateSpectatorCameraView(
+		CameraLocation,
+		CameraRotation,
+		CameraFieldOfView);
+}
+
+void ASnowRumbleCharacter::UpdateLocalSpectatorCameraView()
+{
+	if (!bLifeStateSpectating
+		|| !SpectatorViewTargets.IsValidIndex(SpectatorViewTargetIndex))
+	{
+		return;
+	}
+
+	ASnowRumbleCharacter* ViewTarget =
+		SpectatorViewTargets[SpectatorViewTargetIndex].Get();
+	if (!ViewTarget || !SpectatorCameraActor)
+	{
+		return;
+	}
+
+	FVector CameraLocation = ViewTarget->ReplicatedSpectatorCameraLocation;
+	FRotator CameraRotation = ViewTarget->ReplicatedSpectatorCameraRotation;
+	float CameraFieldOfView = ViewTarget->ReplicatedSpectatorCameraFieldOfView;
+	if (!ViewTarget->bHasReplicatedSpectatorCameraView
+		&& ViewTarget->FollowCamera)
+	{
+		CameraLocation = ViewTarget->FollowCamera->GetComponentLocation();
+		CameraRotation = ViewTarget->FollowCamera->GetComponentRotation();
+		CameraFieldOfView = ViewTarget->FollowCamera->FieldOfView;
+	}
+
+	SpectatorCameraActor->SetActorLocationAndRotation(
+		CameraLocation,
+		CameraRotation);
+	if (UCameraComponent* CameraComponent =
+		SpectatorCameraActor->GetCameraComponent())
+	{
+		CameraComponent->SetFieldOfView(CameraFieldOfView);
+	}
+}
+
+void ASnowRumbleCharacter::SelectPreviousSpectatorViewTarget()
+{
+	if (!bLifeStateSpectating)
+	{
+		return;
+	}
+	RefreshSpectatorViewTargets();
+	if (SpectatorViewTargets.Num() > 0)
+	{
+		SpectatorViewTargetIndex = (SpectatorViewTargetIndex - 1 + SpectatorViewTargets.Num())
+			% SpectatorViewTargets.Num();
+		ApplySpectatorViewTarget();
+	}
+}
+
+void ASnowRumbleCharacter::SelectNextSpectatorViewTarget()
+{
+	if (!bLifeStateSpectating)
+	{
+		return;
+	}
+	RefreshSpectatorViewTargets();
+	if (SpectatorViewTargets.Num() > 0)
+	{
+		SpectatorViewTargetIndex = (SpectatorViewTargetIndex + 1)
+			% SpectatorViewTargets.Num();
+		ApplySpectatorViewTarget();
+	}
 }
 
 void ASnowRumbleCharacter::HandleGrabbedByCharacterChanged(bool bNewGrabbed)
@@ -5262,6 +5681,26 @@ void ASnowRumbleCharacter::ServerSetSprinting_Implementation(bool bNewSprinting)
 		&& (!SnowballEquipmentComponent
 			|| !SnowballEquipmentComponent->IsHoldingLargeSnowball());
 	ApplyMovementSpeed();
+	ForceNetUpdate();
+}
+
+void ASnowRumbleCharacter::ServerUpdateSpectatorCameraView_Implementation(
+	FVector_NetQuantize10 CameraLocation,
+	FRotator CameraRotation,
+	float CameraFieldOfView)
+{
+	if (!IsValid(GetController())
+		|| !IsValid(FollowCamera)
+		|| CameraFieldOfView <= 0.0f
+		|| CameraFieldOfView > 180.0f)
+	{
+		return;
+	}
+
+	ReplicatedSpectatorCameraLocation = CameraLocation;
+	ReplicatedSpectatorCameraRotation = CameraRotation;
+	ReplicatedSpectatorCameraFieldOfView = CameraFieldOfView;
+	bHasReplicatedSpectatorCameraView = true;
 	ForceNetUpdate();
 }
 

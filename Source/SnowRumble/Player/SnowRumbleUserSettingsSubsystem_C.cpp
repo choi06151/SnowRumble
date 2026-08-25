@@ -213,3 +213,23 @@ USnowRumbleUserSettingsSubsystem::GetDefaultMicrophoneMode() const
 {
 	return DefaultMicrophoneMode;
 }
+
+void USnowRumbleUserSettingsSubsystem::SetMicrophoneDeviceId(
+	const FString& NewDeviceId)
+{
+	MicrophoneDeviceId = NewDeviceId;
+	SaveConfig();
+	OnMicrophoneSettingsChanged.Broadcast();
+}
+
+void USnowRumbleUserSettingsSubsystem::ResetMicrophoneDeviceId()
+{
+	MicrophoneDeviceId.Reset();
+	SaveConfig();
+	OnMicrophoneSettingsChanged.Broadcast();
+}
+
+FString USnowRumbleUserSettingsSubsystem::GetMicrophoneDeviceId() const
+{
+	return MicrophoneDeviceId;
+}

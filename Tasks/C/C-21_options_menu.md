@@ -238,6 +238,7 @@
 - 2026-08-23: 캐릭터에 키 가이드 WBP용 `KeyGuideAction`/`KeyGuideWidgetClass` 슬롯을 추가했다. 기본 키 설정 항목은 `KeyGuide`/`T`이며, 입력을 누르는 동안만 로컬 WBP를 표시하고 해제 시 게임 입력으로 복구한다.
 - 2026-08-23: `UKeyGuideWidget` 부모를 추가해 키 가이드 WBP의 키 부분 TextBlock만 현재 로컬 키 설정에 맞춰 자동 갱신하게 했다. 이모션 기본 키 설정도 실제 사용 기준과 맞게 `Tab`으로 정리했다.
 - 2026-08-23: 마이크 입력 점검을 위해 `K` 눌러서 말하기 시작 시 OnlineSubsystem VoiceInterface의 로컬 토커 등록을 보장하고, 등록·헤드셋 감지·StartTalking/StopTalking 흐름을 로그로 남기게 했다. 계산만 하고 직접 바인딩하지 않았던 `N` 채널 전환과 `M` 플레이어 음소거 키도 PlayerController 직접 바인딩에 추가했다.
+- 2026-08-25: 옵션 마이크 패널에 선택형 `MicrophoneDeviceComboBox` 계약을 추가했다. `AudioCaptureCore`에서 장치 이름·ID를 열거하고, 선택한 장치 ID를 로컬 설정에 저장하며 `OnMicrophoneDeviceChanged` 이벤트로 WBP 표시를 갱신한다. 현재 NULL `IOnlineVoice`는 엔진 내부에서 기본 입력 장치를 직접 생성하므로, 저장된 선택값을 네트워크 음성 캡처에 실제 적용하는 후속 엔진 음성 계층 연결이 필요하다.
 
 ## 수동 작업
 
@@ -254,6 +255,7 @@
 - 키 설정 행 WBP를 만들 때 부모를 `UOptionsKeyBindingRowWidget`으로 두고, `ActionNameText`, `CurrentKeyText`, `RebindButton`, `ResetButton` 이름을 맞춘다.
 - 옵션 WBP의 `KeyBindingRowWidgetClass`에 키 설정 행 WBP를 지정한다.
 - 감도, 사운드, 키 설정, 마이크 설정 UI는 C++에서 제공한 바인딩 이름과 함수 기준으로 배치한다.
+- 마이크 패널에 선택형 ComboBoxString 이름을 `MicrophoneDeviceComboBox`로 배치하면 운영체제의 입력 장치 목록이 자동으로 채워진다.
 - 감도 패널에 Slider 이름을 `SensitivitySlider`로 배치한다.
 - 감도 패널에 TextBlock 이름을 `SensitivityValueText`로 배치한다.
 - 사운드 패널에 배경음악 Slider 이름을 `BgmVolumeSlider`로 배치한다.

@@ -119,6 +119,10 @@
 - 2026-08-24: C-09 공중 작은 눈덩이 투척 보정을 추가했다. 서버 release 시점에 공중이면 기존 `ThrowSmallSnowballInAir` 모션과 맞춰 피해 1.5배와 속도 기본 1.2배를 적용한다.
 - 2026-08-24: C-30 효과음 공간화 범위를 눈덩이 충돌음과 캐릭터 피격음으로 한정했다. UI 상호작용음은 해당 플레이어 로컬 2D 재생으로 유지하고, `ASnowballItem::ImpactSoundAttenuation`과 `ASnowRumbleCharacter::DamageSoundAttenuation`으로 attenuation 연결 지점을 추가했다.
 - 2026-08-25: C-30 눈덩이 투척 휘두르기 사운드가 캐릭터 위치 기반으로 재생되도록 `SnowballThrowSoundAttenuation` Blueprint 슬롯을 추가하고 연결했다.
+- 2026-08-25: C-06 얼음·사망 관전을 추가했다. `ASnowRumbleCharacter`가 자기 캐릭터를 포함한 참여 캐릭터 전체를 PlayerId 순으로 후보화하고 A/D로 로컬 카메라 시점을 순환한다. `USpectatorWidget`의 `CurrentViewTargetIdText`에 현재 대상 PlayerId를 표시하며, WBP 배치는 사용자/S 인계로 남겼다.
+- 2026-08-25: C-06 관전 카메라를 실제 시점 복제 방식으로 보강했다. 대상 소유 클라이언트의 `FollowCamera` 위치·회전·FOV를 서버 RPC로 전달하고, 관전자 로컬 `ACameraActor`가 복제값을 적용해 대상 화면과 동일한 시점을 표시한다.
+- 2026-08-25: C-31을 추가했다. PvP 최초 진입은 클라이언트별 Ready 핸드셰이크를 기준으로 시작하고, 45초 내 미준비 시 전체 매치를 취소해 로비로 복귀하며, PSO Precaching·캐시 수집 경로를 안정화한다.
+- 2026-08-25: C-31 Ready 핸드셰이크와 45초 타임아웃 전체 로비 복귀를 구현했다. PSO Precaching·Shader Pipeline Cache·Material Shader Code 공유 설정을 활성화했고 C++ 빌드가 성공했다. 4인 PIE와 실제 PSO Cache 수집은 수동 확인으로 남겼다.
 - 2026-08-25: 핫팩 아군 부활 중에도 기존 눈 제작용 머리 위 ProgressBar를 재사용하도록 `RevivingTeammate` timed action과 0~1 진행도 계산을 추가했다.
 - 2026-08-24: C-30 UI 버튼 공통 클릭음을 추가했다. `USnowRumbleAudioUserWidget`이 버튼을 자동 연결하고 단일 `ButtonInteractionSound`를 로컬 2D로 재생한다.
 - 2026-08-24: C-30 UI 사운드를 hover/click 슬롯으로 분리했다. 버튼 hover는 `ButtonHoverSound`, click은 `ButtonClickSound`를 로컬 2D로 재생한다.

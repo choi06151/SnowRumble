@@ -66,6 +66,7 @@
 - 2026-08-21: `PvPLevelLoadingPresentations`를 추가해 선택 맵별 표시명과 Texture2D 이미지를 설정할 수 있게 했다. 로비 GameMode는 매치 시작 직전 각 클라이언트에 선택 맵 정보와 같은 팀 플레이어 이름 목록을 전달하고, MoviePlayer Slate 화면은 travel 중 이를 표시한다.
 - 2026-08-21: PvP->포디움 이동 후 GameInstance 로딩 WBP가 다시 붙고 사라지지 않는 문제를 수정했다. `APodiumPlayerController`가 로컬 BeginPlay에서 `ULoadingScreenSubsystem::HideLoadingScreen()`을 호출해 포디움 UI 표시 전에 잔여 로딩창을 닫는다.
 - 2026-08-23: 사용자가 최초 PvP 진입에만 Slate 로딩창을 유지하고, 최초 라운드 이후 모든 PvP 내부 라운드 전환과 PvP->포디움 이동은 검은 화면만 보이도록 요청했다. 후속 PvP travel 경로에서 `ClientShowLoadingScreen()` 호출을 제거하고 잔여 로딩 UI 숨김만 남겼다.
+- 2026-08-25: PvP 팀 소개 카메라 연출 시작부터 종료까지 로컬 메인 HUD·채팅·음소거·키 가이드·상호작용 안내·이모트·관전 WBP를 숨기고, 연출 전 표시 상태를 종료 후 복원하도록 보강했다.
 
 ## 수동 작업
 
@@ -76,6 +77,7 @@
 - 로비 GameMode Blueprint의 `PvPLevelLoadingPresentations`에 후보 맵과 이미지를 지정한 뒤, 랜덤 선택된 맵의 이미지와 같은 팀 이름 목록이 로딩 화면에 표시되는지 확인한다.
 - Unreal Editor 두 개를 켠 상태에서 한쪽이 로비가 아닌 맵에 있을 때 빠른참가가 해당 세션을 건너뛰고, `L_Lobby` 대기방 세션만 참가하는지 확인한다.
 - PvP 매치 종료 후 포디움, 포디움 10초 후 로비 복귀가 각각 올바른 GameMode로 실행되는지 확인한다.
+- PvP 로딩 종료 후 팀 소개 카메라 연출 동안 모든 WBP가 보이지 않고, 연출 종료 후 HUD와 입력 UI가 정상 복원되는지 확인한다.
 
 ## 완료 조건
 

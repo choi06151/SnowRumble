@@ -6,6 +6,8 @@
 #include "Blueprint/UserWidget.h"
 #include "../Audio/SnowRumbleBackgroundMusicSubsystem_C.h"
 #include "../Game/SnowRumblePlayerState.h"
+#include "../Game/SnowRumbleGameMode.h"
+#include "../Game/SnowRumbleGameState_C.h"
 #include "../Player/SnowRumbleUserSettingsSubsystem_C.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
@@ -26,6 +28,7 @@
 #include "Interfaces/VoiceInterface.h"
 #include "Sound/SoundBase.h"
 #include "VoiceMuteMenuWidget_C.h"
+#include "../Player/SnowRumbleCharacter.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSnowRumbleVoice, Log, All);
 
@@ -228,6 +231,66 @@ void ASnowRumblePlayerController::PlayerTick(float DeltaTime)
 	{
 		RefreshGameplayVoiceMutes();
 		UpdatePvpIntroCamera(DeltaTime);
+		TrySchedulePvpReadyHandshake();
+		TryNotifyPvpReady();
+	}
+}
+
+void ASnowRumblePlayerController::TrySchedulePvpReadyHandshake()
+{
+	if (!IsLocalController() || !GetWorld())
+	{
+		return;
+	}
+
+	if (!GetWorld()->GetGameState<ASnowRumbleGameState>())
+	{
+		return;
+	}
+
+	const FString CurrentMapName = GetWorld()->GetMapName();
+	if (PvpReadyMapName != CurrentMapName)
+	{
+		PvpReadyMapName = CurrentMapName;
+		PvpReadyWarmupElapsedSeconds = 0.0f;
+		bPvpReadySubmitted = false;
+	}
+}
+
+void ASnowRumblePlayerController::TryNotifyPvpReady()
+{
+	if (!IsLocalController()
+		|| bPvpReadySubmitted
+		|| !GetWorld()->GetGameState<ASnowRumbleGameState>()
+		|| !GetPawn()
+		|| !PlayerState)
+	{
+		return;
+	}
+
+	PvpReadyWarmupElapsedSeconds += GetWorld()->GetDeltaSeconds();
+	if (PvpReadyWarmupElapsedSeconds < 0.5f)
+	{
+		return;
+	}
+
+	bPvpReadySubmitted = true;
+	ServerNotifyPvpReady(PvpReadyMapName);
+}
+
+void ASnowRumblePlayerController::ServerNotifyPvpReady_Implementation(
+	const FString& PvpMapName)
+{
+	if (!HasAuthority() || !GetWorld() || PvpMapName.IsEmpty())
+	{
+		return;
+	}
+
+	ASnowRumbleGameMode* SnowRumbleGameMode =
+		Cast<ASnowRumbleGameMode>(GetWorld()->GetAuthGameMode());
+	if (SnowRumbleGameMode)
+	{
+		SnowRumbleGameMode->NotifyPvpPlayerReady(this);
 	}
 }
 
@@ -703,6 +766,8 @@ void ASnowRumblePlayerController::ClientPlayPvpTeamIntroShot_Implementation(
 		return;
 	}
 
+	SetPvpIntroWidgetsHidden(true);
+
 	GetWorldTimerManager().ClearTimer(PvpIntroCameraDestroyTimerHandle);
 
 	FVector CurrentCameraLocation = FVector::ZeroVector;
@@ -1066,6 +1131,59 @@ void ASnowRumblePlayerController::EnsureRemoteVoiceTalkersReady()
 		{
 			RegisteredRemoteVoiceTalkerIds.Add(TalkerId);
 		}
+	}
+
+	SetPvpIntroWidgetsHidden(false);
+}
+
+void ASnowRumblePlayerController::SetPvpIntroWidgetsHidden(bool bShouldHide)
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (bShouldHide)
+	{
+		if (bPvpIntroWidgetsHidden)
+		{
+			return;
+		}
+
+		bPvpIntroWidgetsHidden = true;
+		CloseChatInput();
+		if (ChatWidget)
+		{
+			PvpIntroChatVisibility = ChatWidget->GetVisibility();
+			ChatWidget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		if (VoiceMuteMenuWidget)
+		{
+			HideVoiceMuteMenu();
+		}
+		if (ASnowRumbleCharacter* LocalCharacter =
+			Cast<ASnowRumbleCharacter>(GetPawn()))
+		{
+			LocalCharacter->SetPvpIntroWidgetsHidden(true);
+		}
+		RestoreGameOnlyInput();
+		return;
+	}
+
+	if (!bPvpIntroWidgetsHidden)
+	{
+		return;
+	}
+
+	bPvpIntroWidgetsHidden = false;
+	if (ChatWidget)
+	{
+		ChatWidget->SetVisibility(PvpIntroChatVisibility);
+	}
+	if (ASnowRumbleCharacter* LocalCharacter =
+		Cast<ASnowRumbleCharacter>(GetPawn()))
+	{
+		LocalCharacter->SetPvpIntroWidgetsHidden(false);
 	}
 }
 

@@ -121,6 +121,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|User Settings|Microphone")
 	ESnowRumbleMicrophoneMode GetDefaultMicrophoneMode() const;
 
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Microphone")
+	void SetMicrophoneDeviceId(const FString& NewDeviceId);
+
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Microphone")
+	void ResetMicrophoneDeviceId();
+
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|User Settings|Microphone")
+	FString GetMicrophoneDeviceId() const;
+
 private:
 	UPROPERTY(Config)
 	TMap<FName, FKey> KeyBindings;
@@ -146,6 +155,9 @@ private:
 	UPROPERTY(Config)
 	ESnowRumbleMicrophoneMode MicrophoneMode =
 		ESnowRumbleMicrophoneMode::PushToTalk;
+
+	UPROPERTY(Config)
+	FString MicrophoneDeviceId;
 
 	static constexpr float MinMouseSensitivity = 0.2f;
 	static constexpr float MaxMouseSensitivity = 3.0f;
