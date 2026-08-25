@@ -279,6 +279,15 @@ void UMainMenuWidget::HandleQuitGameButtonClicked()
 	}
 }
 
+void UMainMenuWidget::HandleKeyGuideButtonClicked()
+{
+	if (AMainMenuPlayerController* MainMenuPlayerController =
+		Cast<AMainMenuPlayerController>(GetOwningPlayer()))
+	{
+		MainMenuPlayerController->ToggleKeyGuideWidget();
+	}
+}
+
 void UMainMenuWidget::HandleConfirmRoomCodeJoinClicked()
 {
 	const FString RoomCode = RoomCodeTextBox
@@ -300,6 +309,7 @@ void UMainMenuWidget::BindMenuButtons()
 	BindTargetButtonTextColor(FindButton);
 	BindTargetButtonTextColor(CustomizationButton);
 	BindTargetButtonTextColor(QuitGameButton);
+	BindTargetButtonTextColor(KeyGuideButton);
 
 	if (HostButton)
 	{
@@ -343,6 +353,13 @@ void UMainMenuWidget::BindMenuButtons()
 			&UMainMenuWidget::HandleQuitGameButtonClicked);
 	}
 
+	if (KeyGuideButton)
+	{
+		KeyGuideButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UMainMenuWidget::HandleKeyGuideButtonClicked);
+	}
+
 	if (ConfirmRoomCodeJoinButton)
 	{
 		ConfirmRoomCodeJoinButton->OnClicked.AddUniqueDynamic(
@@ -372,6 +389,7 @@ void UMainMenuWidget::UnbindMenuButtons()
 	UnbindTargetButtonTextColor(FindButton);
 	UnbindTargetButtonTextColor(CustomizationButton);
 	UnbindTargetButtonTextColor(QuitGameButton);
+	UnbindTargetButtonTextColor(KeyGuideButton);
 
 	if (HostButton)
 	{
@@ -401,6 +419,11 @@ void UMainMenuWidget::UnbindMenuButtons()
 	if (QuitGameButton)
 	{
 		QuitGameButton->OnClicked.RemoveAll(this);
+	}
+
+	if (KeyGuideButton)
+	{
+		KeyGuideButton->OnClicked.RemoveAll(this);
 	}
 
 	if (ConfirmRoomCodeJoinButton)
@@ -472,7 +495,8 @@ void UMainMenuWidget::RefreshTargetButtonTextColors()
 		QuickJoinButton,
 		FindButton,
 		CustomizationButton,
-		QuitGameButton
+		QuitGameButton,
+		KeyGuideButton
 	};
 
 	for (UButton* Button : TargetButtons)

@@ -12,6 +12,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "MainMenuWidget.h"
+#include "KeyGuideWidget_C.h"
 #include "OptionsWidget_C.h"
 #include "../Online/SnowRumbleSessionSubsystem.h"
 #include "../Player/SnowRumbleCharacter.h"
@@ -64,6 +65,12 @@ void AMainMenuPlayerController::BeginPlay()
 
 void AMainMenuPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (KeyGuideWidget)
+	{
+		KeyGuideWidget->RemoveFromParent();
+		KeyGuideWidget = nullptr;
+	}
+	bKeyGuideWidgetVisible = false;
 	if (OptionsWidget)
 	{
 		OptionsWidget->RemoveFromParent();
@@ -194,6 +201,31 @@ void AMainMenuPlayerController::QuitGame()
 		false);
 }
 
+void AMainMenuPlayerController::ToggleKeyGuideWidget()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	EnsureKeyGuideWidget();
+	if (!KeyGuideWidget)
+	{
+		return;
+	}
+
+	bKeyGuideWidgetVisible = !bKeyGuideWidgetVisible;
+	if (bKeyGuideWidgetVisible)
+	{
+		KeyGuideWidget->RefreshKeyGuideTexts();
+		KeyGuideWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+	else
+	{
+		KeyGuideWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
 void AMainMenuPlayerController::SetBackgroundMusicPreviewVolume(
 	float MasterVolume,
 	float BgmVolume)
@@ -224,6 +256,23 @@ UMainMenuWidget* AMainMenuPlayerController::EnsureMainMenuWidget()
 
 	MainMenuWidget = CreateWidget<UMainMenuWidget>(this, MainMenuWidgetClass);
 	return MainMenuWidget;
+}
+
+void AMainMenuPlayerController::EnsureKeyGuideWidget()
+{
+	if (KeyGuideWidget || !KeyGuideWidgetClass)
+	{
+		return;
+	}
+
+	KeyGuideWidget = CreateWidget<UKeyGuideWidget>(
+		this,
+		KeyGuideWidgetClass);
+	if (KeyGuideWidget)
+	{
+		KeyGuideWidget->AddToViewport();
+		KeyGuideWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
 }
 
 UOptionsWidget* AMainMenuPlayerController::EnsureOptionsWidget()

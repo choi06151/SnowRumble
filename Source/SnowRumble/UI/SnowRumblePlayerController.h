@@ -148,6 +148,7 @@ public:
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual bool InputKey(const FInputKeyEventArgs& Params) override;
 	virtual void SetupInputComponent() override;
 	virtual void PlayerTick(float DeltaTime) override;
 	virtual void ClientShowLoadingScreen_Implementation();
@@ -279,7 +280,7 @@ private:
 	/** 채팅 입력이 열려 있을 때 전체/팀 채널을 전환한다. */
 	void HandleChatChannelTogglePressed();
 
-	/** M 입력으로 음성 송출 채널을 전체/팀으로 전환한다. */
+	/** N 입력 또는 캐릭터 Blueprint 입력으로 음성 송출 채널을 전체/팀으로 전환한다. */
 	void HandleVoiceChannelTogglePressed();
 
 	/** 눌러서 말하기 마이크 입력을 시작한다. */
@@ -415,6 +416,7 @@ private:
 
 	ESnowRumbleVoiceChannel LocalVoiceChannel =
 		ESnowRumbleVoiceChannel::All;
+	double LastVoiceChannelToggleTimeSeconds = -1.0;
 
 	TSet<FString> RegisteredRemoteVoiceTalkerIds;
 	TSet<FString> ManuallyMutedVoicePlayerKeys;

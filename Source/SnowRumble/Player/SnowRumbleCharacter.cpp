@@ -106,8 +106,8 @@ ASnowRumbleCharacter::ASnowRumbleCharacter()
 	GetCharacterMovement()->JumpZVelocity = 700.0f;
 	GetCharacterMovement()->AirControl = 0.35f;
 	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
-	NetUpdateFrequency = 60.0f;
-	MinNetUpdateFrequency = 30.0f;
+	SetNetUpdateFrequency(60.0f);
+	SetMinNetUpdateFrequency(30.0f);
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
@@ -2478,6 +2478,16 @@ void ASnowRumbleCharacter::RefreshOverheadNameplateFacing()
 	}
 
 	const UWorld* World = GetWorld();
+	const bool bHideLocalPvpNameplate =
+		IsLocallyControlled()
+		&& World
+		&& World->GetGameState<ASnowRumbleGameState>() != nullptr;
+	OverheadNameplateComponent->SetVisibility(!bHideLocalPvpNameplate, true);
+	if (bHideLocalPvpNameplate)
+	{
+		return;
+	}
+
 	const APlayerCameraManager* CameraManager = World
 		? UGameplayStatics::GetPlayerCameraManager(World, 0)
 		: nullptr;
@@ -4235,17 +4245,19 @@ void ASnowRumbleCharacter::UpdateLocalSpectatorCameraView()
 	else
 	{
 		const float InterpSpeed = FMath::Max(0.0f, SpectatorCameraInterpSpeed);
+		const FVector SmoothedCameraLocation = FMath::VInterpTo(
+			SpectatorCameraActor->GetActorLocation(),
+			CameraLocation,
+			DeltaSeconds,
+			InterpSpeed);
+		const FRotator SmoothedCameraRotation = FMath::RInterpTo(
+			SpectatorCameraActor->GetActorRotation(),
+			CameraRotation,
+			DeltaSeconds,
+			InterpSpeed);
 		SpectatorCameraActor->SetActorLocationAndRotation(
-			FMath::VInterpTo(
-				SpectatorCameraActor->GetActorLocation(),
-				CameraLocation,
-				DeltaSeconds,
-				InterpSpeed),
-			FRotator::RInterpTo(
-				SpectatorCameraActor->GetActorRotation(),
-				CameraRotation,
-				DeltaSeconds,
-				InterpSpeed));
+			SmoothedCameraLocation,
+			SmoothedCameraRotation);
 	}
 	if (UCameraComponent* CameraComponent =
 		SpectatorCameraActor->GetCameraComponent())
@@ -4992,7 +5004,6 @@ bool ASnowRumbleCharacter::CanPerformGameplayAction() const
 		&& !bIsEmoteRadialMenuOpen
 		&& !bIsKeyGuideWidgetOpen
 		&& !bTiebreakerSpectator
-		&& !bIsGrabbedByCharacter
 		&& !IsHangingFromWorldGrab()
 		&& !IsPvpMatchInputLocked()
 		&& (!SnowRumblePlayerController

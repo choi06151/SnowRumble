@@ -78,6 +78,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Main Menu")
 	TObjectPtr<UButton> QuitGameButton;
 
+	/** 있으면 기존 조작법 WBP를 표시하거나 숨기는 버튼이다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Main Menu")
+	TObjectPtr<UButton> KeyGuideButton;
+
 	/** 있으면 참가하기 버튼을 눌렀을 때 표시되는 방 코드 입력 패널이다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Main Menu")
 	TObjectPtr<UWidget> RoomCodeJoinPanel;
@@ -171,6 +175,9 @@ private:
 
 	UFUNCTION()
 	void HandleQuitGameButtonClicked();
+
+	UFUNCTION()
+	void HandleKeyGuideButtonClicked();
 
 	UFUNCTION()
 	void HandleConfirmRoomCodeJoinClicked();
