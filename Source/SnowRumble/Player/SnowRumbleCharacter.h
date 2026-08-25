@@ -7,6 +7,7 @@
 #include "../Item/GiftItemTypes_C.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "GameFramework/Character.h"
+#include "Components/Widget.h"
 #include "SnowRumbleCharacterAnimationTypes_C.h"
 #include "SnowRumbleCharacter.generated.h"
 
@@ -22,6 +23,7 @@ class UKeyGuideWidget;
 class UMainHUDWidget;
 class UMaterialInstanceDynamic;
 class UOverheadNameplateWidget;
+class USpectatorWidget;
 class UNiagaraComponent;
 class UOutlineComponent;
 class UPlayerGrabComponent;
@@ -41,6 +43,7 @@ class UWidgetInteractionComponent;
 class UWidgetComponent;
 class USoundAttenuation;
 class USoundBase;
+class ACameraActor;
 class AController;
 class AGiftBox;
 class AGiftBoxItemPickup;
@@ -432,6 +435,9 @@ public:
 	/** 포커스 중인 게시판 팀 색 선택을 서버 검증 요청으로 전달한다. */
 	void RequestLobbyTeamSelection(ESnowRumbleTeam NewTeam);
 
+	/** PvP 팀 소개 연출 중 로컬 플레이어 화면의 WBP를 숨기거나 복원한다. */
+	void SetPvpIntroWidgetsHidden(bool bShouldHide);
+
 protected:
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void BeginPlay() override;
@@ -451,7 +457,7 @@ protected:
 	/** 마우스 휠 입력으로 로컬 카메라 줌 목표 거리를 조정한다. */
 	void UpdateCameraZoomInput();
 
-	/** 포디움 전용 컨트롤러일 때 PvP HUD와 원형 메뉴 생성을 막는다. */
+	/** 포디움 또는 PvP 팀 소개 연출 중일 때 로컬 WBP 생성을 막는다. */
 	bool ShouldSuppressPvpWidgets() const;
 
 	/** 점프 입력이 시작되면 캐릭터 점프를 요청한다. */
@@ -580,6 +586,17 @@ protected:
 	/** 사망 상태에 따라 캐릭터 이동과 행동을 중지한다. */
 	UFUNCTION()
 	void HandleDeathChanged(bool bIsDead);
+
+	/** 얼음·사망 상태에 따라 로컬 관전 화면을 갱신한다. */
+	void RefreshLifeStateSpectator();
+	void SelectPreviousSpectatorViewTarget();
+	void SelectNextSpectatorViewTarget();
+	void RefreshSpectatorViewTargets();
+	void ApplySpectatorViewTarget();
+	void UpdateReplicatedSpectatorCameraView();
+	void UpdateLocalSpectatorCameraView();
+	bool IsSpectatorViewTargetCandidate(
+		const ASnowRumbleCharacter* Candidate) const;
 
 	/** 조준 상태에 따라 로컬 카메라와 모든 화면의 이동속도를 갱신한다. */
 	UFUNCTION()
@@ -811,6 +828,13 @@ public:
 	/** 서버가 소유 클라이언트의 스프린트 상태 요청을 검사하고 확정한다. */
 	UFUNCTION(Server, Reliable)
 	void ServerSetSprinting(bool bNewSprinting);
+
+	/** 소유 클라이언트의 실제 카메라 transform과 FOV를 서버에 전달한다. */
+	UFUNCTION(Server, Unreliable)
+	void ServerUpdateSpectatorCameraView(
+		FVector_NetQuantize10 CameraLocation,
+		FRotator CameraRotation,
+		float CameraFieldOfView);
 
 	/** 복제된 스프린트 상태를 다른 화면의 이동속도와 표현에 적용한다. */
 	UFUNCTION()
@@ -1459,6 +1483,18 @@ public:
 	UPROPERTY(Transient)
 	TObjectPtr<UMainHUDWidget> MainHUDWidget;
 
+	/** 얼음·사망 상태에서 로컬 관전 화면에 생성할 WBP 클래스다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Spectator|UI")
+	TSubclassOf<USpectatorWidget> SpectatorWidgetClass;
+
+	/** 로컬 플레이어가 소유한 관전 WBP 인스턴스다. */
+	UPROPERTY(Transient)
+	TObjectPtr<USpectatorWidget> SpectatorWidget;
+
+	/** 관전자 로컬 화면에서 복제 카메라 transform을 표시하는 카메라다. */
+	UPROPERTY(Transient)
+	TObjectPtr<ACameraActor> SpectatorCameraActor;
+
 	/** 사진 모드에서 표시할 전용 WBP 클래스다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Photo|UI")
 	TSubclassOf<UUserWidget> PhotoInteractionWidgetClass;
@@ -1500,8 +1536,35 @@ public:
 	UPROPERTY(Transient)
 	TObjectPtr<UInteractionPromptWidget> InteractionPromptWidget;
 
+	bool bLifeStateSpectating = false;
+	TArray<TWeakObjectPtr<ASnowRumbleCharacter>> SpectatorViewTargets;
+	int32 SpectatorViewTargetIndex = INDEX_NONE;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Spectator|Camera")
+	FVector_NetQuantize10 ReplicatedSpectatorCameraLocation = FVector::ZeroVector;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Spectator|Camera")
+	FRotator ReplicatedSpectatorCameraRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Spectator|Camera")
+	float ReplicatedSpectatorCameraFieldOfView = 90.0f;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Spectator|Camera")
+	bool bHasReplicatedSpectatorCameraView = false;
+
+	FVector LastSentSpectatorCameraLocation = FVector::ZeroVector;
+	FRotator LastSentSpectatorCameraRotation = FRotator::ZeroRotator;
+	float LastSentSpectatorCameraFieldOfView = 90.0f;
+	double LastSpectatorCameraUpdateTime = -1.0;
+
 	bool bIsEmoteRadialMenuOpen = false;
 	bool bIsKeyGuideWidgetOpen = false;
+	bool bPvpIntroWidgetsHidden = false;
+	ESlateVisibility PvpIntroEmoteVisibility = ESlateVisibility::Collapsed;
+	ESlateVisibility PvpIntroKeyGuideVisibility = ESlateVisibility::Collapsed;
+	ESlateVisibility PvpIntroMainHUDVisibility = ESlateVisibility::Visible;
+	ESlateVisibility PvpIntroInteractionPromptVisibility = ESlateVisibility::Collapsed;
+	ESlateVisibility PvpIntroSpectatorVisibility = ESlateVisibility::Collapsed;
 	bool bPvpMatchMoveInputIgnoreApplied = false;
 	bool bPvpMatchLookInputIgnoreApplied = false;
 

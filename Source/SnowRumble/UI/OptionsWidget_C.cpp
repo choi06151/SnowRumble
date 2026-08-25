@@ -4,6 +4,7 @@
 
 #include "../Audio/SnowRumbleAudioHelpers.h"
 #include "Components/Button.h"
+#include "Components/ComboBoxString.h"
 #include "Components/PanelWidget.h"
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
@@ -19,6 +20,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundClass.h"
 #include "Sound/SoundMix.h"
+#include "AudioCaptureCore.h"
 
 namespace
 {
@@ -51,6 +53,7 @@ void UOptionsWidget::NativeConstruct()
 	InitializeSensitivitySetting();
 	InitializeAudioSettings();
 	InitializeMicrophoneSettings();
+	RefreshMicrophoneDeviceList();
 	InitializeDefaultKeyBindingRows();
 	BindOptionButtons();
 	RefreshSensitivityValueText();
@@ -121,6 +124,7 @@ void UOptionsWidget::DiscardPendingOptionChanges()
 	InitializeSensitivitySetting();
 	InitializeAudioSettings();
 	InitializeMicrophoneSettings();
+	RefreshMicrophoneDeviceList();
 	InitializeDefaultKeyBindingRows();
 	RefreshSensitivityValueText();
 	RefreshAudioValueText();
@@ -255,6 +259,12 @@ void UOptionsWidget::BindOptionButtons()
 			this,
 			&UOptionsWidget::HandleMicrophoneAlwaysOnButtonClicked);
 	}
+	if (MicrophoneDeviceComboBox)
+	{
+		MicrophoneDeviceComboBox->OnSelectionChanged.AddUniqueDynamic(
+			this,
+			&UOptionsWidget::HandleMicrophoneDeviceSelectionChanged);
+	}
 }
 
 void UOptionsWidget::UnbindOptionButtons()
@@ -318,6 +328,10 @@ void UOptionsWidget::UnbindOptionButtons()
 	if (MicrophoneAlwaysOnButton)
 	{
 		MicrophoneAlwaysOnButton->OnClicked.RemoveAll(this);
+	}
+	if (MicrophoneDeviceComboBox)
+	{
+		MicrophoneDeviceComboBox->OnSelectionChanged.RemoveAll(this);
 	}
 }
 
@@ -462,6 +476,25 @@ void UOptionsWidget::HandleMicrophoneAlwaysOnButtonClicked()
 	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 }
 
+void UOptionsWidget::HandleMicrophoneDeviceSelectionChanged(
+	FString SelectedItem,
+	ESelectInfo::Type SelectionType)
+{
+	if (bIsUpdatingMicrophoneDeviceComboBox
+		|| SelectionType == ESelectInfo::Direct)
+	{
+		return;
+	}
+
+	PendingMicrophoneDeviceName = SelectedItem;
+	PendingMicrophoneDeviceId =
+		MicrophoneDeviceIdsByName.FindRef(SelectedItem);
+	OnMicrophoneDeviceChanged(
+		PendingMicrophoneDeviceId,
+		PendingMicrophoneDeviceName);
+	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
+}
+
 void UOptionsWidget::HandleKeyRowRebindRequested(FName BindingId)
 {
 	BeginKeyRebind(BindingId);
@@ -523,6 +556,7 @@ void UOptionsWidget::ApplyPendingOptionChanges()
 		UserSettingsSubsystem->SetVoiceVolume(PendingVoiceVolume);
 		UserSettingsSubsystem->SetMicrophoneVolume(PendingMicrophoneVolume);
 		UserSettingsSubsystem->SetMicrophoneMode(PendingMicrophoneMode);
+		UserSettingsSubsystem->SetMicrophoneDeviceId(PendingMicrophoneDeviceId);
 		for (const FSnowRumbleKeyBindingViewData& Row : KeyBindingRows)
 		{
 			if (Row.CurrentKey == Row.DefaultKey)
@@ -632,6 +666,8 @@ void UOptionsWidget::ResetCurrentOptionsCategory()
 					UserSettingsSubsystem->GetDefaultMicrophoneVolume();
 				PendingMicrophoneMode =
 					UserSettingsSubsystem->GetDefaultMicrophoneMode();
+				PendingMicrophoneDeviceId.Reset();
+				PendingMicrophoneDeviceName = TEXT("기본 장치");
 			}
 		}
 		if (MicrophoneVolumeSlider)
@@ -643,6 +679,15 @@ void UOptionsWidget::ResetCurrentOptionsCategory()
 		RefreshMicrophoneValueText();
 		OnMicrophoneModeChanged(PendingMicrophoneMode);
 		RefreshMicrophoneModeButtonSelection();
+		if (MicrophoneDeviceComboBox)
+		{
+			bIsUpdatingMicrophoneDeviceComboBox = true;
+			MicrophoneDeviceComboBox->SetSelectedOption(PendingMicrophoneDeviceName);
+			bIsUpdatingMicrophoneDeviceComboBox = false;
+		}
+		OnMicrophoneDeviceChanged(
+			PendingMicrophoneDeviceId,
+			PendingMicrophoneDeviceName);
 		SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 		break;
 	default:
@@ -1009,6 +1054,10 @@ void UOptionsWidget::InitializeMicrophoneSettings()
 	PendingMicrophoneMode = UserSettingsSubsystem
 		? UserSettingsSubsystem->GetMicrophoneMode()
 		: ESnowRumbleMicrophoneMode::PushToTalk;
+	PendingMicrophoneDeviceId = UserSettingsSubsystem
+		? UserSettingsSubsystem->GetMicrophoneDeviceId()
+		: FString();
+	PendingMicrophoneDeviceName = TEXT("기본 장치");
 
 	if (MicrophoneVolumeSlider)
 	{
@@ -1019,6 +1068,56 @@ void UOptionsWidget::InitializeMicrophoneSettings()
 
 	OnMicrophoneModeChanged(PendingMicrophoneMode);
 	RefreshMicrophoneModeButtonSelection();
+}
+
+void UOptionsWidget::RefreshMicrophoneDeviceList()
+{
+	if (!MicrophoneDeviceComboBox)
+	{
+		return;
+	}
+
+	MicrophoneDeviceIdsByName.Reset();
+	bIsUpdatingMicrophoneDeviceComboBox = true;
+	MicrophoneDeviceComboBox->ClearOptions();
+
+	const FString DefaultDeviceName = TEXT("기본 장치");
+	MicrophoneDeviceComboBox->AddOption(DefaultDeviceName);
+	MicrophoneDeviceIdsByName.Add(DefaultDeviceName, FString());
+
+	Audio::FAudioCapture AudioCapture;
+	TArray<Audio::FCaptureDeviceInfo> Devices;
+	AudioCapture.GetCaptureDevicesAvailable(Devices);
+	for (const Audio::FCaptureDeviceInfo& Device : Devices)
+	{
+		if (Device.DeviceName.IsEmpty())
+		{
+			continue;
+		}
+
+		FString DisplayName = Device.DeviceName;
+		if (MicrophoneDeviceIdsByName.Contains(DisplayName))
+		{
+			DisplayName = FString::Printf(
+				TEXT("%s (%s)"),
+				*Device.DeviceName,
+				*Device.DeviceId);
+		}
+		MicrophoneDeviceComboBox->AddOption(DisplayName);
+		MicrophoneDeviceIdsByName.Add(DisplayName, Device.DeviceId);
+	}
+
+	PendingMicrophoneDeviceName = DefaultDeviceName;
+	for (const TPair<FString, FString>& Device : MicrophoneDeviceIdsByName)
+	{
+		if (Device.Value == PendingMicrophoneDeviceId)
+		{
+			PendingMicrophoneDeviceName = Device.Key;
+			break;
+		}
+	}
+	MicrophoneDeviceComboBox->SetSelectedOption(PendingMicrophoneDeviceName);
+	bIsUpdatingMicrophoneDeviceComboBox = false;
 }
 
 void UOptionsWidget::ApplyAudioVolumeSettings() const
@@ -1226,11 +1325,16 @@ bool UOptionsWidget::HasPendingMicrophoneChanges() const
 			? UserSettingsSubsystem->GetMicrophoneMode()
 			: ESnowRumbleMicrophoneMode::PushToTalk;
 
+	const FString SavedMicrophoneDeviceId = UserSettingsSubsystem
+		? UserSettingsSubsystem->GetMicrophoneDeviceId()
+		: FString();
+
 	return !FMath::IsNearlyEqual(
 			PendingMicrophoneVolume,
 			SavedMicrophoneVolume,
 			0.001f)
-		|| PendingMicrophoneMode != SavedMicrophoneMode;
+		|| PendingMicrophoneMode != SavedMicrophoneMode
+		|| PendingMicrophoneDeviceId != SavedMicrophoneDeviceId;
 }
 
 float UOptionsWidget::ConvertSliderValueToSensitivity(

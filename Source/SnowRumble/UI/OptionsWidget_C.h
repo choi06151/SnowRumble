@@ -12,6 +12,7 @@
 #include "OptionsWidget_C.generated.h"
 
 class UButton;
+class UComboBoxString;
 class UOptionsKeyBindingRowWidget;
 class UPanelWidget;
 class USoundClass;
@@ -137,6 +138,9 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Options|Microphone")
 	void OnMicrophoneModeChanged(ESnowRumbleMicrophoneMode NewMode);
 
+	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Options|Microphone")
+	void OnMicrophoneDeviceChanged(const FString& DeviceId, const FString& DeviceName);
+
 	/** 상단 감도 카테고리 버튼이다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options")
 	TObjectPtr<UButton> SensitivityCategoryButton;
@@ -241,6 +245,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Microphone")
 	TObjectPtr<UButton> MicrophoneAlwaysOnButton;
 
+	/** 현재 사용할 마이크 장치를 선택하는 ComboBoxString이다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Microphone")
+	TObjectPtr<UComboBoxString> MicrophoneDeviceComboBox;
+
 	/** 키 설정 행을 자동 생성할 패널이다. VerticalBox 또는 ScrollBox를 쓸 수 있다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Key Binding")
 	TObjectPtr<UPanelWidget> KeyBindingListBox;
@@ -299,6 +307,11 @@ private:
 	UFUNCTION()
 	void HandleMicrophoneAlwaysOnButtonClicked();
 
+	UFUNCTION()
+	void HandleMicrophoneDeviceSelectionChanged(
+		FString SelectedItem,
+		ESelectInfo::Type SelectionType);
+
 	void HandleKeyRowRebindRequested(FName BindingId);
 	void HandleKeyRowResetRequested(FName BindingId);
 
@@ -325,6 +338,9 @@ private:
 
 	/** 마이크 슬라이더와 방식 버튼을 저장된 설정 기준으로 구성한다. */
 	void InitializeMicrophoneSettings();
+
+	/** 운영체제에서 사용 가능한 마이크 장치 목록을 조회해 ComboBox를 구성한다. */
+	void RefreshMicrophoneDeviceList();
 
 	/** 선택 바인딩된 버튼 클릭 이벤트를 연결한다. */
 	void BindOptionButtons();
@@ -421,13 +437,20 @@ private:
 	ESnowRumbleMicrophoneMode PendingMicrophoneMode =
 		ESnowRumbleMicrophoneMode::PushToTalk;
 
+	FString PendingMicrophoneDeviceId;
+	FString PendingMicrophoneDeviceName;
+
 	bool bIsUpdatingSensitivitySlider = false;
 
 	bool bIsUpdatingAudioSliders = false;
 
 	bool bIsUpdatingMicrophoneSlider = false;
 
+	bool bIsUpdatingMicrophoneDeviceComboBox = false;
+
 	bool bHasPendingOptionChanges = false;
+
+	TMap<FString, FString> MicrophoneDeviceIdsByName;
 
 	TMap<UButton*, FButtonStyle> DefaultButtonStyles;
 

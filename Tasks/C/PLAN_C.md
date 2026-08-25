@@ -9,7 +9,7 @@
 
 ## 현재 집중 Task
 
-- [C-30](C-30_audio_feedback_and_voice_mix.md) 오디오 피드백과 보이스 믹싱 계약
+- [C-31](C-31_pvp_loading_ready_and_pso.md) PvP 로딩 Ready 핸드셰이크와 PSO 안정화
 
 ## 개발 스타일
 
@@ -53,6 +53,7 @@
 | 28 | [C-27](C-27_snow_trail_render_target.md) | 눈길 RenderTarget 계약 | C-26 | 진행중 |
 | 29 | [C-28](C-28_player_grab_control_rig_foundation.md) | 플레이어 잡기와 Control Rig 기본틀 | C-24 | 진행중 |
 | 30 | [C-29](C-29_travel_url_and_loading_stability.md) | 전환 URL과 PvP 로딩 안정화 | C-04, C-05, C-17 | 진행중 |
+| 31 | [C-31](C-31_pvp_loading_ready_and_pso.md) | PvP 로딩 Ready 핸드셰이크와 PSO 안정화 | C-29 | 진행중 |
 
 ## 통합 변경 요청
 
@@ -76,6 +77,10 @@
 - 2026-08-25: 페인트 커서 활성 중 매 프레임 커서 위젯을 재적용해 브러시 크기 슬라이더 드래그 중에도 원형 페인트 커서를 유지하게 했다.
 - 2026-08-25: `SSlider`가 드래그 중 `ResizeLeftRight` 커서를 반환하는 경로를 확인해, PaintMode에서는 `Default`뿐 아니라 resize/hand 등 UI 커서 타입에도 `PaintMouseCursorWidgetClass` 원형 커서를 등록하게 보강했다. C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 최종 링크는 보류됐다.
 - 2026-08-25: C-11 브러쉬 최소/최대 범위가 256을 넘어도 슬라이더의 0~1 정규화와 원형 페인트 커서 크기가 전체 범위를 반영하도록 보완했다.
+- 2026-08-25: C-06 얼음·사망 관전을 구현했다. `ASnowRumbleCharacter`가 자기 캐릭터를 포함한 참여 캐릭터 전체를 PlayerId 순으로 후보화하고, 얼음·사망 상태에서 A/D로 로컬 카메라 시점을 순환한다. `USpectatorWidget`과 `CurrentViewTargetIdText` 바인딩으로 현재 관전 대상 ID를 표시하며, 플레이어 Blueprint의 `SpectatorWidgetClass` 연결은 수동 작업으로 인계한다.
+- 2026-08-25: C-06 관전 카메라를 대상 캐릭터 ViewTarget 방식에서 실제 시점 복제 방식으로 변경했다. 소유 클라이언트의 `FollowCamera` 위치·회전·FOV를 `ServerUpdateSpectatorCameraView`로 전달하고, 관전자는 복제값을 적용한 로컬 `ACameraActor`를 사용한다.
+- 2026-08-25: 사용자가 PvP 로딩 불안정성 개선을 요청해 C-31을 추가했다. 컨트롤러 수 대신 클라이언트별 Ready 핸드셰이크를 사용하고, 45초 타임아웃 시 전체 매치를 취소해 로비로 복귀하며, PSO Precaching·캐시 수집 경로를 정리한다.
+- 2026-08-25: C-31 Ready 핸드셰이크와 45초 전체 매치 취소·로비 복귀, PSO Precaching 및 Material Shader Code 공유 설정을 구현하고 `SnowRumbleEditor Win64 Development` 빌드를 성공했다. 실제 4인 PIE와 PSO Cache 수집은 사용자 확인으로 남겼다.
 - 2026-08-24: C-06/C-28 얼음·Grab 연동을 추가했다. 서버는 얼은 대상의 같은 팀 Grab만 허용하고, 얼음 행동 제한을 유지한 채 tether 운반을 지원하며 사망 시 자동 해제한다.
 - 2026-08-24: C-09 눈덩이 투척 충돌에 같은 팀 피해·넉백 무시를 추가했다. 서버가 눈덩이 Owner와 피격 캐릭터의 `LobbyTeam`을 비교하고, 같은 팀이면 충돌 연출만 유지한다.
 - 2026-08-24: C-09 눈덩이 피해가 `GrowthProgress`에 따라 1배에서 기본 최대 3배까지 증가하도록 `MaximumGrowthDamageMultiplier`를 추가했다. 기존 차지 피해 배율은 유지한다.
