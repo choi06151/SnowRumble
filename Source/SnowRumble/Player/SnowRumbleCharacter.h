@@ -23,6 +23,7 @@ class UKeyGuideWidget;
 class UMainHUDWidget;
 class UMaterialInstanceDynamic;
 class UOverheadNameplateWidget;
+class UOverheadTimedActionWidget;
 class USpectatorWidget;
 class UNiagaraComponent;
 class UOutlineComponent;
@@ -558,6 +559,9 @@ protected:
 
 	/** 로컬 플레이어용 메인 HUD 위젯을 필요할 때 생성한다. */
 	void EnsureMainHUDWidget();
+
+	/** 원격 캐릭터의 얼음 사망 타이머 위젯을 필요할 때 생성한다. */
+	void EnsureOverheadTimedActionWidget();
 
 	/** 로컬 플레이어용 상호작용 안내 위젯을 필요할 때 생성한다. */
 	void EnsureInteractionPromptWidget();
@@ -1427,6 +1431,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera")
 	float CameraPivotHeight = 65.0f;
 
+	/** 관전 대상 카메라 복제값을 로컬 카메라에 보간하는 속도다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Spectator|Camera", meta = (ClampMin = "0.0"))
+	float SpectatorCameraInterpSpeed = 24.0f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera", meta = (ClampMin = "-89.0", ClampMax = "0.0"))
 	float CameraViewPitchMin = -65.0f;
 
@@ -1503,6 +1511,14 @@ public:
 	UPROPERTY(Transient)
 	TObjectPtr<UMainHUDWidget> MainHUDWidget;
 
+	/** 원격 캐릭터 머리 위에 표시할 기존 timed-action WBP 클래스다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Timed Action")
+	TSubclassOf<UOverheadTimedActionWidget> OverheadTimedActionWidgetClass;
+
+	/** 이 캐릭터를 관찰하는 timed-action 위젯 인스턴스다. */
+	UPROPERTY(Transient)
+	TObjectPtr<UOverheadTimedActionWidget> OverheadTimedActionWidget;
+
 	/** 얼음·사망 상태에서 로컬 관전 화면에 생성할 WBP 클래스다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Spectator|UI")
 	TSubclassOf<USpectatorWidget> SpectatorWidgetClass;
@@ -1576,6 +1592,7 @@ public:
 	FRotator LastSentSpectatorCameraRotation = FRotator::ZeroRotator;
 	float LastSentSpectatorCameraFieldOfView = 90.0f;
 	double LastSpectatorCameraUpdateTime = -1.0;
+	bool bHasSmoothedSpectatorCameraView = false;
 
 	bool bIsEmoteRadialMenuOpen = false;
 	bool bIsKeyGuideWidgetOpen = false;

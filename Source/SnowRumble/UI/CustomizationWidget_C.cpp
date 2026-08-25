@@ -22,7 +22,8 @@ void UCustomizationWidget::SetCustomizationPage(
 	ESnowRumbleCustomizationPage NewPage)
 {
 	CurrentCustomizationPage = NewPage;
-	if (CustomizationContentSwitcher)
+	if (CustomizationContentSwitcher
+		&& NewPage != ESnowRumbleCustomizationPage::PaintMode)
 	{
 		const int32 SwitcherIndex = GetSwitcherIndexForPage(NewPage);
 		if (CustomizationContentSwitcher->GetNumWidgets() > SwitcherIndex)
@@ -107,6 +108,7 @@ void UCustomizationWidget::NativeConstruct()
 	RefreshBrushSizeSlider();
 	RefreshPaintBrushPreview();
 	BindAccessoryItemButtons();
+	RefreshAccessoryItemButtonSelection();
 }
 
 void UCustomizationWidget::NativeDestruct()
@@ -201,6 +203,7 @@ void UCustomizationWidget::HandleAccessoryItemButtonClicked()
 			CustomizationPlayerController->SetPreviewAccessoryMeshIndex(
 				Pair.Value.Accessory,
 				Pair.Value.MeshIndex);
+			RefreshAccessoryItemButtonSelection();
 			return;
 		}
 	}
@@ -597,6 +600,7 @@ void UCustomizationWidget::HandleResetButtonClicked()
 		}
 	}
 
+	RefreshAccessoryItemButtonSelection();
 	OnCustomizationResetRequested(CurrentCustomizationPage);
 }
 
@@ -980,6 +984,7 @@ void UCustomizationWidget::BindAccessoryItemButtons()
 			Binding.Accessory = Prefix.Value;
 			Binding.MeshIndex = FCString::Atoi(*IndexText) - 1;
 			AccessoryItemButtons.Add(Button, Binding);
+			DefaultAccessoryItemButtonStyles.Add(Button, Button->GetStyle());
 			Button->OnClicked.AddUniqueDynamic(
 				this,
 				&UCustomizationWidget::HandleAccessoryItemButtonClicked);
@@ -1000,6 +1005,7 @@ void UCustomizationWidget::UnbindAccessoryItemButtons()
 		}
 	}
 	AccessoryItemButtons.Reset();
+	DefaultAccessoryItemButtonStyles.Reset();
 }
 
 void UCustomizationWidget::UnbindCustomizationButtons()
@@ -1522,6 +1528,55 @@ void UCustomizationWidget::SetButtonPressedVisual(
 	Button->SetStyle(SelectedStyle);
 }
 
+void UCustomizationWidget::RefreshAccessoryItemButtonSelection()
+{
+	if (!CustomizationPlayerController)
+	{
+		return;
+	}
+
+	for (const TPair<UButton*, FAccessoryButtonBinding>& Pair : AccessoryItemButtons)
+	{
+		const bool bSelected =
+			CustomizationPlayerController->GetPreviewAccessoryMeshIndex(
+				Pair.Value.Accessory) == Pair.Value.MeshIndex;
+		SetAccessoryButtonPressedVisual(Pair.Key, bSelected);
+	}
+}
+
+void UCustomizationWidget::SetAccessoryButtonPressedVisual(
+	UButton* Button,
+	bool bSelected)
+{
+	if (!Button)
+	{
+		return;
+	}
+
+	FButtonStyle* CachedStyle = DefaultAccessoryItemButtonStyles.Find(Button);
+	if (!CachedStyle)
+	{
+		DefaultAccessoryItemButtonStyles.Add(Button, Button->GetStyle());
+		CachedStyle = DefaultAccessoryItemButtonStyles.Find(Button);
+	}
+	if (!CachedStyle)
+	{
+		return;
+	}
+
+	if (!bSelected)
+	{
+		Button->SetStyle(*CachedStyle);
+		return;
+	}
+
+	FButtonStyle SelectedStyle = *CachedStyle;
+	SelectedStyle.SetNormal(CachedStyle->Pressed);
+	SelectedStyle.SetHovered(CachedStyle->Pressed);
+	SelectedStyle.SetPressed(CachedStyle->Pressed);
+	Button->SetStyle(SelectedStyle);
+}
+
 int32 UCustomizationWidget::GetSwitcherIndexForPage(
 	ESnowRumbleCustomizationPage Page) const
 {
@@ -1530,7 +1585,8 @@ int32 UCustomizationWidget::GetSwitcherIndexForPage(
 	case ESnowRumbleCustomizationPage::ViewMode:
 		return 0;
 	case ESnowRumbleCustomizationPage::PaintMode:
-		return 1;
+		// 색칠하기는 액세서리 WidgetSwitcher와 무관한 모드다.
+		return 0;
 	case ESnowRumbleCustomizationPage::HatMode:
 		return 0;
 	case ESnowRumbleCustomizationPage::GlassesMode:

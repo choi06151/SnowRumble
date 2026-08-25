@@ -25,6 +25,7 @@
 #include "../UI/InteractionPromptWidget_C.h"
 #include "../UI/KeyGuideWidget_C.h"
 #include "../UI/MainHUDWidget.h"
+#include "../UI/OverheadTimedActionWidget.h"
 #include "../UI/SpectatorWidget_C.h"
 #include "../UI/MainMenuPlayerController.h"
 #include "../Game/PodiumPlayerController.h"
@@ -105,6 +106,8 @@ ASnowRumbleCharacter::ASnowRumbleCharacter()
 	GetCharacterMovement()->JumpZVelocity = 700.0f;
 	GetCharacterMovement()->AirControl = 0.35f;
 	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+	NetUpdateFrequency = 60.0f;
+	MinNetUpdateFrequency = 30.0f;
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
@@ -279,6 +282,7 @@ ASnowRumbleCharacter::ASnowRumbleCharacter()
 void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	EnsureOverheadTimedActionWidget();
 
 	const UWorld* World = GetWorld();
 	const bool bUseAimCameraPresentation =
@@ -1358,6 +1362,13 @@ float ASnowRumbleCharacter::TakeDamage(
 	AController* EventInstigator,
 	AActor* DamageCauser)
 {
+	// 로비는 전투 공간이 아니므로 눈덩이·환경 등 모든 피해를 받지 않는다.
+	if (GetWorld()
+		&& GetWorld()->GetGameState<ASnowRumbleLobbyGameState>())
+	{
+		return 0.0f;
+	}
+
 	const float ValidatedDamage = Super::TakeDamage(
 		DamageAmount,
 		DamageEvent,
@@ -1480,6 +1491,11 @@ void ASnowRumbleCharacter::EndPlay(
 		InteractionPromptWidget->RemoveFromParent();
 		InteractionPromptWidget = nullptr;
 	}
+	if (OverheadTimedActionWidget)
+	{
+		OverheadTimedActionWidget->RemoveFromParent();
+		OverheadTimedActionWidget = nullptr;
+	}
 	if (SpectatorWidget)
 	{
 		SpectatorWidget->RemoveFromParent();
@@ -1492,6 +1508,38 @@ void ASnowRumbleCharacter::EndPlay(
 	}
 
 	Super::EndPlay(EndPlayReason);
+}
+
+void ASnowRumbleCharacter::EnsureOverheadTimedActionWidget()
+{
+	if (OverheadTimedActionWidget
+		|| !OverheadTimedActionWidgetClass
+		|| IsLocallyControlled())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World || World->GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+
+	APlayerController* LocalPlayerController = World->GetFirstPlayerController();
+	if (!LocalPlayerController || !LocalPlayerController->IsLocalController())
+	{
+		return;
+	}
+
+	OverheadTimedActionWidget =
+		CreateWidget<UOverheadTimedActionWidget>(
+			LocalPlayerController,
+			OverheadTimedActionWidgetClass);
+	if (OverheadTimedActionWidget)
+	{
+		OverheadTimedActionWidget->SetObservedCharacter(this);
+		OverheadTimedActionWidget->AddToViewport();
+	}
 }
 
 FString ASnowRumbleCharacter::GetOverheadPlayerName() const
@@ -4133,7 +4181,7 @@ void ASnowRumbleCharacter::UpdateReplicatedSpectatorCameraView()
 		return;
 	}
 	if (LastSpectatorCameraUpdateTime >= 0.0
-		&& CurrentTime - LastSpectatorCameraUpdateTime < 0.05)
+		&& CurrentTime - LastSpectatorCameraUpdateTime < (1.0 / 60.0))
 	{
 		return;
 	}
@@ -4174,13 +4222,39 @@ void ASnowRumbleCharacter::UpdateLocalSpectatorCameraView()
 		CameraFieldOfView = ViewTarget->FollowCamera->FieldOfView;
 	}
 
-	SpectatorCameraActor->SetActorLocationAndRotation(
-		CameraLocation,
-		CameraRotation);
+	const float DeltaSeconds = GetWorld()
+		? GetWorld()->GetDeltaSeconds()
+		: 0.0f;
+	if (!bHasSmoothedSpectatorCameraView)
+	{
+		SpectatorCameraActor->SetActorLocationAndRotation(
+			CameraLocation,
+			CameraRotation);
+		bHasSmoothedSpectatorCameraView = true;
+	}
+	else
+	{
+		const float InterpSpeed = FMath::Max(0.0f, SpectatorCameraInterpSpeed);
+		SpectatorCameraActor->SetActorLocationAndRotation(
+			FMath::VInterpTo(
+				SpectatorCameraActor->GetActorLocation(),
+				CameraLocation,
+				DeltaSeconds,
+				InterpSpeed),
+			FRotator::RInterpTo(
+				SpectatorCameraActor->GetActorRotation(),
+				CameraRotation,
+				DeltaSeconds,
+				InterpSpeed));
+	}
 	if (UCameraComponent* CameraComponent =
 		SpectatorCameraActor->GetCameraComponent())
 	{
-		CameraComponent->SetFieldOfView(CameraFieldOfView);
+		CameraComponent->SetFieldOfView(FMath::FInterpTo(
+			CameraComponent->FieldOfView,
+			CameraFieldOfView,
+			DeltaSeconds,
+			FMath::Max(0.0f, SpectatorCameraInterpSpeed)));
 	}
 }
 

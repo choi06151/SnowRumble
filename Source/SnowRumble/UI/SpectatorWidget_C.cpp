@@ -27,11 +27,11 @@ void USpectatorWidget::RefreshCurrentViewTargetIdText()
 		return;
 	}
 
-	const int32 ViewTargetId = GetCurrentViewTargetId();
+	const FString ViewTargetName = CurrentViewTarget
+		? CurrentViewTarget->GetOverheadPlayerName()
+		: FString();
 	CurrentViewTargetIdText->SetText(
-		ViewTargetId == INDEX_NONE
+		ViewTargetName.IsEmpty()
 			? FText::GetEmpty()
-			: FText::Format(
-				NSLOCTEXT("SnowRumble", "SpectatorViewTargetId", "ID: {0}"),
-				ViewTargetId));
+			: FText::FromString(ViewTargetName));
 }

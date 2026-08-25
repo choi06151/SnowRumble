@@ -69,6 +69,8 @@
 - 2026-08-24: C-11 커스터마이징 색상 후보를 기존 버튼 이름 자동 바인딩 방식으로 유지하면서 27개 버튼 프로퍼티·핸들러와 C++ RGB 스타일 초기화를 추가해 총 36개 팔레트를 지원한다. WBP 버튼 생성·배치는 사용자 작업으로 남겼다.
 - 2026-08-24: C-11에 선택적 `BrushSizeSlider` 자동 바인딩을 추가했다. 0~1 Slider 값을 기존 `MinPaintBrushSize`~`MaxPaintBrushSize` 범위로 변환하고 버튼·휠 조절과 상태를 공유한다.
 - 2026-08-25: `LanToSteam` 브랜치에서 C-18을 시작했다. Steam 플러그인·Steam NetDriver 설정을 추가하고, 기존 `USnowRumbleSessionSubsystem` Blueprint API를 유지한 채 Steam Presence/Lobby와 NULL LAN 설정을 내부 분기하도록 했다. App ID 확정과 Steam Overlay 초대·초대 수락은 다음 단계로 남겼다.
+- 2026-08-26: Steam 패키지에서 호스트 종료 시 클라이언트가 잘못된 맵으로 이동하는 문제를 보강했다. 클라이언트의 활성 Steam/LAN 세션에서 발생하는 네트워크 실패를 공통 처리하고, 중복 실패 콜백을 차단한 뒤 `호스트의 연결이 해제되었습니다.` 알람과 함께 `L_MainMenu`로 복귀하도록 했다.
+- 2026-08-26: 호스트 이탈 복귀에서 `ClientTravel`이 네트워크 Pawn 외형을 메뉴까지 남기는 문제를 수정했다. 클라이언트도 `OpenLevel`로 `L_MainMenu` 월드를 완전히 다시 열어 이전 플레이어 껍데기를 정리하도록 했다.
 - 2026-08-25: C-11 커스터마이징 장착 범위를 모자 단일 슬롯에서 모자·안경·코·귀마개 4종으로 확장했다. 각 액세서리에 StaticMeshComponent, 후보 배열, 소켓명과 Transform 보정값을 제공하고, 선택 인덱스를 로컬 저장·PlayerState 복제·로비/PvP 적용 경로에 포함했다.
 - 2026-08-25: C-11 커스터마이징 WBP 버튼 자동 바인딩을 추가했다. `GlassesModeButton`, `NoseModeButton`, `EarmuffsModeButton`으로 카테고리를 전환하고, `*ItemButton_N` 이름 규칙을 UniformGrid 버튼에 적용하면 `_0` 장착 해제와 `_1` 이후 후보 Mesh 선택이 자동 연결된다.
 - 2026-08-25: 사용하지 않는 기존 메인/드로잉 화면 대신 액세서리 전용 WidgetSwitcher를 사용하도록 정리했다. 인덱스는 0 모자, 1 안경, 2 코, 3 귀마개이며 진입 시 0번을 표시한다.
@@ -78,6 +80,13 @@
 - 2026-08-25: 페인트 커서 활성 중 매 프레임 커서 위젯을 재적용해 브러시 크기 슬라이더 드래그 중에도 원형 페인트 커서를 유지하게 했다.
 - 2026-08-25: `SSlider`가 드래그 중 `ResizeLeftRight` 커서를 반환하는 경로를 확인해, PaintMode에서는 `Default`뿐 아니라 resize/hand 등 UI 커서 타입에도 `PaintMouseCursorWidgetClass` 원형 커서를 등록하게 보강했다. C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 최종 링크는 보류됐다.
 - 2026-08-25: C-11 브러쉬 최소/최대 범위가 256을 넘어도 슬라이더의 0~1 정규화와 원형 페인트 커서 크기가 전체 범위를 반영하도록 보완했다.
+- 2026-08-26: C-11 액세서리 버튼 선택 표시를 보강했다. 모자·안경·코·귀마개 버튼별 기본 스타일을 캐시하고, 현재 장착 Mesh 인덱스와 일치하는 마지막 선택 버튼만 Pressed 상태로 유지하도록 했다. 초기 진입과 리셋 후에도 표시를 동기화한다.
+- 2026-08-26: C-11 WidgetSwitcher 인덱스 충돌을 수정했다. 모자·안경·코·귀마개는 0~3번을 유지하고, PaintMode는 액세서리 WidgetSwitcher 인덱스를 변경하지 않도록 분리했다.
+- 2026-08-26: C-06 로비 피해 차단을 추가했다. `ASnowRumbleCharacter::TakeDamage()`가 `ASnowRumbleLobbyGameState`가 존재하는 로비 월드에서는 0 피해를 반환하고, PvP 월드의 기존 피해·얼기 흐름은 유지한다.
+- 2026-08-26: C-02 메인 메뉴에 `QuitGameButton` 계약을 추가했다. `AMainMenuPlayerController::QuitGame()`이 로컬 게임을 완전히 종료하고, 버튼 내부 텍스트는 기존 주요 버튼과 같은 hover/pressed 남색 처리를 사용한다.
+- 2026-08-26: C-02 메인 메뉴 닉네임을 최대 7글자로 제한했다. 초과 입력은 욕설 입력과 같은 저장 거부·기존 닉네임 복원 흐름을 사용하고 `닉네임이 너무 길어서 사용할 수 없습니다.` 알람을 표시한다.
+- 2026-08-26: C-06 관전 카메라 끊김을 완화했다. 캐릭터 네트워크 갱신 빈도를 높이고 관전 카메라 RPC를 초당 60회까지 허용하며, 수신 카메라 위치·회전·FOV를 로컬 프레임마다 보간한다.
+- 2026-08-26: C-06 관전 위젯의 기존 `CurrentViewTargetIdText` 표시값을 PlayerId 대신 대상 플레이어 닉네임으로 변경했다. WBP 바인딩 이름과 기존 ID 조회 함수는 호환성을 위해 유지한다.
 - 2026-08-25: C-06 얼음·사망 관전을 구현했다. `ASnowRumbleCharacter`가 자기 캐릭터를 포함한 참여 캐릭터 전체를 PlayerId 순으로 후보화하고, 얼음·사망 상태에서 A/D로 로컬 카메라 시점을 순환한다. `USpectatorWidget`과 `CurrentViewTargetIdText` 바인딩으로 현재 관전 대상 ID를 표시하며, 플레이어 Blueprint의 `SpectatorWidgetClass` 연결은 수동 작업으로 인계한다.
 - 2026-08-25: C-06 관전 카메라를 대상 캐릭터 ViewTarget 방식에서 실제 시점 복제 방식으로 변경했다. 소유 클라이언트의 `FollowCamera` 위치·회전·FOV를 `ServerUpdateSpectatorCameraView`로 전달하고, 관전자는 복제값을 적용한 로컬 `ACameraActor`를 사용한다.
 - 2026-08-25: 사용자가 PvP 로딩 불안정성 개선을 요청해 C-31을 추가했다. 컨트롤러 수 대신 클라이언트별 Ready 핸드셰이크를 사용하고, 45초 타임아웃 시 전체 매치를 취소해 로비로 복귀하며, PSO Precaching·캐시 수집 경로를 정리한다.
@@ -91,6 +100,7 @@
 - 2026-08-24: 황금 핫팩을 즉시 전체 부활에서 장착형 근접 부활로 변경했다. 일반 핫팩과 같은 후보·서버 검증을 사용하고 홀드 시간은 2배, HP는 100%, 성공 후 아이템은 유지한다.
 - 2026-08-24: 로비 8번째 팀을 White에서 Orange로 변경했다. 서버 팀 enum·자동 배정·팀 색상·LobbyBoard 버튼을 Orange 기준으로 연결하고 기존 WBP White 버튼 이름은 fallback으로 유지한다.
 - 2026-08-24: C-06 얼음 상태를 `ESnowRumbleTimedActionState::Frozen`으로 연결하고, `OverheadTimedActionWidget`이 복제 서버 시각 기준 60초 사망 타이머를 1에서 0으로 표시하게 했다.
+- 2026-08-26: C-06 얼음 사망 타이머를 원격 캐릭터별 `OverheadTimedActionWidget` 인스턴스로 확장했다. 캐릭터 Blueprint의 `OverheadTimedActionWidgetClass`에 기존 `WBP_OverheadTimedActionWidget`을 지정하면 모든 클라이언트가 얼음 상태 플레이어의 진행 바를 1에서 0으로 확인한다.
 - 2026-08-08: 개편 전 `master` 구현을 현재 C-01 기준으로 적용했다. 세션·로비, HP·얼기, 눈 전투, UI 부모, 이모션, 레거시 투사체의 유지·수정·대체·폐기 보류·재검증 분류를 C-01과 관련 C Task에 반영했다.
 - 2026-08-08: 최재원(C)이 프로젝트 정상 동작을 확인해 C-01을 완료 처리하고, 다음 후보를 C-02 세션·방 설정으로 전환했다.
 - 2026-08-08: C-02의 빠른 게임 기준을 빈자리 있는 첫 LAN 방 자동 참가로 확정하고, 직접 방 찾기는 방 코드 입력 참가로 확정해 C-02를 진행중으로 전환했다.
@@ -330,6 +340,7 @@
 - 2026-08-23: C-09 눈덩이 차징 중 피격 회귀를 수정했다. 피격 반응이 투척 몽타주 Notify를 끊어도 pending throw가 남지 않게 하고, 손에 남은 눈덩이는 다시 조준·차징해 던질 수 있게 했다.
 - 2026-08-23: C-02 호스트 로비 방 코드 표시를 보강했다. 세션 생성 타이밍 때문에 `CurrentRoomCode`가 비어도 호스트 생성 중인 `PendingHostRoomCode`를 fallback으로 반환하고, 세션 생성 경로에서 현재 방 코드를 복구한다.
 - 2026-08-23: C-09 눈 제작 trace를 보강했다. 단일 hit가 `SnowSurface`가 아니면 실패하던 경로를 multi hit 검색으로 바꿔, 가까운 동적 액터 뒤의 눈 표면도 제작 표면으로 찾게 했다.
+- 2026-08-26: QA용으로 눈 제작 서버 검증 실패 원인을 `LogSnowballCreation` 로그에서 상태별로 확인하도록 보강했다. 다음 재현 시 `SurfaceHit`, `CameraOriginValid`, `Aiming`, `Creating` 값을 기준으로 원인을 판별한다.
 - 2026-08-23: C-09/C-22 눈덩이 굴리기 표시를 조정했다. 플레이어가 굴리는 중인 눈덩이는 outline과 `E - 눈덩이` 안내 후보에서 제외하고, 굴리기 종료 후 바닥 눈덩이만 기존처럼 표시한다.
 - 2026-08-23: C-21 키 가이드 입력 슬롯을 추가했다. 캐릭터 BP는 `KeyGuideAction`과 `KeyGuideWidgetClass`를 지정할 수 있고, 기본 `T`/`KeyGuide` 키 설정으로 누르는 동안만 로컬 안내 WBP를 표시한다.
 - 2026-08-23: C-21 키 가이드 WBP 부모를 추가했다. `UKeyGuideWidget`은 현재 로컬 키 설정을 읽어 WBP의 키 표시 TextBlock만 자동 갱신하고, 이모션 기본 키 설정은 `Tab`으로 정리했다.

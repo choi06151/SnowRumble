@@ -41,6 +41,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
 	void TravelToCustomizationLevel();
 
+	/** 로컬 게임을 완전히 종료한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Main Menu")
+	void QuitGame();
+
 	/** 현재 재생 중인 배경음악의 볼륨 프리뷰를 갱신한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Audio")
 	void SetBackgroundMusicPreviewVolume(float MasterVolume, float BgmVolume);

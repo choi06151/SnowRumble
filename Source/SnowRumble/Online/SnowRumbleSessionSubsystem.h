@@ -249,7 +249,8 @@ private:
 	FString PendingMainMenuAlarmMessage;
 	FString CurrentRoomCode;
 	bool bHostTravelPending = false;
-	bool bWasInLanSession = false;
+	bool bWasInOnlineSession = false;
+	bool bReturningToMainMenuAfterSessionFailure = false;
 	ESnowRumbleSessionOperation CurrentOperation = ESnowRumbleSessionOperation::None;
 	ESnowRumbleSessionState CurrentState = ESnowRumbleSessionState::Idle;
 };

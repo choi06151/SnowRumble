@@ -414,7 +414,9 @@ private:
 		FLinearColor FallbackColor);
 	void UnbindPaletteColorButton(UButton* Button);
 	void RefreshPaletteButtonSelection();
+	void RefreshAccessoryItemButtonSelection();
 	void SetButtonPressedVisual(UButton* Button, bool bSelected);
+	void SetAccessoryButtonPressedVisual(UButton* Button, bool bSelected);
 	int32 GetSwitcherIndexForPage(ESnowRumbleCustomizationPage Page) const;
 
 	struct FAccessoryButtonBinding
@@ -435,4 +437,5 @@ private:
 	bool bIsBrushSizeButtonPressed = false;
 
 	TMap<UButton*, FButtonStyle> DefaultPaletteButtonStyles;
+	TMap<UButton*, FButtonStyle> DefaultAccessoryItemButtonStyles;
 };

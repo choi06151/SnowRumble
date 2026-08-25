@@ -74,6 +74,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Main Menu")
 	TObjectPtr<UButton> CustomizationButton;
 
+	/** 있으면 게임을 완전히 종료하는 버튼이다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Main Menu")
+	TObjectPtr<UButton> QuitGameButton;
+
 	/** 있으면 참가하기 버튼을 눌렀을 때 표시되는 방 코드 입력 패널이다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Main Menu")
 	TObjectPtr<UWidget> RoomCodeJoinPanel;
@@ -164,6 +168,9 @@ private:
 
 	UFUNCTION()
 	void HandleCustomizationButtonClicked();
+
+	UFUNCTION()
+	void HandleQuitGameButtonClicked();
 
 	UFUNCTION()
 	void HandleConfirmRoomCodeJoinClicked();

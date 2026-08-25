@@ -13,6 +13,8 @@
 #include "SnowballEquipmentComponent.h"
 #include "TimerManager.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogSnowballCreation, Log, All);
+
 USnowballCreationComponent::USnowballCreationComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
@@ -145,6 +147,25 @@ void USnowballCreationComponent::ServerStartCreatingSnowball_Implementation(
 
 	if (!bCanStartCreation)
 	{
+		const float CameraDistance = Character
+			? FVector::Distance(ViewLocation, Character->GetActorLocation())
+			: -1.0f;
+		UE_LOG(
+			LogSnowballCreation,
+			Warning,
+			TEXT("Creation rejected. Character=%s Creating=%d Frozen=%d Aiming=%d Held=%d ItemClass=%d CameraOriginValid=%d CameraDistance=%.1f MaxCameraOriginDistance=%.1f SurfaceHit=%d ViewLocation=%s ViewDirection=%s"),
+			Character ? *Character->GetName() : TEXT("None"),
+			bIsCreating ? 1 : 0,
+			Character && Character->IsFrozen() ? 1 : 0,
+			Character && Character->IsAiming() ? 1 : 0,
+			Equipment && Equipment->HasHeldSnowball() ? 1 : 0,
+			SnowballItemClass ? 1 : 0,
+			bCameraOriginValid ? 1 : 0,
+			CameraDistance,
+			MaxCameraOriginDistance,
+			bSurfaceHit ? 1 : 0,
+			*ViewLocation.ToCompactString(),
+			*ViewDirection.ToCompactString());
 		return;
 	}
 
@@ -208,6 +229,19 @@ void USnowballCreationComponent::CompleteCreation()
 		|| !CreationSurfaceActor.IsValid()
 		|| !CreationSurfaceActor->ActorHasTag(SnowSurfaceTag))
 	{
+		UE_LOG(
+			LogSnowballCreation,
+			Warning,
+			TEXT("Creation completion rejected. Character=%s CharacterValid=%d Frozen=%d Aiming=%d Held=%d ItemClass=%d SurfaceActorValid=%d SurfaceHasTag=%d"),
+			Character ? *Character->GetName() : TEXT("None"),
+			Character ? 1 : 0,
+			Character && Character->IsFrozen() ? 1 : 0,
+			Character && Character->IsAiming() ? 1 : 0,
+			Equipment && Equipment->HasHeldSnowball() ? 1 : 0,
+			SnowballItemClass ? 1 : 0,
+			CreationSurfaceActor.IsValid() ? 1 : 0,
+			CreationSurfaceActor.IsValid()
+				&& CreationSurfaceActor->ActorHasTag(SnowSurfaceTag) ? 1 : 0);
 		SetCreatingState(false);
 		return;
 	}
