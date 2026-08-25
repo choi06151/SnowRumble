@@ -9,7 +9,7 @@
 
 ## 현재 집중 Task
 
-- [C-31](C-31_pvp_loading_ready_and_pso.md) PvP 로딩 Ready 핸드셰이크와 PSO 안정화
+- [C-18](C-18_steam_session_integration.md) Steam 세션 최종 통합
 
 ## 개발 스타일
 
@@ -41,7 +41,7 @@
 | 16 | [C-12](C-12_mvp_integration.md) | MVP 최종 통합 | 모든 파트 통합 Task | 예정 |
 | 17 | [C-16](C-16_teammate_health_hud.md) | 팀원 HP HUD | C-03·기존 HP UI | 완료 |
 | 18 | [C-17](C-17_pvp_start_countdown.md) | PvP 시작 카운트다운 | C-15·기존 HUD·캐릭터 입력 | 진행중 |
-| 19 | [C-18](C-18_steam_session_integration.md) | Steam 세션 최종 통합 | LAN 기반 MVP 흐름 안정화·Steam 테스트 환경 | 예정 |
+| 19 | [C-18](C-18_steam_session_integration.md) | Steam 세션 최종 통합 | LAN 기반 MVP 흐름 안정화·Steam 테스트 환경 | 진행중 |
 | 20 | [C-19](C-19_text_chat.md) | 텍스트 채팅 | C-03 팀 색·공용 PlayerController | 진행중 |
 | 21 | [C-20](C-20_event_log_ui.md) | 이벤트 로그 UI | C-03, C-06, 공용 PlayerController | 진행중 |
 | 22 | [C-21](C-21_options_menu.md) | 옵션 메뉴 | 메인메뉴·로비 ESC 메뉴 | 진행중 |
@@ -68,6 +68,7 @@
 - 2026-08-07: 최재원(C)의 개발 스타일을 C++ 위주로 확정. C Task는 서버 권한·복제·공용 계약을 C++ 중심으로 먼저 고정하고 Blueprint는 표현·연결 책임으로 분리한다.
 - 2026-08-24: C-11 커스터마이징 색상 후보를 기존 버튼 이름 자동 바인딩 방식으로 유지하면서 27개 버튼 프로퍼티·핸들러와 C++ RGB 스타일 초기화를 추가해 총 36개 팔레트를 지원한다. WBP 버튼 생성·배치는 사용자 작업으로 남겼다.
 - 2026-08-24: C-11에 선택적 `BrushSizeSlider` 자동 바인딩을 추가했다. 0~1 Slider 값을 기존 `MinPaintBrushSize`~`MaxPaintBrushSize` 범위로 변환하고 버튼·휠 조절과 상태를 공유한다.
+- 2026-08-25: `LanToSteam` 브랜치에서 C-18을 시작했다. Steam 플러그인·Steam NetDriver 설정을 추가하고, 기존 `USnowRumbleSessionSubsystem` Blueprint API를 유지한 채 Steam Presence/Lobby와 NULL LAN 설정을 내부 분기하도록 했다. App ID 확정과 Steam Overlay 초대·초대 수락은 다음 단계로 남겼다.
 - 2026-08-25: C-11 커스터마이징 장착 범위를 모자 단일 슬롯에서 모자·안경·코·귀마개 4종으로 확장했다. 각 액세서리에 StaticMeshComponent, 후보 배열, 소켓명과 Transform 보정값을 제공하고, 선택 인덱스를 로컬 저장·PlayerState 복제·로비/PvP 적용 경로에 포함했다.
 - 2026-08-25: C-11 커스터마이징 WBP 버튼 자동 바인딩을 추가했다. `GlassesModeButton`, `NoseModeButton`, `EarmuffsModeButton`으로 카테고리를 전환하고, `*ItemButton_N` 이름 규칙을 UniformGrid 버튼에 적용하면 `_0` 장착 해제와 `_1` 이후 후보 Mesh 선택이 자동 연결된다.
 - 2026-08-25: 사용하지 않는 기존 메인/드로잉 화면 대신 액세서리 전용 WidgetSwitcher를 사용하도록 정리했다. 인덱스는 0 모자, 1 안경, 2 코, 3 귀마개이며 진입 시 0번을 표시한다.

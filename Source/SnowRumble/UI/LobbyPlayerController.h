@@ -58,6 +58,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby")
 	void HideLobbyEscapeMenu();
 
+	/** Steam 세션 초대창을 열고 현재 로비 세션을 초대 대상으로 지정한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby")
+	bool OpenSteamSessionInviteUI();
+
 	/** 로비 ESC 메뉴에서 메인메뉴 맵으로 이동한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby")
 	void RequestReturnToMainMenu();

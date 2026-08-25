@@ -133,6 +133,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Session")
 	ESnowRumbleSessionState GetCurrentState() const;
 
+	/** Steam 세션 초대 UI를 열고 현재 세션을 초대 대상으로 지정한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Session")
+	bool ShowSessionInviteUI();
+
 	UPROPERTY(BlueprintAssignable, Category = "SnowRumble|Session")
 	FOnSnowRumbleSessionStateChanged OnSessionStateChanged;
 
@@ -142,6 +146,9 @@ public:
 private:
 	/** 현재 프로젝트에 설정된 OnlineSubsystem의 세션 인터페이스를 가져온다. */
 	IOnlineSessionPtr GetSessionInterface() const;
+
+	/** 현재 OnlineSubsystem이 Steam인지 확인한다. */
+	bool IsSteamSubsystem() const;
 
 	/** Listen Server NetDriver가 준비된 뒤 실제 LAN 세션을 생성한다. */
 	void CreateLanSession(int32 MaxPlayers);

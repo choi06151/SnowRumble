@@ -248,6 +248,20 @@ void ALobbyPlayerController::HideLobbyEscapeMenu()
 	}
 }
 
+bool ALobbyPlayerController::OpenSteamSessionInviteUI()
+{
+	if (!IsLocalController())
+	{
+		return false;
+	}
+
+	UGameInstance* GameInstance = GetGameInstance();
+	USnowRumbleSessionSubsystem* SessionSubsystem = GameInstance
+		? GameInstance->GetSubsystem<USnowRumbleSessionSubsystem>()
+		: nullptr;
+	return SessionSubsystem && SessionSubsystem->ShowSessionInviteUI();
+}
+
 void ALobbyPlayerController::ShowOptionsMenu()
 {
 	if (!IsLocalController())

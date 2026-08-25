@@ -10,6 +10,7 @@
 #include "OnlineSessionSettings.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemUtils.h"
+#include "Interfaces/OnlineExternalUIInterface.h"
 #include "Kismet/GameplayStatics.h"
 #include "UObject/UObjectGlobals.h"
 
@@ -59,7 +60,7 @@ void USnowRumbleSessionSubsystem::Initialize(FSubsystemCollectionBase& Collectio
 
 	LocalSessionName = FName(
 		*FString::Printf(
-			TEXT("SnowRumbleLanSession_%s"),
+			TEXT("SnowRumbleSession_%s"),
 			*FGuid::NewGuid().ToString(EGuidFormats::Digits)));
 
 	PostLoadMapHandle = FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(
@@ -225,13 +226,14 @@ void USnowRumbleSessionSubsystem::CreateLanSession(int32 MaxPlayers)
 		return;
 	}
 
+	const bool bUseSteam = IsSteamSubsystem();
 	FOnlineSessionSettings SessionSettings;
-	SessionSettings.bIsLANMatch = true;
+	SessionSettings.bIsLANMatch = !bUseSteam;
 	SessionSettings.bShouldAdvertise = true;
 	SessionSettings.bAllowJoinInProgress = true;
-	SessionSettings.bAllowInvites = false;
-	SessionSettings.bUsesPresence = false;
-	SessionSettings.bUseLobbiesIfAvailable = false;
+	SessionSettings.bAllowInvites = bUseSteam;
+	SessionSettings.bUsesPresence = bUseSteam;
+	SessionSettings.bUseLobbiesIfAvailable = bUseSteam;
 	SessionSettings.NumPublicConnections = MaxPlayers;
 	SessionSettings.Set(
 		SnowRumbleSession::RoomNameSettingKey,
@@ -253,7 +255,8 @@ void USnowRumbleSessionSubsystem::CreateLanSession(int32 MaxPlayers)
 	UE_LOG(
 		LogSnowRumbleSession,
 		Log,
-		TEXT("Creating LAN session. MaxPlayers=%d RoomName='%s' RoomCode=%s"),
+		TEXT("Creating %s session. MaxPlayers=%d RoomName='%s' RoomCode=%s"),
+		bUseSteam ? TEXT("Steam") : TEXT("LAN"),
 		MaxPlayers,
 		*PendingHostRoomName,
 		*PendingHostRoomCode);
@@ -267,7 +270,9 @@ void USnowRumbleSessionSubsystem::CreateLanSession(int32 MaxPlayers)
 	SetOperationState(
 		ESnowRumbleSessionOperation::Host,
 		ESnowRumbleSessionState::InProgress,
-		TEXT("LAN 세션을 생성하고 있습니다."));
+		bUseSteam
+			? TEXT("Steam 세션을 생성하고 있습니다.")
+			: TEXT("LAN 세션을 생성하고 있습니다."));
 
 	if (!SessionInterface->CreateSession(
 		0,
@@ -333,7 +338,8 @@ void USnowRumbleSessionSubsystem::UpdateAdvertisedSessionMap(UWorld* LoadedWorld
 	UE_LOG(
 		LogSnowRumbleSession,
 		Log,
-		TEXT("Updating advertised LAN session map. Map=%s AllowJoinInProgress=%d"),
+		TEXT("Updating advertised session map. Backend=%s Map=%s AllowJoinInProgress=%d"),
+		IsSteamSubsystem() ? TEXT("Steam") : TEXT("LAN"),
 		*MapName,
 		UpdatedSettings.bAllowJoinInProgress ? 1 : 0);
 
@@ -451,12 +457,21 @@ void USnowRumbleSessionSubsystem::BeginFindLanSessions(
 
 	SearchResults.Reset();
 	ActiveSessionSearch = MakeShared<FOnlineSessionSearch>();
-	ActiveSessionSearch->bIsLanQuery = true;
+	const bool bUseSteam = IsSteamSubsystem();
+	ActiveSessionSearch->bIsLanQuery = !bUseSteam;
+	if (bUseSteam)
+	{
+		ActiveSessionSearch->QuerySettings.Set(
+			SEARCH_LOBBIES,
+			true,
+			EOnlineComparisonOp::Equals);
+	}
 	ActiveSessionSearch->MaxSearchResults = SnowRumbleSession::MaximumSearchResults;
 	UE_LOG(
 		LogSnowRumbleSession,
 		Log,
-		TEXT("Begin LAN search. Operation=%d"),
+		TEXT("Begin %s search. Operation=%d"),
+		bUseSteam ? TEXT("Steam") : TEXT("LAN"),
 		static_cast<int32>(Operation));
 
 	FindSessionsCompleteHandle =
@@ -587,7 +602,9 @@ void USnowRumbleSessionSubsystem::JoinSearchResult(
 	SetOperationState(
 		Operation,
 		ESnowRumbleSessionState::InProgress,
-		TEXT("LAN 세션에 참가하고 있습니다."));
+		IsSteamSubsystem()
+			? TEXT("Steam 세션에 참가하고 있습니다.")
+			: TEXT("LAN 세션에 참가하고 있습니다."));
 
 	if (!SessionInterface->JoinSession(
 		0,
@@ -641,6 +658,47 @@ IOnlineSessionPtr USnowRumbleSessionSubsystem::GetSessionInterface() const
 {
 	IOnlineSubsystem* OnlineSubsystem = Online::GetSubsystem(GetWorld());
 	return OnlineSubsystem ? OnlineSubsystem->GetSessionInterface() : nullptr;
+}
+
+bool USnowRumbleSessionSubsystem::IsSteamSubsystem() const
+{
+	IOnlineSubsystem* OnlineSubsystem = Online::GetSubsystem(GetWorld());
+	return OnlineSubsystem
+		&& OnlineSubsystem->GetSubsystemName() == FName(TEXT("STEAM"));
+}
+
+bool USnowRumbleSessionSubsystem::ShowSessionInviteUI()
+{
+	if (!IsSteamSubsystem())
+	{
+		UE_LOG(
+			LogSnowRumbleSession,
+			Warning,
+			TEXT("Steam invite UI requested while the active subsystem is not Steam."));
+		return false;
+	}
+
+	IOnlineSubsystem* OnlineSubsystem = Online::GetSubsystem(GetWorld());
+	IOnlineExternalUIPtr ExternalUI = OnlineSubsystem
+		? OnlineSubsystem->GetExternalUIInterface()
+		: nullptr;
+	if (!ExternalUI.IsValid())
+	{
+		UE_LOG(
+			LogSnowRumbleSession,
+			Warning,
+			TEXT("Steam invite UI is unavailable."));
+		return false;
+	}
+
+	const bool bShown = ExternalUI->ShowInviteUI(0, LocalSessionName);
+	UE_LOG(
+		LogSnowRumbleSession,
+		Log,
+		TEXT("Steam session invite UI requested. Shown=%d SessionName=%s"),
+		bShown ? 1 : 0,
+		*LocalSessionName.ToString());
+	return bShown;
 }
 
 void USnowRumbleSessionSubsystem::SetOperationState(
