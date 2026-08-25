@@ -133,6 +133,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Session")
 	ESnowRumbleSessionState GetCurrentState() const;
 
+	/** Steam 세션 초대 UI를 열고 현재 세션을 초대 대상으로 지정한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Session")
+	bool ShowSessionInviteUI();
+
 	UPROPERTY(BlueprintAssignable, Category = "SnowRumble|Session")
 	FOnSnowRumbleSessionStateChanged OnSessionStateChanged;
 
@@ -142,6 +146,9 @@ public:
 private:
 	/** 현재 프로젝트에 설정된 OnlineSubsystem의 세션 인터페이스를 가져온다. */
 	IOnlineSessionPtr GetSessionInterface() const;
+
+	/** 현재 OnlineSubsystem이 Steam인지 확인한다. */
+	bool IsSteamSubsystem() const;
 
 	/** Listen Server NetDriver가 준비된 뒤 실제 LAN 세션을 생성한다. */
 	void CreateLanSession(int32 MaxPlayers);
@@ -198,6 +205,13 @@ private:
 	/** 세션 연결 실패 또는 호스트 이탈 후 메인메뉴로 복귀한다. */
 	void ReturnToMainMenuAfterSessionFailure(const FString& AlarmMessage);
 
+	/** Steam Overlay에서 수락한 초대를 실제 세션 참가 요청으로 변환한다. */
+	void HandleSessionUserInviteAccepted(
+		const bool bWasSuccessful,
+		const int32 ControllerId,
+		FUniqueNetIdPtr UserId,
+		const FOnlineSessionSearchResult& InviteResult);
+
 	/** 등록된 세션 생성 완료 델리게이트를 해제한다. */
 	void ClearCreateSessionDelegate();
 
@@ -222,6 +236,7 @@ private:
 	FDelegateHandle CreateSessionCompleteHandle;
 	FDelegateHandle FindSessionsCompleteHandle;
 	FDelegateHandle JoinSessionCompleteHandle;
+	FDelegateHandle SessionUserInviteAcceptedHandle;
 	FDelegateHandle PostLoadMapHandle;
 	FDelegateHandle NetworkFailureHandle;
 	FDelegateHandle TravelFailureHandle;

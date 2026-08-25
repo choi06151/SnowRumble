@@ -80,6 +80,7 @@
 - [x] 옵션 메뉴의 카테고리와 마이크 방식 버튼은 현재 선택값이면 눌린 상태처럼 표시한다.
 - [x] 로비 ESC/F10 메뉴와 로비 옵션 메뉴를 열 때 마우스 커서가 보이게 한다.
 - [x] 기본 `T` 키로 누르는 동안만 키 가이드 WBP를 표시하는 캐릭터 입력·UI 슬롯을 제공한다.
+- [x] 옵션 마이크 패널에서 선택 장치의 실제 PCM 입력 레벨을 테스트하고 표시한다.
 
 ## 작업 배정
 
@@ -131,6 +132,10 @@
   - `UOptionsWidget::MicrophonePushToTalkButton`: 눌러서 말하기 방식 선택 버튼
   - `UOptionsWidget::MicrophoneAlwaysOnButton`: 항상 말하기 방식 선택 버튼
   - `UOptionsWidget::OnMicrophoneModeChanged(...)`: WBP가 마이크 방식 선택 표시를 갱신할 이벤트
+  - `UOptionsWidget::MicrophoneTestButton`: 로컬 마이크 입력 테스트 시작/중지 버튼
+  - `UOptionsWidget::MicrophoneTestStatusText`: 입력 감지·대기·실패 상태 텍스트 선택 바인딩
+  - `UOptionsWidget::MicrophoneInputLevelProgressBar`: 0~1 입력 레벨 선택 바인딩
+  - `UOptionsWidget::OnMicrophoneTestStateChanged(...)`: 테스트 상태와 입력 레벨을 WBP가 갱신하는 이벤트
   - `USnowRumbleUserSettingsSubsystem::SetMicrophoneVolume(...)`: 로컬 마이크 음량 저장 함수
   - `USnowRumbleUserSettingsSubsystem::SetMicrophoneMode(...)`: 로컬 마이크 방식 저장 함수
   - `ASnowRumblePlayerController::OnMicrophoneInputStateChanged(...)`: 실제 음성 시스템 또는 WBP가 마이크 입력 상태 변화에 반응할 이벤트
@@ -238,6 +243,8 @@
 - 2026-08-23: 캐릭터에 키 가이드 WBP용 `KeyGuideAction`/`KeyGuideWidgetClass` 슬롯을 추가했다. 기본 키 설정 항목은 `KeyGuide`/`T`이며, 입력을 누르는 동안만 로컬 WBP를 표시하고 해제 시 게임 입력으로 복구한다.
 - 2026-08-23: `UKeyGuideWidget` 부모를 추가해 키 가이드 WBP의 키 부분 TextBlock만 현재 로컬 키 설정에 맞춰 자동 갱신하게 했다. 이모션 기본 키 설정도 실제 사용 기준과 맞게 `Tab`으로 정리했다.
 - 2026-08-23: 마이크 입력 점검을 위해 `K` 눌러서 말하기 시작 시 OnlineSubsystem VoiceInterface의 로컬 토커 등록을 보장하고, 등록·헤드셋 감지·StartTalking/StopTalking 흐름을 로그로 남기게 했다. 계산만 하고 직접 바인딩하지 않았던 `N` 채널 전환과 `M` 플레이어 음소거 키도 PlayerController 직접 바인딩에 추가했다.
+- 2026-08-25: 옵션 마이크 패널에 선택형 `MicrophoneDeviceComboBox` 계약을 추가했다. `AudioCaptureCore`에서 장치 이름·ID를 열거하고, 선택한 장치 ID를 로컬 설정에 저장하며 `OnMicrophoneDeviceChanged` 이벤트로 WBP 표시를 갱신한다. 현재 NULL `IOnlineVoice`는 엔진 내부에서 기본 입력 장치를 직접 생성하므로, 저장된 선택값을 네트워크 음성 캡처에 실제 적용하는 후속 엔진 음성 계층 연결이 필요하다.
+- 2026-08-25: 옵션 마이크 패널에 `MicrophoneTestButton`, `MicrophoneTestStatusText`, `MicrophoneInputLevelProgressBar`를 추가했다. `AudioCaptureCore` PCM 콜백으로 선택 장치의 RMS 입력 레벨을 계산하고, `OnMicrophoneTestStateChanged` 이벤트로 입력 대기·감지·실패 상태와 레벨을 WBP에 전달한다. `NativeDestruct`에서 캡처 스트림을 중지하며 `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
 
 ## 수동 작업
 
@@ -254,6 +261,10 @@
 - 키 설정 행 WBP를 만들 때 부모를 `UOptionsKeyBindingRowWidget`으로 두고, `ActionNameText`, `CurrentKeyText`, `RebindButton`, `ResetButton` 이름을 맞춘다.
 - 옵션 WBP의 `KeyBindingRowWidgetClass`에 키 설정 행 WBP를 지정한다.
 - 감도, 사운드, 키 설정, 마이크 설정 UI는 C++에서 제공한 바인딩 이름과 함수 기준으로 배치한다.
+- 마이크 패널에 선택형 ComboBoxString 이름을 `MicrophoneDeviceComboBox`로 배치하면 운영체제의 입력 장치 목록이 자동으로 채워진다.
+- 마이크 패널에 Button 이름을 `MicrophoneTestButton`으로 배치하면 선택 장치의 로컬 PCM 입력 테스트를 시작·중지한다.
+- 마이크 패널에 TextBlock 이름을 `MicrophoneTestStatusText`로 배치하면 입력 대기·감지·실패 상태가 표시된다.
+- 마이크 패널에 ProgressBar 이름을 `MicrophoneInputLevelProgressBar`로 배치하면 현재 입력 레벨이 0~1로 표시된다.
 - 감도 패널에 Slider 이름을 `SensitivitySlider`로 배치한다.
 - 감도 패널에 TextBlock 이름을 `SensitivityValueText`로 배치한다.
 - 사운드 패널에 배경음악 Slider 이름을 `BgmVolumeSlider`로 배치한다.
@@ -316,6 +327,7 @@
 - [x] 전체/팀 말하기 상태 복제와 팀 채널 gameplay mute 코드 변경 완료
 - [x] 마이크 채널 전환 personal alarm 코드 변경 완료
 - [x] 옵션 메뉴 선택형 버튼 눌림 유지 표시 코드 변경 완료
+- [x] 선택 마이크 장치의 로컬 PCM 입력 테스트와 UI 상태 이벤트 코드 변경 완료
 - [x] `git diff --check` 공백 점검 통과
 - [x] `SnowRumbleEditor Win64 Development` 최종 링크 통과
 - [ ] 역할·소유권·담당자 이니셜 규칙 위반 없음
@@ -361,6 +373,9 @@
 - [ ] 다시 같은 행의 버튼을 누르면 수동 음소거가 해제되고 팀 채널 규칙상 들을 수 있는 플레이어 음성이 다시 들린다.
 - [ ] 팀 말하기 상태에서 송출하면 같은 팀에게만 음성 표시가 보이고 다른 팀 클라이언트는 해당 플레이어 음성이 gameplay mute 처리된다.
 - [ ] 옵션 메뉴의 현재 카테고리와 마이크 방식 버튼이 선택 상태처럼 눌려 보이고, 다른 선택지는 원래 스타일로 돌아간다.
+- [ ] 마이크 패널 테스트 버튼으로 선택 장치 캡처가 시작되고 입력 대기 상태가 표시된다.
+- [ ] 마이크에 소리를 입력하면 Level 표시가 올라가고 입력 감지 상태가 표시된다.
+- [ ] 테스트를 중지하거나 옵션을 닫으면 캡처가 중지되고 Level이 0으로 돌아간다.
 - [ ] 로비, PvP, 눈사람 모드에서 `T`를 누르고 있는 동안 키 가이드 WBP가 보이고, 키를 떼면 사라진다.
 - [ ] 키 가이드 WBP가 열려 있는 동안 카메라 시점과 일반 행동 입력이 실행되지 않는다.
 - [ ] 캐릭터 BP에 `KeyGuideAction` 또는 `KeyGuideWidgetClass`를 지정하지 않은 상태에서는 기존 입력이 깨지지 않는다.

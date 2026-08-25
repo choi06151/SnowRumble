@@ -91,6 +91,7 @@ void ACustomizationPlayerController::BeginPlay()
 	if (IsLocalController())
 	{
 		EnsurePreviewCharacter();
+		ApplyPreviewCharacterMeshScale();
 		ApplyPreviewCharacterZOffset();
 		ApplyPreviewAnimationSettings();
 		LoadSavedCustomizationForPreview();
@@ -813,6 +814,24 @@ void ACustomizationPlayerController::ApplyPreviewCharacterZOffset()
 	FVector AdjustedRelativeLocation = PreviewMesh->GetRelativeLocation();
 	AdjustedRelativeLocation.Z += PreviewCharacterZOffset;
 	PreviewMesh->SetRelativeLocation(AdjustedRelativeLocation);
+}
+
+void ACustomizationPlayerController::ApplyPreviewCharacterMeshScale()
+{
+	ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter();
+	if (!PreviewCharacter)
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* PreviewMesh = PreviewCharacter->GetMesh();
+	if (!PreviewMesh)
+	{
+		return;
+	}
+
+	const float SafeMeshScale = FMath::Max(0.1f, PreviewCharacterMeshScale);
+	PreviewMesh->SetRelativeScale3D(FVector(SafeMeshScale));
 }
 
 void ACustomizationPlayerController::ApplyPreviewAnimationSettings()

@@ -75,11 +75,13 @@ ASnowmanModeGameMode::ASnowmanModeGameMode()
 	SnowmanCharacterClass = ASnowmanModeSnowmanCharacter::StaticClass();
 	bUseSeamlessTravel = true;
 
+#if WITH_EDITOR
 	if (IConsoleVariable* AllowPieSeamlessTravel =
 		IConsoleManager::Get().FindConsoleVariable(TEXT("net.AllowPIESeamlessTravel")))
 	{
 		AllowPieSeamlessTravel->Set(1);
 	}
+#endif
 }
 
 void ASnowmanModeGameMode::InitGame(

@@ -12,6 +12,24 @@
 	],
 	"Plugins": [
 		{
+			"Name": "OnlineSubsystemSteam",
+			"Enabled": true,
+			"TargetAllowList": [
+				"Client",
+				"Game",
+				"Editor"
+			]
+		},
+		{
+			"Name": "SocketSubsystemSteamIP",
+			"Enabled": true,
+			"TargetAllowList": [
+				"Client",
+				"Game",
+				"Editor"
+			]
+		},
+		{
 			"Name": "ModelingToolsEditorMode",
 			"Enabled": true,
 			"TargetAllowList": [

@@ -53,5 +53,6 @@
 - [C-25 PvP 선물상자와 아이템 기본 계약](C-25_pvp_gift_box_item_foundation.md)
 - [C-28 플레이어 잡기와 Control Rig 기본틀](C-28_player_grab_control_rig_foundation.md)
 - [C-30 오디오 피드백과 보이스 믹싱 계약](C-30_audio_feedback_and_voice_mix.md)
+- [C-31 PvP 로딩 Ready 핸드셰이크와 PSO 안정화](C-31_pvp_loading_ready_and_pso.md)
 
 역할 내부 상태와 우선순위는 `PLAN_C.md`, 파트 간 계약·선점과 통합 상태는 `docs/PLANS.md`를 기준으로 판단합니다.

@@ -9,7 +9,7 @@
 
 ## 현재 집중 Task
 
-- [C-30](C-30_audio_feedback_and_voice_mix.md) 오디오 피드백과 보이스 믹싱 계약
+- [C-18](C-18_steam_session_integration.md) Steam 세션 최종 통합
 
 ## 개발 스타일
 
@@ -41,7 +41,7 @@
 | 16 | [C-12](C-12_mvp_integration.md) | MVP 최종 통합 | 모든 파트 통합 Task | 예정 |
 | 17 | [C-16](C-16_teammate_health_hud.md) | 팀원 HP HUD | C-03·기존 HP UI | 완료 |
 | 18 | [C-17](C-17_pvp_start_countdown.md) | PvP 시작 카운트다운 | C-15·기존 HUD·캐릭터 입력 | 진행중 |
-| 19 | [C-18](C-18_steam_session_integration.md) | Steam 세션 최종 통합 | LAN 기반 MVP 흐름 안정화·Steam 테스트 환경 | 예정 |
+| 19 | [C-18](C-18_steam_session_integration.md) | Steam 세션 최종 통합 | LAN 기반 MVP 흐름 안정화·Steam 테스트 환경 | 진행중 |
 | 20 | [C-19](C-19_text_chat.md) | 텍스트 채팅 | C-03 팀 색·공용 PlayerController | 진행중 |
 | 21 | [C-20](C-20_event_log_ui.md) | 이벤트 로그 UI | C-03, C-06, 공용 PlayerController | 진행중 |
 | 22 | [C-21](C-21_options_menu.md) | 옵션 메뉴 | 메인메뉴·로비 ESC 메뉴 | 진행중 |
@@ -53,6 +53,7 @@
 | 28 | [C-27](C-27_snow_trail_render_target.md) | 눈길 RenderTarget 계약 | C-26 | 진행중 |
 | 29 | [C-28](C-28_player_grab_control_rig_foundation.md) | 플레이어 잡기와 Control Rig 기본틀 | C-24 | 진행중 |
 | 30 | [C-29](C-29_travel_url_and_loading_stability.md) | 전환 URL과 PvP 로딩 안정화 | C-04, C-05, C-17 | 진행중 |
+| 31 | [C-31](C-31_pvp_loading_ready_and_pso.md) | PvP 로딩 Ready 핸드셰이크와 PSO 안정화 | C-29 | 진행중 |
 
 ## 통합 변경 요청
 
@@ -67,6 +68,7 @@
 - 2026-08-07: 최재원(C)의 개발 스타일을 C++ 위주로 확정. C Task는 서버 권한·복제·공용 계약을 C++ 중심으로 먼저 고정하고 Blueprint는 표현·연결 책임으로 분리한다.
 - 2026-08-24: C-11 커스터마이징 색상 후보를 기존 버튼 이름 자동 바인딩 방식으로 유지하면서 27개 버튼 프로퍼티·핸들러와 C++ RGB 스타일 초기화를 추가해 총 36개 팔레트를 지원한다. WBP 버튼 생성·배치는 사용자 작업으로 남겼다.
 - 2026-08-24: C-11에 선택적 `BrushSizeSlider` 자동 바인딩을 추가했다. 0~1 Slider 값을 기존 `MinPaintBrushSize`~`MaxPaintBrushSize` 범위로 변환하고 버튼·휠 조절과 상태를 공유한다.
+- 2026-08-25: `LanToSteam` 브랜치에서 C-18을 시작했다. Steam 플러그인·Steam NetDriver 설정을 추가하고, 기존 `USnowRumbleSessionSubsystem` Blueprint API를 유지한 채 Steam Presence/Lobby와 NULL LAN 설정을 내부 분기하도록 했다. App ID 확정과 Steam Overlay 초대·초대 수락은 다음 단계로 남겼다.
 - 2026-08-25: C-11 커스터마이징 장착 범위를 모자 단일 슬롯에서 모자·안경·코·귀마개 4종으로 확장했다. 각 액세서리에 StaticMeshComponent, 후보 배열, 소켓명과 Transform 보정값을 제공하고, 선택 인덱스를 로컬 저장·PlayerState 복제·로비/PvP 적용 경로에 포함했다.
 - 2026-08-25: C-11 커스터마이징 WBP 버튼 자동 바인딩을 추가했다. `GlassesModeButton`, `NoseModeButton`, `EarmuffsModeButton`으로 카테고리를 전환하고, `*ItemButton_N` 이름 규칙을 UniformGrid 버튼에 적용하면 `_0` 장착 해제와 `_1` 이후 후보 Mesh 선택이 자동 연결된다.
 - 2026-08-25: 사용하지 않는 기존 메인/드로잉 화면 대신 액세서리 전용 WidgetSwitcher를 사용하도록 정리했다. 인덱스는 0 모자, 1 안경, 2 코, 3 귀마개이며 진입 시 0번을 표시한다.
@@ -76,6 +78,10 @@
 - 2026-08-25: 페인트 커서 활성 중 매 프레임 커서 위젯을 재적용해 브러시 크기 슬라이더 드래그 중에도 원형 페인트 커서를 유지하게 했다.
 - 2026-08-25: `SSlider`가 드래그 중 `ResizeLeftRight` 커서를 반환하는 경로를 확인해, PaintMode에서는 `Default`뿐 아니라 resize/hand 등 UI 커서 타입에도 `PaintMouseCursorWidgetClass` 원형 커서를 등록하게 보강했다. C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 최종 링크는 보류됐다.
 - 2026-08-25: C-11 브러쉬 최소/최대 범위가 256을 넘어도 슬라이더의 0~1 정규화와 원형 페인트 커서 크기가 전체 범위를 반영하도록 보완했다.
+- 2026-08-25: C-06 얼음·사망 관전을 구현했다. `ASnowRumbleCharacter`가 자기 캐릭터를 포함한 참여 캐릭터 전체를 PlayerId 순으로 후보화하고, 얼음·사망 상태에서 A/D로 로컬 카메라 시점을 순환한다. `USpectatorWidget`과 `CurrentViewTargetIdText` 바인딩으로 현재 관전 대상 ID를 표시하며, 플레이어 Blueprint의 `SpectatorWidgetClass` 연결은 수동 작업으로 인계한다.
+- 2026-08-25: C-06 관전 카메라를 대상 캐릭터 ViewTarget 방식에서 실제 시점 복제 방식으로 변경했다. 소유 클라이언트의 `FollowCamera` 위치·회전·FOV를 `ServerUpdateSpectatorCameraView`로 전달하고, 관전자는 복제값을 적용한 로컬 `ACameraActor`를 사용한다.
+- 2026-08-25: 사용자가 PvP 로딩 불안정성 개선을 요청해 C-31을 추가했다. 컨트롤러 수 대신 클라이언트별 Ready 핸드셰이크를 사용하고, 45초 타임아웃 시 전체 매치를 취소해 로비로 복귀하며, PSO Precaching·캐시 수집 경로를 정리한다.
+- 2026-08-25: C-31 Ready 핸드셰이크와 45초 전체 매치 취소·로비 복귀, PSO Precaching 및 Material Shader Code 공유 설정을 구현하고 `SnowRumbleEditor Win64 Development` 빌드를 성공했다. 실제 4인 PIE와 PSO Cache 수집은 사용자 확인으로 남겼다.
 - 2026-08-24: C-06/C-28 얼음·Grab 연동을 추가했다. 서버는 얼은 대상의 같은 팀 Grab만 허용하고, 얼음 행동 제한을 유지한 채 tether 운반을 지원하며 사망 시 자동 해제한다.
 - 2026-08-24: C-09 눈덩이 투척 충돌에 같은 팀 피해·넉백 무시를 추가했다. 서버가 눈덩이 Owner와 피격 캐릭터의 `LobbyTeam`을 비교하고, 같은 팀이면 충돌 연출만 유지한다.
 - 2026-08-24: C-09 눈덩이 피해가 `GrowthProgress`에 따라 1배에서 기본 최대 3배까지 증가하도록 `MaximumGrowthDamageMultiplier`를 추가했다. 기존 차지 피해 배율은 유지한다.
@@ -328,6 +334,8 @@
 - 2026-08-23: C-21 키 가이드 입력 슬롯을 추가했다. 캐릭터 BP는 `KeyGuideAction`과 `KeyGuideWidgetClass`를 지정할 수 있고, 기본 `T`/`KeyGuide` 키 설정으로 누르는 동안만 로컬 안내 WBP를 표시한다.
 - 2026-08-23: C-21 키 가이드 WBP 부모를 추가했다. `UKeyGuideWidget`은 현재 로컬 키 설정을 읽어 WBP의 키 표시 TextBlock만 자동 갱신하고, 이모션 기본 키 설정은 `Tab`으로 정리했다.
 - 2026-08-23: C-21 마이크 입력 점검을 보강했다. `K` 눌러서 말하기 시작 시 VoiceInterface 로컬 토커 등록을 보장하고, 마이크 입력·토커 등록·StartTalking/StopTalking 로그를 남기며 `N/M` 직접 키 바인딩 누락도 보강했다.
+- 2026-08-25: C-21 옵션 마이크 테스트를 추가했다. `AudioCaptureCore` PCM 콜백으로 선택 장치 RMS 입력 레벨을 확인하고 `MicrophoneTestStatusText`/`MicrophoneInputLevelProgressBar`와 `OnMicrophoneTestStateChanged`로 WBP에 전달하며, 빌드 검증을 통과했다.
+- 2026-08-25: C-11 액세서리별 보정 요청을 반영했다. 모자·안경·코·귀마개 후보 배열에 대응하는 `Customization*RelativeTransforms`를 추가하고, 미지정 항목은 기존 공용 Transform으로 fallback하도록 구현했다. 빌드 검증을 통과했다.
 - 2026-08-24: C-21 음성채팅 마이크 입력 회귀를 보강했다. 로컬 PlayerController BeginPlay에서 로컬 보이스 토커를 선등록하고 PTT off 상태는 즉시 `StopTalking()`으로 되돌리며, GameState 플레이어 목록 기준 원격 토커를 `RegisterRemoteTalker()`로 등록해 LAN/NULL 세션에서 수신 처리 누락 가능성을 줄였다. `DefaultEngine.ini`에는 `MaxLocalTalkers`, `MaxRemoteTalkers`, `VoiceNotificationDelta`, `bDuckingOptOut` 보이스 설정을 명시했다.
 - 2026-08-23: C-05 포디움 승리 팀 배치 규칙을 조정했다. 승리 팀원이 1~3명이면 `Podium_Team1`부터 순차 배치하고, 4명이면 `Podium_Team1`~`Podium_Team4`를 무작위로 섞어 배치한다.
 - 2026-08-24: 사진 모드에 `PhotoInteractionWidgetClass` 전용 WBP 슬롯을 추가했다. 사진 액터 카메라는 고정하고, 사진 모드 진입 시 WBP를 viewport에 생성·종료 시 제거하며 마우스 입력은 플레이어의 컨트롤 회전과 시선에 반영한다.
