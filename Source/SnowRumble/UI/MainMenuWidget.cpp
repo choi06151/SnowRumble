@@ -5,13 +5,49 @@
 #include "../Audio/SnowRumbleAudioHelpers.h"
 #include "../Player/LocalPlayerIdentitySubsystem_C.h"
 #include "Components/Button.h"
+#include "Components/ContentWidget.h"
 #include "Components/EditableTextBox.h"
+#include "Components/PanelWidget.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "Engine/GameInstance.h"
 #include "MainMenuPlayerController.h"
 
 const TArray<FSnowRumbleSessionInfo> UMainMenuWidget::EmptyResults;
+
+namespace
+{
+	void CollectButtonTextBlocks(
+		UWidget* Widget,
+		TArray<UTextBlock*>& OutTextBlocks)
+	{
+		if (!Widget)
+		{
+			return;
+		}
+
+		if (UTextBlock* TextBlock = Cast<UTextBlock>(Widget))
+		{
+			OutTextBlocks.AddUnique(TextBlock);
+		}
+
+		if (UPanelWidget* PanelWidget = Cast<UPanelWidget>(Widget))
+		{
+			for (int32 ChildIndex = 0;
+				ChildIndex < PanelWidget->GetChildrenCount();
+				++ChildIndex)
+			{
+				CollectButtonTextBlocks(
+					PanelWidget->GetChildAt(ChildIndex),
+					OutTextBlocks);
+			}
+		}
+		else if (UContentWidget* ContentWidget = Cast<UContentWidget>(Widget))
+		{
+			CollectButtonTextBlocks(ContentWidget->GetContent(), OutTextBlocks);
+		}
+	}
+}
 
 void UMainMenuWidget::NativeConstruct()
 {
@@ -249,6 +285,12 @@ void UMainMenuWidget::HandleCancelRoomCodeJoinClicked()
 
 void UMainMenuWidget::BindMenuButtons()
 {
+	// 메인메뉴의 주요 4개 버튼만 텍스트 호버 색상 처리를 적용한다.
+	BindTargetButtonTextColor(HostButton);
+	BindTargetButtonTextColor(QuickJoinButton);
+	BindTargetButtonTextColor(FindButton);
+	BindTargetButtonTextColor(CustomizationButton);
+
 	if (HostButton)
 	{
 		HostButton->OnClicked.AddUniqueDynamic(
@@ -308,6 +350,11 @@ void UMainMenuWidget::BindMenuButtons()
 
 void UMainMenuWidget::UnbindMenuButtons()
 {
+	UnbindTargetButtonTextColor(HostButton);
+	UnbindTargetButtonTextColor(QuickJoinButton);
+	UnbindTargetButtonTextColor(FindButton);
+	UnbindTargetButtonTextColor(CustomizationButton);
+
 	if (HostButton)
 	{
 		HostButton->OnClicked.RemoveAll(this);
@@ -346,6 +393,91 @@ void UMainMenuWidget::UnbindMenuButtons()
 	if (PlayerNameTextBox)
 	{
 		PlayerNameTextBox->OnTextCommitted.RemoveAll(this);
+	}
+}
+
+void UMainMenuWidget::BindTargetButtonTextColor(UButton* Button)
+{
+	if (!Button)
+	{
+		return;
+	}
+
+	Button->OnHovered.AddUniqueDynamic(
+		this,
+		&UMainMenuWidget::RefreshTargetButtonTextColors);
+	Button->OnUnhovered.AddUniqueDynamic(
+		this,
+		&UMainMenuWidget::RefreshTargetButtonTextColors);
+	Button->OnPressed.AddUniqueDynamic(
+		this,
+		&UMainMenuWidget::RefreshTargetButtonTextColors);
+	Button->OnReleased.AddUniqueDynamic(
+		this,
+		&UMainMenuWidget::RefreshTargetButtonTextColors);
+
+	TArray<UTextBlock*> TextBlocks;
+	CollectButtonTextBlocks(Button->GetContent(), TextBlocks);
+	for (UTextBlock* TextBlock : TextBlocks)
+	{
+		if (TextBlock)
+		{
+			TargetButtonTextDefaultColors.FindOrAdd(
+				TextBlock,
+				TextBlock->GetColorAndOpacity());
+		}
+	}
+}
+
+void UMainMenuWidget::UnbindTargetButtonTextColor(UButton* Button)
+{
+	if (Button)
+	{
+		Button->OnHovered.RemoveAll(this);
+		Button->OnUnhovered.RemoveAll(this);
+		Button->OnPressed.RemoveAll(this);
+		Button->OnReleased.RemoveAll(this);
+	}
+}
+
+void UMainMenuWidget::RefreshTargetButtonTextColors()
+{
+	const FSlateColor ActiveTextColor(MainMenuButtonActiveTextColor);
+	const TArray<UButton*> TargetButtons =
+	{
+		HostButton,
+		QuickJoinButton,
+		FindButton,
+		CustomizationButton
+	};
+
+	for (UButton* Button : TargetButtons)
+	{
+		if (!Button)
+		{
+			continue;
+		}
+
+		TArray<UTextBlock*> TextBlocks;
+		CollectButtonTextBlocks(Button->GetContent(), TextBlocks);
+		const bool bUseActiveColor = Button->IsHovered() || Button->IsPressed();
+		for (UTextBlock* TextBlock : TextBlocks)
+		{
+			if (!TextBlock)
+			{
+				continue;
+			}
+
+			if (bUseActiveColor)
+			{
+				TextBlock->SetColorAndOpacity(ActiveTextColor);
+			}
+			else if (const FSlateColor* DefaultColor =
+				TargetButtonTextDefaultColors.Find(TextBlock))
+			{
+				TextBlock->SetColorAndOpacity(*DefaultColor);
+			}
+		}
 	}
 }
 
