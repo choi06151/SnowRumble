@@ -133,6 +133,7 @@ void USnowRumbleSessionSubsystem::HostLanSession(
 	int32 MaxPlayers,
 	const FString& RoomName)
 {
+	bReturningToMainMenuAfterSessionFailure = false;
 	if (IsOperationInProgress())
 	{
 		SetOperationState(
@@ -308,9 +309,19 @@ void USnowRumbleSessionSubsystem::CreateLanSession(int32 MaxPlayers)
 
 void USnowRumbleSessionSubsystem::HandlePostLoadMap(UWorld* LoadedWorld)
 {
-	if (!LoadedWorld
-		|| LoadedWorld->GetGameInstance() != GetGameInstance()
-		|| LoadedWorld->GetNetMode() != NM_ListenServer)
+	if (!LoadedWorld || LoadedWorld->GetGameInstance() != GetGameInstance())
+	{
+		return;
+	}
+
+	const FString MapName = SnowRumbleSession::GetSessionMapName(LoadedWorld);
+	if (MapName.Equals(TEXT("L_MainMenu"), ESearchCase::IgnoreCase))
+	{
+		bReturningToMainMenuAfterSessionFailure = false;
+		return;
+	}
+
+	if (LoadedWorld->GetNetMode() != NM_ListenServer)
 	{
 		return;
 	}
@@ -417,7 +428,7 @@ void USnowRumbleSessionSubsystem::LeaveLanSession()
 	PendingHostRoomCode.Empty();
 	CurrentRoomCode.Empty();
 	bHostTravelPending = false;
-	bWasInLanSession = false;
+	bWasInOnlineSession = false;
 
 	if (IOnlineSessionPtr SessionInterface = GetSessionInterface();
 		SessionInterface.IsValid()
@@ -455,6 +466,7 @@ void USnowRumbleSessionSubsystem::BeginFindLanSessions(
 	ESnowRumbleSessionOperation Operation,
 	const FString& Message)
 {
+	bReturningToMainMenuAfterSessionFailure = false;
 	if (IsOperationInProgress())
 	{
 		SetOperationState(
@@ -789,7 +801,7 @@ void USnowRumbleSessionSubsystem::HandleCreateSessionComplete(
 		return;
 	}
 
-	bWasInLanSession = true;
+	bWasInOnlineSession = true;
 	if (CurrentRoomCode.IsEmpty() && !PendingHostRoomCode.IsEmpty())
 	{
 		CurrentRoomCode = PendingHostRoomCode;
@@ -1008,7 +1020,7 @@ void USnowRumbleSessionSubsystem::HandleJoinSessionComplete(
 		JoinOperation,
 		ESnowRumbleSessionState::Succeeded,
 		TEXT("LAN 세션 참가에 성공했습니다."));
-	bWasInLanSession = true;
+	bWasInOnlineSession = true;
 	PlayerController->ClientTravel(ConnectString, TRAVEL_Absolute);
 }
 
@@ -1023,14 +1035,9 @@ void USnowRumbleSessionSubsystem::HandleNetworkFailure(
 	{
 		return;
 	}
-
-	switch (FailureType)
+	if (World->GetNetMode() != NM_Client
+		|| bReturningToMainMenuAfterSessionFailure)
 	{
-	case ENetworkFailure::ConnectionLost:
-	case ENetworkFailure::ConnectionTimeout:
-	case ENetworkFailure::FailureReceived:
-		break;
-	default:
 		return;
 	}
 
@@ -1039,12 +1046,12 @@ void USnowRumbleSessionSubsystem::HandleNetworkFailure(
 		SessionInterface.IsValid()
 		&& SessionInterface->GetNamedSession(LocalSessionName);
 	const bool bWasJoiningOrJoined =
-		bWasInLanSession
+		bWasInOnlineSession
 		|| bHasNamedSession
 		|| CurrentOperation == ESnowRumbleSessionOperation::Join
 		|| CurrentOperation == ESnowRumbleSessionOperation::QuickJoin
 		|| CurrentOperation == ESnowRumbleSessionOperation::JoinByCode;
-	if (!bWasJoiningOrJoined || World->GetNetMode() == NM_ListenServer)
+	if (!bWasJoiningOrJoined)
 	{
 		return;
 	}
@@ -1066,17 +1073,19 @@ void USnowRumbleSessionSubsystem::HandleTravelFailure(
 	const FString& ErrorString)
 {
 	if (!World
-		|| World->GetGameInstance() != GetGameInstance())
+		|| World->GetGameInstance() != GetGameInstance()
+		|| World->GetNetMode() != NM_Client
+		|| bReturningToMainMenuAfterSessionFailure)
 	{
 		return;
 	}
 
 	const bool bWasJoiningOrJoined =
-		bWasInLanSession
+		bWasInOnlineSession
 		|| CurrentOperation == ESnowRumbleSessionOperation::Join
 		|| CurrentOperation == ESnowRumbleSessionOperation::QuickJoin
 		|| CurrentOperation == ESnowRumbleSessionOperation::JoinByCode;
-	if (!bWasJoiningOrJoined || World->GetNetMode() == NM_ListenServer)
+	if (!bWasJoiningOrJoined)
 	{
 		return;
 	}
@@ -1095,18 +1104,27 @@ void USnowRumbleSessionSubsystem::HandleTravelFailure(
 void USnowRumbleSessionSubsystem::ReturnToMainMenuAfterSessionFailure(
 	const FString& AlarmMessage)
 {
+	if (bReturningToMainMenuAfterSessionFailure)
+	{
+		return;
+	}
+	bReturningToMainMenuAfterSessionFailure = true;
+
 	UWorld* World = GetWorld();
 	LeaveLanSession();
 	PendingMainMenuAlarmMessage = AlarmMessage;
 
-	if (APlayerController* PlayerController =
-		GetGameInstance()
-			? GetGameInstance()->GetFirstLocalPlayerController()
-			: nullptr)
+	if (World)
 	{
-		PlayerController->ClientTravel(
-			SnowRumbleSession::MainMenuTravelUrl,
-			TRAVEL_Absolute);
+		// ClientTravel은 네트워크 월드의 Pawn이 메뉴 월드까지 남는 경우가
+		// 있어, 호스트 이탈 복귀에서는 로컬 월드를 완전히 다시 연다.
+		UGameplayStatics::OpenLevel(
+			World,
+			FName(TEXT("/Game/Maps/L_MainMenu")),
+			true,
+			FString::Printf(
+				TEXT("game=%s"),
+				SnowRumbleSession::MainMenuGameModeTravelPath));
 		return;
 	}
 
@@ -1209,6 +1227,6 @@ void USnowRumbleSessionSubsystem::DestroyLocalSessionIfPresent(
 		Reason ? Reason : TEXT("unknown"),
 		*LocalSessionName.ToString());
 	SessionInterface->DestroySession(LocalSessionName);
-	bWasInLanSession = false;
+	bWasInOnlineSession = false;
 	CurrentRoomCode.Empty();
 }

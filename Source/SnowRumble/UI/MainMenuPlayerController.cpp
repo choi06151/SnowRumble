@@ -10,6 +10,7 @@
 #include "Engine/GameInstance.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "MainMenuWidget.h"
 #include "OptionsWidget_C.h"
 #include "../Online/SnowRumbleSessionSubsystem.h"
@@ -177,6 +178,20 @@ void AMainMenuPlayerController::TravelToCustomizationLevel()
 	}
 
 	ClientTravel(CustomizationLevelUrl, TRAVEL_Absolute);
+}
+
+void AMainMenuPlayerController::QuitGame()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	UKismetSystemLibrary::QuitGame(
+		this,
+		this,
+		EQuitPreference::Quit,
+		false);
 }
 
 void AMainMenuPlayerController::SetBackgroundMusicPreviewVolume(

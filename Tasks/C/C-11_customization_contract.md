@@ -16,7 +16,7 @@
 - 커스터마이징 레벨에서는 프리뷰 캐릭터를 possess해도 WASD 이동과 카메라 룩 입력이 캐릭터 동작으로 전달되지 않고 마우스/UI 입력만 처리한다.
 - 커스터마이징 레벨의 프리뷰 캐릭터는 중력과 CharacterMovement 이동 모드를 끄고 위치가 떨어지지 않게 고정한다.
 - 레벨에 배치한 태그 기반 카메라를 ViewTarget으로 삼아 캐릭터를 바라보는 구조를 제공한다.
-- 커스터마이징 UI는 WidgetSwitcher로 메인 화면과 색칠하기 화면을 전환한다.
+- 커스터마이징 UI의 액세서리 화면은 WidgetSwitcher로 전환하고, 색칠하기 모드는 액세서리 WidgetSwitcher 인덱스를 사용하지 않는다.
 - 시점변경 화면은 카메라를 돌리지 않고 프리뷰 캐릭터를 좌/우 버튼 press 동안 계속 회전한다.
 - 커스터마이징 레벨의 프리뷰 캐릭터는 커마 방 전용 애니메이션 에셋을 지정하거나 현재 애니메이션을 정지 상태로 둘 수 있다.
 - 메인메뉴 레벨에서 캐릭터를 possess한 경우에도 커스터마이징 프리뷰와 같이 이동·시점 입력과 중력을 막고, 메인메뉴 전용 애니메이션을 지정한 시점에서 정지하거나 재생하며 메인메뉴 전용 Mesh 스케일을 적용할 수 있다.
@@ -74,7 +74,7 @@
 - [x] 로컬 플레이어의 드로잉 결과를 저장·복제한다.
 - [x] 페인트 화면에서 `BackButton`과 `Ctrl+Z`가 마지막 완료 stroke를 하나씩 누적 undo하게 한다.
 - [x] 색칠하기 화면이 아닐 때 좌클릭으로 페인트 stroke가 생성되지 않게 한다.
-- [x] 색칠하기 버튼을 누르면 `CustomizationContentSwitcher` 인덱스 1 색칠하기 화면으로 전환한다.
+- [x] 색칠하기 버튼을 누를 때 액세서리용 `CustomizationContentSwitcher` 인덱스를 변경하지 않는다.
 - [x] 색칠하기 화면에서 색칠하기 버튼을 다시 누르면 `CustomizationContentSwitcher` 인덱스 0 메인 화면으로 돌아간다.
 - [x] 색칠하기 화면에서 36개 고정 색상 버튼을 C++가 이름으로 자동 바인딩한다.
 - [x] 현재 선택된 브러시 색 버튼은 Pressed 상태 스타일로 표시한다.
@@ -86,6 +86,7 @@
 - [x] 안경·코·귀마개 StaticMesh 컴포넌트 슬롯과 후보 배열·소켓·Transform 보정 프로퍼티를 추가한다.
 - [x] 네 액세서리 Mesh 인덱스를 로컬 저장, PlayerState 복제, 로비/PvP 캐릭터 적용 경로에 포함한다.
 - [x] `HatItemButton_0`처럼 이름이 일치하는 WBP 버튼을 자동 탐색해 카테고리와 Mesh 인덱스를 연결한다.
+- [x] 모자·안경·코·귀마개에서 현재 장착된 마지막 선택 버튼을 카테고리별 Pressed 상태로 유지한다.
 - [x] 기존 좌우 회전 버튼을 유지하면서 커스터마이징 화면의 A/D 키를 프리뷰 캐릭터 회전에 연결한다.
 - [x] Stroke별 브러시 색과 두께를 저장·복제 데이터에 포함한다.
 - [x] 메인메뉴, 로비/PvP 계열, 커스터마이징 PlayerController BP 슬롯에 기본 커서 위젯을 지정할 수 있게 한다.
@@ -135,7 +136,7 @@
   - `ACustomizationPlayerController::PaintMouseCursorWidgetClass` 내부 `BrushCursorColorBorder`: 현재 브러시 색을 표시할 선택 Border
   - `ACustomizationPlayerController::PaintMouseCursorWidgetClass` 내부 `BrushCursorColorImage`: 현재 브러시 색을 표시할 선택 Image. Border 대신 사용할 수 있다.
   - `UCustomizationWidget`: 커스터마이징 WBP 부모
-  - `UCustomizationWidget::CustomizationContentSwitcher`: 0 메인, 1 색칠하기 화면을 담는 WidgetSwitcher
+- `UCustomizationWidget::CustomizationContentSwitcher`: 0 모자, 1 안경, 2 코, 3 귀마개 액세서리 화면을 담는 WidgetSwitcher. 색칠하기 모드는 이 스위처를 사용하지 않는다.
   - `UCustomizationWidget::PaintModeButton`: 메인 화면에서 색칠하기 화면으로 이동
   - `UCustomizationWidget::RotateLeftButton`: 누르고 있는 동안 프리뷰 캐릭터를 왼쪽으로 회전
   - `UCustomizationWidget::RotateRightButton`: 누르고 있는 동안 프리뷰 캐릭터를 오른쪽으로 회전
@@ -308,7 +309,7 @@
 - 메인메뉴 PlayerController BP의 `MainMenuPreviewAnimationAsset`에 메인메뉴에서 보여줄 포즈/애니메이션 에셋을 지정한다. 특정 프레임을 포즈로 쓰려면 `bPauseMainMenuPreviewAnimation`을 켜고 `MainMenuPreviewAnimationPositionSeconds`를 조정한다. 애니메이션을 계속 재생하려면 `bPauseMainMenuPreviewAnimation`을 끈다. 메인메뉴에서만 캐릭터 Mesh를 키우려면 `MainMenuPreviewMeshScale`을 1보다 크게 조정한다.
 - 메인메뉴 레벨에 캐릭터를 배치하거나 스폰한 뒤 메인메뉴 PlayerController가 possess하게 구성한다. C++은 possess된 Pawn에 대해서만 입력·중력 잠금과 포즈 적용을 수행한다.
 - 레벨에 캐릭터와 카메라를 배치하고, 카메라 액터 태그에 `CustomizationCamera`를 추가한다.
-- 커스터마이징 WBP에 `CustomizationContentSwitcher`를 배치하고 자식 순서를 0 메인, 1 색칠하기 `DrawPanel`로 맞춘다.
+- 커스터마이징 WBP에 `CustomizationContentSwitcher`를 배치하고 자식 순서를 0 모자, 1 안경, 2 코, 3 귀마개로 맞춘다. 색칠하기 모드는 이 스위처의 인덱스를 변경하지 않는다.
 - 메인 화면 버튼 이름을 `PaintModeButton`, `ReturnToLobbyButton`으로 맞춘다.
 - 회전 버튼 두 개를 배치하고 이름을 `RotateLeftButton`, `RotateRightButton`으로 맞춘다.
 - 회전 속도는 커스터마이징 PlayerController BP의 `PreviewRotationSpeedDegrees`에서 조정한다.
@@ -378,6 +379,7 @@
 - [ ] `HatNextButton`을 누르면 다음 모자 후보가 프리뷰 캐릭터 머리에 장착된다.
 - [ ] `HatPreviousButton`을 누르면 이전 모자 후보가 프리뷰 캐릭터 머리에 장착된다.
 - [ ] 모자 후보 순환 중 모자 없음 상태에서는 프리뷰 캐릭터의 `HatMeshComponent`가 숨겨진다.
+- [ ] 모자·안경·코·귀마개 후보 버튼을 누르면 마지막으로 선택한 각 버튼이 Pressed 상태로 유지된다.
 - [ ] `ApplyButton`을 누른 뒤 로비에 들어가면 로컬 캐릭터와 다른 화면의 해당 캐릭터에 같은 모자가 보인다.
 - [ ] PvP 이동 뒤에도 같은 모자가 캐릭터에 적용된다.
 - [ ] `PaintModeButton`을 누르면 마우스 커서가 `PaintMouseCursorWidgetClass` 원형 커서로 바뀐다.

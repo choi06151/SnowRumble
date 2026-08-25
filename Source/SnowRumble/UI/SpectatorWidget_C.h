@@ -22,6 +22,7 @@ public:
 	int32 GetCurrentViewTargetId() const;
 
 protected:
+	/** 기존 WBP 바인딩 이름을 유지하며 현재 관전 대상 닉네임을 표시한다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> CurrentViewTargetIdText;
 

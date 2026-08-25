@@ -270,6 +270,15 @@ void UMainMenuWidget::HandleCustomizationButtonClicked()
 	}
 }
 
+void UMainMenuWidget::HandleQuitGameButtonClicked()
+{
+	if (AMainMenuPlayerController* MainMenuPlayerController =
+		Cast<AMainMenuPlayerController>(GetOwningPlayer()))
+	{
+		MainMenuPlayerController->QuitGame();
+	}
+}
+
 void UMainMenuWidget::HandleConfirmRoomCodeJoinClicked()
 {
 	const FString RoomCode = RoomCodeTextBox
@@ -290,6 +299,7 @@ void UMainMenuWidget::BindMenuButtons()
 	BindTargetButtonTextColor(QuickJoinButton);
 	BindTargetButtonTextColor(FindButton);
 	BindTargetButtonTextColor(CustomizationButton);
+	BindTargetButtonTextColor(QuitGameButton);
 
 	if (HostButton)
 	{
@@ -326,6 +336,13 @@ void UMainMenuWidget::BindMenuButtons()
 			&UMainMenuWidget::HandleCustomizationButtonClicked);
 	}
 
+	if (QuitGameButton)
+	{
+		QuitGameButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UMainMenuWidget::HandleQuitGameButtonClicked);
+	}
+
 	if (ConfirmRoomCodeJoinButton)
 	{
 		ConfirmRoomCodeJoinButton->OnClicked.AddUniqueDynamic(
@@ -354,6 +371,7 @@ void UMainMenuWidget::UnbindMenuButtons()
 	UnbindTargetButtonTextColor(QuickJoinButton);
 	UnbindTargetButtonTextColor(FindButton);
 	UnbindTargetButtonTextColor(CustomizationButton);
+	UnbindTargetButtonTextColor(QuitGameButton);
 
 	if (HostButton)
 	{
@@ -378,6 +396,11 @@ void UMainMenuWidget::UnbindMenuButtons()
 	if (CustomizationButton)
 	{
 		CustomizationButton->OnClicked.RemoveAll(this);
+	}
+
+	if (QuitGameButton)
+	{
+		QuitGameButton->OnClicked.RemoveAll(this);
 	}
 
 	if (ConfirmRoomCodeJoinButton)
@@ -448,7 +471,8 @@ void UMainMenuWidget::RefreshTargetButtonTextColors()
 		HostButton,
 		QuickJoinButton,
 		FindButton,
-		CustomizationButton
+		CustomizationButton,
+		QuitGameButton
 	};
 
 	for (UButton* Button : TargetButtons)
@@ -543,8 +567,19 @@ bool UMainMenuWidget::ValidateAndSavePlayerNameInput()
 		return true;
 	}
 
+	const FString InputName = PlayerNameTextBox->GetText().ToString();
+	if (InputName.TrimStartAndEnd().Len() > 7)
+	{
+		ShowMainMenuAlarm(NSLOCTEXT(
+			"SnowRumble",
+			"MainMenuPlayerNameTooLong",
+			"닉네임이 너무 길어서 사용할 수 없습니다."));
+		RestorePlayerNameInput();
+		return false;
+	}
+
 	if (!IdentitySubsystem->TrySetDesiredPlayerName(
-		PlayerNameTextBox->GetText().ToString()))
+		InputName))
 	{
 		ShowMainMenuAlarm(NSLOCTEXT(
 			"SnowRumble",

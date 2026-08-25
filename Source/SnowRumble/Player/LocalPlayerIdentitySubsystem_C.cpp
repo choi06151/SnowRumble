@@ -7,7 +7,7 @@ void ULocalPlayerIdentitySubsystem::Initialize(
 {
 	Super::Initialize(Collection);
 
-	DesiredPlayerName = GenerateDefaultPlayerName();
+	DesiredPlayerName = SanitizePlayerName(GenerateDefaultPlayerName());
 }
 
 void ULocalPlayerIdentitySubsystem::SetDesiredPlayerName(
@@ -83,6 +83,12 @@ bool ULocalPlayerIdentitySubsystem::IsPlayerNameAllowed(
 		return false;
 	}
 
+	constexpr int32 MaximumNameLength = 7;
+	if (SanitizedName.Len() > MaximumNameLength)
+	{
+		return false;
+	}
+
 	const FString NormalizedName =
 		NormalizePlayerNameForFilter(SanitizedName);
 	for (const FString& DisallowedFragment :
@@ -102,7 +108,7 @@ FString ULocalPlayerIdentitySubsystem::SanitizePlayerName(
 	const FString& NewName)
 {
 	FString SanitizedName = NewName.TrimStartAndEnd();
-	constexpr int32 MaximumNameLength = 16;
+	constexpr int32 MaximumNameLength = 7;
 	if (SanitizedName.Len() > MaximumNameLength)
 	{
 		SanitizedName.LeftInline(MaximumNameLength);
