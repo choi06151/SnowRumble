@@ -1,13 +1,31 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SnowRumbleUserSettingsSubsystem_C.h"
+#include "Internationalization/Culture.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/TextLocalizationManager.h"
+#include "Misc/CoreDelegates.h"
+#include "Misc/Paths.h"
 
 void USnowRumbleUserSettingsSubsystem::Initialize(
 	FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
+	FCoreDelegates::GatherAdditionalLocResPathsCallback.AddUObject(
+		this,
+		&USnowRumbleUserSettingsSubsystem::AddSnowRumbleLocalizationPath);
+
 	LoadConfig();
+	const FString Culture = LanguageCulture.IsEmpty() ? TEXT("ko") : LanguageCulture;
+	ApplyLanguageCulture(Culture);
+}
+
+void USnowRumbleUserSettingsSubsystem::Deinitialize()
+{
+	FCoreDelegates::GatherAdditionalLocResPathsCallback.RemoveAll(this);
+
+	Super::Deinitialize();
 }
 
 void USnowRumbleUserSettingsSubsystem::SetKeyBinding(
@@ -232,4 +250,65 @@ void USnowRumbleUserSettingsSubsystem::ResetMicrophoneDeviceId()
 FString USnowRumbleUserSettingsSubsystem::GetMicrophoneDeviceId() const
 {
 	return MicrophoneDeviceId;
+}
+
+void USnowRumbleUserSettingsSubsystem::SetLanguageCulture(
+	const FString& NewCulture)
+{
+	const FString Culture = NewCulture.Equals(TEXT("en"), ESearchCase::IgnoreCase)
+		? TEXT("en")
+		: TEXT("ko");
+
+	LanguageCulture = Culture;
+	SaveConfig();
+	ApplyLanguageCulture(Culture);
+}
+
+FString USnowRumbleUserSettingsSubsystem::GetLanguageCulture() const
+{
+	return LanguageCulture.IsEmpty() ? TEXT("ko") : LanguageCulture;
+}
+
+void USnowRumbleUserSettingsSubsystem::ApplyLanguageCulture(
+	const FString& Culture)
+{
+	const bool bCultureApplied =
+		FInternationalization::Get().SetCurrentLanguageAndLocale(Culture);
+
+	FTextLocalizationManager::Get().RefreshResources(
+		[Culture]()
+		{
+			LogLanguageProbe(Culture);
+		});
+
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("SnowRumble language requested=%s applied=%s currentLanguage=%s currentLocale=%s"),
+		*Culture,
+		bCultureApplied ? TEXT("true") : TEXT("false"),
+		*FInternationalization::Get().GetCurrentLanguage()->GetName(),
+		*FInternationalization::Get().GetCurrentLocale()->GetName());
+}
+
+void USnowRumbleUserSettingsSubsystem::AddSnowRumbleLocalizationPath(
+	TArray<FString>& LocalizationPaths)
+{
+	LocalizationPaths.AddUnique(
+		FPaths::ProjectContentDir() / TEXT("Localization/SnowRumble"));
+}
+
+void USnowRumbleUserSettingsSubsystem::LogLanguageProbe(const FString& Culture)
+{
+	const FText ProbeText = FText::ChangeKey(
+		TEXT(""),
+		TEXT("497C2BE446D905082A79A1863B8734D5"),
+		FText::FromString(TEXT("방 만들기")));
+
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("SnowRumble language resources refreshed culture=%s probe='%s'"),
+		*Culture,
+		*ProbeText.ToString());
 }
