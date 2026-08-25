@@ -166,9 +166,11 @@
   - `ASnowRumbleCharacter::CustomizationHatMeshes`: 캐릭터 BP에서 지정하는 모자 StaticMesh 후보 배열
   - `ASnowRumbleCharacter::CustomizationHatAttachSocketName`: 모자를 붙일 Skeletal Mesh 소켓 이름. 기본값은 `HatSocket`
   - `ASnowRumbleCharacter::CustomizationHatRelativeLocation`, `CustomizationHatRelativeRotation`, `CustomizationHatRelativeScale`: 소켓 기준 모자 위치·회전·스케일 보정값
+  - `ASnowRumbleCharacter::CustomizationHatRelativeTransforms`: 모자 후보 배열 인덱스별 선택적 Transform 보정값. 항목이 없으면 공용 기본값을 사용한다.
   - `ASnowRumbleCharacter::CustomizationGlassesMeshes`, `CustomizationNoseMeshes`, `CustomizationEarmuffsMeshes`: 캐릭터 BP에서 지정하는 액세서리 후보 배열
   - `ASnowRumbleCharacter::CustomizationGlassesAttachSocketName`, `CustomizationNoseAttachSocketName`, `CustomizationEarmuffsAttachSocketName`: 기본값이 각각 `GlassesSocket`, `NoseSocket`, `EarmuffsSocket`인 장착 소켓 이름
   - `ASnowRumbleCharacter::Customization*RelativeLocation`, `Customization*RelativeRotation`, `Customization*RelativeScale`: 액세서리별 소켓 기준 Transform 보정값
+  - `ASnowRumbleCharacter::CustomizationGlassesRelativeTransforms`, `CustomizationNoseRelativeTransforms`, `CustomizationEarmuffsRelativeTransforms`: 안경·코·귀마개 후보 배열 인덱스별 선택적 Transform 보정값. 각 배열은 해당 StaticMesh 후보 배열과 같은 인덱스를 사용하고, 항목이 없으면 기존 공용 기본값으로 fallback한다.
   - `ACustomizationPlayerController::SetPreviewAccessoryMeshIndex(...)`, `SelectPreviousPreviewAccessory(...)`, `SelectNextPreviewAccessory(...)`, `GetPreviewAccessoryMeshIndex(...)`: 네 액세서리 공통 프리뷰 선택 API
   - `ASnowRumbleCharacter::GetCustomizationHatOptionCount()`: 현재 캐릭터 BP에 등록된 모자 후보 수를 반환한다.
   - `ASnowRumbleCharacter::NormalizeCustomizationHatMeshIndex(int32)`: 후보 배열 기준으로 유효한 모자 인덱스인지 정리하고, 유효하지 않으면 `INDEX_NONE`을 반환한다.
@@ -219,6 +221,7 @@
 ## 수동 작업
 - 캐릭터 Skeletal Mesh Skeleton Tree에 `HatSocket`, `GlassesSocket`, `NoseSocket`, `EarmuffsSocket`을 생성한다. 각 소켓의 기준 본과 초기 Transform은 실제 모델 얼굴 위치에 맞춘다.
 - 캐릭터 Blueprint에서 `CustomizationHatMeshes`, `CustomizationGlassesMeshes`, `CustomizationNoseMeshes`, `CustomizationEarmuffsMeshes` 후보 배열을 같은 순서로 구성하고, 각 액세서리의 Attach Socket Name과 Relative Location/Rotation/Scale을 조정한다.
+- 후보별 위치가 다르면 `CustomizationHatRelativeTransforms`, `CustomizationGlassesRelativeTransforms`, `CustomizationNoseRelativeTransforms`, `CustomizationEarmuffsRelativeTransforms` 배열을 Mesh 후보와 같은 인덱스 순서로 채운다. 배열 항목의 Location/Rotation/Scale이 해당 Mesh에 적용되며, 비워 둔 항목은 기존 공용 Relative Location/Rotation/Scale을 사용한다.
 - 커스터마이징 WBP에서 `SetPreviewAccessoryMeshIndex` 또는 이전/다음 공통 API를 액세서리별 버튼에 연결한다. 현재 선택 표시는 `GetPreviewAccessoryMeshIndex`와 `GetCustomizationAccessoryOptionCount`를 사용한다.
 - 카테고리 버튼 이름은 `HatModeButton`, `GlassesModeButton`, `NoseModeButton`, `EarmuffsModeButton`으로 맞추고, WidgetSwitcher의 0번부터 모자·안경·코·귀마개 페이지를 순서대로 배치한다.
 - 후보 버튼은 ScrollBox 아래 UniformGridPanel에 배치하고 `HatItemButton_0`, `HatItemButton_1`, `GlassesItemButton_0`, `NoseItemButton_0`, `EarmuffsItemButton_0`처럼 이름을 지정한다. 각 카테고리의 `_0`은 장착 해제이며 `_1`부터 후보 배열 0번이다. UniformGrid의 Column 수는 3으로 설정한다.
@@ -265,6 +268,7 @@
 - 2026-08-14: 브러시 크기를 바꿀 때 trace 위치가 함께 밀려 보이는 문제에 대응해 `bUsePaintCursorCenterTraceOffset`이 현재 브러시 지름을 사용하지 않게 했다. 필요한 hotspot 보정은 브러시 크기와 무관한 `PaintCursorCenterTraceOffset`과 `PaintCursorScreenOffset`으로만 적용한다.
 - 2026-08-14: 위 변경은 UHT와 C++ 컴파일, `.lib` 생성까지 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 `LNK1104`로 보류됐다.
 - 2026-08-12: 모자 커스터마이징 첫 범위를 추가했다. `HatMeshComponent` 빈 슬롯, `CustomizationHatMeshes` 후보 배열, `HatMeshIndex` 저장·복제 데이터, `HatModeButton`/`HatPreviousButton`/`HatNextButton` UI 계약을 제공한다. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됐다.
+- 2026-08-25: 모자·안경·코·귀마개 StaticMesh 후보별 Transform 배열을 추가했다. 선택 인덱스와 같은 배열 항목의 Location/Rotation/Scale을 적용하고, 미지정 항목은 기존 공용 Transform으로 fallback한다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
 - 2026-08-24: 기존 색상 버튼 자동 바인딩 방식을 유지하면서 27개 색상 버튼 프로퍼티·핸들러·Pressed 상태 갱신을 추가해 총 36개 팔레트 버튼을 지원한다. C++가 각 버튼의 RGB 스타일 색까지 초기화한다.
 - 2026-08-12: 색칠하기 브러시 색 선택을 언리얼 기본 컬러 피커에서 고정 팔레트 버튼으로 변경했다. WBP는 빨강, 주황, 노랑, 초록, 파랑, 남색, 보라, 검정, 하양 버튼만 배치하고, 선택된 색 버튼은 C++에서 Pressed 스타일로 유지된다.
 - 2026-08-12: 고정 팔레트 버튼 변경은 `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드를 통과했다.
