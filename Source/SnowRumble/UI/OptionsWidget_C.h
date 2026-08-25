@@ -273,6 +273,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Microphone")
 	TObjectPtr<class UProgressBar> MicrophoneInputLevelProgressBar;
 
+	/** 게임에서 사용할 언어를 선택하는 ComboBoxString이다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Language")
+	TObjectPtr<UComboBoxString> LanguageComboBox;
+
 	/** 키 설정 행을 자동 생성할 패널이다. VerticalBox 또는 ScrollBox를 쓸 수 있다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Key Binding")
 	TObjectPtr<UPanelWidget> KeyBindingListBox;
@@ -339,6 +343,11 @@ private:
 	UFUNCTION()
 	void HandleMicrophoneTestButtonClicked();
 
+	UFUNCTION()
+	void HandleLanguageSelectionChanged(
+		FString SelectedItem,
+		ESelectInfo::Type SelectionType);
+
 	void HandleKeyRowRebindRequested(FName BindingId);
 	void HandleKeyRowResetRequested(FName BindingId);
 
@@ -365,6 +374,7 @@ private:
 
 	/** 마이크 슬라이더와 방식 버튼을 저장된 설정 기준으로 구성한다. */
 	void InitializeMicrophoneSettings();
+	void InitializeLanguageSetting();
 
 	/** 운영체제에서 사용 가능한 마이크 장치 목록을 조회해 ComboBox를 구성한다. */
 	void RefreshMicrophoneDeviceList();
@@ -447,6 +457,10 @@ private:
 	/** 현재 선택된 마이크 방식 버튼의 눌림 표시를 갱신한다. */
 	void RefreshMicrophoneModeButtonSelection();
 
+	/** 언어 변경 뒤 C++에서 직접 세팅한 텍스트와 레이아웃을 다시 갱신한다. */
+	void RefreshLocalizedDynamicText();
+	void HandleTextRevisionChanged();
+
 	/** 키 변경 대기를 시작한다. */
 	void BeginKeyRebind(FName BindingId);
 
@@ -492,6 +506,7 @@ private:
 	bool bIsUpdatingMicrophoneSlider = false;
 
 	bool bIsUpdatingMicrophoneDeviceComboBox = false;
+	bool bIsUpdatingLanguageComboBox = false;
 
 	bool bHasPendingOptionChanges = false;
 
@@ -508,6 +523,8 @@ private:
 	float DisplayedMicrophoneInputLevel = 0.0f;
 
 	bool bIsMicrophoneTestActive = false;
+
+	FDelegateHandle TextRevisionChangedHandle;
 
 	TMap<UButton*, FButtonStyle> DefaultButtonStyles;
 

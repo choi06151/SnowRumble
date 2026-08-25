@@ -869,14 +869,16 @@ void ULobbyBoardWidget::RefreshReadyStartButtonText()
 
 	if (IsRequestingPlayerHost())
 	{
-		ReadyStartButtonText->SetText(FText::FromString(TEXT("게임 시작")));
+		ReadyStartButtonText->SetText(
+			NSLOCTEXT("SnowRumble", "LobbyBoardStartGame", "게임 시작"));
 		return;
 	}
 
 	const ASnowRumblePlayerState* PlayerState = GetRequestingPlayerState();
 	const bool bReady = PlayerState && PlayerState->IsLobbyReady();
-	ReadyStartButtonText->SetText(FText::FromString(
-		bReady ? TEXT("준비 취소") : TEXT("준비 완료")));
+	ReadyStartButtonText->SetText(bReady
+		? NSLOCTEXT("SnowRumble", "LobbyBoardCancelReady", "준비 취소")
+		: NSLOCTEXT("SnowRumble", "LobbyBoardReady", "준비 완료"));
 }
 
 void ULobbyBoardWidget::RefreshMatchRoundLimitText()
