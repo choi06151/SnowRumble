@@ -20,11 +20,11 @@ FText GetLobbyModeText(ESnowRumbleLobbyMode LobbyMode)
 	switch (LobbyMode)
 	{
 	case ESnowRumbleLobbyMode::Pvp:
-		return FText::FromString(TEXT("PvP"));
+		return NSLOCTEXT("SnowRumble", "LobbyModePvp", "PvP");
 	case ESnowRumbleLobbyMode::Snowman:
-		return FText::FromString(TEXT("눈사람 모드"));
+		return NSLOCTEXT("SnowRumble", "LobbyModeSnowman", "눈사람 모드");
 	default:
-		return FText::FromString(TEXT("-"));
+		return FText::GetEmpty();
 	}
 }
 
@@ -47,23 +47,23 @@ FText GetTeamText(ESnowRumbleTeam Team)
 	switch (Team)
 	{
 	case ESnowRumbleTeam::Red:
-		return FText::FromString(TEXT("빨강"));
+		return NSLOCTEXT("SnowRumble", "LobbyTeamRed", "빨강");
 	case ESnowRumbleTeam::Sky:
-		return FText::FromString(TEXT("하늘"));
+		return NSLOCTEXT("SnowRumble", "LobbyTeamSky", "하늘");
 	case ESnowRumbleTeam::Green:
-		return FText::FromString(TEXT("초록"));
+		return NSLOCTEXT("SnowRumble", "LobbyTeamGreen", "초록");
 	case ESnowRumbleTeam::Yellow:
-		return FText::FromString(TEXT("노랑"));
+		return NSLOCTEXT("SnowRumble", "LobbyTeamYellow", "노랑");
 	case ESnowRumbleTeam::Purple:
-		return FText::FromString(TEXT("보라"));
+		return NSLOCTEXT("SnowRumble", "LobbyTeamPurple", "보라");
 	case ESnowRumbleTeam::Pink:
-		return FText::FromString(TEXT("핑크"));
+		return NSLOCTEXT("SnowRumble", "LobbyTeamPink", "핑크");
 	case ESnowRumbleTeam::Blue:
-		return FText::FromString(TEXT("파랑"));
+		return NSLOCTEXT("SnowRumble", "LobbyTeamBlue", "파랑");
 	case ESnowRumbleTeam::Orange:
-		return FText::FromString(TEXT("주황"));
+		return NSLOCTEXT("SnowRumble", "LobbyTeamOrange", "주황");
 	default:
-		return FText::FromString(TEXT("미선택"));
+		return NSLOCTEXT("SnowRumble", "LobbyTeamUnselected", "미선택");
 	}
 }
 }
@@ -414,14 +414,15 @@ void ULobbyWidget::RefreshLobbyStatusTexts()
 	{
 		LocalTeamColorText->SetText(PlayerState
 			? GetTeamText(PlayerState->GetLobbyTeam())
-			: FText::FromString(TEXT("미선택")));
+			: NSLOCTEXT("SnowRumble", "LobbyTeamUnselectedFallback", "미선택"));
 	}
 
 	if (LocalReadyStateText)
 	{
 		const bool bReady = PlayerState && PlayerState->IsLobbyReady();
-		LocalReadyStateText->SetText(FText::FromString(
-			bReady ? TEXT("준비 완료") : TEXT("준비 전")));
+		LocalReadyStateText->SetText(bReady
+			? NSLOCTEXT("SnowRumble", "LobbyReadyStateReady", "준비 완료")
+			: NSLOCTEXT("SnowRumble", "LobbyReadyStateNotReady", "준비 전"));
 	}
 
 	if (LocalTeamColorBorder)

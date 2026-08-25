@@ -15,6 +15,7 @@
 #include "../Player/SnowRumbleCharacter.h"
 #include "../Player/SnowRumbleUserSettingsSubsystem_C.h"
 #include "Engine/GameInstance.h"
+#include "Internationalization/TextLocalizationManager.h"
 #include "MainMenuPlayerController.h"
 #include "../Game/PodiumPlayerController.h"
 #include "OptionsKeyBindingRowWidget_C.h"
@@ -54,9 +55,18 @@ void UOptionsWidget::NativeConstruct()
 	InitializeSensitivitySetting();
 	InitializeAudioSettings();
 	InitializeMicrophoneSettings();
+	InitializeLanguageSetting();
 	RefreshMicrophoneDeviceList();
 	InitializeDefaultKeyBindingRows();
 	BindOptionButtons();
+	if (!TextRevisionChangedHandle.IsValid())
+	{
+		TextRevisionChangedHandle =
+			FTextLocalizationManager::Get()
+				.OnTextRevisionChangedEvent.AddUObject(
+					this,
+					&UOptionsWidget::HandleTextRevisionChanged);
+	}
 	RefreshSensitivityValueText();
 	RefreshAudioValueText();
 	RefreshMicrophoneValueText();
@@ -68,6 +78,13 @@ void UOptionsWidget::NativeConstruct()
 void UOptionsWidget::NativeDestruct()
 {
 	StopMicrophoneTest();
+
+	if (TextRevisionChangedHandle.IsValid())
+	{
+		FTextLocalizationManager::Get()
+			.OnTextRevisionChangedEvent.Remove(TextRevisionChangedHandle);
+		TextRevisionChangedHandle.Reset();
+	}
 
 	if (LiveAudioPreviewSoundMix)
 	{
@@ -282,6 +299,12 @@ void UOptionsWidget::BindOptionButtons()
 			this,
 			&UOptionsWidget::HandleMicrophoneTestButtonClicked);
 	}
+	if (LanguageComboBox)
+	{
+		LanguageComboBox->OnSelectionChanged.AddUniqueDynamic(
+			this,
+			&UOptionsWidget::HandleLanguageSelectionChanged);
+	}
 }
 
 void UOptionsWidget::UnbindOptionButtons()
@@ -337,6 +360,10 @@ void UOptionsWidget::UnbindOptionButtons()
 	if (MicrophoneVolumeSlider)
 	{
 		MicrophoneVolumeSlider->OnValueChanged.RemoveAll(this);
+	}
+	if (LanguageComboBox)
+	{
+		LanguageComboBox->OnSelectionChanged.RemoveAll(this);
 	}
 	if (MicrophonePushToTalkButton)
 	{
@@ -525,6 +552,31 @@ void UOptionsWidget::HandleMicrophoneTestButtonClicked()
 	else
 	{
 		StartMicrophoneTest();
+	}
+}
+
+void UOptionsWidget::HandleLanguageSelectionChanged(
+	FString SelectedItem,
+	ESelectInfo::Type SelectionType)
+{
+	if (bIsUpdatingLanguageComboBox
+		|| SelectionType == ESelectInfo::Direct
+		|| SelectedItem.IsEmpty())
+	{
+		return;
+	}
+
+	const UGameInstance* GameInstance = GetGameInstance();
+	USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem = GameInstance
+		? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>()
+		: nullptr;
+	if (UserSettingsSubsystem)
+	{
+		UserSettingsSubsystem->SetLanguageCulture(
+			SelectedItem.Equals(TEXT("English"), ESearchCase::IgnoreCase)
+				? TEXT("en")
+				: TEXT("ko"));
+		RefreshLocalizedDynamicText();
 	}
 }
 
@@ -1103,6 +1155,31 @@ void UOptionsWidget::InitializeMicrophoneSettings()
 	RefreshMicrophoneModeButtonSelection();
 }
 
+void UOptionsWidget::InitializeLanguageSetting()
+{
+	if (!LanguageComboBox)
+	{
+		return;
+	}
+
+	const UGameInstance* GameInstance = GetGameInstance();
+	const USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem = GameInstance
+		? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>()
+		: nullptr;
+	const FString Culture = UserSettingsSubsystem
+		? UserSettingsSubsystem->GetLanguageCulture()
+		: TEXT("ko");
+	const FString SelectedLanguage = Culture.Equals(
+		TEXT("en"),
+		ESearchCase::IgnoreCase)
+		? TEXT("English")
+		: TEXT("한국어");
+
+	bIsUpdatingLanguageComboBox = true;
+	LanguageComboBox->SetSelectedOption(SelectedLanguage);
+	bIsUpdatingLanguageComboBox = false;
+}
+
 void UOptionsWidget::RefreshMicrophoneDeviceList()
 {
 	if (!MicrophoneDeviceComboBox)
@@ -1640,6 +1717,25 @@ void UOptionsWidget::RefreshMicrophoneValueText()
 			FText::AsNumber(FMath::RoundToInt(
 				PendingMicrophoneVolume * 100.0f))));
 	}
+}
+
+void UOptionsWidget::RefreshLocalizedDynamicText()
+{
+	InitializeDefaultKeyBindingRows();
+	RefreshKeyBindingPanel();
+	RefreshSensitivityValueText();
+	RefreshAudioValueText();
+	RefreshMicrophoneValueText();
+	OnMicrophoneModeChanged(PendingMicrophoneMode);
+	RefreshMicrophoneModeButtonSelection();
+
+	InvalidateLayoutAndVolatility();
+	ForceLayoutPrepass();
+}
+
+void UOptionsWidget::HandleTextRevisionChanged()
+{
+	RefreshLocalizedDynamicText();
 }
 
 void UOptionsWidget::SetButtonSelectedVisual(UButton* Button, bool bSelected)
