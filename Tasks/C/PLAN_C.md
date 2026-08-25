@@ -84,6 +84,7 @@
 - 2026-08-26: C-11 WidgetSwitcher 인덱스 충돌을 수정했다. 모자·안경·코·귀마개는 0~3번을 유지하고, PaintMode는 액세서리 WidgetSwitcher 인덱스를 변경하지 않도록 분리했다.
 - 2026-08-26: C-06 로비 피해 차단을 추가했다. `ASnowRumbleCharacter::TakeDamage()`가 `ASnowRumbleLobbyGameState`가 존재하는 로비 월드에서는 0 피해를 반환하고, PvP 월드의 기존 피해·얼기 흐름은 유지한다.
 - 2026-08-26: C-02 메인 메뉴에 `QuitGameButton` 계약을 추가했다. `AMainMenuPlayerController::QuitGame()`이 로컬 게임을 완전히 종료하고, 버튼 내부 텍스트는 기존 주요 버튼과 같은 hover/pressed 남색 처리를 사용한다.
+- 2026-08-26: C-02 메인 메뉴에 `KeyGuideButton` 계약을 추가했다. `BP_MainMenuPlayerController.KeyGuideWidgetClass`에 기존 `WBP_KeyGuideWidget`을 지정하면 로비에서 사용하는 조작법 WBP를 메인 메뉴에서도 표시·숨김한다.
 - 2026-08-26: C-02 메인 메뉴 닉네임을 최대 7글자로 제한했다. 초과 입력은 욕설 입력과 같은 저장 거부·기존 닉네임 복원 흐름을 사용하고 `닉네임이 너무 길어서 사용할 수 없습니다.` 알람을 표시한다.
 - 2026-08-26: C-06 관전 카메라 끊김을 완화했다. 캐릭터 네트워크 갱신 빈도를 높이고 관전 카메라 RPC를 초당 60회까지 허용하며, 수신 카메라 위치·회전·FOV를 로컬 프레임마다 보간한다.
 - 2026-08-26: C-06 관전 위젯의 기존 `CurrentViewTargetIdText` 표시값을 PlayerId 대신 대상 플레이어 닉네임으로 변경했다. WBP 바인딩 이름과 기존 ID 조회 함수는 호환성을 위해 유지한다.

@@ -104,6 +104,20 @@ void ASnowRumblePlayerController::EndPlay(
 	Super::EndPlay(EndPlayReason);
 }
 
+bool ASnowRumblePlayerController::InputKey(const FInputKeyEventArgs& Params)
+{
+	if (IsLocalController()
+		&& Params.Event == IE_Pressed
+		&& (Params.Key == BoundVoiceTargetMuteKey
+			|| (!BoundVoiceTargetMuteKey.IsValid() && Params.Key == EKeys::M)))
+	{
+		RequestVoiceTargetMute();
+		return true;
+	}
+
+	return Super::InputKey(Params);
+}
+
 void ASnowRumblePlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
@@ -158,16 +172,31 @@ void ASnowRumblePlayerController::RebindConfiguredInputKeys()
 			EKeys::M)
 		: EKeys::M;
 
-	if (BoundChatInputKey.IsValid())
+	// 플레이어 지정 음소거는 M 키가 다른 음성 입력 설정에 남아 있어도
+	// 항상 우선 처리한다. 이후 바인딩에서 같은 키를 건너뛰어 입력 소비 충돌을 막는다.
+	if (BoundVoiceTargetMuteKey.IsValid())
 	{
 		InputComponent->BindKey(
-			BoundChatInputKey,
+			BoundVoiceTargetMuteKey,
 			IE_Pressed,
 			this,
-			&ASnowRumblePlayerController::HandleChatInputPressed);
+			&ASnowRumblePlayerController::RequestVoiceTargetMute);
+	}
+
+	if (BoundChatInputKey.IsValid())
+	{
+		if (BoundChatInputKey != BoundVoiceTargetMuteKey)
+		{
+			InputComponent->BindKey(
+				BoundChatInputKey,
+				IE_Pressed,
+				this,
+				&ASnowRumblePlayerController::HandleChatInputPressed);
+		}
 	}
 	if (BoundChatChannelToggleKey.IsValid()
-		&& BoundChatChannelToggleKey != BoundChatInputKey)
+		&& BoundChatChannelToggleKey != BoundChatInputKey
+		&& BoundChatChannelToggleKey != BoundVoiceTargetMuteKey)
 	{
 		FInputKeyBinding& ChatChannelToggleBinding = InputComponent->BindKey(
 			BoundChatChannelToggleKey,
@@ -176,7 +205,8 @@ void ASnowRumblePlayerController::RebindConfiguredInputKeys()
 			&ASnowRumblePlayerController::HandleChatChannelTogglePressed);
 		ChatChannelToggleBinding.bConsumeInput = false;
 	}
-	if (BoundMicrophonePushToTalkKey.IsValid())
+	if (BoundMicrophonePushToTalkKey.IsValid()
+		&& BoundMicrophonePushToTalkKey != BoundVoiceTargetMuteKey)
 	{
 		InputComponent->BindKey(
 			BoundMicrophonePushToTalkKey,
@@ -191,23 +221,14 @@ void ASnowRumblePlayerController::RebindConfiguredInputKeys()
 	}
 	if (BoundVoiceChannelToggleKey.IsValid()
 		&& BoundVoiceChannelToggleKey != BoundChatInputKey
-		&& BoundVoiceChannelToggleKey != BoundChatChannelToggleKey)
+		&& BoundVoiceChannelToggleKey != BoundChatChannelToggleKey
+		&& BoundVoiceChannelToggleKey != BoundVoiceTargetMuteKey)
 	{
 		InputComponent->BindKey(
 			BoundVoiceChannelToggleKey,
 			IE_Pressed,
 			this,
-			&ASnowRumblePlayerController::HandleVoiceChannelTogglePressed);
-	}
-	if (BoundVoiceTargetMuteKey.IsValid()
-		&& BoundVoiceTargetMuteKey != BoundChatInputKey
-		&& BoundVoiceTargetMuteKey != BoundChatChannelToggleKey)
-	{
-		InputComponent->BindKey(
-			BoundVoiceTargetMuteKey,
-			IE_Pressed,
-			this,
-			&ASnowRumblePlayerController::RequestVoiceTargetMute);
+			&ASnowRumblePlayerController::RequestVoiceChannelToggle);
 	}
 	RefreshMicrophoneInputState();
 	ApplyReplicatedVoiceChannel(LocalVoiceChannel);
@@ -483,6 +504,14 @@ void ASnowRumblePlayerController::RequestMicrophonePushToTalkCompleted()
 
 void ASnowRumblePlayerController::RequestVoiceChannelToggle()
 {
+	const UWorld* World = GetWorld();
+	const double CurrentTimeSeconds = World ? World->GetTimeSeconds() : 0.0;
+	if (CurrentTimeSeconds - LastVoiceChannelToggleTimeSeconds < 0.1)
+	{
+		return;
+	}
+	LastVoiceChannelToggleTimeSeconds = CurrentTimeSeconds;
+
 	HandleVoiceChannelTogglePressed();
 }
 
@@ -502,7 +531,9 @@ void ASnowRumblePlayerController::HideVoiceMuteMenu()
 	VoiceMuteMenuWidget->RemoveFromParent();
 	VoiceMuteMenuWidget = nullptr;
 
-	bShowMouseCursor = false;
+	ResetIgnoreMoveInput();
+	ResetIgnoreLookInput();
+	SetShowMouseCursor(false);
 	FInputModeGameOnly InputMode;
 	SetInputMode(InputMode);
 }
@@ -1277,9 +1308,13 @@ void ASnowRumblePlayerController::ShowVoiceMuteMenu()
 	}
 	VoiceMuteMenuWidget->RefreshPlayerList();
 
-	bShowMouseCursor = true;
+	ResetIgnoreMoveInput();
+	ResetIgnoreLookInput();
+	SetIgnoreMoveInput(true);
+	SetIgnoreLookInput(true);
+	SetShowMouseCursor(true);
 	ApplyDefaultMouseCursorWidget();
-	FInputModeGameAndUI InputMode;
+	FInputModeUIOnly InputMode;
 	InputMode.SetWidgetToFocus(VoiceMuteMenuWidget->TakeWidget());
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	SetInputMode(InputMode);
