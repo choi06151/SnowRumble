@@ -118,6 +118,8 @@
 
 - 2026-08-24: C-09 공중 작은 눈덩이 투척 보정을 추가했다. 서버 release 시점에 공중이면 기존 `ThrowSmallSnowballInAir` 모션과 맞춰 피해 1.5배와 속도 기본 1.2배를 적용한다.
 - 2026-08-24: C-30 효과음 공간화 범위를 눈덩이 충돌음과 캐릭터 피격음으로 한정했다. UI 상호작용음은 해당 플레이어 로컬 2D 재생으로 유지하고, `ASnowballItem::ImpactSoundAttenuation`과 `ASnowRumbleCharacter::DamageSoundAttenuation`으로 attenuation 연결 지점을 추가했다.
+- 2026-08-25: C-30 눈덩이 투척 휘두르기 사운드가 캐릭터 위치 기반으로 재생되도록 `SnowballThrowSoundAttenuation` Blueprint 슬롯을 추가하고 연결했다.
+- 2026-08-25: 핫팩 아군 부활 중에도 기존 눈 제작용 머리 위 ProgressBar를 재사용하도록 `RevivingTeammate` timed action과 0~1 진행도 계산을 추가했다.
 - 2026-08-24: C-30 UI 버튼 공통 클릭음을 추가했다. `USnowRumbleAudioUserWidget`이 버튼을 자동 연결하고 단일 `ButtonInteractionSound`를 로컬 2D로 재생한다.
 - 2026-08-24: C-30 UI 사운드를 hover/click 슬롯으로 분리했다. 버튼 hover는 `ButtonHoverSound`, click은 `ButtonClickSound`를 로컬 2D로 재생한다.
 - 2026-08-24: C-30 눈 제작·굴리기·잡기·놓기·점프·큰 눈덩이 폭발 사운드 연결을 추가했다. 제작·굴리기·잡기·놓기·큰 눈덩이는 위치 기반으로, 점프는 로컬 SFX로 재생한다.
@@ -125,6 +127,15 @@
 - 2026-08-24: 병합 중 MainHUD WBP 참조 손실에 대비해 C++가 `/Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C`를 우선 로드하도록 보강했다.
 - 2026-08-24: C-11 커스터마이징 UI 계약을 기존 버튼 이름 자동 바인딩 방식으로 36색 팔레트까지 확장하고 C++가 버튼 RGB 스타일을 초기화하게 했다. WBP 버튼 배치는 사용자/S 인계로 남겼다.
 - 2026-08-24: C-11 커스터마이징 UI에 선택적 `BrushSizeSlider` 계약을 추가했다. 0~1 Slider 값은 기존 브러시 최소·최대 크기로 변환되고 버튼·휠 조절과 동기화된다.
+- 2026-08-25: C-11 커스터마이징 장착 계약을 모자·안경·코·귀마개 4종으로 확장했다. `FSnowRumbleCustomizationData`에 액세서리별 인덱스를 추가하고, 캐릭터가 `HatSocket`·`GlassesSocket`·`NoseSocket`·`EarmuffsSocket`에 후보 StaticMesh를 장착하며, 프리뷰용 공통 선택 API를 제공한다. 실제 StaticMesh 자산 제작·소켓 생성·WBP 배치는 사용자/S 인계로 남겼다.
+- 2026-08-25: C-11 커스터마이징 WBP가 이름 기반 액세서리 버튼을 자동 연결하도록 확장했다. 카테고리 버튼은 모자·안경·코·귀마개 페이지로 전환하고, `HatItemButton_N`, `GlassesItemButton_N`, `NoseItemButton_N`, `EarmuffsItemButton_N`의 `_0`은 해제, `_1`부터 후보 배열을 선택한다.
+- 2026-08-25: C-11 액세서리 전용 WidgetSwitcher 인덱스를 0 모자, 1 안경, 2 코, 3 귀마개로 확정하고, 커스터마이징 WBP 진입 시 0번 모자 페이지가 표시되도록 조정했다.
+- 2026-08-25: C-11 커스터마이징 프리뷰에 A/D 회전을 추가했다. A/D는 기존 좌우 회전 버튼과 같은 회전 속도를 사용하며 WASD 이동·카메라 룩 잠금은 유지한다.
+- 2026-08-25: C-11 브러시 크기 슬라이더의 Hover 커서를 기본 커서로 고정해 슬라이더 전용 커서가 커스터마이징 커서를 덮어쓰지 않게 했다.
+- 2026-08-25: C-11 브러시 크기 슬라이더의 마우스 캡처 시작·종료 시에도 커스터마이징 커서를 재적용하도록 보강했다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-25: C-11 페인트 커서 활성 중 매 프레임 커서 위젯을 재적용해 슬라이더 드래그 중에도 원형 페인트 커서를 유지하게 했다.
+- 2026-08-25: C-11 슬라이더가 드래그 중 반환하는 `ResizeLeftRight` 등 UI 커서 타입에도 PaintMode 원형 커서 위젯을 등록하게 보강했다. C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 최종 링크는 보류됐다.
+- 2026-08-25: C-11 브러쉬 최소/최대 범위가 256을 넘어도 슬라이더의 0~1 정규화와 원형 페인트 커서 크기가 전체 범위를 반영하도록 보완했다.
 - 2026-08-24: C-06/C-28 얼음·Grab 공용 계약을 확장했다. 서버는 얼은 대상에 대해 같은 팀 Grab만 허용하고, 기존 Grab tether 운반과 사망 시 자동 해제를 연결한다.
 - 2026-08-24: C-09 눈 전투 공용 판정을 보강했다. `ASnowballItem` 서버 충돌 처리에서 같은 팀 캐릭터는 눈덩이 피해와 넉백을 받지 않고 적 팀만 기존 피해 경로를 사용한다.
 - 2026-08-24: C-09 눈덩이 성장값을 투척 피해에 연결했다. `GrowthProgress` 0~1을 `MaximumGrowthDamageMultiplier` 1~3배로 보간해 차지 피해와 곱하고 서버에서 최종 피해를 확정한다.

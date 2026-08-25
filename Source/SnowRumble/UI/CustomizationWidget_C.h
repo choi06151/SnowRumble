@@ -21,7 +21,10 @@ enum class ESnowRumbleCustomizationPage : uint8
 	Main,
 	ViewMode,
 	PaintMode,
-	HatMode
+	HatMode,
+	GlassesMode,
+	NoseMode,
+	EarmuffsMode
 };
 
 UCLASS(Abstract, Blueprintable)
@@ -101,6 +104,15 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
 	TObjectPtr<UButton> HatModeButton;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> GlassesModeButton;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> NoseModeButton;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
+	TObjectPtr<UButton> EarmuffsModeButton;
 
 	/** 이전 WBP 호환용 선택 버튼이다. 새 팔레트 UI에서는 배치하지 않는다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
@@ -245,6 +257,18 @@ private:
 	void HandleHatModeButtonClicked();
 
 	UFUNCTION()
+	void HandleGlassesModeButtonClicked();
+
+	UFUNCTION()
+	void HandleNoseModeButtonClicked();
+
+	UFUNCTION()
+	void HandleEarmuffsModeButtonClicked();
+
+	UFUNCTION()
+	void HandleAccessoryItemButtonClicked();
+
+	UFUNCTION()
 	void HandleBrushColorButtonClicked();
 
 	UFUNCTION()
@@ -338,6 +362,12 @@ private:
 	void HandleBrushSizeSliderValueChanged(float NewValue);
 
 	UFUNCTION()
+	void HandleBrushSizeSliderMouseCaptureBegin();
+
+	UFUNCTION()
+	void HandleBrushSizeSliderMouseCaptureEnd();
+
+	UFUNCTION()
 	void HandleFillBodyColorButtonClicked();
 
 	UFUNCTION()
@@ -369,6 +399,8 @@ private:
 
 	void BindCustomizationButtons();
 	void UnbindCustomizationButtons();
+	void BindAccessoryItemButtons();
+	void UnbindAccessoryItemButtons();
 	void RefreshPaintBrushPreview();
 	void ApplyPaletteButtonColors();
 	void ApplyPaletteButtonColor(UButton* Button, FLinearColor Color);
@@ -385,11 +417,20 @@ private:
 	void SetButtonPressedVisual(UButton* Button, bool bSelected);
 	int32 GetSwitcherIndexForPage(ESnowRumbleCustomizationPage Page) const;
 
+	struct FAccessoryButtonBinding
+	{
+		ESnowRumbleCustomizationAccessory Accessory =
+			ESnowRumbleCustomizationAccessory::Hat;
+		int32 MeshIndex = INDEX_NONE;
+	};
+
+	TMap<UButton*, FAccessoryButtonBinding> AccessoryItemButtons;
+
 	UPROPERTY(Transient)
 	TObjectPtr<ACustomizationPlayerController> CustomizationPlayerController;
 
 	ESnowRumbleCustomizationPage CurrentCustomizationPage =
-		ESnowRumbleCustomizationPage::Main;
+		ESnowRumbleCustomizationPage::HatMode;
 
 	bool bIsBrushSizeButtonPressed = false;
 

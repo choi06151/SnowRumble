@@ -33,6 +33,23 @@
 
 namespace
 {
+constexpr EMouseCursor::Type CustomizationCursorTypes[] =
+{
+	EMouseCursor::Default,
+	EMouseCursor::TextEditBeam,
+	EMouseCursor::ResizeLeftRight,
+	EMouseCursor::ResizeUpDown,
+	EMouseCursor::ResizeSouthEast,
+	EMouseCursor::ResizeSouthWest,
+	EMouseCursor::CardinalCross,
+	EMouseCursor::Crosshairs,
+	EMouseCursor::Hand,
+	EMouseCursor::GrabHand,
+	EMouseCursor::GrabHandClosed,
+	EMouseCursor::SlashedCircle,
+	EMouseCursor::EyeDropper
+};
+
 void DisableCustomizationActorShadowCasting(AActor* Actor)
 {
 	if (!Actor)
@@ -48,6 +65,21 @@ void DisableCustomizationActorShadowCasting(AActor* Actor)
 		{
 			PrimitiveComponent->SetCastShadow(false);
 		}
+	}
+}
+
+void SetCustomizationCursorWidget(
+	APlayerController* PlayerController,
+	UUserWidget* CursorWidget)
+{
+	if (!PlayerController)
+	{
+		return;
+	}
+
+	for (const EMouseCursor::Type CursorType : CustomizationCursorTypes)
+	{
+		PlayerController->SetMouseCursorWidget(CursorType, CursorWidget);
 	}
 }
 }
@@ -95,6 +127,11 @@ void ACustomizationPlayerController::PlayerTick(float DeltaTime)
 		UpdatePaintUndoInput();
 		UpdatePaintInput();
 		UpdatePaintMouseCursorPresentation();
+		// 슬라이더 드래그 중에도 Slate가 선택한 다른 커서가 남지 않게 페인트 커서를 유지한다.
+		if (bIsPaintCursorActive)
+		{
+			ApplyCurrentMouseCursorWidget();
+		}
 	}
 }
 
@@ -262,10 +299,12 @@ float ACustomizationPlayerController::GetPaintBrushSizeNormalizedValue() const
 {
 	const float SafeMinSize = FMath::Max(1.0f, MinPaintBrushSize);
 	const float SafeMaxSize = FMath::Max(SafeMinSize, MaxPaintBrushSize);
-	return FMath::GetRangePct(
+	return FMath::Clamp(FMath::GetRangePct(
 		SafeMinSize,
 		SafeMaxSize,
-		PaintStrokeThickness);
+		PaintStrokeThickness),
+		0.0f,
+		1.0f);
 }
 
 float ACustomizationPlayerController::GetPaintBrushSize() const
@@ -398,6 +437,131 @@ int32 ACustomizationPlayerController::GetPreviewHatMeshIndex() const
 	return PreviewCustomizationData.HatMeshIndex;
 }
 
+void ACustomizationPlayerController::SetPreviewAccessoryMeshIndex(
+	ESnowRumbleCustomizationAccessory Accessory,
+	int32 NewMeshIndex)
+{
+	FSnowRumbleCustomizationData NewData = PreviewCustomizationData;
+	switch (Accessory)
+	{
+	case ESnowRumbleCustomizationAccessory::Hat:
+		NewData.HatMeshIndex = NewMeshIndex;
+		break;
+	case ESnowRumbleCustomizationAccessory::Glasses:
+		NewData.GlassesMeshIndex = NewMeshIndex;
+		break;
+	case ESnowRumbleCustomizationAccessory::Nose:
+		NewData.NoseMeshIndex = NewMeshIndex;
+		break;
+	case ESnowRumbleCustomizationAccessory::Earmuffs:
+		NewData.EarmuffsMeshIndex = NewMeshIndex;
+		break;
+	default:
+		return;
+	}
+
+	if (ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter())
+	{
+		NewMeshIndex = PreviewCharacter->NormalizeCustomizationAccessoryMeshIndex(
+			Accessory,
+			NewMeshIndex);
+	}
+	else
+	{
+		NewMeshIndex = FMath::Clamp(NewMeshIndex, INDEX_NONE, 255);
+	}
+
+	switch (Accessory)
+	{
+	case ESnowRumbleCustomizationAccessory::Hat:
+		NewData.HatMeshIndex = NewMeshIndex;
+		break;
+	case ESnowRumbleCustomizationAccessory::Glasses:
+		NewData.GlassesMeshIndex = NewMeshIndex;
+		break;
+	case ESnowRumbleCustomizationAccessory::Nose:
+		NewData.NoseMeshIndex = NewMeshIndex;
+		break;
+	case ESnowRumbleCustomizationAccessory::Earmuffs:
+		NewData.EarmuffsMeshIndex = NewMeshIndex;
+		break;
+	default:
+		return;
+	}
+
+	PreviewCustomizationData = NewData;
+	ApplyPreviewDataToCharacter();
+	SavePreviewCustomizationData();
+}
+
+void ACustomizationPlayerController::SelectPreviousPreviewAccessory(
+	ESnowRumbleCustomizationAccessory Accessory)
+{
+	ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter();
+	if (!PreviewCharacter)
+	{
+		SetPreviewAccessoryMeshIndex(Accessory, INDEX_NONE);
+		return;
+	}
+	const int32 OptionCount =
+		PreviewCharacter->GetCustomizationAccessoryOptionCount(Accessory);
+	if (OptionCount <= 0)
+	{
+		SetPreviewAccessoryMeshIndex(Accessory, INDEX_NONE);
+		return;
+	}
+	const int32 CurrentIndex =
+		PreviewCharacter->NormalizeCustomizationAccessoryMeshIndex(
+			Accessory,
+			GetPreviewAccessoryMeshIndex(Accessory));
+	SetPreviewAccessoryMeshIndex(
+		Accessory,
+		CurrentIndex == INDEX_NONE ? OptionCount - 1 : CurrentIndex - 1);
+}
+
+void ACustomizationPlayerController::SelectNextPreviewAccessory(
+	ESnowRumbleCustomizationAccessory Accessory)
+{
+	ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter();
+	if (!PreviewCharacter)
+	{
+		SetPreviewAccessoryMeshIndex(Accessory, INDEX_NONE);
+		return;
+	}
+	const int32 OptionCount =
+		PreviewCharacter->GetCustomizationAccessoryOptionCount(Accessory);
+	if (OptionCount <= 0)
+	{
+		SetPreviewAccessoryMeshIndex(Accessory, INDEX_NONE);
+		return;
+	}
+	const int32 CurrentIndex =
+		PreviewCharacter->NormalizeCustomizationAccessoryMeshIndex(
+			Accessory,
+			GetPreviewAccessoryMeshIndex(Accessory));
+	SetPreviewAccessoryMeshIndex(
+		Accessory,
+		CurrentIndex >= OptionCount - 1 ? INDEX_NONE : CurrentIndex + 1);
+}
+
+int32 ACustomizationPlayerController::GetPreviewAccessoryMeshIndex(
+	ESnowRumbleCustomizationAccessory Accessory) const
+{
+	switch (Accessory)
+	{
+	case ESnowRumbleCustomizationAccessory::Hat:
+		return PreviewCustomizationData.HatMeshIndex;
+	case ESnowRumbleCustomizationAccessory::Glasses:
+		return PreviewCustomizationData.GlassesMeshIndex;
+	case ESnowRumbleCustomizationAccessory::Nose:
+		return PreviewCustomizationData.NoseMeshIndex;
+	case ESnowRumbleCustomizationAccessory::Earmuffs:
+		return PreviewCustomizationData.EarmuffsMeshIndex;
+	default:
+		return INDEX_NONE;
+	}
+}
+
 void ACustomizationPlayerController::UndoLastPaintStroke()
 {
 	if (bIsPaintingStroke || !ActivePaintStroke.Points.IsEmpty())
@@ -461,6 +625,11 @@ void ACustomizationPlayerController::SetPaintCursorActive(
 	}
 
 	bIsPaintCursorActive = bNewPaintCursorActive;
+	ApplyCurrentMouseCursorWidget();
+}
+
+void ACustomizationPlayerController::RefreshCustomizationMouseCursor()
+{
 	ApplyCurrentMouseCursorWidget();
 }
 
@@ -1001,8 +1170,13 @@ bool ACustomizationPlayerController::GetPaintCursorScreenPosition(
 float ACustomizationPlayerController::GetPaintCursorDiameter() const
 {
 	const float SafeMinDiameter = FMath::Max(1.0f, MinPaintCursorDiameter);
-	const float SafeMaxDiameter =
-		FMath::Max(SafeMinDiameter, MaxPaintCursorDiameter);
+	const float SafeMinBrushSize = FMath::Max(1.0f, MinPaintBrushSize);
+	const float SafeMaxBrushSize =
+		FMath::Max(SafeMinBrushSize, MaxPaintBrushSize);
+	const float SafeMaxDiameter = FMath::Max(
+		SafeMinDiameter,
+		FMath::Max(MaxPaintCursorDiameter,
+			SafeMaxBrushSize * PaintCursorBrushSizeScale));
 	return FMath::Clamp(
 		PaintStrokeThickness * PaintCursorBrushSizeScale,
 		SafeMinDiameter,
@@ -1235,7 +1409,18 @@ void ACustomizationPlayerController::UpdatePaintUndoInput()
 
 void ACustomizationPlayerController::UpdatePreviewRotation(float DeltaTime)
 {
-	if (FMath::IsNearlyZero(PreviewRotationInput))
+	// 커스터마이징 화면에서는 이동 대신 A/D를 프리뷰 회전 입력으로 사용한다.
+	float PreviewYawInput = PreviewRotationInput;
+	if (IsInputKeyDown(EKeys::A))
+	{
+		PreviewYawInput = 1.0f;
+	}
+	else if (IsInputKeyDown(EKeys::D))
+	{
+		PreviewYawInput = -1.0f;
+	}
+
+	if (FMath::IsNearlyZero(PreviewYawInput))
 	{
 		return;
 	}
@@ -1248,7 +1433,7 @@ void ACustomizationPlayerController::UpdatePreviewRotation(float DeltaTime)
 
 	const FRotator CurrentRotation = PreviewCharacter->GetActorRotation();
 	const float DeltaYaw =
-		PreviewRotationInput * PreviewRotationSpeedDegrees * DeltaTime;
+		PreviewYawInput * PreviewRotationSpeedDegrees * DeltaTime;
 	PreviewCharacter->SetActorRotation(
 		FRotator(
 			CurrentRotation.Pitch,
@@ -1495,7 +1680,7 @@ void ACustomizationPlayerController::ApplyCurrentMouseCursorWidget()
 
 	if (!bIsPaintCursorActive)
 	{
-		SetMouseCursorWidget(EMouseCursor::Default, nullptr);
+		SetCustomizationCursorWidget(this, nullptr);
 		return;
 	}
 
@@ -1504,11 +1689,11 @@ void ACustomizationPlayerController::ApplyCurrentMouseCursorWidget()
 		: DefaultMouseCursorWidget;
 	if (!TargetCursorWidget)
 	{
-		SetMouseCursorWidget(EMouseCursor::Default, nullptr);
+		SetCustomizationCursorWidget(this, nullptr);
 		return;
 	}
 
-	SetMouseCursorWidget(EMouseCursor::Default, TargetCursorWidget);
+	SetCustomizationCursorWidget(this, TargetCursorWidget);
 	UpdatePaintMouseCursorPresentation();
 }
 

@@ -7,6 +7,7 @@
 #include "Components/Image.h"
 #include "Components/Slider.h"
 #include "Components/WidgetSwitcher.h"
+#include "Blueprint/WidgetTree.h"
 #include "CustomizationPlayerController_C.h"
 #include "InputCoreTypes.h"
 #include "Input/Reply.h"
@@ -95,16 +96,23 @@ void UCustomizationWidget::NativeConstruct()
 	Super::NativeConstruct();
 
 	SetIsFocusable(true);
+	if (BrushSizeSlider)
+	{
+		// 슬라이더 Hover 커서가 별도 모양으로 바뀌지 않게 기본 커서를 유지한다.
+		BrushSizeSlider->SetCursor(EMouseCursor::Default);
+	}
 	BindCustomizationButtons();
 	ApplyPaletteButtonColors();
 	SetCustomizationPage(CurrentCustomizationPage);
 	RefreshBrushSizeSlider();
 	RefreshPaintBrushPreview();
+	BindAccessoryItemButtons();
 }
 
 void UCustomizationWidget::NativeDestruct()
 {
 	UnbindCustomizationButtons();
+	UnbindAccessoryItemButtons();
 
 	Super::NativeDestruct();
 }
@@ -161,6 +169,41 @@ void UCustomizationWidget::HandlePaintModeButtonClicked()
 void UCustomizationWidget::HandleHatModeButtonClicked()
 {
 	SetCustomizationPage(ESnowRumbleCustomizationPage::HatMode);
+}
+
+void UCustomizationWidget::HandleGlassesModeButtonClicked()
+{
+	SetCustomizationPage(ESnowRumbleCustomizationPage::GlassesMode);
+}
+
+void UCustomizationWidget::HandleNoseModeButtonClicked()
+{
+	SetCustomizationPage(ESnowRumbleCustomizationPage::NoseMode);
+}
+
+void UCustomizationWidget::HandleEarmuffsModeButtonClicked()
+{
+	SetCustomizationPage(ESnowRumbleCustomizationPage::EarmuffsMode);
+}
+
+void UCustomizationWidget::HandleAccessoryItemButtonClicked()
+{
+	if (!CustomizationPlayerController)
+	{
+		return;
+	}
+
+	for (const TPair<UButton*, FAccessoryButtonBinding>& Pair : AccessoryItemButtons)
+	{
+		UButton* Button = Pair.Key;
+		if (Button && (Button->IsHovered() || Button->HasKeyboardFocus()))
+		{
+			CustomizationPlayerController->SetPreviewAccessoryMeshIndex(
+				Pair.Value.Accessory,
+				Pair.Value.MeshIndex);
+			return;
+		}
+	}
 }
 
 void UCustomizationWidget::HandleBrushColorButtonClicked()
@@ -446,6 +489,22 @@ void UCustomizationWidget::HandleBrushSizeSliderValueChanged(float NewValue)
 	}
 }
 
+void UCustomizationWidget::HandleBrushSizeSliderMouseCaptureBegin()
+{
+	if (CustomizationPlayerController)
+	{
+		CustomizationPlayerController->RefreshCustomizationMouseCursor();
+	}
+}
+
+void UCustomizationWidget::HandleBrushSizeSliderMouseCaptureEnd()
+{
+	if (CustomizationPlayerController)
+	{
+		CustomizationPlayerController->RefreshCustomizationMouseCursor();
+	}
+}
+
 void UCustomizationWidget::HandleFillBodyColorButtonClicked()
 {
 	if (CustomizationPlayerController)
@@ -554,6 +613,24 @@ void UCustomizationWidget::BindCustomizationButtons()
 		HatModeButton->OnClicked.AddUniqueDynamic(
 			this,
 			&UCustomizationWidget::HandleHatModeButtonClicked);
+	}
+	if (GlassesModeButton)
+	{
+		GlassesModeButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleGlassesModeButtonClicked);
+	}
+	if (NoseModeButton)
+	{
+		NoseModeButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleNoseModeButtonClicked);
+	}
+	if (EarmuffsModeButton)
+	{
+		EarmuffsModeButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleEarmuffsModeButtonClicked);
 	}
 	if (BrushColorButton)
 	{
@@ -791,6 +868,12 @@ void UCustomizationWidget::BindCustomizationButtons()
 		BrushSizeSlider->OnValueChanged.AddUniqueDynamic(
 			this,
 			&UCustomizationWidget::HandleBrushSizeSliderValueChanged);
+		BrushSizeSlider->OnMouseCaptureBegin.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleBrushSizeSliderMouseCaptureBegin);
+		BrushSizeSlider->OnMouseCaptureEnd.AddUniqueDynamic(
+			this,
+			&UCustomizationWidget::HandleBrushSizeSliderMouseCaptureEnd);
 	}
 	if (FillBodyColorButton)
 	{
@@ -854,6 +937,71 @@ void UCustomizationWidget::BindCustomizationButtons()
 	}
 }
 
+void UCustomizationWidget::BindAccessoryItemButtons()
+{
+	if (!WidgetTree)
+	{
+		return;
+	}
+
+	TArray<UWidget*> Widgets;
+	WidgetTree->GetAllWidgets(Widgets);
+	const TArray<TPair<FString, ESnowRumbleCustomizationAccessory>> Prefixes =
+	{
+		{TEXT("HatItemButton_"), ESnowRumbleCustomizationAccessory::Hat},
+		{TEXT("GlassesItemButton_"), ESnowRumbleCustomizationAccessory::Glasses},
+		{TEXT("NoseItemButton_"), ESnowRumbleCustomizationAccessory::Nose},
+		{TEXT("EarmuffsItemButton_"), ESnowRumbleCustomizationAccessory::Earmuffs}
+	};
+
+	for (UWidget* Widget : Widgets)
+	{
+		UButton* Button = Cast<UButton>(Widget);
+		if (!Button)
+		{
+			continue;
+		}
+
+		const FString ButtonName = Button->GetName();
+		for (const TPair<FString, ESnowRumbleCustomizationAccessory>& Prefix : Prefixes)
+		{
+			if (!ButtonName.StartsWith(Prefix.Key))
+			{
+				continue;
+			}
+
+			const FString IndexText = ButtonName.RightChop(Prefix.Key.Len());
+			if (IndexText.IsEmpty())
+			{
+				break;
+			}
+
+			FAccessoryButtonBinding Binding;
+			Binding.Accessory = Prefix.Value;
+			Binding.MeshIndex = FCString::Atoi(*IndexText) - 1;
+			AccessoryItemButtons.Add(Button, Binding);
+			Button->OnClicked.AddUniqueDynamic(
+				this,
+				&UCustomizationWidget::HandleAccessoryItemButtonClicked);
+			break;
+		}
+	}
+}
+
+void UCustomizationWidget::UnbindAccessoryItemButtons()
+{
+	for (const TPair<UButton*, FAccessoryButtonBinding>& Pair : AccessoryItemButtons)
+	{
+		if (Pair.Key)
+		{
+			Pair.Key->OnClicked.RemoveDynamic(
+				this,
+				&UCustomizationWidget::HandleAccessoryItemButtonClicked);
+		}
+	}
+	AccessoryItemButtons.Reset();
+}
+
 void UCustomizationWidget::UnbindCustomizationButtons()
 {
 	if (PaintModeButton)
@@ -863,6 +1011,18 @@ void UCustomizationWidget::UnbindCustomizationButtons()
 	if (HatModeButton)
 	{
 		HatModeButton->OnClicked.RemoveAll(this);
+	}
+	if (GlassesModeButton)
+	{
+		GlassesModeButton->OnClicked.RemoveAll(this);
+	}
+	if (NoseModeButton)
+	{
+		NoseModeButton->OnClicked.RemoveAll(this);
+	}
+	if (EarmuffsModeButton)
+	{
+		EarmuffsModeButton->OnClicked.RemoveAll(this);
 	}
 	if (BrushColorButton)
 	{
@@ -912,6 +1072,8 @@ void UCustomizationWidget::UnbindCustomizationButtons()
 	if (BrushSizeSlider)
 	{
 		BrushSizeSlider->OnValueChanged.RemoveAll(this);
+		BrushSizeSlider->OnMouseCaptureBegin.RemoveAll(this);
+		BrushSizeSlider->OnMouseCaptureEnd.RemoveAll(this);
 	}
 	if (FillBodyColorButton)
 	{
@@ -1370,7 +1532,13 @@ int32 UCustomizationWidget::GetSwitcherIndexForPage(
 	case ESnowRumbleCustomizationPage::PaintMode:
 		return 1;
 	case ESnowRumbleCustomizationPage::HatMode:
+		return 0;
+	case ESnowRumbleCustomizationPage::GlassesMode:
+		return 1;
+	case ESnowRumbleCustomizationPage::NoseMode:
 		return 2;
+	case ESnowRumbleCustomizationPage::EarmuffsMode:
+		return 3;
 	case ESnowRumbleCustomizationPage::Main:
 	default:
 		return 0;
