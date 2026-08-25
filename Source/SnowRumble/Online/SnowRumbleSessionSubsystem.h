@@ -205,6 +205,13 @@ private:
 	/** 세션 연결 실패 또는 호스트 이탈 후 메인메뉴로 복귀한다. */
 	void ReturnToMainMenuAfterSessionFailure(const FString& AlarmMessage);
 
+	/** Steam Overlay에서 수락한 초대를 실제 세션 참가 요청으로 변환한다. */
+	void HandleSessionUserInviteAccepted(
+		const bool bWasSuccessful,
+		const int32 ControllerId,
+		FUniqueNetIdPtr UserId,
+		const FOnlineSessionSearchResult& InviteResult);
+
 	/** 등록된 세션 생성 완료 델리게이트를 해제한다. */
 	void ClearCreateSessionDelegate();
 
@@ -229,6 +236,7 @@ private:
 	FDelegateHandle CreateSessionCompleteHandle;
 	FDelegateHandle FindSessionsCompleteHandle;
 	FDelegateHandle JoinSessionCompleteHandle;
+	FDelegateHandle SessionUserInviteAcceptedHandle;
 	FDelegateHandle PostLoadMapHandle;
 	FDelegateHandle NetworkFailureHandle;
 	FDelegateHandle TravelFailureHandle;
