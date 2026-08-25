@@ -81,6 +81,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> MapShrinkCountdownText;
 
+	/** WBP에서 직접 배치한 맵 축소 상태 TextBlock에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> MapShrinkStatusText;
+
 	/** WBP에서 직접 배치한 라운드 종료 패널에 자동 연결된다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UPanelWidget> EndRoundPanel;

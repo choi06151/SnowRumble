@@ -130,7 +130,7 @@ void USnowRumbleUserSettingsSubsystem::SetSfxVolume(float NewVolume)
 
 void USnowRumbleUserSettingsSubsystem::SetVoiceVolume(float NewVolume)
 {
-	VoiceVolume = FMath::Clamp(NewVolume, 0.0f, 1.0f);
+	VoiceVolume = FMath::Clamp(NewVolume, 0.0f, MaxVoiceVolume);
 	SaveConfig();
 }
 
@@ -175,7 +175,7 @@ float USnowRumbleUserSettingsSubsystem::GetSfxVolume() const
 
 float USnowRumbleUserSettingsSubsystem::GetVoiceVolume() const
 {
-	return FMath::Clamp(VoiceVolume, 0.0f, 1.0f);
+	return FMath::Clamp(VoiceVolume, 0.0f, MaxVoiceVolume);
 }
 
 float USnowRumbleUserSettingsSubsystem::GetDefaultAudioVolume() const
@@ -190,7 +190,7 @@ float USnowRumbleUserSettingsSubsystem::GetDefaultVoiceVolume() const
 
 void USnowRumbleUserSettingsSubsystem::SetMicrophoneVolume(float NewVolume)
 {
-	MicrophoneVolume = FMath::Clamp(NewVolume, 0.0f, 1.0f);
+	MicrophoneVolume = FMath::Clamp(NewVolume, 0.0f, MaxMicrophoneVolume);
 	SaveConfig();
 	OnMicrophoneSettingsChanged.Broadcast();
 }
@@ -204,7 +204,7 @@ void USnowRumbleUserSettingsSubsystem::ResetMicrophoneVolume()
 
 float USnowRumbleUserSettingsSubsystem::GetMicrophoneVolume() const
 {
-	return FMath::Clamp(MicrophoneVolume, 0.0f, 1.0f);
+	return FMath::Clamp(MicrophoneVolume, 0.0f, MaxMicrophoneVolume);
 }
 
 float USnowRumbleUserSettingsSubsystem::GetDefaultMicrophoneVolume() const
@@ -300,10 +300,10 @@ void USnowRumbleUserSettingsSubsystem::AddSnowRumbleLocalizationPath(
 
 void USnowRumbleUserSettingsSubsystem::LogLanguageProbe(const FString& Culture)
 {
-	const FText ProbeText = FText::ChangeKey(
-		TEXT(""),
-		TEXT("497C2BE446D905082A79A1863B8734D5"),
-		FText::FromString(TEXT("방 만들기")));
+	const FText ProbeText = NSLOCTEXT(
+		"",
+		"497C2BE446D905082A79A1863B8734D5",
+		"방 만들기");
 
 	UE_LOG(
 		LogTemp,

@@ -86,9 +86,10 @@
   - `ULobbyBoardWidget::InvalidActionAnimation`: 게시판 WBP에 같은 이름의 Widget Animation이 있으면 클라이언트가 방 설정을 변경하려 하거나 호스트가 시작 불가 상태에서 시작을 누를 때 재생한다.
   - `ULobbyBoardWidget::InvalidActionReasonText`: 게시판 WBP에 같은 이름의 TextBlock이 있으면 예외행동 사유를 C++가 표시한다.
   - `ULobbyBoardWidget::OnInvalidActionFeedback(const FText& ReasonText)`: 게시판 WBP가 사유 텍스트를 받아 직접 패널 표시나 애니메이션 재생을 연결할 수 있다.
-  - `UMainHUDWidget::CurrentRoundText`: `WBP_MainHUDWidget`에 같은 이름의 TextBlock이 있으면 현재 라운드를 `라운드 {현재} / {전체}` 형식으로 표시하고, 단판 승부 라운드에서는 `단판승부`로 표시한다.
-  - `UMainHUDWidget::MatchElapsedTimeText`: `WBP_MainHUDWidget`에 같은 이름의 TextBlock이 있으면 PvP 시작 후 현재 경기 시간을 `경기 시간 0:00` 형식으로 표시한다.
-  - `UMainHUDWidget::MapShrinkCountdownText`: `WBP_MainHUDWidget`에 같은 이름의 TextBlock이 있으면 `{초}초 후 맵이 축소됩니다` 또는 `맵이 축소됩니다!`를 표시한다. 단판 승부 라운드에서는 숨긴다.
+- `UMainHUDWidget::CurrentRoundText`: `WBP_MainHUDWidget`에 같은 이름의 TextBlock이 있으면 현재 라운드 점수를 `{현재} / {전체}` 형식으로 표시하고, 단판 승부 라운드에서는 `단판승부`로 표시한다.
+- `UMainHUDWidget::MatchElapsedTimeText`: `WBP_MainHUDWidget`에 같은 이름의 TextBlock이 있으면 PvP 시작 후 현재 경기 시간을 `0:00` 형식으로 표시한다.
+- `UMainHUDWidget::MapShrinkCountdownText`: `WBP_MainHUDWidget`에 같은 이름의 TextBlock이 있으면 다음 맵 축소까지 남은 시간을 `{초}초 후` 형식으로 표시한다. 단판 승부 라운드에서는 숨긴다.
+- `UMainHUDWidget::MapShrinkStatusText`: `WBP_MainHUDWidget`에 같은 이름의 TextBlock이 있으면 맵 축소 대기 중 `축소됩니다`, 실제 축소 중 `축소중`을 표시한다. 단판 승부 라운드에서는 숨긴다.
   - `UMainHUDWidget::EndRoundPanel`: HUD WBP에 같은 이름의 Panel이 있으면 라운드 종료 시 자동 표시한다.
   - `UMainHUDWidget::EndRoundResultText`: HUD WBP에 같은 이름의 TextBlock이 있으면 `{승리팀} 승리` 문구를 자동 표시한다.
   - `UMainHUDWidget::RedTeamScoreText`, `SkyTeamScoreText`, `GreenTeamScoreText`, `YellowTeamScoreText`, `PurpleTeamScoreText`, `PinkTeamScoreText`, `BlueTeamScoreText`, `WhiteTeamScoreText`: HUD WBP에 같은 이름의 TextBlock이 있으면 해당 팀의 라운드 승수를 자동 표시한다.
