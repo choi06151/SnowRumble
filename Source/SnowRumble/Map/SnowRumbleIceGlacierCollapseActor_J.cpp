@@ -3,9 +3,29 @@
 #include "SnowRumbleIceGlacierCollapseActor_J.h"
 
 #include "../Game/SnowRumbleGameState_C.h"
+#include "../Item/Campfire_C.h"
+#include "../Item/GiftBox_C.h"
+#include "../Item/GiftBoxItemPickup_C.h"
+#include "../Snowball/SnowballItem.h"
+#include "Camera/CameraShakeBase.h"
+#include "Camera/PlayerCameraManager.h"
+#include "Engine/World.h"
+#include "EngineUtils.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SceneComponent.h"
 #include "Net/UnrealNetwork.h"
+
+namespace
+{
+constexpr float IceGlacierCarryBoundsPaddingXY = 50.0f;
+constexpr float IceGlacierCarryTraceStartOffset = 10.0f;
+constexpr float IceGlacierCarryTraceDownDistance = 1200.0f;
+constexpr float IceGlacierCarryMaximumSurfaceDistance = 200.0f;
+}
 
 ASnowRumbleIceGlacierCollapseActor::ASnowRumbleIceGlacierCollapseActor()
 {
@@ -26,6 +46,14 @@ void ASnowRumbleIceGlacierCollapseActor::BeginPlay()
 	ApplyCollapseState(GetRoundElapsedSeconds());
 }
 
+void ASnowRumbleIceGlacierCollapseActor::EndPlay(
+	const EEndPlayReason::Type EndPlayReason)
+{
+	StopLocalWarningCameraShake();
+
+	Super::EndPlay(EndPlayReason);
+}
+
 void ASnowRumbleIceGlacierCollapseActor::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
@@ -43,6 +71,7 @@ void ASnowRumbleIceGlacierCollapseActor::Tick(float DeltaSeconds)
 	}
 
 	ApplyCollapseState(RoundElapsedSeconds);
+	UpdateLocalWarningCameraShake(RoundElapsedSeconds);
 }
 
 void ASnowRumbleIceGlacierCollapseActor::GetLifetimeReplicatedProps(
@@ -286,6 +315,10 @@ void ASnowRumbleIceGlacierCollapseActor::ApplyCollapseGroup(
 			break;
 		}
 		case EIceGlacierCollapsePieceState::Falling:
+			if (HasAuthority())
+			{
+				UpdateFallingCarryActors(TargetState, FallAlpha);
+			}
 			ApplyFallingTransform(TargetState, FallAlpha);
 			RestoreTargetCollision(TargetState);
 			break;
@@ -306,6 +339,12 @@ void ASnowRumbleIceGlacierCollapseActor::ApplyCollapseGroup(
 			RestoreTargetCollision(TargetState);
 			break;
 		}
+
+		if (HasAuthority() && PieceState != EIceGlacierCollapsePieceState::Falling)
+		{
+			ClearCarryActors(TargetState);
+		}
+		TargetState.PreviousPieceState = PieceState;
 	}
 }
 
@@ -419,6 +458,16 @@ void ASnowRumbleIceGlacierCollapseActor::ApplyWarningTransform(
 		ETeleportType::TeleportPhysics);
 }
 
+FVector ASnowRumbleIceGlacierCollapseActor::CalculateFallingPieceLocation(
+	const FIceGlacierCollapseTargetState& TargetState,
+	float Alpha) const
+{
+	FVector NewLocation = TargetState.InitialTransform.GetLocation();
+	NewLocation.Z -= TargetState.PieceSettings.SinkDistance *
+		FMath::Clamp(Alpha, 0.0f, 1.0f);
+	return NewLocation;
+}
+
 void ASnowRumbleIceGlacierCollapseActor::ApplyFallingTransform(
 	FIceGlacierCollapseTargetState& TargetState,
 	float Alpha)
@@ -430,10 +479,7 @@ void ASnowRumbleIceGlacierCollapseActor::ApplyFallingTransform(
 	}
 
 	FTransform NewTransform = TargetState.InitialTransform;
-	FVector NewLocation = TargetState.InitialTransform.GetLocation();
-	NewLocation.Z -= TargetState.PieceSettings.SinkDistance *
-		FMath::Clamp(Alpha, 0.0f, 1.0f);
-	NewTransform.SetLocation(NewLocation);
+	NewTransform.SetLocation(CalculateFallingPieceLocation(TargetState, Alpha));
 	TargetActor->SetActorTransform(
 		NewTransform,
 		false,
@@ -455,6 +501,514 @@ void ASnowRumbleIceGlacierCollapseActor::ApplyInitialTransform(
 		false,
 		nullptr,
 		ETeleportType::TeleportPhysics);
+}
+
+void ASnowRumbleIceGlacierCollapseActor::UpdateFallingCarryActors(
+	FIceGlacierCollapseTargetState& TargetState,
+	float FallAlpha)
+{
+	const FVector CurrentPieceLocation =
+		CalculateFallingPieceLocation(TargetState, FallAlpha);
+	if (TargetState.PreviousPieceState != EIceGlacierCollapsePieceState::Falling ||
+		!TargetState.bCarryInitializedForFall)
+	{
+		InitializeCarryActorsForFallingPiece(TargetState, CurrentPieceLocation);
+		return;
+	}
+
+	MoveCarriedActorsWithFallingPiece(TargetState, CurrentPieceLocation);
+}
+
+void ASnowRumbleIceGlacierCollapseActor::InitializeCarryActorsForFallingPiece(
+	FIceGlacierCollapseTargetState& TargetState,
+	const FVector& CurrentPieceLocation)
+{
+	ClearCarryActors(TargetState);
+	TargetState.PreviousCarryPieceLocation = CurrentPieceLocation;
+	TargetState.bCarryInitializedForFall = true;
+
+	AActor* TargetActor = TargetState.Actor.Get();
+	UWorld* World = GetWorld();
+	if (!IsValid(TargetActor) || !World)
+	{
+		return;
+	}
+
+	FBox TargetBounds(ForceInit);
+	if (!CalculateTargetActorBounds(TargetActor, TargetBounds))
+	{
+		return;
+	}
+	const FBox ExpandedTargetBounds = TargetBounds.ExpandBy(
+		FVector(IceGlacierCarryBoundsPaddingXY, IceGlacierCarryBoundsPaddingXY, 0.0f));
+
+	const auto TryAddCarryCandidate =
+		[this, TargetActor, &TargetState, &ExpandedTargetBounds](AActor* CandidateActor)
+	{
+		if (!ShouldCarryCandidateActor(CandidateActor) ||
+			CandidateActor == TargetActor)
+		{
+			return;
+		}
+
+		const FVector CandidateLocation = CandidateActor->GetActorLocation();
+		if (CandidateLocation.X < ExpandedTargetBounds.Min.X ||
+			CandidateLocation.X > ExpandedTargetBounds.Max.X ||
+			CandidateLocation.Y < ExpandedTargetBounds.Min.Y ||
+			CandidateLocation.Y > ExpandedTargetBounds.Max.Y)
+		{
+			return;
+		}
+
+		if (!IsCandidateStandingOnTargetActorByTrace(CandidateActor, TargetActor))
+		{
+			return;
+		}
+
+		for (const TWeakObjectPtr<AActor>& CarriedActor : TargetState.CarriedActors)
+		{
+			if (CarriedActor.Get() == CandidateActor)
+			{
+				return;
+			}
+		}
+		TargetState.CarriedActors.Add(CandidateActor);
+	};
+
+	for (TActorIterator<AGiftBox> Iterator(World); Iterator; ++Iterator)
+	{
+		TryAddCarryCandidate(*Iterator);
+	}
+	for (TActorIterator<AGiftBoxItemPickup> Iterator(World); Iterator; ++Iterator)
+	{
+		TryAddCarryCandidate(*Iterator);
+	}
+	for (TActorIterator<ACampfire> Iterator(World); Iterator; ++Iterator)
+	{
+		TryAddCarryCandidate(*Iterator);
+	}
+	for (TActorIterator<ASnowballItem> Iterator(World); Iterator; ++Iterator)
+	{
+		TryAddCarryCandidate(*Iterator);
+	}
+}
+
+void ASnowRumbleIceGlacierCollapseActor::MoveCarriedActorsWithFallingPiece(
+	FIceGlacierCollapseTargetState& TargetState,
+	const FVector& CurrentPieceLocation)
+{
+	const FVector DeltaLocation =
+		CurrentPieceLocation - TargetState.PreviousCarryPieceLocation;
+
+	for (int32 Index = TargetState.CarriedActors.Num() - 1; Index >= 0; --Index)
+	{
+		AActor* CarriedActor = TargetState.CarriedActors[Index].Get();
+		if (!ShouldKeepCarryingActor(CarriedActor))
+		{
+			TargetState.CarriedActors.RemoveAtSwap(Index);
+			continue;
+		}
+
+		if (!DeltaLocation.IsNearlyZero())
+		{
+			CarriedActor->AddActorWorldOffset(
+				DeltaLocation,
+				false,
+				nullptr,
+				ETeleportType::TeleportPhysics);
+			CarriedActor->ForceNetUpdate();
+		}
+	}
+
+	TargetState.PreviousCarryPieceLocation = CurrentPieceLocation;
+}
+
+void ASnowRumbleIceGlacierCollapseActor::ClearCarryActors(
+	FIceGlacierCollapseTargetState& TargetState)
+{
+	TargetState.CarriedActors.Reset();
+	TargetState.PreviousCarryPieceLocation = FVector::ZeroVector;
+	TargetState.bCarryInitializedForFall = false;
+}
+
+bool ASnowRumbleIceGlacierCollapseActor::CalculateTargetActorBounds(
+	const AActor* TargetActor,
+	FBox& OutBounds) const
+{
+	OutBounds = FBox(ForceInit);
+	if (!IsValid(TargetActor))
+	{
+		return false;
+	}
+
+	TArray<UPrimitiveComponent*> PrimitiveComponents;
+	TargetActor->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
+	for (const UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
+	{
+		if (!PrimitiveComponent)
+		{
+			continue;
+		}
+
+		const FBox ComponentBox = PrimitiveComponent->Bounds.GetBox();
+		if (ComponentBox.IsValid)
+		{
+			OutBounds += ComponentBox;
+		}
+	}
+
+	return OutBounds.IsValid != 0;
+}
+
+bool ASnowRumbleIceGlacierCollapseActor::ShouldCarryCandidateActor(
+	const AActor* CandidateActor) const
+{
+	if (!IsValid(CandidateActor) || CandidateActor == this ||
+		Cast<ACharacter>(CandidateActor) || Cast<APawn>(CandidateActor) ||
+		CandidateActor->GetAttachParentActor())
+	{
+		return false;
+	}
+
+	const USceneComponent* CandidateRootComponent = CandidateActor->GetRootComponent();
+	if (!CandidateRootComponent ||
+		CandidateRootComponent->Mobility == EComponentMobility::Static ||
+		CandidateRootComponent->GetAttachParent())
+	{
+		return false;
+	}
+
+	bool bHasEnabledCollision = false;
+	bool bHasNonStaticPrimitive = false;
+	TArray<UPrimitiveComponent*> PrimitiveComponents;
+	CandidateActor->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
+	for (const UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
+	{
+		if (!PrimitiveComponent)
+		{
+			continue;
+		}
+		if (PrimitiveComponent->GetCollisionObjectType() == ECC_WorldStatic)
+		{
+			return false;
+		}
+		if (PrimitiveComponent->Mobility != EComponentMobility::Static)
+		{
+			bHasNonStaticPrimitive = true;
+		}
+		if (PrimitiveComponent->GetCollisionEnabled() != ECollisionEnabled::NoCollision)
+		{
+			bHasEnabledCollision = true;
+		}
+	}
+
+	if (!bHasEnabledCollision || !bHasNonStaticPrimitive)
+	{
+		return false;
+	}
+
+	if (const ASnowballItem* Snowball = Cast<ASnowballItem>(CandidateActor))
+	{
+		return Snowball->CanBePickedUp();
+	}
+
+	return Cast<AGiftBox>(CandidateActor) ||
+		Cast<AGiftBoxItemPickup>(CandidateActor) ||
+		Cast<ACampfire>(CandidateActor);
+}
+
+bool ASnowRumbleIceGlacierCollapseActor::ShouldKeepCarryingActor(
+	const AActor* CandidateActor) const
+{
+	return ShouldCarryCandidateActor(CandidateActor);
+}
+
+FVector ASnowRumbleIceGlacierCollapseActor::GetCarryTraceStartLocation(
+	const AActor* CandidateActor) const
+{
+	if (!CandidateActor)
+	{
+		return FVector::ZeroVector;
+	}
+
+	FVector TraceStart = CandidateActor->GetActorLocation();
+	float BestBottomZ = -TNumericLimits<float>::Max();
+	bool bFoundCollisionBounds = false;
+
+	TArray<UPrimitiveComponent*> PrimitiveComponents;
+	CandidateActor->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
+	for (const UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
+	{
+		if (!PrimitiveComponent ||
+			PrimitiveComponent->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
+		{
+			continue;
+		}
+
+		const FBox ComponentBox = PrimitiveComponent->Bounds.GetBox();
+		if (!ComponentBox.IsValid)
+		{
+			continue;
+		}
+
+		const bool bActorLocationInsideComponentXY =
+			TraceStart.X >= ComponentBox.Min.X - IceGlacierCarryBoundsPaddingXY &&
+			TraceStart.X <= ComponentBox.Max.X + IceGlacierCarryBoundsPaddingXY &&
+			TraceStart.Y >= ComponentBox.Min.Y - IceGlacierCarryBoundsPaddingXY &&
+			TraceStart.Y <= ComponentBox.Max.Y + IceGlacierCarryBoundsPaddingXY;
+		if (!bActorLocationInsideComponentXY)
+		{
+			continue;
+		}
+
+		BestBottomZ = FMath::Max(BestBottomZ, ComponentBox.Min.Z);
+		bFoundCollisionBounds = true;
+	}
+
+	if (bFoundCollisionBounds)
+	{
+		TraceStart.Z = FMath::Max(TraceStart.Z, BestBottomZ);
+	}
+	TraceStart.Z += IceGlacierCarryTraceStartOffset;
+	return TraceStart;
+}
+
+bool ASnowRumbleIceGlacierCollapseActor::IsCandidateStandingOnTargetActorByTrace(
+	const AActor* CandidateActor,
+	const AActor* TargetActor) const
+{
+	UWorld* World = GetWorld();
+	if (!World || !IsValid(CandidateActor) || !IsValid(TargetActor))
+	{
+		return false;
+	}
+
+	const FVector TraceStart = GetCarryTraceStartLocation(CandidateActor);
+	const FVector TraceEnd =
+		TraceStart - FVector::UpVector * IceGlacierCarryTraceDownDistance;
+
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(IceGlacierCarryTrace), false);
+	QueryParams.AddIgnoredActor(CandidateActor);
+	QueryParams.AddIgnoredActor(this);
+
+	TArray<FHitResult> Hits;
+	if (!World->LineTraceMultiByChannel(
+		Hits,
+		TraceStart,
+		TraceEnd,
+		ECC_Visibility,
+		QueryParams))
+	{
+		return false;
+	}
+
+	for (const FHitResult& Hit : Hits)
+	{
+		AActor* HitActor = Hit.GetActor();
+		if (!Hit.bBlockingHit || !IsValid(HitActor) ||
+			HitActor == CandidateActor || HitActor == this ||
+			Cast<ACharacter>(HitActor) || Cast<APawn>(HitActor))
+		{
+			continue;
+		}
+
+		return HitActor == TargetActor &&
+			Hit.Distance <= IceGlacierCarryMaximumSurfaceDistance;
+	}
+
+	return false;
+}
+
+void ASnowRumbleIceGlacierCollapseActor::UpdateLocalWarningCameraShake(
+	float RoundElapsedSeconds)
+{
+	float WarningAlpha = 0.0f;
+	AActor* WarningTargetActor = FindWarningPieceUnderLocalPlayer(
+		RoundElapsedSeconds,
+		WarningAlpha);
+	AActor* ActiveTargetActor = ActiveWarningCameraShakeTargetActor.Get();
+	if (ActiveTargetActor && ActiveTargetActor == WarningTargetActor)
+	{
+		if (UCameraShakeBase* CameraShakeInstance =
+			ActiveWarningCameraShakeInstance.Get())
+		{
+			CameraShakeInstance->ShakeScale =
+				CalculateWarningCameraShakeScale(WarningAlpha);
+			return;
+		}
+	}
+
+	if (ActiveTargetActor || ActiveWarningCameraShakeInstance.IsValid())
+	{
+		StopLocalWarningCameraShake();
+	}
+
+	if (WarningTargetActor)
+	{
+		StartLocalWarningCameraShake(WarningTargetActor, WarningAlpha);
+	}
+}
+
+float ASnowRumbleIceGlacierCollapseActor::CalculateWarningCameraShakeScale(
+	float WarningAlpha) const
+{
+	const float ClampedWarningAlpha = FMath::Clamp(WarningAlpha, 0.0f, 1.0f);
+	const float CameraShakeStrength =
+		FMath::Lerp(
+		0.3f,
+		1.0f,
+		ClampedWarningAlpha * ClampedWarningAlpha
+	);
+	return WarningCameraShakeScale * CameraShakeStrength;
+}
+
+AActor* ASnowRumbleIceGlacierCollapseActor::FindWarningPieceUnderLocalPlayer(
+	float RoundElapsedSeconds,
+	float& OutWarningAlpha) const
+{
+	OutWarningAlpha = 0.0f;
+
+	UWorld* World = GetWorld();
+	APlayerController* PlayerController = World
+		? World->GetFirstPlayerController()
+		: nullptr;
+	if (!PlayerController || !PlayerController->IsLocalController())
+	{
+		return nullptr;
+	}
+
+	const ACharacter* Character = Cast<ACharacter>(PlayerController->GetPawn());
+	if (!Character || !Character->IsLocallyControlled())
+	{
+		return nullptr;
+	}
+
+	const auto FindWarningTargetActor =
+		[this, Character, RoundElapsedSeconds, &OutWarningAlpha](
+			const TArray<FIceGlacierCollapseTargetState>& TargetStates,
+			float GroupStartSeconds,
+			float GroupEndSeconds) -> AActor*
+	{
+		for (const FIceGlacierCollapseTargetState& TargetState : TargetStates)
+		{
+			AActor* TargetActor = TargetState.Actor.Get();
+			if (!IsValid(TargetActor))
+			{
+				continue;
+			}
+
+			float WarningAlpha = 0.0f;
+			float FallAlpha = 0.0f;
+			const EIceGlacierCollapsePieceState PieceState = CalculatePieceState(
+				TargetState.PieceSettings,
+				RoundElapsedSeconds,
+				GroupStartSeconds,
+				GroupEndSeconds,
+				WarningAlpha,
+				FallAlpha);
+			if (PieceState == EIceGlacierCollapsePieceState::Warning &&
+				IsLocalCharacterStandingOnTargetActor(Character, TargetActor))
+			{
+				OutWarningAlpha = WarningAlpha;
+				return TargetActor;
+			}
+		}
+
+		return nullptr;
+	};
+
+	if (AActor* Group1TargetActor = FindWarningTargetActor(
+		Group1TargetStates,
+		Group1StartSeconds,
+		Group1EndSeconds))
+	{
+		return Group1TargetActor;
+	}
+
+	return FindWarningTargetActor(
+		Group2TargetStates,
+		Group2StartSeconds,
+		Group2EndSeconds);
+}
+
+bool ASnowRumbleIceGlacierCollapseActor::IsLocalCharacterStandingOnTargetActor(
+	const ACharacter* Character,
+	const AActor* TargetActor) const
+{
+	if (!Character || !IsValid(TargetActor))
+	{
+		return false;
+	}
+
+	const UCharacterMovementComponent* MovementComponent =
+		Character->GetCharacterMovement();
+	const UPrimitiveComponent* MovementBase = MovementComponent
+		? MovementComponent->GetMovementBase()
+		: nullptr;
+	return MovementBase && MovementBase->GetOwner() == TargetActor;
+}
+
+void ASnowRumbleIceGlacierCollapseActor::StartLocalWarningCameraShake(
+	AActor* TargetActor,
+	float WarningAlpha)
+{
+	if (!IsValid(TargetActor) || !WarningCameraShakeClass)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	APlayerController* PlayerController = World
+		? World->GetFirstPlayerController()
+		: nullptr;
+	APlayerCameraManager* PlayerCameraManager = PlayerController
+		? PlayerController->PlayerCameraManager
+		: nullptr;
+	if (!PlayerController || !PlayerController->IsLocalController() ||
+		!PlayerCameraManager)
+	{
+		return;
+	}
+
+	const float InitialCameraShakeScale =
+		CalculateWarningCameraShakeScale(WarningAlpha);
+	UCameraShakeBase* CameraShakeInstance =
+		PlayerCameraManager->StartCameraShake(
+			WarningCameraShakeClass,
+			InitialCameraShakeScale);
+	ActiveWarningCameraShakeInstance = CameraShakeInstance;
+	if (CameraShakeInstance)
+	{
+		ActiveWarningCameraShakeTargetActor = TargetActor;
+	}
+	else
+	{
+		ActiveWarningCameraShakeTargetActor.Reset();
+	}
+}
+
+void ASnowRumbleIceGlacierCollapseActor::StopLocalWarningCameraShake()
+{
+	UCameraShakeBase* CameraShakeInstance =
+		ActiveWarningCameraShakeInstance.Get();
+	if (CameraShakeInstance)
+	{
+		UWorld* World = GetWorld();
+		APlayerController* PlayerController = World
+			? World->GetFirstPlayerController()
+			: nullptr;
+		APlayerCameraManager* PlayerCameraManager = PlayerController
+			? PlayerController->PlayerCameraManager
+			: nullptr;
+		if (PlayerController && PlayerController->IsLocalController() &&
+			PlayerCameraManager)
+		{
+			PlayerCameraManager->StopCameraShake(CameraShakeInstance, true);
+		}
+	}
+
+	ActiveWarningCameraShakeInstance.Reset();
+	ActiveWarningCameraShakeTargetActor.Reset();
 }
 
 void ASnowRumbleIceGlacierCollapseActor::DisableTargetCollision(
@@ -502,7 +1056,7 @@ void ASnowRumbleIceGlacierCollapseActor::RestoreTargetCollision(
 
 float ASnowRumbleIceGlacierCollapseActor::GetRoundElapsedSeconds() const
 {
-	const UWorld* World = GetWorld();
+	UWorld* World = GetWorld();
 	const ASnowRumbleGameState* SnowRumbleGameState = World
 		? World->GetGameState<ASnowRumbleGameState>()
 		: nullptr;

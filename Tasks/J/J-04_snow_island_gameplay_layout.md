@@ -83,6 +83,8 @@
 - 2026-08-13: 기존 HP/Damage/동결/사망/라운드 종료 흐름을 재사용하고, C-07 완료 전에는 `RequestHazardDamage()` 내부에서 기존 `UGameplayStatics::ApplyDamage` 경로를 사용하기로 정리했다.
 - 2026-08-13: Water Damage는 전역 Timer 순간 판정이 아니라 서버 0.1초 체크에서 Character별 `DamageProgressSeconds`를 누적하고 1초마다 8 Damage를 1회 적용하는 방식으로 조정했다. `ExitGraceSeconds` 기본값은 0.5초다.
 - 2026-08-13: Runtime Water는 실제 `Water` 하나만 제어하고 `Water2`/`Water3`는 목표 World Z 참고용으로만 사용하기로 정리했다. 물 상승과 침수 판정은 World Z 기준이다.
+- 2026-08-13 `ASnowIslandWaterPressureActor` C++ 파일을 추가하고 `L_SnowIsland_J.umap`을 갱신했다. 기존 GDD의 자기장 표현은 중앙 문서 정합성 확인 대상으로 남기고, J-04 실제 구현 기록은 물 상승·침수 Damage 기준으로 관리한다.
+- 2026-08-14 `L_SnowIsland_J.umap`이 Landscape 디테일과 맵 배치 중심으로 이어서 갱신되었다.
 
 ## 구현 현황
 
