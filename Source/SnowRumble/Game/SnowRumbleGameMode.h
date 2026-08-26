@@ -10,6 +10,8 @@ class APlayerController;
 class AActor;
 class APawn;
 class AGiftBox;
+class ASnowballItem;
+class UTimedDropAnnouncementWidget;
 class ASnowRumbleCharacter;
 class ASnowIslandWaterPressureActor;
 class USoundBase;
@@ -208,14 +210,26 @@ private:
 	/** 다음 맵 축소까지 대기하는 2/3 시간을 반환한다. */
 	float GetMapShrinkWaitDurationSeconds() const;
 
-	/** 다음 선물상자 스폰 타이머를 예약한다. */
-	void ScheduleNextGiftBoxSpawn(float DelaySeconds);
+	/** 다음 선물상자·큰 눈덩이 교대 이벤트를 예약한다. */
+	void ScheduleNextTimedDrop(float DelaySeconds);
+
+	/** 다음 교대 이벤트에서 선물상자 또는 큰 눈덩이를 생성한다. */
+	void SpawnNextTimedDrop();
 
 	/** 서버가 맵 축소를 시작하고 Blueprint 이벤트를 호출한다. */
 	void TriggerMapShrink();
 
 	/** 서버가 TargetPoint 후보 중 하나에 선물상자를 공중 스폰한다. */
 	void SpawnGiftBox();
+
+	/** 선물상자 낙하 시점에 NavMesh 위로 큰 눈덩이 무리를 공중 스폰한다. */
+	void SpawnFallingSnowballs();
+
+	/** 유성우 시퀀스에서 다음 큰 눈덩이 하나를 생성한다. */
+	void SpawnNextFallingSnowball();
+
+	/** 현재 게임 속도에 맞는 선물상자·큰 눈덩이 이벤트 간격을 반환한다. */
+	float GetTimedDropIntervalSeconds() const;
 
 	/** 맵 축소 완료 상태를 확정하고 다음 축소를 예약한다. */
 	void CompleteMapShrinkFromServer();
@@ -237,6 +251,10 @@ private:
 
 	/** 모든 클라이언트의 개인 알림 UI에 메시지를 보낸다. */
 	void BroadcastPersonalTextAlarm(const FText& Message) const;
+
+	/** 모든 클라이언트에 이벤트 전용 WBP 알림을 표시한다. */
+	void BroadcastTimedDropAnnouncement(
+		TSubclassOf<UTimedDropAnnouncementWidget> WidgetClass) const;
 
 	/** 이벤트 로그에 표시할 플레이어 이름을 반환한다. */
 	FString GetEventLogPlayerName(const ASnowRumbleCharacter* Character) const;
@@ -285,11 +303,51 @@ private:
 	FTimerHandle MapShrinkTimerHandle;
 	FTimerHandle MapShrinkCompletionTimerHandle;
 	FTimerHandle GiftBoxSpawnTimerHandle;
+	FTimerHandle FallingSnowballSpawnTimerHandle;
 	FTimerHandle MatchIntroTimerHandle;
+	int32 RemainingFallingSnowballs = 0;
+	bool bNextTimedDropIsGiftBox = true;
 
 	/** 서버가 스폰할 선물상자 Blueprint 클래스다. */
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box")
 	TSubclassOf<AGiftBox> GiftBoxClass;
+
+	/** 선물상자 낙하 시 함께 생성할 큰 눈덩이 Blueprint 클래스다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Falling Snowball")
+	TSubclassOf<ASnowballItem> FallingSnowballClass;
+
+	/** FallingSnowballClass가 비어 있을 때 사용할 기본 눈덩이 Blueprint 경로다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Falling Snowball")
+	FSoftClassPath DefaultFallingSnowballClassPath =
+		FSoftClassPath(TEXT("/Game/Snowball/BP_SnowballItem.BP_SnowballItem_C"));
+
+	/** 선물상자 낙하 시 함께 떨어뜨릴 큰 눈덩이 개수다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Falling Snowball", meta = (ClampMin = "0"))
+	int32 FallingSnowballCount = 10;
+
+	/** 큰 눈덩이가 플레이어에 직접 충돌할 때 적용할 피해량이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Falling Snowball", meta = (ClampMin = "0.0"))
+	float FallingSnowballDamage = 50.0f;
+
+	/** 큰 눈덩이가 NavMesh 위에서 떨어질 위치를 분산할 반경이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Falling Snowball", meta = (ClampMin = "0.0"))
+	float FallingSnowballScatterRadius = 650.0f;
+
+	/** 큰 눈덩이가 생성될 때 NavMesh 위보다 높게 띄울 거리다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Falling Snowball", meta = (ClampMin = "0.0"))
+	float FallingSnowballHeightOffset = 1000.0f;
+
+	/** 유성우에서 큰 눈덩이 사이의 생성 간격이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Falling Snowball", meta = (ClampMin = "0.0"))
+	float FallingSnowballSpawnIntervalSeconds = 0.25f;
+
+	/** 큰 눈덩이 낙하 시 적용할 랜덤 수평 속도 최소값이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Falling Snowball", meta = (ClampMin = "0.0"))
+	float FallingSnowballHorizontalSpeedMin = 80.0f;
+
+	/** 큰 눈덩이 낙하 시 적용할 랜덤 수평 속도 최대값이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Falling Snowball", meta = (ClampMin = "0.0"))
+	float FallingSnowballHorizontalSpeedMax = 280.0f;
 
 	/** GiftBoxClass가 비어 있을 때 임시로 로드할 기본 Blueprint 경로다. */
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box")
@@ -300,9 +358,29 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box", meta = (ClampMin = "0.0"))
 	float FirstGiftBoxSpawnDelaySeconds = 30.0f;
 
-	/** 첫 상자 이후 선물상자가 반복 생성되는 간격이다. */
-	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box", meta = (ClampMin = "0.1"))
-	float GiftBoxSpawnIntervalSeconds = 60.0f;
+	/** 선물상자 이벤트에 표시할 WBP 클래스다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Timed Drop")
+	TSubclassOf<UTimedDropAnnouncementWidget> GiftBoxAnnouncementWidgetClass;
+
+	/** 큰 눈덩이 이벤트에 표시할 WBP 클래스다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Timed Drop")
+	TSubclassOf<UTimedDropAnnouncementWidget> FallingSnowballAnnouncementWidgetClass;
+
+	/** 이벤트 알림 WBP가 화면에 유지되는 시간이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Timed Drop", meta = (ClampMin = "0.1"))
+	float TimedDropAnnouncementDisplayDurationSeconds = 3.0f;
+
+	/** 느림 게임 속도에서 교대 이벤트 사이의 간격이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Timed Drop", meta = (ClampMin = "0.1"))
+	float SlowTimedDropIntervalSeconds = 30.0f;
+
+	/** 보통 게임 속도에서 교대 이벤트 사이의 간격이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Timed Drop", meta = (ClampMin = "0.1"))
+	float NormalTimedDropIntervalSeconds = 20.0f;
+
+	/** 빠름 게임 속도에서 교대 이벤트 사이의 간격이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Timed Drop", meta = (ClampMin = "0.1"))
+	float FastTimedDropIntervalSeconds = 10.0f;
 
 	/** TargetPoint 위치보다 얼마나 위에서 선물상자를 떨어뜨릴지 정한다. */
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box", meta = (ClampMin = "0.0"))

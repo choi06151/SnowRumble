@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SnowRumbleGameMode.h"
+#include "../Snowball/SnowballItem.h"
+#include "../UI/TimedDropAnnouncementWidget.h"
+#include "NavigationSystem.h"
 
 #include "../Audio/SnowRumbleAudioHelpers.h"
 #include "Engine/GameInstance.h"
@@ -147,6 +150,9 @@ void ASnowRumbleGameMode::InitGame(
 	GetWorldTimerManager().ClearTimer(MapShrinkTimerHandle);
 	GetWorldTimerManager().ClearTimer(MapShrinkCompletionTimerHandle);
 	GetWorldTimerManager().ClearTimer(GiftBoxSpawnTimerHandle);
+	GetWorldTimerManager().ClearTimer(FallingSnowballSpawnTimerHandle);
+	RemainingFallingSnowballs = 0;
+	bNextTimedDropIsGiftBox = true;
 	GetWorldTimerManager().ClearTimer(MatchIntroTimerHandle);
 }
 
@@ -490,7 +496,7 @@ void ASnowRumbleGameMode::StartConfirmedMatchCountdown()
 		{
 			ScheduleNextMapShrink();
 		}
-		ScheduleNextGiftBoxSpawn(
+		ScheduleNextTimedDrop(
 			MatchStartCountdownSeconds
 			+ FirstGiftBoxSpawnDelaySeconds);
 	}
@@ -786,7 +792,7 @@ void ASnowRumbleGameMode::ScheduleNextMapShrink()
 		false);
 }
 
-void ASnowRumbleGameMode::ScheduleNextGiftBoxSpawn(float DelaySeconds)
+void ASnowRumbleGameMode::ScheduleNextTimedDrop(float DelaySeconds)
 {
 	ASnowRumbleGameState* SnowRumbleGameState =
 		GetGameState<ASnowRumbleGameState>();
@@ -800,9 +806,30 @@ void ASnowRumbleGameMode::ScheduleNextGiftBoxSpawn(float DelaySeconds)
 	GetWorldTimerManager().SetTimer(
 		GiftBoxSpawnTimerHandle,
 		this,
-		&ASnowRumbleGameMode::SpawnGiftBox,
+		&ASnowRumbleGameMode::SpawnNextTimedDrop,
 		FMath::Max(0.0f, DelaySeconds),
 		false);
+}
+
+void ASnowRumbleGameMode::SpawnNextTimedDrop()
+{
+	if (!HasAuthority() || !GetWorld())
+	{
+		return;
+	}
+
+	if (bNextTimedDropIsGiftBox)
+	{
+		bNextTimedDropIsGiftBox = false;
+		SpawnGiftBox();
+	}
+	else
+	{
+		bNextTimedDropIsGiftBox = true;
+		SpawnFallingSnowballs();
+	}
+
+	ScheduleNextTimedDrop(GetTimedDropIntervalSeconds());
 }
 
 void ASnowRumbleGameMode::TriggerMapShrink()
@@ -858,13 +885,6 @@ void ASnowRumbleGameMode::SpawnGiftBox()
 		|| SnowRumbleGameState->IsRoundEnded()
 		|| !SpawnGiftBoxClass)
 	{
-		if (!SpawnGiftBoxClass)
-		{
-			BroadcastPersonalTextAlarm(NSLOCTEXT(
-				"SnowRumble",
-				"GiftBoxClassMissing",
-				"선물상자 클래스가 설정되지 않았습니다"));
-		}
 		return;
 	}
 
@@ -872,10 +892,6 @@ void ASnowRumbleGameMode::SpawnGiftBox()
 	GetGiftBoxSpawnPointCandidates(SpawnPointCandidates);
 	if (SpawnPointCandidates.IsEmpty())
 	{
-		BroadcastPersonalTextAlarm(NSLOCTEXT(
-			"SnowRumble",
-			"GiftBoxTargetPointMissing",
-			"선물상자 TargetPoint가 없습니다"));
 		return;
 	}
 
@@ -906,17 +922,123 @@ void ASnowRumbleGameMode::SpawnGiftBox()
 	if (GiftBox)
 	{
 		GiftBox->InitializeGiftBoxFromServer(ChooseGiftBoxGrade());
-		BroadcastPersonalTextAlarm(NSLOCTEXT(
-			"SnowRumble",
-			"GiftBoxSantaDroppedGift",
-			"산타가 선물을 흘렸다네"));
-		BroadcastEventLogMessage(NSLOCTEXT(
-			"SnowRumble",
-			"GiftBoxSantaDroppedGiftLog",
-			"산타가 선물을 흘렸다네"));
+		BroadcastTimedDropAnnouncement(GiftBoxAnnouncementWidgetClass);
 	}
 
-	ScheduleNextGiftBoxSpawn(GiftBoxSpawnIntervalSeconds);
+}
+
+void ASnowRumbleGameMode::SpawnFallingSnowballs()
+{
+	if (!HasAuthority()
+		|| FallingSnowballCount <= 0
+		|| !GetWorld())
+	{
+		return;
+	}
+
+	BroadcastTimedDropAnnouncement(FallingSnowballAnnouncementWidgetClass);
+	GetWorldTimerManager().ClearTimer(FallingSnowballSpawnTimerHandle);
+	RemainingFallingSnowballs = FallingSnowballCount;
+	SpawnNextFallingSnowball();
+}
+
+void ASnowRumbleGameMode::SpawnNextFallingSnowball()
+{
+	if (!HasAuthority()
+		|| RemainingFallingSnowballs <= 0
+		|| !GetWorld())
+	{
+		return;
+	}
+
+	TSubclassOf<ASnowballItem> SpawnClass = FallingSnowballClass;
+	if (!SpawnClass && DefaultFallingSnowballClassPath.IsValid())
+	{
+		if (UClass* LoadedClass =
+			DefaultFallingSnowballClassPath.TryLoadClass<ASnowballItem>())
+		{
+			SpawnClass = LoadedClass;
+		}
+	}
+
+	if (!SpawnClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Falling snowball class is missing."));
+		return;
+	}
+
+	TArray<AActor*> SpawnPointCandidates;
+	GetGiftBoxSpawnPointCandidates(SpawnPointCandidates);
+	if (SpawnPointCandidates.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No spawn points found for falling snowballs."));
+		return;
+	}
+
+	UNavigationSystemV1* NavigationSystem =
+		FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+	if (!NavigationSystem)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Navigation system is missing for falling snowballs."));
+		return;
+	}
+
+	{
+		const AActor* CenterActor = SpawnPointCandidates[FMath::RandRange(
+			0,
+			SpawnPointCandidates.Num() - 1)];
+		if (!CenterActor)
+		{
+			return;
+		}
+
+		FNavLocation NavLocation;
+		if (!NavigationSystem->GetRandomReachablePointInRadius(
+			CenterActor->GetActorLocation(),
+			FallingSnowballScatterRadius,
+			NavLocation))
+		{
+			return;
+		}
+
+		FActorSpawnParameters SpawnParameters;
+		SpawnParameters.SpawnCollisionHandlingOverride =
+			ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+		ASnowballItem* Snowball = GetWorld()->SpawnActor<ASnowballItem>(
+			SpawnClass,
+			NavLocation.Location + FVector::UpVector * FallingSnowballHeightOffset,
+			FRotator::ZeroRotator,
+			SpawnParameters);
+		if (Snowball)
+		{
+			const float RandomAngle = FMath::FRandRange(0.0f, 2.0f * PI);
+			const float RandomHorizontalSpeed = FMath::FRandRange(
+				FMath::Min(
+					FallingSnowballHorizontalSpeedMin,
+					FallingSnowballHorizontalSpeedMax),
+				FMath::Max(
+					FallingSnowballHorizontalSpeedMin,
+					FallingSnowballHorizontalSpeedMax));
+			const FVector InitialVelocity(
+				FMath::Cos(RandomAngle) * RandomHorizontalSpeed,
+				FMath::Sin(RandomAngle) * RandomHorizontalSpeed,
+				-250.0f);
+			Snowball->InitializeFallingLargeSnowball(
+				FallingSnowballDamage,
+				InitialVelocity);
+		}
+	}
+
+	--RemainingFallingSnowballs;
+	if (RemainingFallingSnowballs > 0)
+	{
+		GetWorldTimerManager().SetTimer(
+			FallingSnowballSpawnTimerHandle,
+			this,
+			&ASnowRumbleGameMode::SpawnNextFallingSnowball,
+			FMath::Max(0.0f, FallingSnowballSpawnIntervalSeconds),
+			false);
+	}
 }
 
 void ASnowRumbleGameMode::CompleteMapShrinkFromBlueprint()
@@ -951,6 +1073,25 @@ float ASnowRumbleGameMode::GetWaterDrivenMapShrinkIntervalSeconds() const
 {
 	return GetMapShrinkTotalDurationSeconds()
 		/ FMath::Max(1, MapShrinkSegmentCount);
+}
+
+float ASnowRumbleGameMode::GetTimedDropIntervalSeconds() const
+{
+	const USnowRumbleMatchSubsystem* MatchSubsystem = GetMatchSubsystem();
+	const ESnowRumbleGameSpeed GameSpeed = MatchSubsystem
+		? MatchSubsystem->GetGameSpeed()
+		: ESnowRumbleGameSpeed::Normal;
+
+	switch (GameSpeed)
+	{
+	case ESnowRumbleGameSpeed::Fast:
+		return FMath::Max(0.1f, FastTimedDropIntervalSeconds);
+	case ESnowRumbleGameSpeed::Slow:
+		return FMath::Max(0.1f, SlowTimedDropIntervalSeconds);
+	case ESnowRumbleGameSpeed::Normal:
+	default:
+		return FMath::Max(0.1f, NormalTimedDropIntervalSeconds);
+	}
 }
 
 float ASnowRumbleGameMode::GetMapShrinkTotalDurationSeconds() const
@@ -1203,6 +1344,28 @@ void ASnowRumbleGameMode::BroadcastPersonalTextAlarm(
 			Cast<ASnowRumblePlayerController>(It->Get()))
 		{
 			PlayerController->ClientShowPersonalTextAlarm(Message);
+		}
+	}
+}
+
+void ASnowRumbleGameMode::BroadcastTimedDropAnnouncement(
+	TSubclassOf<UTimedDropAnnouncementWidget> WidgetClass) const
+{
+	UWorld* World = GetWorld();
+	if (!World || !WidgetClass)
+	{
+		return;
+	}
+
+	for (FConstPlayerControllerIterator It =
+			World->GetPlayerControllerIterator(); It; ++It)
+	{
+		if (ASnowRumblePlayerController* PlayerController =
+			Cast<ASnowRumblePlayerController>(It->Get()))
+		{
+			PlayerController->ClientShowTimedDropAnnouncement(
+				WidgetClass,
+				TimedDropAnnouncementDisplayDurationSeconds);
 		}
 	}
 }

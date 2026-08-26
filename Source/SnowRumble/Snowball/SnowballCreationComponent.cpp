@@ -280,7 +280,8 @@ void USnowballCreationComponent::CompleteCreation()
 		MulticastPlayCreationSound(SpawnLocation);
 		CreatedSnowball->SettleOnGroundFromSurface(
 			SurfaceSpawnPoint,
-			CreationSurfaceNormal);
+			CreationSurfaceNormal,
+			true);
 		CreatedSnowball->IgnoreActorTemporarily(
 			Character,
 			CreatedSnowballOwnerCollisionIgnoreSeconds);

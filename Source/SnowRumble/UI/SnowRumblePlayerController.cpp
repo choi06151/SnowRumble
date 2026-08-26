@@ -23,6 +23,7 @@
 #include "LobbyWidget.h"
 #include "LoadingScreenSubsystem.h"
 #include "MainHUDWidget.h"
+#include "TimedDropAnnouncementWidget.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemUtils.h"
 #include "Interfaces/VoiceInterface.h"
@@ -759,6 +760,50 @@ void ASnowRumblePlayerController::ClientShowPersonalTextAlarm_Implementation(
 			MainHUDWidget->ShowPersonalTextAlarm(Message);
 		}
 	}
+}
+
+void ASnowRumblePlayerController::ClientShowTimedDropAnnouncement_Implementation(
+	TSubclassOf<UTimedDropAnnouncementWidget> WidgetClass,
+	float DisplayDurationSeconds)
+{
+	if (!IsLocalController() || !WidgetClass)
+	{
+		return;
+	}
+
+	GetWorldTimerManager().ClearTimer(TimedDropAnnouncementTimerHandle);
+	if (TimedDropAnnouncementWidget)
+	{
+		TimedDropAnnouncementWidget->RemoveFromParent();
+		TimedDropAnnouncementWidget = nullptr;
+	}
+
+	TimedDropAnnouncementWidget = CreateWidget<UTimedDropAnnouncementWidget>(
+		this,
+		WidgetClass);
+	if (!TimedDropAnnouncementWidget)
+	{
+		return;
+	}
+
+	TimedDropAnnouncementWidget->AddToViewport(200);
+	TimedDropAnnouncementWidget->StartAnnouncementAnimation();
+
+	FTimerDelegate RemoveAnnouncementDelegate = FTimerDelegate::CreateWeakLambda(
+		this,
+		[this]()
+		{
+			if (TimedDropAnnouncementWidget)
+			{
+				TimedDropAnnouncementWidget->RemoveFromParent();
+				TimedDropAnnouncementWidget = nullptr;
+			}
+		});
+	GetWorldTimerManager().SetTimer(
+		TimedDropAnnouncementTimerHandle,
+		RemoveAnnouncementDelegate,
+		FMath::Max(0.1f, DisplayDurationSeconds),
+		false);
 }
 
 void ASnowRumblePlayerController::ClientPlayPvpTeamIntroShot_Implementation(
