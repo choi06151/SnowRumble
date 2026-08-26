@@ -283,6 +283,7 @@ ASnowRumbleCharacter::ASnowRumbleCharacter()
 void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	UpdateIceGlacierMovementSurface();
 	EnsureOverheadTimedActionWidget();
 
 	if (USkeletalMeshComponent* CharacterMesh = GetMesh())
@@ -443,7 +444,11 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 			OutlinedActor = FindClosestPhotoInteractionCandidate();
 			if (!OutlinedActor)
 			{
-				OutlinedActor = FindClosestJukeboxCandidate();
+				AJukeboxActor* Jukebox = FindClosestJukeboxCandidate();
+				if (Jukebox && !Jukebox->IsPlaying())
+				{
+					OutlinedActor = Jukebox;
+				}
 			}
 			if (!OutlinedActor)
 			{
@@ -1532,6 +1537,17 @@ void ASnowRumbleCharacter::OnConstruction(const FTransform& Transform)
 void ASnowRumbleCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (const UWorld* World = GetWorld())
+	{
+		bIsIceGlacierMap = World->GetMapName().Contains(TEXT("L_IceGlacier_J"));
+	}
+	if (UCharacterMovementComponent* MovementComponent = GetCharacterMovement())
+	{
+		DefaultGroundFriction = MovementComponent->GroundFriction;
+		DefaultBrakingDecelerationWalking =
+			MovementComponent->BrakingDecelerationWalking;
+	}
 
 	if (GetMesh())
 	{
@@ -2923,10 +2939,20 @@ bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
 
 	if (AJukeboxActor* Jukebox = FindClosestJukeboxCandidate())
 	{
-		OutPromptText = NSLOCTEXT(
-			"SnowRumble",
-			"InteractPromptJukebox",
-			"E - 노래틀기");
+		OutPromptText = Jukebox->IsPlaying()
+			? (Jukebox->IsCharacterParticipating(this)
+				? NSLOCTEXT(
+					"SnowRumble",
+					"InteractPromptJukeboxOptOut",
+					"E - 참여 안하기")
+				: NSLOCTEXT(
+					"SnowRumble",
+					"InteractPromptJukeboxOptIn",
+					"E - 참여하기"))
+			: NSLOCTEXT(
+				"SnowRumble",
+				"InteractPromptJukeboxStart",
+				"E - 노래틀기");
 		OutPromptActor = Jukebox;
 		return true;
 	}
@@ -3291,8 +3317,7 @@ void ASnowRumbleCharacter::Move(const FInputActionValue& Value)
 
 	if (!Controller
 		|| (!CanPerformGameplayAction()
-			&& !IsHangingFromWorldGrab()
-			&& !IsGrabbedByCharacter()))
+			&& !IsHangingFromWorldGrab()))
 	{
 		return;
 	}
@@ -3583,11 +3608,8 @@ void ASnowRumbleCharacter::HandleInteractCompleted()
 			}
 			else
 			{
-				AJukeboxActor* OutlinedJukebox = OutlineComponent
-					? Cast<AJukeboxActor>(OutlineComponent->GetOutlinedActor())
-					: nullptr;
-				if (OutlinedJukebox
-					&& OutlinedJukebox == FindClosestJukeboxCandidate())
+				AJukeboxActor* Jukebox = FindClosestJukeboxCandidate();
+				if (Jukebox)
 				{
 					TryInteractWithJukebox();
 				}
@@ -5216,6 +5238,7 @@ bool ASnowRumbleCharacter::CanPerformGameplayAction() const
 		&& !bIsInteractingWithItem
 		&& !bIsEmoteRadialMenuOpen
 		&& !bIsKeyGuideWidgetOpen
+		&& !IsGrabbedByCharacter()
 		&& !bTiebreakerSpectator
 		&& !IsHangingFromWorldGrab()
 		&& !IsPvpMatchInputLocked()
@@ -6019,6 +6042,49 @@ void ASnowRumbleCharacter::ApplyMovementSpeed()
 					: WalkSpeed)
 			* ItemMovementSpeedMultiplier;
 	}
+}
+
+void ASnowRumbleCharacter::UpdateIceGlacierMovementSurface()
+{
+	UCharacterMovementComponent* MovementComponent = GetCharacterMovement();
+	if (!MovementComponent)
+	{
+		return;
+	}
+
+	bool bShouldApplySlipperyMovement = false;
+	if (bEnableIceGlacierSlipperyMovement && bIsIceGlacierMap
+		&& MovementComponent->IsMovingOnGround()
+		&& MovementComponent->CurrentFloor.HitResult.GetActor())
+	{
+		const AActor* FloorActor =
+			MovementComponent->CurrentFloor.HitResult.GetActor();
+		bShouldApplySlipperyMovement =
+			!FloorActor->ActorHasTag(SnowFootstepSurfaceTag);
+	}
+
+	if (bSlipperyMovementApplied == bShouldApplySlipperyMovement)
+	{
+		return;
+	}
+
+	if (bShouldApplySlipperyMovement)
+	{
+		MovementComponent->GroundFriction = FMath::Max(
+			0.0f,
+			SlipperyGroundFriction);
+		MovementComponent->BrakingDecelerationWalking = FMath::Max(
+			0.0f,
+			SlipperyBrakingDecelerationWalking);
+	}
+	else
+	{
+		MovementComponent->GroundFriction = DefaultGroundFriction;
+		MovementComponent->BrakingDecelerationWalking =
+			DefaultBrakingDecelerationWalking;
+	}
+
+	bSlipperyMovementApplied = bShouldApplySlipperyMovement;
 }
 
 void ASnowRumbleCharacter::ServerSetSprinting_Implementation(bool bNewSprinting)

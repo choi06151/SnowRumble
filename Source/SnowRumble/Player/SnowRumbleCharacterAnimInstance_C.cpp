@@ -22,7 +22,7 @@ void USnowRumbleCharacterAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 		CachedCharacter = Cast<ASnowRumbleCharacter>(TryGetPawnOwner());
 	}
 
-	RefreshFromOwnerCharacter();
+	RefreshFromOwnerCharacter(DeltaSeconds);
 }
 
 bool USnowRumbleCharacterAnimInstance::HasUpperBodyOverride() const
@@ -35,7 +35,7 @@ bool USnowRumbleCharacterAnimInstance::HasFullBodyOverride() const
 	return FullBodyAnimState != ESnowRumbleFullBodyAnimState::None;
 }
 
-void USnowRumbleCharacterAnimInstance::RefreshFromOwnerCharacter()
+void USnowRumbleCharacterAnimInstance::RefreshFromOwnerCharacter(float DeltaSeconds)
 {
 	if (!CachedCharacter)
 	{
@@ -90,8 +90,15 @@ void USnowRumbleCharacterAnimInstance::RefreshFromOwnerCharacter()
 	ViewPitchAlpha =
 		FMath::Clamp(CachedCharacter->GetViewPitchAlpha(), 0.0f, 1.0f);
 	ViewYawDegrees = CachedCharacter->GetViewYawDegrees();
-	ViewYawAlpha =
+	const float TargetViewYawAlpha =
 		FMath::Clamp(CachedCharacter->GetViewYawAlpha(), -0.5f, 0.5f);
+	ViewYawAlpha = DeltaSeconds > 0.0f
+		? FMath::FInterpTo(
+			ViewYawAlpha,
+			TargetViewYawAlpha,
+			DeltaSeconds,
+			ViewYawAlphaInterpSpeed)
+		: TargetViewYawAlpha;
 	SnowballCarryState = CachedCharacter->GetSnowballCarryState();
 	HeldAnimationState = CachedCharacter->GetHeldAnimationState();
 	SnowballActionState = CachedCharacter->GetSnowballActionState();

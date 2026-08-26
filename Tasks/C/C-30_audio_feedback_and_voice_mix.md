@@ -77,6 +77,8 @@ UI 버튼, 눈덩이 투척과 폭발, 피해 피드백, 아이템 및 게시판
 - 2026-08-24: `USnowRumbleAudioUserWidget`이 하위 `UButton`의 hover/click을 자동 탐색하고, `ButtonHoverSound`와 `ButtonClickSound`를 해당 로컬 플레이어에게만 2D로 각각 재생하게 했다. 메인메뉴·커스터마이징·이모션·로비 게시판·ESC·옵션·키 설정 행·보이스 메뉴/행을 공통 부모로 전환하고 기존 위젯별 클릭 사운드 자산은 제거했다. 컴파일과 `.lib` 생성은 통과했지만 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
 - 2026-08-24: 눈 제작 완료음(`SnowballCreationSound`), 굴리기 시작음(`RollingSound`), 큰 눈덩이 충돌음(`LargeImpactSound`), 잡기/놓기(`GrabSound`, `ReleaseGrabSound`), 점프 시작음(`JumpSound`)을 추가했다. 제작·굴리기·큰 눈덩이·잡기·놓기는 위치 기반으로, 점프는 성공한 로컬 입력에서 재생한다. UHT와 C++ 컴파일 및 `.lib` 생성은 통과했지만 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
 - 2026-08-24: C-26 발걸음 AnimNotify가 `SnowSurface`를 확인한 발 socket 위치에서 `FootstepSound`와 `FootstepSoundAttenuation`을 위치 기반으로 재생하도록 연결했다.
+- 2026-08-27: 로비에서 M 음소거 메뉴가 열린 뒤 로비 입력 복구 경로가 `GameOnly`로 되돌려 커서와 UI 포커스가 사라지는 회귀를 보강했다. 음소거 메뉴가 열려 있으면 공통 게임 입력 복구와 로비 `EnableLobbyGameInput()`이 UIOnly 상태를 유지하고, 로비 Tick 끝에서 PvP와 같은 커서·포커스·이동/시점 차단 상태를 재적용한다.
+- 2026-08-27: 로비 M 음소거 메뉴 클릭이 되지 않는 회귀를 보강했다. 음소거 메뉴 UIOnly/포커스 적용은 메뉴 열림·입력 복구 충돌 시 강제로 1회 적용하고, Tick에서는 아직 적용되지 않은 경우만 보정하도록 바꿔 Slate 버튼 클릭 press/release 흐름을 끊지 않게 했다.
 
 ## 수동 작업
 
@@ -118,3 +120,6 @@ UI 버튼, 눈덩이 투척과 폭발, 피해 피드백, 아이템 및 게시판
 - [ ] 보이스 송출과 음소거 상태가 음향과 표시 둘 다에서 일관되게 반영된다.
 - [ ] 포디움이 아닌 레벨에서는 `BackgroundMusicSound`에 loop 설정이 없어도 한 곡 종료 후 같은 배경음악이 다시 시작된다.
 - [ ] 포디움 레벨에서는 `BackgroundMusicSound`가 한 번 재생된 뒤 반복 재생되지 않는다.
+- [ ] 포디움 진입 시 컨트롤러의 빈 음악 슬롯이 GameMode가 전달한 포디움 음악을 중단하지 않는다.
+- [ ] 패키지 Listen Server에서 모든 클라이언트가 전달받은 포디움 음악 경로를 로컬 로드해 동일하게 1회 재생한다.
+- [ ] 로비와 PvP에서 M 음소거 메뉴가 커서 표시와 UI 포커스를 유지하고, 닫기와 플레이어 음소거 버튼 클릭이 동작한다.

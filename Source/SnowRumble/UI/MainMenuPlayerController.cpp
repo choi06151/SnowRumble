@@ -8,6 +8,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Engine/GameInstance.h"
+#include "EngineUtils.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -46,6 +47,8 @@ void AMainMenuPlayerController::BeginPlay()
 
 	if (IsLocalController())
 	{
+		RemoveStaleNetworkCharacters();
+
 		if (UGameInstance* GameInstance = GetGameInstance())
 		{
 			if (USnowRumbleSessionSubsystem* SessionSubsystem =
@@ -60,6 +63,25 @@ void AMainMenuPlayerController::BeginPlay()
 		ApplyMainMenuPreviewAnimation();
 		ApplyMainMenuPreviewCustomization();
 		PlayBackgroundMusic();
+	}
+}
+
+void AMainMenuPlayerController::RemoveStaleNetworkCharacters()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	APawn* LocalPreviewPawn = GetPawn();
+	for (TActorIterator<ASnowRumbleCharacter> Iterator(World); Iterator; ++Iterator)
+	{
+		ASnowRumbleCharacter* StaleCharacter = *Iterator;
+		if (StaleCharacter && StaleCharacter != LocalPreviewPawn)
+		{
+			StaleCharacter->Destroy();
+		}
 	}
 }
 
