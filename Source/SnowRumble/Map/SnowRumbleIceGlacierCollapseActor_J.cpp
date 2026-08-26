@@ -25,6 +25,134 @@ constexpr float IceGlacierCarryBoundsPaddingXY = 50.0f;
 constexpr float IceGlacierCarryTraceStartOffset = 10.0f;
 constexpr float IceGlacierCarryTraceDownDistance = 1200.0f;
 constexpr float IceGlacierCarryMaximumSurfaceDistance = 200.0f;
+
+enum class EIceCarryCandidateRejectReason : uint8
+{
+	None,
+	Invalid,
+	OwnerSelf,
+	CharacterOrPawn,
+	Attached,
+	NoRoot,
+	StaticRoot,
+	WorldStaticPrimitive,
+	NoValidPrimitive,
+	SnowballState,
+	UnsupportedClass
+};
+
+TSet<const AActor*> GIceCarryLoggedFirstMovePieces;
+
+const TCHAR* IceCarryBoolText(bool bValue)
+{
+	return bValue ? TEXT("true") : TEXT("false");
+}
+
+const TCHAR* IceCarryRejectReasonText(EIceCarryCandidateRejectReason Reason)
+{
+	switch (Reason)
+	{
+	case EIceCarryCandidateRejectReason::Invalid:
+		return TEXT("Invalid");
+	case EIceCarryCandidateRejectReason::OwnerSelf:
+		return TEXT("OwnerSelf");
+	case EIceCarryCandidateRejectReason::CharacterOrPawn:
+		return TEXT("CharacterOrPawn");
+	case EIceCarryCandidateRejectReason::Attached:
+		return TEXT("Attached");
+	case EIceCarryCandidateRejectReason::NoRoot:
+		return TEXT("NoRoot");
+	case EIceCarryCandidateRejectReason::StaticRoot:
+		return TEXT("StaticRoot");
+	case EIceCarryCandidateRejectReason::WorldStaticPrimitive:
+		return TEXT("WorldStaticPrimitive");
+	case EIceCarryCandidateRejectReason::NoValidPrimitive:
+		return TEXT("NoValidPrimitive");
+	case EIceCarryCandidateRejectReason::SnowballState:
+		return TEXT("SnowballState");
+	case EIceCarryCandidateRejectReason::UnsupportedClass:
+		return TEXT("UnsupportedClass");
+	case EIceCarryCandidateRejectReason::None:
+	default:
+		return TEXT("None");
+	}
+}
+
+EIceCarryCandidateRejectReason DiagnoseIceCarryCandidateRejectReason(
+	const AActor* CandidateActor,
+	const AActor* OwnerActor)
+{
+	if (!IsValid(CandidateActor))
+	{
+		return EIceCarryCandidateRejectReason::Invalid;
+	}
+	if (CandidateActor == OwnerActor)
+	{
+		return EIceCarryCandidateRejectReason::OwnerSelf;
+	}
+	if (Cast<ACharacter>(CandidateActor) || Cast<APawn>(CandidateActor))
+	{
+		return EIceCarryCandidateRejectReason::CharacterOrPawn;
+	}
+	if (CandidateActor->GetAttachParentActor())
+	{
+		return EIceCarryCandidateRejectReason::Attached;
+	}
+
+	const USceneComponent* CandidateRootComponent =
+		CandidateActor->GetRootComponent();
+	if (!CandidateRootComponent)
+	{
+		return EIceCarryCandidateRejectReason::NoRoot;
+	}
+	if (CandidateRootComponent->GetAttachParent())
+	{
+		return EIceCarryCandidateRejectReason::Attached;
+	}
+
+	const bool bRootMobilityStatic =
+		CandidateRootComponent->Mobility == EComponentMobility::Static;
+	bool bHasValidPrimitive = false;
+	TArray<UPrimitiveComponent*> PrimitiveComponents;
+	CandidateActor->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
+	for (const UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
+	{
+		if (!PrimitiveComponent)
+		{
+			continue;
+		}
+		if (PrimitiveComponent->Mobility != EComponentMobility::Static &&
+			PrimitiveComponent->GetCollisionEnabled() != ECollisionEnabled::NoCollision)
+		{
+			bHasValidPrimitive = true;
+		}
+	}
+
+	if (!bHasValidPrimitive)
+	{
+		if (bRootMobilityStatic)
+		{
+			return EIceCarryCandidateRejectReason::StaticRoot;
+		}
+		return EIceCarryCandidateRejectReason::NoValidPrimitive;
+	}
+
+	if (const ASnowballItem* Snowball = Cast<ASnowballItem>(CandidateActor))
+	{
+		return Snowball->CanBePickedUp()
+			? EIceCarryCandidateRejectReason::None
+			: EIceCarryCandidateRejectReason::SnowballState;
+	}
+
+	if (Cast<AGiftBox>(CandidateActor) ||
+		Cast<AGiftBoxItemPickup>(CandidateActor) ||
+		Cast<ACampfire>(CandidateActor))
+	{
+		return EIceCarryCandidateRejectReason::None;
+	}
+
+	return EIceCarryCandidateRejectReason::UnsupportedClass;
+}
 }
 
 ASnowRumbleIceGlacierCollapseActor::ASnowRumbleIceGlacierCollapseActor()
@@ -528,26 +656,86 @@ void ASnowRumbleIceGlacierCollapseActor::InitializeCarryActorsForFallingPiece(
 	TargetState.bCarryInitializedForFall = true;
 
 	AActor* TargetActor = TargetState.Actor.Get();
+	GIceCarryLoggedFirstMovePieces.Remove(TargetActor);
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("[IceCarry] FallingEnter Piece=%s Authority=%s PieceLocation=%s"),
+		*GetNameSafe(TargetActor),
+		IceCarryBoolText(HasAuthority()),
+		*CurrentPieceLocation.ToCompactString());
+
 	UWorld* World = GetWorld();
 	if (!IsValid(TargetActor) || !World)
 	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("[IceCarry] CarryCount=0 TargetPiece=%s Reason=InvalidTargetOrWorld"),
+			*GetNameSafe(TargetActor));
 		return;
 	}
 
 	FBox TargetBounds(ForceInit);
 	if (!CalculateTargetActorBounds(TargetActor, TargetBounds))
 	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("[IceCarry] CarryCount=0 TargetPiece=%s Reason=InvalidTargetBounds"),
+			*GetNameSafe(TargetActor));
 		return;
 	}
 	const FBox ExpandedTargetBounds = TargetBounds.ExpandBy(
 		FVector(IceGlacierCarryBoundsPaddingXY, IceGlacierCarryBoundsPaddingXY, 0.0f));
 
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("[IceCarry] CandidateScan Begin TargetPiece=%s BoundsMin=%s BoundsMax=%s"),
+		*GetNameSafe(TargetActor),
+		*ExpandedTargetBounds.Min.ToCompactString(),
+		*ExpandedTargetBounds.Max.ToCompactString());
+
+	int32 ScannedCandidateCount = 0;
 	const auto TryAddCarryCandidate =
-		[this, TargetActor, &TargetState, &ExpandedTargetBounds](AActor* CandidateActor)
+		[this,
+		 TargetActor,
+		 &TargetState,
+		 &ExpandedTargetBounds,
+		 &ScannedCandidateCount](AActor* CandidateActor)
 	{
-		if (!ShouldCarryCandidateActor(CandidateActor) ||
-			CandidateActor == TargetActor)
+		++ScannedCandidateCount;
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("[IceCarry] Candidate=%s Class=%s TargetPiece=%s"),
+			*GetNameSafe(CandidateActor),
+			*GetNameSafe(CandidateActor ? CandidateActor->GetClass() : nullptr),
+			*GetNameSafe(TargetActor));
+
+		if (!ShouldCarryCandidateActor(CandidateActor))
 		{
+			const EIceCarryCandidateRejectReason RejectReason =
+				DiagnoseIceCarryCandidateRejectReason(CandidateActor, this);
+			UE_LOG(
+				LogTemp,
+				Warning,
+				TEXT("[IceCarry] Reject: %s Candidate=%s TargetPiece=%s"),
+				IceCarryRejectReasonText(RejectReason),
+				*GetNameSafe(CandidateActor),
+				*GetNameSafe(TargetActor));
+			return;
+		}
+
+		if (CandidateActor == TargetActor)
+		{
+			UE_LOG(
+				LogTemp,
+				Warning,
+				TEXT("[IceCarry] Reject: TargetActorSelf Candidate=%s TargetPiece=%s"),
+				*GetNameSafe(CandidateActor),
+				*GetNameSafe(TargetActor));
 			return;
 		}
 
@@ -557,8 +745,25 @@ void ASnowRumbleIceGlacierCollapseActor::InitializeCarryActorsForFallingPiece(
 			CandidateLocation.Y < ExpandedTargetBounds.Min.Y ||
 			CandidateLocation.Y > ExpandedTargetBounds.Max.Y)
 		{
+			UE_LOG(
+				LogTemp,
+				Warning,
+				TEXT("[IceCarry] Reject: XYBounds Candidate=%s TargetPiece=%s Location=%s BoundsMin=%s BoundsMax=%s"),
+				*GetNameSafe(CandidateActor),
+				*GetNameSafe(TargetActor),
+				*CandidateLocation.ToCompactString(),
+				*ExpandedTargetBounds.Min.ToCompactString(),
+				*ExpandedTargetBounds.Max.ToCompactString());
 			return;
 		}
+
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("[IceCarry] XYBoundsPass Candidate=%s TargetPiece=%s Location=%s"),
+			*GetNameSafe(CandidateActor),
+			*GetNameSafe(TargetActor),
+			*CandidateLocation.ToCompactString());
 
 		if (!IsCandidateStandingOnTargetActorByTrace(CandidateActor, TargetActor))
 		{
@@ -573,6 +778,13 @@ void ASnowRumbleIceGlacierCollapseActor::InitializeCarryActorsForFallingPiece(
 			}
 		}
 		TargetState.CarriedActors.Add(CandidateActor);
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("[IceCarry] ACCEPT TargetPiece=%s Candidate=%s CarryCount=%d"),
+			*GetNameSafe(TargetActor),
+			*GetNameSafe(CandidateActor),
+			TargetState.CarriedActors.Num());
 	};
 
 	for (TActorIterator<AGiftBox> Iterator(World); Iterator; ++Iterator)
@@ -591,26 +803,82 @@ void ASnowRumbleIceGlacierCollapseActor::InitializeCarryActorsForFallingPiece(
 	{
 		TryAddCarryCandidate(*Iterator);
 	}
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("[IceCarry] CarryCount=%d TargetPiece=%s ScannedCandidates=%d"),
+		TargetState.CarriedActors.Num(),
+		*GetNameSafe(TargetActor),
+		ScannedCandidateCount);
 }
 
 void ASnowRumbleIceGlacierCollapseActor::MoveCarriedActorsWithFallingPiece(
 	FIceGlacierCollapseTargetState& TargetState,
 	const FVector& CurrentPieceLocation)
 {
+	AActor* TargetActor = TargetState.Actor.Get();
 	const FVector DeltaLocation =
 		CurrentPieceLocation - TargetState.PreviousCarryPieceLocation;
+	const bool bLogFirstMoveAttempt =
+		TargetActor && !GIceCarryLoggedFirstMovePieces.Contains(TargetActor);
+	if (bLogFirstMoveAttempt)
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("[IceCarry] FirstDeltaMoveAttempt TargetPiece=%s CarryCount=%d Delta=%s DeltaNearlyZero=%s PreviousPieceLocation=%s CurrentPieceLocation=%s"),
+			*GetNameSafe(TargetActor),
+			TargetState.CarriedActors.Num(),
+			*DeltaLocation.ToCompactString(),
+			IceCarryBoolText(DeltaLocation.IsNearlyZero()),
+			*TargetState.PreviousCarryPieceLocation.ToCompactString(),
+			*CurrentPieceLocation.ToCompactString());
+		GIceCarryLoggedFirstMovePieces.Add(TargetActor);
+	}
 
 	for (int32 Index = TargetState.CarriedActors.Num() - 1; Index >= 0; --Index)
 	{
 		AActor* CarriedActor = TargetState.CarriedActors[Index].Get();
+		if (!IsValid(CarriedActor))
+		{
+			UE_LOG(
+				LogTemp,
+				Warning,
+				TEXT("[IceCarry] Remove: InvalidCarriedActor TargetPiece=%s Index=%d"),
+				*GetNameSafe(TargetActor),
+				Index);
+			TargetState.CarriedActors.RemoveAtSwap(Index);
+			continue;
+		}
+
 		if (!ShouldKeepCarryingActor(CarriedActor))
 		{
+			const EIceCarryCandidateRejectReason RejectReason =
+				DiagnoseIceCarryCandidateRejectReason(CarriedActor, this);
+			UE_LOG(
+				LogTemp,
+				Warning,
+				TEXT("[IceCarry] Remove: StateChanged Candidate=%s TargetPiece=%s Reason=%s"),
+				*GetNameSafe(CarriedActor),
+				*GetNameSafe(TargetActor),
+				IceCarryRejectReasonText(RejectReason));
 			TargetState.CarriedActors.RemoveAtSwap(Index);
 			continue;
 		}
 
 		if (!DeltaLocation.IsNearlyZero())
 		{
+			if (bLogFirstMoveAttempt)
+			{
+				UE_LOG(
+					LogTemp,
+					Warning,
+					TEXT("[IceCarry] AddActorWorldOffset Attempt Candidate=%s TargetPiece=%s Delta=%s"),
+					*GetNameSafe(CarriedActor),
+					*GetNameSafe(TargetActor),
+					*DeltaLocation.ToCompactString());
+			}
 			CarriedActor->AddActorWorldOffset(
 				DeltaLocation,
 				false,
@@ -663,58 +931,8 @@ bool ASnowRumbleIceGlacierCollapseActor::CalculateTargetActorBounds(
 bool ASnowRumbleIceGlacierCollapseActor::ShouldCarryCandidateActor(
 	const AActor* CandidateActor) const
 {
-	if (!IsValid(CandidateActor) || CandidateActor == this ||
-		Cast<ACharacter>(CandidateActor) || Cast<APawn>(CandidateActor) ||
-		CandidateActor->GetAttachParentActor())
-	{
-		return false;
-	}
-
-	const USceneComponent* CandidateRootComponent = CandidateActor->GetRootComponent();
-	if (!CandidateRootComponent ||
-		CandidateRootComponent->Mobility == EComponentMobility::Static ||
-		CandidateRootComponent->GetAttachParent())
-	{
-		return false;
-	}
-
-	bool bHasEnabledCollision = false;
-	bool bHasNonStaticPrimitive = false;
-	TArray<UPrimitiveComponent*> PrimitiveComponents;
-	CandidateActor->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
-	for (const UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
-	{
-		if (!PrimitiveComponent)
-		{
-			continue;
-		}
-		if (PrimitiveComponent->GetCollisionObjectType() == ECC_WorldStatic)
-		{
-			return false;
-		}
-		if (PrimitiveComponent->Mobility != EComponentMobility::Static)
-		{
-			bHasNonStaticPrimitive = true;
-		}
-		if (PrimitiveComponent->GetCollisionEnabled() != ECollisionEnabled::NoCollision)
-		{
-			bHasEnabledCollision = true;
-		}
-	}
-
-	if (!bHasEnabledCollision || !bHasNonStaticPrimitive)
-	{
-		return false;
-	}
-
-	if (const ASnowballItem* Snowball = Cast<ASnowballItem>(CandidateActor))
-	{
-		return Snowball->CanBePickedUp();
-	}
-
-	return Cast<AGiftBox>(CandidateActor) ||
-		Cast<AGiftBoxItemPickup>(CandidateActor) ||
-		Cast<ACampfire>(CandidateActor);
+	return DiagnoseIceCarryCandidateRejectReason(CandidateActor, this) ==
+		EIceCarryCandidateRejectReason::None;
 }
 
 bool ASnowRumbleIceGlacierCollapseActor::ShouldKeepCarryingActor(
@@ -787,6 +1005,15 @@ bool ASnowRumbleIceGlacierCollapseActor::IsCandidateStandingOnTargetActorByTrace
 	const FVector TraceEnd =
 		TraceStart - FVector::UpVector * IceGlacierCarryTraceDownDistance;
 
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("[IceCarry] TraceStart=%s TraceEnd=%s Channel=Visibility Candidate=%s TargetPiece=%s"),
+		*TraceStart.ToCompactString(),
+		*TraceEnd.ToCompactString(),
+		*GetNameSafe(CandidateActor),
+		*GetNameSafe(TargetActor));
+
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(IceGlacierCarryTrace), false);
 	QueryParams.AddIgnoredActor(CandidateActor);
 	QueryParams.AddIgnoredActor(this);
@@ -799,6 +1026,18 @@ bool ASnowRumbleIceGlacierCollapseActor::IsCandidateStandingOnTargetActorByTrace
 		ECC_Visibility,
 		QueryParams))
 	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("[IceCarry] TraceHit=None Candidate=%s TargetPiece=%s LineTraceHit=false"),
+			*GetNameSafe(CandidateActor),
+			*GetNameSafe(TargetActor));
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("[IceCarry] Reject: FloorHitOtherActor Candidate=%s TargetPiece=%s TargetActorMatch=false"),
+			*GetNameSafe(CandidateActor),
+			*GetNameSafe(TargetActor));
 		return false;
 	}
 
@@ -812,10 +1051,47 @@ bool ASnowRumbleIceGlacierCollapseActor::IsCandidateStandingOnTargetActorByTrace
 			continue;
 		}
 
-		return HitActor == TargetActor &&
+		const bool bTargetActorMatch = HitActor == TargetActor;
+		const bool bWithinMaximumSurfaceDistance =
 			Hit.Distance <= IceGlacierCarryMaximumSurfaceDistance;
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("[IceCarry] TraceHit=%s Class=%s Distance=%.1f TargetActorMatch=%s WithinMaxDistance=%s Candidate=%s TargetPiece=%s"),
+			*GetNameSafe(HitActor),
+			*GetNameSafe(HitActor->GetClass()),
+			Hit.Distance,
+			IceCarryBoolText(bTargetActorMatch),
+			IceCarryBoolText(bWithinMaximumSurfaceDistance),
+			*GetNameSafe(CandidateActor),
+			*GetNameSafe(TargetActor));
+
+		if (!bTargetActorMatch || !bWithinMaximumSurfaceDistance)
+		{
+			UE_LOG(
+				LogTemp,
+				Warning,
+				TEXT("[IceCarry] Reject: FloorHitOtherActor Candidate=%s TargetPiece=%s TargetActorMatch=%s WithinMaxDistance=%s"),
+				*GetNameSafe(CandidateActor),
+				*GetNameSafe(TargetActor),
+				IceCarryBoolText(bTargetActorMatch),
+				IceCarryBoolText(bWithinMaximumSurfaceDistance));
+		}
+		return bTargetActorMatch && bWithinMaximumSurfaceDistance;
 	}
 
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("[IceCarry] TraceHit=None Candidate=%s TargetPiece=%s ValidBlockingHit=false"),
+		*GetNameSafe(CandidateActor),
+		*GetNameSafe(TargetActor));
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("[IceCarry] Reject: FloorHitOtherActor Candidate=%s TargetPiece=%s TargetActorMatch=false"),
+		*GetNameSafe(CandidateActor),
+		*GetNameSafe(TargetActor));
 	return false;
 }
 
