@@ -3,6 +3,7 @@
 #include "SnowmanModeSnowmanCharacter_K.h"
 
 #include "EnhancedInputComponent.h"
+#include "GameFramework/GameStateBase.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
@@ -83,6 +84,27 @@ void ASnowmanModeSnowmanCharacter::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(
 		ASnowmanModeSnowmanCharacter,
 		bSnowballHitStunned);
+	DOREPLIFETIME(
+		ASnowmanModeSnowmanCharacter,
+		SnowballHitStunEndServerTime);
+}
+
+bool ASnowmanModeSnowmanCharacter::IsSnowballHitStunned() const
+{
+	return bSnowballHitStunned
+		&& GetSnowballHitStunSecondsRemaining() > 0.0f;
+}
+
+float ASnowmanModeSnowmanCharacter::GetSnowballHitStunSecondsRemaining() const
+{
+	if (!bSnowballHitStunned || SnowballHitStunEndServerTime <= 0.0f)
+	{
+		return 0.0f;
+	}
+
+	return FMath::Max(
+		0.0f,
+		SnowballHitStunEndServerTime - GetReplicatedServerTimeSeconds());
 }
 
 void ASnowmanModeSnowmanCharacter::ApplySnowballHitStunFromServer()
@@ -98,11 +120,11 @@ void ASnowmanModeSnowmanCharacter::ApplySnowballHitStunFromServer()
 		return;
 	}
 
+	// 연속 피격은 같은 타이머 핸들을 초기화한 뒤 다시 10초를 시작한다.
+	World->GetTimerManager().ClearTimer(SnowballHitStunTimerHandle);
 	bSnowballHitStunned = true;
-	if (UCharacterMovementComponent* MovementComponent = GetCharacterMovement())
-	{
-		MovementComponent->StopMovementImmediately();
-	}
+	SnowballHitStunEndServerTime =
+		GetReplicatedServerTimeSeconds() + SnowballHitStunSeconds;
 	OnRep_SnowballHitStunned();
 
 	World->GetTimerManager().SetTimer(
@@ -122,6 +144,7 @@ void ASnowmanModeSnowmanCharacter::ClearSnowballHitStun()
 	}
 
 	bSnowballHitStunned = false;
+	SnowballHitStunEndServerTime = 0.0f;
 	OnRep_SnowballHitStunned();
 	ForceNetUpdate();
 }
@@ -135,9 +158,34 @@ void ASnowmanModeSnowmanCharacter::ApplySnowballHitStunMovementState()
 {
 	if (UCharacterMovementComponent* MovementComponent = GetCharacterMovement())
 	{
-		MovementComponent->MaxWalkSpeed =
-			bSnowballHitStunned ? 0.0f : SnowmanWalkSpeed;
+		if (bSnowballHitStunned)
+		{
+			MovementComponent->StopMovementImmediately();
+			MovementComponent->DisableMovement();
+			MovementComponent->MaxWalkSpeed = 0.0f;
+			StopJumping();
+			return;
+		}
+
+		MovementComponent->MaxWalkSpeed = SnowmanWalkSpeed;
+		if (CanPerformGameplayAction()
+			&& MovementComponent->MovementMode == MOVE_None)
+		{
+			MovementComponent->SetMovementMode(MOVE_Walking);
+		}
 	}
+}
+
+float ASnowmanModeSnowmanCharacter::GetReplicatedServerTimeSeconds() const
+{
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return 0.0f;
+	}
+
+	const AGameStateBase* GameState = World->GetGameState();
+	return GameState ? GameState->GetServerWorldTimeSeconds() : World->GetTimeSeconds();
 }
 
 void ASnowmanModeSnowmanCharacter::SetupPlayerInputComponent(

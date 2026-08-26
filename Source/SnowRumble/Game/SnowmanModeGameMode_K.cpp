@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "TimerManager.h"
+#include "Engine/World.h"
 #include "SnowmanModeGameMode_K.h"
 
 #include "../Audio/SnowRumbleAudioHelpers.h"
@@ -66,9 +68,6 @@ FString DescribeSnowmanPlayerState(const ASnowRumblePlayerState* PlayerState)
 		*PlayerState->GetPlayerName(),
 		PlayerState->GetPlayerId());
 }
-
-constexpr int32 MaxPendingSnowmanConversionRetryCount = 3;
-constexpr double PendingSnowmanConversionRetryDelaySeconds = 1.0;
 
 bool DoesSnowmanPlayerStateMatch(
 	const APlayerState* CandidatePlayerState,
@@ -209,6 +208,7 @@ void ASnowmanModeGameMode::InitGame(
 	UsedPlayerStarts.Reset();
 	UsedSpawnLocations.Reset();
 	SpawnInfectionGraceEndTimes.Reset();
+	ConvertingSnowmanPlayerStates.Reset();
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(
@@ -522,452 +522,81 @@ void ASnowmanModeGameMode::ScheduleSnowmanRoleInitializationRetry()
 
 void ASnowmanModeGameMode::UpdateSnowmanInfectionFlow()
 {
-	ASnowmanModeGameState* SnowmanGameState =
-		GetGameState<ASnowmanModeGameState>();
-	if (!SnowmanGameState || !SnowmanGameState->IsSnowmanModeTimerActive())
-	{
-		if (bLogSnowmanInfectionDebug)
-		{
-			UE_LOG(
-				LogSnowmanMode,
-				Verbose,
-				TEXT("Infection scan skipped: GameState=%s TimerActive=%s"),
-				SnowmanGameState ? TEXT("Valid") : TEXT("None"),
-				SnowmanGameState && SnowmanGameState->IsSnowmanModeTimerActive()
-					? TEXT("true")
-					: TEXT("false"));
-		}
-		return;
-	}
+    if (!HasAuthority()) return;
 
-	const TArray<FSnowmanModePlayerEntry>& PlayerEntries =
-		SnowmanGameState->GetSnowmanModePlayerEntries();
-	TArray<ASnowRumbleCharacter*> SnowmanCharacters;
-	TArray<ASnowRumbleCharacter*> NormalCharacters;
-	TArray<ASnowRumblePlayerState*> ControllerlessPendingCancels;
-	static TSet<TWeakObjectPtr<ASnowRumblePlayerState>>
-		CompletingInfectionPlayerStates;
-	static TSet<TWeakObjectPtr<ASnowRumblePlayerState>>
-		ControllerLostPendingPlayerStates;
-	static TMap<TWeakObjectPtr<ASnowRumblePlayerState>, int32>
-		PendingConversionRetryCounts;
-	static TMap<TWeakObjectPtr<ASnowRumblePlayerState>, double>
-		PendingConversionNextRetryTimes;
-	auto ResolveSnowmanModeEntryPlayerState =
-		[&PlayerEntries](const ASnowRumblePlayerState* PlayerState)
-		-> ASnowRumblePlayerState*
-	{
-		if (!PlayerState)
-		{
-			return nullptr;
-		}
+    ASnowmanModeGameState* SnowmanGameState = GetGameState<ASnowmanModeGameState>();
+    if (!SnowmanGameState || !SnowmanGameState->IsSnowmanModeTimerActive()) return;
 
-		for (const FSnowmanModePlayerEntry& Entry : PlayerEntries)
-		{
-			if (Entry.PlayerState == PlayerState)
-			{
-				return Entry.PlayerState;
-			}
-		}
+    UWorld* World = GetWorld();
+    if (!World) return;
 
-		const int32 PlayerId = PlayerState->GetPlayerId();
-		if (PlayerId != INDEX_NONE)
-		{
-			for (const FSnowmanModePlayerEntry& Entry : PlayerEntries)
-			{
-				if (Entry.PlayerState
-					&& Entry.PlayerState->GetPlayerId() == PlayerId)
-				{
-					return Entry.PlayerState;
-				}
-			}
-		}
+    TArray<ASnowRumbleCharacter*> SnowmanCharacters;
+    TArray<ASnowRumbleCharacter*> NormalCharacters;
 
-		const FUniqueNetIdRepl& UniqueId = PlayerState->GetUniqueId();
-		if (UniqueId.IsValid())
-		{
-			for (const FSnowmanModePlayerEntry& Entry : PlayerEntries)
-			{
-				if (Entry.PlayerState
-					&& Entry.PlayerState->GetUniqueId().IsValid()
-					&& Entry.PlayerState->GetUniqueId() == UniqueId)
-				{
-					return Entry.PlayerState;
-				}
-			}
-		}
+    // ★ 투명인간 버그 해결: 문제가 되던 람다를 삭제하고, 직관적으로 역할만 가져옵니다.
+    for (TActorIterator<ASnowRumbleCharacter> It(World); It; ++It)
+    {
+        ASnowRumbleCharacter* Character = *It;
+        if (!Character || Character->IsPendingKillPending()) continue;
 
-		return nullptr;
-	};
-	auto HasActiveControllerForPlayerState =
-		[](UWorld* ScanWorld, const ASnowRumblePlayerState* PlayerState)
-	{
-		return ResolveSnowmanPlayerController(ScanWorld, PlayerState) != nullptr;
-	};
+        ASnowRumblePlayerState* PlayerState = ResolvePlayerStateForCharacter(Character);
+        if (!PlayerState) continue;
 
-	for (const FSnowmanModePlayerEntry& Entry : PlayerEntries)
-	{
-		ASnowRumblePlayerState* PlayerState = Entry.PlayerState;
-		if (!PlayerState)
-		{
-			continue;
-		}
+        // 늦게 로딩된 플레이어도 누락 없이 Normal 또는 Snowman 배열에 정상 등록됩니다.
+        if (SnowmanGameState->IsSnowmanModePlayerSnowman(PlayerState))
+        {
+            if (Character->GetCapsuleComponent()) SnowmanCharacters.Add(Character);
+        }
+        else if (SnowmanGameState->GetSnowmanModePlayerRole(PlayerState) == ESnowmanModePlayerRole::Normal)
+        {
+            if (Character->GetCapsuleComponent()) NormalCharacters.Add(Character);
+        }
+    }
 
-		const TWeakObjectPtr<ASnowRumblePlayerState> PlayerStateKey(PlayerState);
-		if (Entry.Role != ESnowmanModePlayerRole::InfectionPending)
-		{
-			CompletingInfectionPlayerStates.Remove(PlayerStateKey);
-			ControllerLostPendingPlayerStates.Remove(PlayerStateKey);
-			PendingConversionRetryCounts.Remove(PlayerStateKey);
-			PendingConversionNextRetryTimes.Remove(PlayerStateKey);
-		}
+    const float ContactRadiusSquared = FMath::Square(InfectionContactRadius);
+    if (ContactRadiusSquared > 0.0f)
+    {
+        TSet<TWeakObjectPtr<ASnowRumblePlayerState>> ConvertedTargetsThisScan;
+        for (ASnowRumbleCharacter* SnowmanCharacter : SnowmanCharacters)
+        {
+            if (!SnowmanCharacter || SnowmanCharacter->IsPendingKillPending() || !SnowmanCharacter->GetCapsuleComponent()) continue;
 
-		if (bLogSnowmanInfectionDebug)
-		{
-			UE_LOG(
-				LogSnowmanMode,
-				Verbose,
-				TEXT("Infection entry: %s Role=%s Remaining=%.2f Completing=%s"),
-				*DescribeSnowmanPlayerState(PlayerState),
-				LexToString(Entry.Role),
-				SnowmanGameState->GetSnowmanModeInfectionRemainingSeconds(
-					PlayerState),
-				CompletingInfectionPlayerStates.Contains(PlayerStateKey)
-					? TEXT("true")
-					: TEXT("false"));
-		}
+            ASnowRumblePlayerState* SnowmanPlayerState = ResolvePlayerStateForCharacter(SnowmanCharacter);
+            if (!SnowmanPlayerState || IsSpawnInfectionGraceActive(SnowmanPlayerState)) continue;
 
-		if (Entry.Role == ESnowmanModePlayerRole::InfectionPending
-			&& SnowmanGameState->GetSnowmanModeInfectionRemainingSeconds(PlayerState)
-				<= 0.0f)
-		{
-			UWorld* ScanWorld = GetWorld();
-			const double CurrentWorldTime = ScanWorld
-				? ScanWorld->GetTimeSeconds()
-				: 0.0;
-			if (const double* NextRetryTime =
-				PendingConversionNextRetryTimes.Find(PlayerStateKey))
-			{
-				if (CurrentWorldTime < *NextRetryTime)
-				{
-					continue;
-				}
-			}
+            for (ASnowRumbleCharacter* NormalCharacter : NormalCharacters)
+            {
+                if (!NormalCharacter || NormalCharacter->IsPendingKillPending() || !NormalCharacter->GetCapsuleComponent()) continue;
 
-			const bool bHasActiveController =
-				HasActiveControllerForPlayerState(ScanWorld, PlayerState);
-			if (!bHasActiveController)
-			{
-				int32& RetryCount =
-					PendingConversionRetryCounts.FindOrAdd(PlayerStateKey);
-				++RetryCount;
-				if (RetryCount > MaxPendingSnowmanConversionRetryCount)
-				{
-					UE_LOG(
-						LogSnowmanMode,
-						Warning,
-						TEXT("Infection pending fail-safe: controller is still missing after %d retries, pending state canceled safely. Player=%s"),
-						MaxPendingSnowmanConversionRetryCount,
-						*DescribeSnowmanPlayerState(PlayerState));
-					ControllerLostPendingPlayerStates.Add(PlayerStateKey);
-					ControllerlessPendingCancels.Add(PlayerState);
-					CompletingInfectionPlayerStates.Remove(PlayerStateKey);
-					PendingConversionRetryCounts.Remove(PlayerStateKey);
-					PendingConversionNextRetryTimes.Remove(PlayerStateKey);
-					continue;
-				}
+                ASnowRumblePlayerState* InfectionTargetPlayerState = ResolvePlayerStateForCharacter(NormalCharacter);
+                if (!InfectionTargetPlayerState) continue;
 
-				if (!ControllerLostPendingPlayerStates.Contains(PlayerStateKey))
-				{
-					UE_LOG(
-						LogSnowmanMode,
-						Warning,
-						TEXT("Infection pending conversion delayed: controller is missing, retry %d/%d. Player=%s"),
-						RetryCount,
-						MaxPendingSnowmanConversionRetryCount,
-						*DescribeSnowmanPlayerState(PlayerState));
-					ControllerLostPendingPlayerStates.Add(PlayerStateKey);
-				}
-				else if (bLogSnowmanInfectionDebug)
-				{
-					UE_LOG(
-						LogSnowmanMode,
-						Verbose,
-						TEXT("Infection pending conversion still waiting for controller: retry %d/%d Player=%s"),
-						RetryCount,
-						MaxPendingSnowmanConversionRetryCount,
-						*DescribeSnowmanPlayerState(PlayerState));
-				}
-				CompletingInfectionPlayerStates.Remove(PlayerStateKey);
-				PendingConversionNextRetryTimes.FindOrAdd(PlayerStateKey) =
-					CurrentWorldTime + PendingSnowmanConversionRetryDelaySeconds;
-				continue;
-			}
-			ControllerLostPendingPlayerStates.Remove(PlayerStateKey);
+                const TWeakObjectPtr<ASnowRumblePlayerState> TargetKey(InfectionTargetPlayerState);
+                if (ConvertedTargetsThisScan.Contains(TargetKey) || ConvertingSnowmanPlayerStates.Contains(TargetKey)) continue;
 
-			if (CompletingInfectionPlayerStates.Contains(PlayerStateKey))
-			{
-				continue;
-			}
+                if (IsSpawnInfectionGraceActive(InfectionTargetPlayerState)) continue;
 
-			CompletingInfectionPlayerStates.Add(PlayerStateKey);
-			if (bLogSnowmanInfectionDebug)
-			{
-				UE_LOG(
-					LogSnowmanMode,
-					Log,
-					TEXT("Infection pending complete: %s"),
-					*DescribeSnowmanPlayerState(PlayerState));
-			}
+                const float SnowmanCapsuleRadius = SnowmanCharacter->GetCapsuleComponent()->GetScaledCapsuleRadius();
+                const float NormalCapsuleRadius = NormalCharacter->GetCapsuleComponent()->GetScaledCapsuleRadius();
+                const float EffectiveContactRadius = InfectionContactRadius + SnowmanCapsuleRadius + NormalCapsuleRadius;
+                
+                const float DistanceSquared = FVector::DistSquared2D(SnowmanCharacter->GetActorLocation(), NormalCharacter->GetActorLocation());
+                
+                if (DistanceSquared <= FMath::Square(EffectiveContactRadius))
+                {
+                    const bool bConverted = ConvertPlayerToSnowmanPawn(InfectionTargetPlayerState);
+                    if (bConverted)
+                    {
+                        SnowmanGameState->SetSnowmanPlayerFromServer(InfectionTargetPlayerState);
+                        ConvertedTargetsThisScan.Add(TargetKey);
+                    }
+                }
+            }
+        }
+    }
 
-			if (ConvertPlayerToSnowmanPawn(PlayerState))
-			{
-				SnowmanGameState->CompleteInfectionFromServer(PlayerState);
-				CompletingInfectionPlayerStates.Remove(PlayerStateKey);
-				PendingConversionRetryCounts.Remove(PlayerStateKey);
-				PendingConversionNextRetryTimes.Remove(PlayerStateKey);
-			}
-			else
-			{
-				int32& RetryCount =
-					PendingConversionRetryCounts.FindOrAdd(PlayerStateKey);
-				++RetryCount;
-				CompletingInfectionPlayerStates.Remove(PlayerStateKey);
-				if (RetryCount > MaxPendingSnowmanConversionRetryCount)
-				{
-					UE_LOG(
-						LogSnowmanMode,
-						Warning,
-						TEXT("Infection pending fail-safe: conversion failed after %d retries, pending state canceled safely. Player=%s Role=%s"),
-						MaxPendingSnowmanConversionRetryCount,
-						*DescribeSnowmanPlayerState(PlayerState),
-						LexToString(
-							SnowmanGameState->GetSnowmanModePlayerRole(
-								PlayerState)));
-					ControllerlessPendingCancels.Add(PlayerState);
-					PendingConversionRetryCounts.Remove(PlayerStateKey);
-					PendingConversionNextRetryTimes.Remove(PlayerStateKey);
-					continue;
-				}
-
-				PendingConversionNextRetryTimes.FindOrAdd(PlayerStateKey) =
-					CurrentWorldTime + PendingSnowmanConversionRetryDelaySeconds;
-				UE_LOG(
-					LogSnowmanMode,
-					Warning,
-					TEXT("Infection pending conversion failed, retry %d/%d scheduled: %s Role=%s"),
-					RetryCount,
-					MaxPendingSnowmanConversionRetryCount,
-					*DescribeSnowmanPlayerState(PlayerState),
-					LexToString(
-						SnowmanGameState->GetSnowmanModePlayerRole(PlayerState)));
-			}
-		}
-	}
-	for (ASnowRumblePlayerState* PlayerState : ControllerlessPendingCancels)
-	{
-		SnowmanGameState->CancelControllerlessPendingFromServer(
-			PlayerState);
-	}
-
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return;
-	}
-
-	for (TActorIterator<ASnowRumbleCharacter> It(World); It; ++It)
-	{
-		ASnowRumbleCharacter* Character = *It;
-		if (!Character || Character->IsPendingKillPending())
-		{
-			continue;
-		}
-
-		ASnowRumblePlayerState* PlayerState =
-			ResolvePlayerStateForCharacter(Character);
-		if (!PlayerState)
-		{
-			if (bLogSnowmanInfectionDebug)
-			{
-				UE_LOG(
-					LogSnowmanMode,
-					Verbose,
-					TEXT("Infection candidate skipped: Character=%s PlayerState=None Controller=%s"),
-					*GetNameSafe(Character),
-					*GetNameSafe(Character->GetController()));
-			}
-			continue;
-		}
-
-		ASnowRumblePlayerState* EntryPlayerState =
-			ResolveSnowmanModeEntryPlayerState(PlayerState);
-		if (!EntryPlayerState)
-		{
-			continue;
-		}
-
-		if (SnowmanGameState->IsSnowmanModePlayerSnowman(EntryPlayerState))
-		{
-			SnowmanCharacters.Add(Character);
-		}
-		else if (SnowmanGameState->GetSnowmanModePlayerRole(EntryPlayerState)
-			== ESnowmanModePlayerRole::Normal)
-		{
-			NormalCharacters.Add(Character);
-		}
-	}
-
-	if (bLogSnowmanInfectionDebug)
-	{
-		const double CurrentTime = World->GetTimeSeconds();
-		if (LastInfectionDebugSummaryTime < 0.0
-			|| CurrentTime - LastInfectionDebugSummaryTime >= 1.0)
-		{
-			LastInfectionDebugSummaryTime = CurrentTime;
-			int32 SnowmanEntryCount = 0;
-			int32 PendingCount = 0;
-			int32 NormalEntryCount = 0;
-			int32 UnknownEntryCount = 0;
-			for (const FSnowmanModePlayerEntry& Entry : PlayerEntries)
-			{
-				switch (Entry.Role)
-				{
-				case ESnowmanModePlayerRole::Snowman:
-					++SnowmanEntryCount;
-					break;
-				case ESnowmanModePlayerRole::InfectionPending:
-					++PendingCount;
-					break;
-				case ESnowmanModePlayerRole::Normal:
-					++NormalEntryCount;
-					break;
-				default:
-					++UnknownEntryCount;
-					break;
-				}
-			}
-			const int32 CountedEntryCount =
-				SnowmanEntryCount
-				+ PendingCount
-				+ NormalEntryCount
-				+ UnknownEntryCount;
-			UE_LOG(
-				LogSnowmanMode,
-				Log,
-				TEXT("Infection scan summary: Entries=%d Snowmen=%d Pending=%d Normals=%d Unknown=%d Counted=%d PawnSnowmen=%d PawnNormals=%d ContactRadius=%.1f"),
-				PlayerEntries.Num(),
-				SnowmanEntryCount,
-				PendingCount,
-				NormalEntryCount,
-				UnknownEntryCount,
-				CountedEntryCount,
-				SnowmanCharacters.Num(),
-				NormalCharacters.Num(),
-				InfectionContactRadius);
-		}
-	}
-
-	const float ContactRadiusSquared = FMath::Square(InfectionContactRadius);
-	if (ContactRadiusSquared > 0.0f)
-	{
-		for (const ASnowRumbleCharacter* SnowmanCharacter : SnowmanCharacters)
-		{
-			if (!SnowmanCharacter)
-			{
-				continue;
-			}
-
-			ASnowRumblePlayerState* SnowmanPlayerState =
-				ResolveSnowmanModeEntryPlayerState(
-					ResolvePlayerStateForCharacter(SnowmanCharacter));
-			if (!SnowmanPlayerState
-				|| IsSpawnInfectionGraceActive(SnowmanPlayerState))
-			{
-				continue;
-			}
-
-			for (ASnowRumbleCharacter* NormalCharacter : NormalCharacters)
-			{
-				if (!NormalCharacter)
-				{
-					continue;
-				}
-
-				ASnowRumblePlayerState* NormalPlayerState =
-					ResolvePlayerStateForCharacter(NormalCharacter);
-				if (!NormalPlayerState)
-				{
-					continue;
-				}
-				ASnowRumblePlayerState* InfectionTargetPlayerState =
-					ResolveSnowmanModeEntryPlayerState(NormalPlayerState);
-				if (!InfectionTargetPlayerState)
-				{
-					continue;
-				}
-				const ESnowmanModePlayerRole NormalPlayerRole =
-					SnowmanGameState->GetSnowmanModePlayerRole(
-						InfectionTargetPlayerState);
-				if (NormalPlayerRole != ESnowmanModePlayerRole::Normal)
-				{
-					continue;
-				}
-				if (IsSpawnInfectionGraceActive(InfectionTargetPlayerState))
-				{
-					continue;
-				}
-
-				const float SnowmanCapsuleRadius =
-					SnowmanCharacter->GetCapsuleComponent()
-						? SnowmanCharacter->GetCapsuleComponent()
-							->GetScaledCapsuleRadius()
-						: 0.0f;
-				const float NormalCapsuleRadius =
-					NormalCharacter->GetCapsuleComponent()
-						? NormalCharacter->GetCapsuleComponent()
-							->GetScaledCapsuleRadius()
-						: 0.0f;
-				const float EffectiveContactRadius =
-					InfectionContactRadius
-					+ SnowmanCapsuleRadius
-					+ NormalCapsuleRadius;
-				const float DistanceSquared = FVector::DistSquared2D(
-					SnowmanCharacter->GetActorLocation(),
-					NormalCharacter->GetActorLocation());
-				const float EffectiveContactRadiusSquared =
-					FMath::Square(EffectiveContactRadius);
-				if (DistanceSquared <= EffectiveContactRadiusSquared)
-				{
-					const bool bStartedInfection =
-						SnowmanGameState->StartInfectionPendingFromServer(
-							InfectionTargetPlayerState,
-							InfectionPendingSeconds);
-					if (bLogSnowmanInfectionDebug)
-					{
-						UE_LOG(
-							LogSnowmanMode,
-							Log,
-							TEXT("Infection contact: Snowman=%s Target=%s Distance=%.1f EffectiveRadius=%.1f Started=%s RoleAfter=%s"),
-							*DescribeSnowmanPlayerState(
-								ResolvePlayerStateForCharacter(
-									SnowmanCharacter)),
-							*DescribeSnowmanPlayerState(
-								InfectionTargetPlayerState),
-							FMath::Sqrt(DistanceSquared),
-							EffectiveContactRadius,
-							bStartedInfection ? TEXT("true") : TEXT("false"),
-							LexToString(
-								SnowmanGameState->GetSnowmanModePlayerRole(
-									InfectionTargetPlayerState)));
-					}
-				}
-			}
-		}
-	}
-
-	ApplySnowmanMovementSpeeds();
-	EvaluateSnowmanModeEndCondition();
+    ApplySnowmanMovementSpeeds();
+    EvaluateSnowmanModeEndCondition();
 }
 
 void ASnowmanModeGameMode::ApplySnowmanMovementSpeeds()
@@ -997,31 +626,41 @@ void ASnowmanModeGameMode::ApplySnowmanMovementSpeeds()
 
 void ASnowmanModeGameMode::EvaluateSnowmanModeEndCondition()
 {
-	ASnowmanModeGameState* SnowmanGameState =
-		GetGameState<ASnowmanModeGameState>();
-	if (!HasAuthority()
-		|| !SnowmanGameState
-		|| SnowmanGameState->IsSnowmanModeEnded()
-		|| !SnowmanGameState->IsSnowmanModeTimerActive())
+	ASnowmanModeGameState* SnowmanGameState = GetGameState<ASnowmanModeGameState>();
+	if (!HasAuthority() || !SnowmanGameState || SnowmanGameState->IsSnowmanModeEnded() || !SnowmanGameState->IsSnowmanModeTimerActive())
 	{
 		return;
 	}
 
-	const TArray<FSnowmanModePlayerEntry>& PlayerEntries =
-		SnowmanGameState->GetSnowmanModePlayerEntries();
-	if (PlayerEntries.IsEmpty())
+	// ★ 핵심 수정: 죽은 데이터가 남아있을 수 있는 Entry 배열을 믿지 않고, 
+	// 현재 방에 실제로 접속해 있는 플레이어 목록을 실시간으로 가져옵니다.
+	TArray<ASnowRumblePlayerState*> CurrentPlayers = CollectSnowmanPlayerStates();
+	if (CurrentPlayers.IsEmpty())
 	{
 		return;
 	}
 
-	for (const FSnowmanModePlayerEntry& Entry : PlayerEntries)
+	int32 NormalPlayerCount = 0;
+
+	// 접속 중인 플레이어들의 상태만 검사합니다 (나간 사람은 자동 제외됨)
+	for (ASnowRumblePlayerState* PlayerState : CurrentPlayers)
 	{
-		if (!Entry.PlayerState || Entry.Role != ESnowmanModePlayerRole::Snowman)
+		if (!PlayerState) continue;
+
+		// 눈사람이 아닌 사람(생존자)이 몇 명인지 셉니다.
+		if (!SnowmanGameState->IsSnowmanModePlayerSnowman(PlayerState))
 		{
-			return;
+			NormalPlayerCount++;
 		}
 	}
 
+	// 생존자가 1명이라도 남아있다면 아직 게임이 끝나지 않음
+	if (NormalPlayerCount > 0)
+	{
+		return;
+	}
+
+	// 모든 생존자가 감염되어 NormalPlayerCount가 0이 되었다면, 눈사람 승리로 즉시 종료!
 	EndSnowmanMode(ESnowmanModeResult::SnowmanVictory);
 }
 
@@ -1110,316 +749,112 @@ FString ASnowmanModeGameMode::BuildLobbyReturnTravelUrl() const
 	return TravelUrl;
 }
 
-bool ASnowmanModeGameMode::ConvertPlayerToSnowmanPawn(
-	ASnowRumblePlayerState* PlayerState)
+bool ASnowmanModeGameMode::ConvertPlayerToSnowmanPawn(ASnowRumblePlayerState* PlayerState)
 {
-	if (!HasAuthority() || !PlayerState)
-	{
-		UE_LOG(
-			LogSnowmanMode,
-			Warning,
-			TEXT("ConvertFail: Authority or PlayerState is invalid! HasAuthority=%s Player=%s"),
-			HasAuthority() ? TEXT("true") : TEXT("false"),
-			*DescribeSnowmanPlayerState(PlayerState));
-		return false;
-	}
-	static TSet<TWeakObjectPtr<ASnowRumblePlayerState>>
-		ConvertingSnowmanPlayerStates;
-	const TWeakObjectPtr<ASnowRumblePlayerState> PlayerStateKey(PlayerState);
-	if (ConvertingSnowmanPlayerStates.Contains(PlayerStateKey))
-	{
-		if (bLogSnowmanInfectionDebug)
-		{
-			UE_LOG(
-				LogSnowmanMode,
-				Verbose,
-				TEXT("Snowman pawn conversion skipped because conversion is already in progress: %s"),
-				*DescribeSnowmanPlayerState(PlayerState));
-		}
-		UE_LOG(
-			LogSnowmanMode,
-			Warning,
-			TEXT("ConvertFail: Pawn conversion is already in progress! Player=%s"),
-			*DescribeSnowmanPlayerState(PlayerState));
-		return false;
-	}
+    if (!HasAuthority() || !PlayerState) return false;
 
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		UE_LOG(
-			LogSnowmanMode,
-			Error,
-			TEXT("ConvertFail: World is invalid! Player=%s"),
-			*DescribeSnowmanPlayerState(PlayerState));
-		return false;
-	}
+    const TWeakObjectPtr<ASnowRumblePlayerState> PlayerStateKey(PlayerState);
+    if (ConvertingSnowmanPlayerStates.Contains(PlayerStateKey)) return false;
 
-	APlayerController* PlayerController = nullptr;
-	ASnowRumbleCharacter* ExistingCharacter = nullptr;
-	PlayerController = ResolveSnowmanPlayerController(World, PlayerState);
-	ExistingCharacter = PlayerController
-		? Cast<ASnowRumbleCharacter>(PlayerController->GetPawn())
-		: nullptr;
+    UWorld* World = GetWorld();
+    if (!World) return false;
 
-	if (!PlayerController)
-	{
-		UE_LOG(
-			LogSnowmanMode,
-			Warning,
-			TEXT("ConvertFail: PlayerController is invalid! Player=%s"),
-			*DescribeSnowmanPlayerState(PlayerState));
-		return false;
-	}
-	if (!ExistingCharacter)
-	{
-		UE_LOG(
-			LogSnowmanMode,
-			Warning,
-			TEXT("ConvertWarn: OldPawn is invalid; using PlayerStart fallback spawn. Player=%s Controller=%s CurrentPawn=%s"),
-			*DescribeSnowmanPlayerState(PlayerState),
-			*GetNameSafe(PlayerController),
-			*GetNameSafe(PlayerController->GetPawn()));
-	}
-	else if (ExistingCharacter->IsA<ASnowmanModeSnowmanCharacter>())
-	{
-		ApplySnowmanMovementSpeed(ExistingCharacter);
-		return true;
-	}
+    APlayerController* PlayerController = ResolveSnowmanPlayerController(World, PlayerState);
+    if (!PlayerController) return false;
 
-	ConvertingSnowmanPlayerStates.Add(PlayerStateKey);
-	auto FinishPawnConversion = [PlayerStateKey](bool bResult)
-	{
-		ConvertingSnowmanPlayerStates.Remove(PlayerStateKey);
-		return bResult;
-	};
+    ASnowRumbleCharacter* ExistingCharacter = Cast<ASnowRumbleCharacter>(PlayerController->GetPawn());
 
-	TSubclassOf<ASnowmanModeSnowmanCharacter> SpawnClass =
-		SnowmanCharacterClass;
-	if (!SpawnClass)
-	{
-		if (bLogSnowmanInfectionDebug)
-		{
-			UE_LOG(
-				LogSnowmanMode,
-				Error,
-				TEXT("SnowmanCharacterClass is empty on %s. GameModeClass=%s ConfiguredClass=None NativeClass=%s Player=%s"),
-				*GetNameSafe(this),
-				*GetPathNameSafe(GetClass()),
-				*GetPathNameSafe(ASnowmanModeSnowmanCharacter::StaticClass()),
-				*DescribeSnowmanPlayerState(PlayerState));
-		}
-		SpawnClass = ASnowmanModeSnowmanCharacter::StaticClass();
-	}
-	if (!SpawnClass)
-	{
-		UE_LOG(
-			LogSnowmanMode,
-			Error,
-			TEXT("ConvertFail: SnowmanCharacterClass is nullptr! GameModeClass=%s Player=%s"),
-			*GetPathNameSafe(GetClass()),
-			*DescribeSnowmanPlayerState(PlayerState));
-		UE_LOG(
-			LogSnowmanMode,
-			Error,
-			TEXT("Snowman pawn conversion failed because no spawn class is available. GameModeClass=%s Player=%s"),
-			*GetPathNameSafe(GetClass()),
-			*DescribeSnowmanPlayerState(PlayerState));
-		return FinishPawnConversion(false);
-	}
-	if (bLogSnowmanInfectionDebug)
-	{
-		UE_LOG(
-			LogSnowmanMode,
-			Log,
-			TEXT("Snowman pawn conversion spawn class resolved. GameModeClass=%s SpawnClass=%s Player=%s"),
-			*GetPathNameSafe(GetClass()),
-			*GetPathNameSafe(SpawnClass.Get()),
-			*DescribeSnowmanPlayerState(PlayerState));
-	}
+    // 이미 눈사람 폰이면 속도만 다시 맞추고 종료
+    if (ExistingCharacter && ExistingCharacter->IsA<ASnowmanModeSnowmanCharacter>())
+    {
+        ApplySnowmanMovementSpeed(ExistingCharacter);
+        return true;
+    }
 
-	const ASnowmanModeSnowmanCharacter* SnowmanDefaultObject =
-		SpawnClass.GetDefaultObject();
-	if (!SnowmanDefaultObject)
-	{
-		if (bLogSnowmanInfectionDebug)
-		{
-			UE_LOG(
-				LogSnowmanMode,
-				Warning,
-				TEXT("Snowman pawn class default object is invalid for %s"),
-				*DescribeSnowmanPlayerState(PlayerState));
-		}
-		UE_LOG(
-			LogSnowmanMode,
-			Error,
-			TEXT("ConvertFail: SnowmanCharacterClass default object is invalid! SpawnClass=%s Player=%s"),
-			*GetPathNameSafe(SpawnClass.Get()),
-			*DescribeSnowmanPlayerState(PlayerState));
-		return FinishPawnConversion(false);
-	}
+    ConvertingSnowmanPlayerStates.Add(PlayerStateKey);
+    auto FinishPawnConversion = [this, PlayerStateKey](bool bResult)
+    {
+        ConvertingSnowmanPlayerStates.Remove(PlayerStateKey);
+        return bResult;
+    };
 
-	if (ExistingCharacter && PlayerController->GetPawn() != ExistingCharacter)
-	{
-		UE_LOG(
-			LogSnowmanMode,
-			Warning,
-			TEXT("ConvertFail: OldPawn is invalid! Controller pawn changed before spawn. Player=%s CurrentPawn=%s ExpectedPawn=%s"),
-			*DescribeSnowmanPlayerState(PlayerState),
-			*GetNameSafe(PlayerController->GetPawn()),
-			*GetNameSafe(ExistingCharacter));
-		UE_LOG(
-			LogSnowmanMode,
-			Warning,
-			TEXT("Snowman pawn conversion aborted because controller pawn changed before spawn. Player=%s CurrentPawn=%s ExpectedPawn=%s SpawnClass=%s"),
-			*DescribeSnowmanPlayerState(PlayerState),
-			*GetNameSafe(PlayerController->GetPawn()),
-			*GetNameSafe(ExistingCharacter),
-			*GetPathNameSafe(SpawnClass.Get()));
-		return FinishPawnConversion(false);
-	}
+    TSubclassOf<ASnowmanModeSnowmanCharacter> SpawnClass = SnowmanCharacterClass;
+    if (!SpawnClass)
+    {
+        SpawnClass = ASnowmanModeSnowmanCharacter::StaticClass();
+    }
+    
+    FTransform SpawnTransform = FTransform::Identity;
+    if (ExistingCharacter)
+    {
+        SpawnTransform = ExistingCharacter->GetActorTransform();
+        // ★ 바닥 충돌 버그를 막기 위해 아주 살짝 띄워서 스폰
+        FVector Loc = SpawnTransform.GetLocation();
+        Loc.Z += 80.0f; 
+        SpawnTransform.SetLocation(Loc);
 
-	FTransform BaseTransform = FTransform::Identity;
-	if (ExistingCharacter)
-	{
-		BaseTransform = ExistingCharacter->GetActorTransform();
-	}
-	else if (!PlayerController->GetSpawnLocation().IsNearlyZero())
-	{
-		BaseTransform = FTransform(
-			PlayerController->GetControlRotation(),
-			PlayerController->GetSpawnLocation());
-	}
-	if (!ExistingCharacter)
-	{
-		if (AActor* StartSpot = ChoosePlayerStart(PlayerController))
-		{
-			BaseTransform = BuildScatteredPlayerStartTransform(StartSpot);
-		}
-	}
-	FVector SpawnLocation = BaseTransform.GetLocation();
-	SpawnLocation.Z += 75.0f;
-	const FTransform SpawnTransform(
-		BaseTransform.GetRotation(),
-		SpawnLocation);
-	const FRotator ControlRotation = PlayerController->GetControlRotation();
+        // ★ 기존 캐릭터의 충돌을 끄고 완벽하게 조종 해제 (버그 원천 차단)
+        ExistingCharacter->SetActorEnableCollision(false);
+        ExistingCharacter->SetActorHiddenInGame(true);
+        PlayerController->UnPossess();
+    }
+    else if (!PlayerController->GetSpawnLocation().IsNearlyZero())
+    {
+        SpawnTransform = FTransform(PlayerController->GetControlRotation(), PlayerController->GetSpawnLocation());
+    }
+    else if (AActor* StartSpot = ChoosePlayerStart(PlayerController))
+    {
+        SpawnTransform = BuildScatteredPlayerStartTransform(StartSpot);
+    }
 
-	FActorSpawnParameters SpawnParameters;
-	SpawnParameters.Owner = PlayerController;
-	SpawnParameters.Instigator = ExistingCharacter;
-	SpawnParameters.SpawnCollisionHandlingOverride =
-		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+    FActorSpawnParameters SpawnParameters;
+    SpawnParameters.Owner = PlayerController;
+    SpawnParameters.Instigator = ExistingCharacter;
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn; 
 
-	ASnowmanModeSnowmanCharacter* SnowmanCharacter =
-		World->SpawnActor<ASnowmanModeSnowmanCharacter>(
-			SpawnClass,
-			SpawnTransform,
-			SpawnParameters);
-	if (!SnowmanCharacter)
-	{
-		UE_LOG(
-			LogSnowmanMode,
-			Error,
-			TEXT("ConvertFail: SpawnActor returned nullptr! (Check Collision or Transform) Player=%s SpawnClass=%s SpawnLocation=%s"),
-			*DescribeSnowmanPlayerState(PlayerState),
-			*GetPathNameSafe(SpawnClass.Get()),
-			*SpawnTransform.GetLocation().ToCompactString());
-		UE_LOG(
-			LogSnowmanMode,
-			Warning,
-			TEXT("Snowman pawn spawn failed for %s at %s. SpawnClass=%s ExistingPawn=%s"),
-			*DescribeSnowmanPlayerState(PlayerState),
-				*SpawnTransform.GetLocation().ToCompactString(),
-				*GetPathNameSafe(SpawnClass.Get()),
-				*GetNameSafe(ExistingCharacter));
-		PlayerController->ForceNetUpdate();
-		return FinishPawnConversion(false);
-	}
-
-	SnowmanCharacter->SetReplicates(true);
-	SnowmanCharacter->SetReplicateMovement(true);
-	SnowmanCharacter->SetOwner(PlayerController);
-	SnowmanCharacter->SetInstigator(ExistingCharacter);
-	SnowmanCharacter->ForceNetUpdate();
 	if (ExistingCharacter)
 	{
 		ExistingCharacter->SetActorEnableCollision(false);
-		ExistingCharacter->ForceNetUpdate();
+		ExistingCharacter->SetActorHiddenInGame(true);
+       
+		// ★ 기존 폰을 바닥 아래로 순간이동 시켜서 새 눈사람과 절대 겹치지 않게 만듭니다.
+		ExistingCharacter->SetActorLocation(SpawnTransform.GetLocation() + FVector(0.0f, 0.0f, -5000.0f));
+       
+		PlayerController->UnPossess();
 	}
-	PlayerController->ForceNetUpdate();
-	PlayerController->Possess(SnowmanCharacter);
-	PlayerController->SetViewTarget(SnowmanCharacter);
-	PlayerController->ClientRestart(SnowmanCharacter);
-	SnowmanCharacter->ForceNetUpdate();
-	PlayerController->ForceNetUpdate();
-	if (PlayerController->GetPawn() != SnowmanCharacter)
-	{
-		SnowmanCharacter->SetActorLocation(
-			SpawnLocation + FVector(0.0f, 0.0f, 50.0f),
-			false,
-			nullptr,
-			ETeleportType::TeleportPhysics);
-		SnowmanCharacter->ForceNetUpdate();
-		PlayerController->Possess(SnowmanCharacter);
-		PlayerController->SetViewTarget(SnowmanCharacter);
-		PlayerController->ClientRestart(SnowmanCharacter);
-		SnowmanCharacter->ForceNetUpdate();
-		PlayerController->ForceNetUpdate();
-	}
-	if (PlayerController->GetPawn() != SnowmanCharacter)
-	{
-		UE_LOG(
-			LogSnowmanMode,
-			Error,
-			TEXT("ConvertFail: Controller Possess failed! Player=%s CurrentPawn=%s NewPawn=%s SpawnClass=%s"),
-			*DescribeSnowmanPlayerState(PlayerState),
-			*GetNameSafe(PlayerController->GetPawn()),
-			*GetNameSafe(SnowmanCharacter),
-			*GetPathNameSafe(SpawnClass.Get()));
-		UE_LOG(
-			LogSnowmanMode,
-			Warning,
-			TEXT("Snowman pawn possess failed for %s. SpawnClass=%s SnowmanPawn=%s ExistingPawn=%s"),
-			*DescribeSnowmanPlayerState(PlayerState),
-			*GetPathNameSafe(SpawnClass.Get()),
-			*GetNameSafe(SnowmanCharacter),
-			*GetNameSafe(ExistingCharacter));
-		SnowmanCharacter->Destroy();
-		if (ExistingCharacter)
-		{
-			ExistingCharacter->SetActorEnableCollision(true);
-			PlayerController->Possess(ExistingCharacter);
-			PlayerController->SetViewTarget(ExistingCharacter);
-			PlayerController->ClientRestart(ExistingCharacter);
-			ExistingCharacter->ForceNetUpdate();
-		}
-		PlayerController->ForceNetUpdate();
-		return FinishPawnConversion(false);
-	}
+	
+    // 1. 눈사람 스폰
+    ASnowmanModeSnowmanCharacter* SnowmanCharacter = World->SpawnActor<ASnowmanModeSnowmanCharacter>(SpawnClass, SpawnTransform, SpawnParameters);
 
-	PlayerController->SetControlRotation(ControlRotation);
-	PlayerController->SetViewTarget(SnowmanCharacter);
-	PlayerController->ClientRestart(SnowmanCharacter);
-	if (ExistingCharacter)
-	{
-		ExistingCharacter->Destroy();
-	}
-	ApplySnowmanMovementSpeed(SnowmanCharacter);
-	GrantSpawnInfectionGrace(PlayerState);
-	SnowmanCharacter->ForceNetUpdate();
-	PlayerController->ForceNetUpdate();
-	PlayerState->ForceNetUpdate();
-	if (bLogSnowmanInfectionDebug)
-	{
-		UE_LOG(
-			LogSnowmanMode,
-			Log,
-			TEXT("Snowman pawn conversion succeeded. Player=%s SnowmanPawn=%s SpawnClass=%s"),
-			*DescribeSnowmanPlayerState(PlayerState),
-			*GetNameSafe(SnowmanCharacter),
-			*GetPathNameSafe(SpawnClass.Get()));
-	}
-	return FinishPawnConversion(true);
+    if (!SnowmanCharacter)
+    {
+        UE_LOG(LogSnowmanMode, Error, TEXT("ConvertFail: SpawnActor returned nullptr!"));
+        if (ExistingCharacter)
+        {
+            ExistingCharacter->SetActorEnableCollision(true);
+            ExistingCharacter->SetActorHiddenInGame(false);
+            PlayerController->Possess(ExistingCharacter);
+        }
+        return FinishPawnConversion(false);
+    }
+
+    SnowmanCharacter->SetReplicates(true);
+    SnowmanCharacter->SetReplicateMovement(true);
+
+    // 2. 엔진 기본 흐름에 따라 완벽하게 빙의
+    PlayerController->Possess(SnowmanCharacter);
+
+    // 3. 빙의가 끝난 후 불필요한 기존 캐릭터 삭제
+    if (ExistingCharacter)
+    {
+        ExistingCharacter->Destroy();
+    }
+
+    // 4. 후처리
+    ApplySnowmanMovementSpeed(SnowmanCharacter);
+    GrantSpawnInfectionGrace(PlayerState);
+
+    return FinishPawnConversion(true);
 }
 
 void ASnowmanModeGameMode::ApplySnowmanMovementSpeed(
