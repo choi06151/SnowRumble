@@ -103,6 +103,17 @@ void UMainHUDWidget::ShowPersonalTextAlarm(const FText& Message)
 	}
 }
 
+void UMainHUDWidget::SetAimCrosshairVisibleImmediate(bool bVisible)
+{
+	if (AimCrosshair)
+	{
+		AimCrosshair->SetVisibility(
+			bVisible
+				? ESlateVisibility::SelfHitTestInvisible
+				: ESlateVisibility::Collapsed);
+	}
+}
+
 void UMainHUDWidget::RefreshHealthBars()
 {
 	UWorld* World = GetWorld();
@@ -184,7 +195,9 @@ void UMainHUDWidget::RefreshCombatHudPresentation()
 		return;
 	}
 
-	const bool bShouldShowAimCrosshair = LocalCharacter->IsAiming();
+	const bool bShouldShowAimCrosshair =
+		LocalCharacter->IsAiming()
+		&& !LocalCharacter->IsHoldingLargeSnowball();
 	if (AimCrosshair)
 	{
 		AimCrosshair->SetVisibility(
