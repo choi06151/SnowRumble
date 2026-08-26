@@ -60,9 +60,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman", meta = (ClampMin = "0.0"))
 	float SnowmanModeStartCountdownSeconds = 3.0f;
 
-	/** 접촉 감염 뒤 눈사람으로 확정되기까지 걸리는 시간이다. */
+	/** 이전 Pending 감염 BP 호환용 값이다. 현재 접촉 감염은 즉시 전환된다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Infection", meta = (ClampMin = "0.0"))
-	float InfectionPendingSeconds = 10.0f;
+	float InfectionPendingSeconds = 0.0f;
 
 	/** 눈사람으로 확정된 플레이어의 이동 속도 배율이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Movement", meta = (ClampMin = "1.0"))
@@ -127,7 +127,7 @@ private:
 	/** 시작 눈사람 초기화가 아직 불가능하면 짧게 지연해 재시도한다. */
 	void ScheduleSnowmanRoleInitializationRetry();
 
-	/** 감염 대기 완료와 눈사람 접촉 감염을 서버에서 처리한다. */
+	/** 눈사람 접촉 감염을 서버에서 즉시 눈사람 전환으로 처리한다. */
 	void UpdateSnowmanInfectionFlow();
 
 	/** 현재 눈사람 역할에 맞춰 모든 플레이어 이동 속도를 갱신한다. */
@@ -193,6 +193,9 @@ private:
 	/** PlayerState별 접촉 감염 면역 종료 월드 시간이다. */
 	TMap<TWeakObjectPtr<ASnowRumblePlayerState>, double>
 		SpawnInfectionGraceEndTimes;
+	
+	/** 같은 플레이어에게 눈사람 Pawn 전환이 중복 실행되지 않도록 막는다. */
+	TSet<TWeakObjectPtr<ASnowRumblePlayerState>> ConvertingSnowmanPlayerStates;
 
 	FTimerHandle InfectionScanTimerHandle;
 	FTimerHandle SnowmanRoleInitializationRetryTimerHandle;
