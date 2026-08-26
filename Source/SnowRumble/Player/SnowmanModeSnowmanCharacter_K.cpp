@@ -6,6 +6,9 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
+#include "../UI/OverheadNameplateWidget_C.h"
+#include "Net/UnrealNetwork.h"
+#include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 
 ASnowmanModeSnowmanCharacter::ASnowmanModeSnowmanCharacter()
@@ -18,6 +21,9 @@ ASnowmanModeSnowmanCharacter::ASnowmanModeSnowmanCharacter()
 		DefaultLookAction(TEXT("/Game/Input/IA_Look.IA_Look"));
 	static ConstructorHelpers::FObjectFinder<UInputAction>
 		DefaultJumpAction(TEXT("/Game/Input/IA_Jump.IA_Jump"));
+	static ConstructorHelpers::FClassFinder<UOverheadNameplateWidget>
+		DefaultOverheadNameplateWidget(
+			TEXT("/Game/WBP/WBP_OverheadNamePlate"));
 
 	if (DefaultPlayerMappingContext.Succeeded())
 	{
@@ -34,6 +40,11 @@ ASnowmanModeSnowmanCharacter::ASnowmanModeSnowmanCharacter()
 	if (DefaultJumpAction.Succeeded())
 	{
 		JumpAction = DefaultJumpAction.Object;
+	}
+	if (DefaultOverheadNameplateWidget.Succeeded())
+	{
+		OverheadNameplateWidgetClass =
+			DefaultOverheadNameplateWidget.Class;
 	}
 
 	WalkSpeed = SnowmanWalkSpeed;
@@ -61,9 +72,71 @@ void ASnowmanModeSnowmanCharacter::SetSnowmanWalkSpeedFromMode(
 	SprintSpeed = SnowmanWalkSpeed;
 	AimWalkSpeed = SnowmanWalkSpeed;
 
+	ApplySnowballHitStunMovementState();
+}
+
+void ASnowmanModeSnowmanCharacter::GetLifetimeReplicatedProps(
+	TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(
+		ASnowmanModeSnowmanCharacter,
+		bSnowballHitStunned);
+}
+
+void ASnowmanModeSnowmanCharacter::ApplySnowballHitStunFromServer()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World || SnowballHitStunSeconds <= 0.0f)
+	{
+		return;
+	}
+
+	bSnowballHitStunned = true;
 	if (UCharacterMovementComponent* MovementComponent = GetCharacterMovement())
 	{
-		MovementComponent->MaxWalkSpeed = SnowmanWalkSpeed;
+		MovementComponent->StopMovementImmediately();
+	}
+	OnRep_SnowballHitStunned();
+
+	World->GetTimerManager().SetTimer(
+		SnowballHitStunTimerHandle,
+		this,
+		&ASnowmanModeSnowmanCharacter::ClearSnowballHitStun,
+		SnowballHitStunSeconds,
+		false);
+	ForceNetUpdate();
+}
+
+void ASnowmanModeSnowmanCharacter::ClearSnowballHitStun()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	bSnowballHitStunned = false;
+	OnRep_SnowballHitStunned();
+	ForceNetUpdate();
+}
+
+void ASnowmanModeSnowmanCharacter::OnRep_SnowballHitStunned()
+{
+	ApplySnowballHitStunMovementState();
+}
+
+void ASnowmanModeSnowmanCharacter::ApplySnowballHitStunMovementState()
+{
+	if (UCharacterMovementComponent* MovementComponent = GetCharacterMovement())
+	{
+		MovementComponent->MaxWalkSpeed =
+			bSnowballHitStunned ? 0.0f : SnowmanWalkSpeed;
 	}
 }
 

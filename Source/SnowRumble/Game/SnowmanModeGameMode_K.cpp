@@ -9,6 +9,7 @@
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerStart.h"
 #include "HAL/IConsoleManager.h"
@@ -64,6 +65,109 @@ FString DescribeSnowmanPlayerState(const ASnowRumblePlayerState* PlayerState)
 		PlayerState->GetPlayerId());
 }
 
+constexpr int32 MaxPendingSnowmanConversionRetryCount = 3;
+constexpr double PendingSnowmanConversionRetryDelaySeconds = 1.0;
+
+bool DoesSnowmanPlayerStateMatch(
+	const APlayerState* CandidatePlayerState,
+	const ASnowRumblePlayerState* TargetPlayerState)
+{
+	if (!CandidatePlayerState || !TargetPlayerState)
+	{
+		return false;
+	}
+
+	if (CandidatePlayerState == TargetPlayerState)
+	{
+		return true;
+	}
+
+	const int32 TargetPlayerId = TargetPlayerState->GetPlayerId();
+	if (TargetPlayerId != INDEX_NONE
+		&& CandidatePlayerState->GetPlayerId() == TargetPlayerId)
+	{
+		return true;
+	}
+
+	const FUniqueNetIdRepl& TargetUniqueId = TargetPlayerState->GetUniqueId();
+	return TargetUniqueId.IsValid()
+		&& CandidatePlayerState->GetUniqueId().IsValid()
+		&& CandidatePlayerState->GetUniqueId() == TargetUniqueId;
+}
+
+APlayerController* ResolveSnowmanPlayerController(
+	UWorld* World,
+	const ASnowRumblePlayerState* PlayerState)
+{
+	if (!World || !PlayerState)
+	{
+		return nullptr;
+	}
+
+	if (APlayerController* OwnerController =
+		Cast<APlayerController>(PlayerState->GetOwner()))
+	{
+		if (DoesSnowmanPlayerStateMatch(
+				OwnerController->PlayerState,
+				PlayerState))
+		{
+			return OwnerController;
+		}
+	}
+
+	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
+		It;
+		++It)
+	{
+		APlayerController* CandidateController = It->Get();
+		if (!CandidateController)
+		{
+			continue;
+		}
+
+		if (DoesSnowmanPlayerStateMatch(
+				CandidateController->PlayerState,
+				PlayerState))
+		{
+			return CandidateController;
+		}
+
+		const APawn* CandidatePawn = CandidateController->GetPawn();
+		if (DoesSnowmanPlayerStateMatch(
+				CandidatePawn
+					? CandidatePawn->GetPlayerState<APlayerState>()
+					: nullptr,
+				PlayerState))
+		{
+			return CandidateController;
+		}
+	}
+
+	for (TActorIterator<ASnowRumbleCharacter> It(World); It; ++It)
+	{
+		const ASnowRumbleCharacter* Character = *It;
+		if (!Character)
+		{
+			continue;
+		}
+
+		if (!DoesSnowmanPlayerStateMatch(
+				Character->GetPlayerState<APlayerState>(),
+				PlayerState))
+		{
+			continue;
+		}
+
+		if (APlayerController* CharacterController =
+			Cast<APlayerController>(Character->GetController()))
+		{
+			return CharacterController;
+		}
+	}
+
+	return nullptr;
+}
+
 }
 
 ASnowmanModeGameMode::ASnowmanModeGameMode()
@@ -100,6 +204,7 @@ void ASnowmanModeGameMode::InitGame(
 	bSnowmanRolesInitialized = false;
 	UsedPlayerStarts.Reset();
 	UsedSpawnLocations.Reset();
+	SpawnInfectionGraceEndTimes.Reset();
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(
@@ -190,6 +295,11 @@ void ASnowmanModeGameMode::RestartPlayerAtPlayerStart(
 		BuildScatteredPlayerStartTransform(StartSpot);
 	UsedSpawnLocations.Add(SpawnTransform.GetLocation());
 	RestartPlayerAtTransform(NewPlayer, SpawnTransform);
+	if (ASnowRumblePlayerState* PlayerState =
+		NewPlayer->GetPlayerState<ASnowRumblePlayerState>())
+	{
+		GrantSpawnInfectionGrace(PlayerState);
+	}
 }
 
 UClass* ASnowmanModeGameMode::GetDefaultPawnClassForController_Implementation(
@@ -292,6 +402,7 @@ void ASnowmanModeGameMode::StartSnowmanModeCountdownAfterLoading()
 void ASnowmanModeGameMode::StartSnowmanModeAfterCountdown()
 {
 	ApplySnowmanModeStartInputLock(false);
+	GrantSpawnInfectionGraceToAllPlayers();
 
 	if (ASnowmanModeGameState* SnowmanGameState =
 		GetGameState<ASnowmanModeGameState>())
@@ -409,6 +520,10 @@ void ASnowmanModeGameMode::UpdateSnowmanInfectionFlow()
 		CompletingInfectionPlayerStates;
 	static TSet<TWeakObjectPtr<ASnowRumblePlayerState>>
 		ControllerLostPendingPlayerStates;
+	static TMap<TWeakObjectPtr<ASnowRumblePlayerState>, int32>
+		PendingConversionRetryCounts;
+	static TMap<TWeakObjectPtr<ASnowRumblePlayerState>, double>
+		PendingConversionNextRetryTimes;
 	auto ResolveSnowmanModeEntryPlayerState =
 		[&PlayerEntries](const ASnowRumblePlayerState* PlayerState)
 		-> ASnowRumblePlayerState*
@@ -456,48 +571,9 @@ void ASnowmanModeGameMode::UpdateSnowmanInfectionFlow()
 		return nullptr;
 	};
 	auto HasActiveControllerForPlayerState =
-		[](const UWorld* ScanWorld, const ASnowRumblePlayerState* PlayerState)
+		[](UWorld* ScanWorld, const ASnowRumblePlayerState* PlayerState)
 	{
-		if (!ScanWorld || !PlayerState)
-		{
-			return false;
-		}
-
-		for (FConstPlayerControllerIterator It =
-				ScanWorld->GetPlayerControllerIterator();
-			It;
-			++It)
-		{
-			const APlayerController* CandidateController = It->Get();
-			const APlayerState* CandidatePlayerState =
-				CandidateController ? CandidateController->PlayerState : nullptr;
-			if (!CandidatePlayerState)
-			{
-				continue;
-			}
-
-			if (CandidatePlayerState == PlayerState)
-			{
-				return true;
-			}
-
-			const int32 PlayerId = PlayerState->GetPlayerId();
-			if (PlayerId != INDEX_NONE
-				&& CandidatePlayerState->GetPlayerId() == PlayerId)
-			{
-				return true;
-			}
-
-			const FUniqueNetIdRepl& UniqueId = PlayerState->GetUniqueId();
-			if (UniqueId.IsValid()
-				&& CandidatePlayerState->GetUniqueId().IsValid()
-				&& CandidatePlayerState->GetUniqueId() == UniqueId)
-			{
-				return true;
-			}
-		}
-
-		return false;
+		return ResolveSnowmanPlayerController(ScanWorld, PlayerState) != nullptr;
 	};
 
 	for (const FSnowmanModePlayerEntry& Entry : PlayerEntries)
@@ -513,6 +589,8 @@ void ASnowmanModeGameMode::UpdateSnowmanInfectionFlow()
 		{
 			CompletingInfectionPlayerStates.Remove(PlayerStateKey);
 			ControllerLostPendingPlayerStates.Remove(PlayerStateKey);
+			PendingConversionRetryCounts.Remove(PlayerStateKey);
+			PendingConversionNextRetryTimes.Remove(PlayerStateKey);
 		}
 
 		if (bLogSnowmanInfectionDebug)
@@ -534,21 +612,66 @@ void ASnowmanModeGameMode::UpdateSnowmanInfectionFlow()
 			&& SnowmanGameState->GetSnowmanModeInfectionRemainingSeconds(PlayerState)
 				<= 0.0f)
 		{
+			UWorld* ScanWorld = GetWorld();
+			const double CurrentWorldTime = ScanWorld
+				? ScanWorld->GetTimeSeconds()
+				: 0.0;
+			if (const double* NextRetryTime =
+				PendingConversionNextRetryTimes.Find(PlayerStateKey))
+			{
+				if (CurrentWorldTime < *NextRetryTime)
+				{
+					continue;
+				}
+			}
+
 			const bool bHasActiveController =
-				HasActiveControllerForPlayerState(GetWorld(), PlayerState);
+				HasActiveControllerForPlayerState(ScanWorld, PlayerState);
 			if (!bHasActiveController)
 			{
+				int32& RetryCount =
+					PendingConversionRetryCounts.FindOrAdd(PlayerStateKey);
+				++RetryCount;
+				if (RetryCount > MaxPendingSnowmanConversionRetryCount)
+				{
+					UE_LOG(
+						LogSnowmanMode,
+						Warning,
+						TEXT("Infection pending fail-safe: controller is still missing after %d retries, pending state canceled safely. Player=%s"),
+						MaxPendingSnowmanConversionRetryCount,
+						*DescribeSnowmanPlayerState(PlayerState));
+					ControllerLostPendingPlayerStates.Add(PlayerStateKey);
+					ControllerlessPendingCancels.Add(PlayerState);
+					CompletingInfectionPlayerStates.Remove(PlayerStateKey);
+					PendingConversionRetryCounts.Remove(PlayerStateKey);
+					PendingConversionNextRetryTimes.Remove(PlayerStateKey);
+					continue;
+				}
+
 				if (!ControllerLostPendingPlayerStates.Contains(PlayerStateKey))
 				{
 					UE_LOG(
 						LogSnowmanMode,
 						Warning,
-						TEXT("Infection pending cleanup: controller is missing, pending state canceled safely. Player=%s"),
+						TEXT("Infection pending conversion delayed: controller is missing, retry %d/%d. Player=%s"),
+						RetryCount,
+						MaxPendingSnowmanConversionRetryCount,
 						*DescribeSnowmanPlayerState(PlayerState));
 					ControllerLostPendingPlayerStates.Add(PlayerStateKey);
 				}
-				ControllerlessPendingCancels.Add(PlayerState);
+				else if (bLogSnowmanInfectionDebug)
+				{
+					UE_LOG(
+						LogSnowmanMode,
+						Verbose,
+						TEXT("Infection pending conversion still waiting for controller: retry %d/%d Player=%s"),
+						RetryCount,
+						MaxPendingSnowmanConversionRetryCount,
+						*DescribeSnowmanPlayerState(PlayerState));
+				}
 				CompletingInfectionPlayerStates.Remove(PlayerStateKey);
+				PendingConversionNextRetryTimes.FindOrAdd(PlayerStateKey) =
+					CurrentWorldTime + PendingSnowmanConversionRetryDelaySeconds;
 				continue;
 			}
 			ControllerLostPendingPlayerStates.Remove(PlayerStateKey);
@@ -572,13 +695,40 @@ void ASnowmanModeGameMode::UpdateSnowmanInfectionFlow()
 			{
 				SnowmanGameState->CompleteInfectionFromServer(PlayerState);
 				CompletingInfectionPlayerStates.Remove(PlayerStateKey);
+				PendingConversionRetryCounts.Remove(PlayerStateKey);
+				PendingConversionNextRetryTimes.Remove(PlayerStateKey);
 			}
 			else
 			{
+				int32& RetryCount =
+					PendingConversionRetryCounts.FindOrAdd(PlayerStateKey);
+				++RetryCount;
+				CompletingInfectionPlayerStates.Remove(PlayerStateKey);
+				if (RetryCount > MaxPendingSnowmanConversionRetryCount)
+				{
+					UE_LOG(
+						LogSnowmanMode,
+						Warning,
+						TEXT("Infection pending fail-safe: conversion failed after %d retries, pending state canceled safely. Player=%s Role=%s"),
+						MaxPendingSnowmanConversionRetryCount,
+						*DescribeSnowmanPlayerState(PlayerState),
+						LexToString(
+							SnowmanGameState->GetSnowmanModePlayerRole(
+								PlayerState)));
+					ControllerlessPendingCancels.Add(PlayerState);
+					PendingConversionRetryCounts.Remove(PlayerStateKey);
+					PendingConversionNextRetryTimes.Remove(PlayerStateKey);
+					continue;
+				}
+
+				PendingConversionNextRetryTimes.FindOrAdd(PlayerStateKey) =
+					CurrentWorldTime + PendingSnowmanConversionRetryDelaySeconds;
 				UE_LOG(
 					LogSnowmanMode,
 					Warning,
-					TEXT("Infection pending complete conversion failed once and remains Pending: %s Role=%s"),
+					TEXT("Infection pending conversion failed, retry %d/%d scheduled: %s Role=%s"),
+					RetryCount,
+					MaxPendingSnowmanConversionRetryCount,
 					*DescribeSnowmanPlayerState(PlayerState),
 					LexToString(
 						SnowmanGameState->GetSnowmanModePlayerRole(PlayerState)));
@@ -646,21 +796,44 @@ void ASnowmanModeGameMode::UpdateSnowmanInfectionFlow()
 			|| CurrentTime - LastInfectionDebugSummaryTime >= 1.0)
 		{
 			LastInfectionDebugSummaryTime = CurrentTime;
+			int32 SnowmanEntryCount = 0;
 			int32 PendingCount = 0;
+			int32 NormalEntryCount = 0;
+			int32 UnknownEntryCount = 0;
 			for (const FSnowmanModePlayerEntry& Entry : PlayerEntries)
 			{
-				if (Entry.Role == ESnowmanModePlayerRole::InfectionPending)
+				switch (Entry.Role)
 				{
+				case ESnowmanModePlayerRole::Snowman:
+					++SnowmanEntryCount;
+					break;
+				case ESnowmanModePlayerRole::InfectionPending:
 					++PendingCount;
+					break;
+				case ESnowmanModePlayerRole::Normal:
+					++NormalEntryCount;
+					break;
+				default:
+					++UnknownEntryCount;
+					break;
 				}
 			}
+			const int32 CountedEntryCount =
+				SnowmanEntryCount
+				+ PendingCount
+				+ NormalEntryCount
+				+ UnknownEntryCount;
 			UE_LOG(
 				LogSnowmanMode,
 				Log,
-				TEXT("Infection scan summary: Entries=%d Snowmen=%d Pending=%d Normals=%d ContactRadius=%.1f"),
+				TEXT("Infection scan summary: Entries=%d Snowmen=%d Pending=%d Normals=%d Unknown=%d Counted=%d PawnSnowmen=%d PawnNormals=%d ContactRadius=%.1f"),
 				PlayerEntries.Num(),
-				SnowmanCharacters.Num(),
+				SnowmanEntryCount,
 				PendingCount,
+				NormalEntryCount,
+				UnknownEntryCount,
+				CountedEntryCount,
+				SnowmanCharacters.Num(),
 				NormalCharacters.Num(),
 				InfectionContactRadius);
 		}
@@ -672,6 +845,15 @@ void ASnowmanModeGameMode::UpdateSnowmanInfectionFlow()
 		for (const ASnowRumbleCharacter* SnowmanCharacter : SnowmanCharacters)
 		{
 			if (!SnowmanCharacter)
+			{
+				continue;
+			}
+
+			ASnowRumblePlayerState* SnowmanPlayerState =
+				ResolveSnowmanModeEntryPlayerState(
+					ResolvePlayerStateForCharacter(SnowmanCharacter));
+			if (!SnowmanPlayerState
+				|| IsSpawnInfectionGraceActive(SnowmanPlayerState))
 			{
 				continue;
 			}
@@ -699,6 +881,10 @@ void ASnowmanModeGameMode::UpdateSnowmanInfectionFlow()
 					SnowmanGameState->GetSnowmanModePlayerRole(
 						InfectionTargetPlayerState);
 				if (NormalPlayerRole != ESnowmanModePlayerRole::Normal)
+				{
+					continue;
+				}
+				if (IsSpawnInfectionGraceActive(InfectionTargetPlayerState))
 				{
 					continue;
 				}
@@ -942,22 +1128,10 @@ bool ASnowmanModeGameMode::ConvertPlayerToSnowmanPawn(
 
 	APlayerController* PlayerController = nullptr;
 	ASnowRumbleCharacter* ExistingCharacter = nullptr;
-	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
-		It;
-		++It)
-	{
-		APlayerController* CandidateController = It->Get();
-		if (!CandidateController
-			|| CandidateController->PlayerState != PlayerState)
-		{
-			continue;
-		}
-
-		PlayerController = CandidateController;
-		ExistingCharacter =
-			Cast<ASnowRumbleCharacter>(CandidateController->GetPawn());
-		break;
-	}
+	PlayerController = ResolveSnowmanPlayerController(World, PlayerState);
+	ExistingCharacter = PlayerController
+		? Cast<ASnowRumbleCharacter>(PlayerController->GetPawn())
+		: nullptr;
 
 	if (!PlayerController)
 	{
@@ -1105,15 +1279,7 @@ bool ASnowmanModeGameMode::ConvertPlayerToSnowmanPawn(
 	SpawnParameters.Owner = PlayerController;
 	SpawnParameters.Instigator = ExistingCharacter;
 	SpawnParameters.SpawnCollisionHandlingOverride =
-		ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-	if (ExistingCharacter)
-	{
-		PlayerController->UnPossess();
-		ExistingCharacter->SetActorEnableCollision(false);
-		ExistingCharacter->ForceNetUpdate();
-	}
-	PlayerController->ForceNetUpdate();
+		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
 	ASnowmanModeSnowmanCharacter* SnowmanCharacter =
 		World->SpawnActor<ASnowmanModeSnowmanCharacter>(
@@ -1134,15 +1300,9 @@ bool ASnowmanModeGameMode::ConvertPlayerToSnowmanPawn(
 			Warning,
 			TEXT("Snowman pawn spawn failed for %s at %s. SpawnClass=%s ExistingPawn=%s"),
 			*DescribeSnowmanPlayerState(PlayerState),
-			*SpawnTransform.GetLocation().ToCompactString(),
-			*GetPathNameSafe(SpawnClass.Get()),
-			*GetNameSafe(ExistingCharacter));
-		if (ExistingCharacter)
-		{
-			ExistingCharacter->SetActorEnableCollision(true);
-			PlayerController->Possess(ExistingCharacter);
-			ExistingCharacter->ForceNetUpdate();
-		}
+				*SpawnTransform.GetLocation().ToCompactString(),
+				*GetPathNameSafe(SpawnClass.Get()),
+				*GetNameSafe(ExistingCharacter));
 		PlayerController->ForceNetUpdate();
 		return FinishPawnConversion(false);
 	}
@@ -1150,9 +1310,17 @@ bool ASnowmanModeGameMode::ConvertPlayerToSnowmanPawn(
 	SnowmanCharacter->SetReplicates(true);
 	SnowmanCharacter->SetReplicateMovement(true);
 	SnowmanCharacter->SetOwner(PlayerController);
+	SnowmanCharacter->SetInstigator(ExistingCharacter);
 	SnowmanCharacter->ForceNetUpdate();
+	if (ExistingCharacter)
+	{
+		ExistingCharacter->SetActorEnableCollision(false);
+		ExistingCharacter->ForceNetUpdate();
+	}
 	PlayerController->ForceNetUpdate();
 	PlayerController->Possess(SnowmanCharacter);
+	PlayerController->SetViewTarget(SnowmanCharacter);
+	PlayerController->ClientRestart(SnowmanCharacter);
 	SnowmanCharacter->ForceNetUpdate();
 	PlayerController->ForceNetUpdate();
 	if (PlayerController->GetPawn() != SnowmanCharacter)
@@ -1163,8 +1331,9 @@ bool ASnowmanModeGameMode::ConvertPlayerToSnowmanPawn(
 			nullptr,
 			ETeleportType::TeleportPhysics);
 		SnowmanCharacter->ForceNetUpdate();
-		PlayerController->UnPossess();
 		PlayerController->Possess(SnowmanCharacter);
+		PlayerController->SetViewTarget(SnowmanCharacter);
+		PlayerController->ClientRestart(SnowmanCharacter);
 		SnowmanCharacter->ForceNetUpdate();
 		PlayerController->ForceNetUpdate();
 	}
@@ -1191,6 +1360,8 @@ bool ASnowmanModeGameMode::ConvertPlayerToSnowmanPawn(
 		{
 			ExistingCharacter->SetActorEnableCollision(true);
 			PlayerController->Possess(ExistingCharacter);
+			PlayerController->SetViewTarget(ExistingCharacter);
+			PlayerController->ClientRestart(ExistingCharacter);
 			ExistingCharacter->ForceNetUpdate();
 		}
 		PlayerController->ForceNetUpdate();
@@ -1198,11 +1369,14 @@ bool ASnowmanModeGameMode::ConvertPlayerToSnowmanPawn(
 	}
 
 	PlayerController->SetControlRotation(ControlRotation);
+	PlayerController->SetViewTarget(SnowmanCharacter);
+	PlayerController->ClientRestart(SnowmanCharacter);
 	if (ExistingCharacter)
 	{
 		ExistingCharacter->Destroy();
 	}
 	ApplySnowmanMovementSpeed(SnowmanCharacter);
+	GrantSpawnInfectionGrace(PlayerState);
 	SnowmanCharacter->ForceNetUpdate();
 	PlayerController->ForceNetUpdate();
 	PlayerState->ForceNetUpdate();
@@ -1266,6 +1440,54 @@ ASnowmanModeGameMode::CollectSnowmanPlayerStates() const
 	}
 
 	return PlayerStates;
+}
+
+void ASnowmanModeGameMode::GrantSpawnInfectionGrace(
+	ASnowRumblePlayerState* PlayerState)
+{
+	if (!HasAuthority() || !PlayerState || SpawnInfectionGraceSeconds <= 0.0f)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const TWeakObjectPtr<ASnowRumblePlayerState> PlayerStateKey(PlayerState);
+	SpawnInfectionGraceEndTimes.FindOrAdd(PlayerStateKey) =
+		World->GetTimeSeconds() + SpawnInfectionGraceSeconds;
+}
+
+bool ASnowmanModeGameMode::IsSpawnInfectionGraceActive(
+	const ASnowRumblePlayerState* PlayerState) const
+{
+	if (!PlayerState)
+	{
+		return false;
+	}
+
+	const TWeakObjectPtr<ASnowRumblePlayerState> PlayerStateKey(
+		const_cast<ASnowRumblePlayerState*>(PlayerState));
+	const double* GraceEndTime =
+		SpawnInfectionGraceEndTimes.Find(PlayerStateKey);
+	if (!GraceEndTime)
+	{
+		return false;
+	}
+
+	const UWorld* World = GetWorld();
+	return World && World->GetTimeSeconds() < *GraceEndTime;
+}
+
+void ASnowmanModeGameMode::GrantSpawnInfectionGraceToAllPlayers()
+{
+	for (ASnowRumblePlayerState* PlayerState : CollectSnowmanPlayerStates())
+	{
+		GrantSpawnInfectionGrace(PlayerState);
+	}
 }
 
 ASnowRumbleCharacter* ASnowmanModeGameMode::FindCharacterForPlayerState(
@@ -1383,29 +1605,148 @@ FTransform ASnowmanModeGameMode::BuildScatteredPlayerStartTransform(
 {
 	const FVector StartLocation = StartSpot->GetActorLocation();
 	const FRotator StartRotation = StartSpot->GetActorRotation();
+
+	FVector ResolvedStartLocation = StartLocation;
+	if (!TryResolveSpawnLocationOnGround(StartLocation, ResolvedStartLocation)
+		|| !IsSpawnCapsuleClear(ResolvedStartLocation))
+	{
+		ResolvedStartLocation = StartLocation;
+	}
+
 	if (PlayerStartSpawnScatterRadius <= 0.0f)
 	{
-		return FTransform(StartRotation, StartLocation);
+		return FTransform(StartRotation, ResolvedStartLocation);
 	}
 
 	const int32 Attempts = FMath::Max(1, PlayerStartSpawnScatterAttempts);
 	for (int32 AttemptIndex = 0; AttemptIndex < Attempts; ++AttemptIndex)
 	{
-		const FVector CandidateLocation =
+		const FVector RawCandidateLocation =
 			StartLocation
 			+ MakeSnowmanModeRandomHorizontalOffset(
 				PlayerStartSpawnScatterRadius);
-		if (IsSpawnLocationFarEnough(CandidateLocation))
+		FVector CandidateLocation = RawCandidateLocation;
+		if (TryResolveSpawnLocationOnGround(
+				RawCandidateLocation,
+				CandidateLocation)
+			&& IsSpawnLocationFarEnough(CandidateLocation)
+			&& IsSpawnCapsuleClear(CandidateLocation))
 		{
 			return FTransform(StartRotation, CandidateLocation);
 		}
 	}
 
-	return FTransform(
-		StartRotation,
-		StartLocation
-			+ MakeSnowmanModeRandomHorizontalOffset(
-				PlayerStartSpawnScatterRadius));
+	return FTransform(StartRotation, ResolvedStartLocation);
+}
+
+bool ASnowmanModeGameMode::TryResolveSpawnLocationOnGround(
+	const FVector& CandidateLocation,
+	FVector& OutSpawnLocation) const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	float CapsuleRadius = 42.0f;
+	float CapsuleHalfHeight = 96.0f;
+	GetDefaultPawnCapsuleSize(CapsuleRadius, CapsuleHalfHeight);
+
+	const FVector TraceStart =
+		CandidateLocation + FVector::UpVector * 1000.0f;
+	const FVector TraceEnd =
+		CandidateLocation - FVector::UpVector * 3000.0f;
+
+	FHitResult GroundHit;
+	FCollisionQueryParams QueryParams(
+		SCENE_QUERY_STAT(SnowmanModeSpawnGround),
+		false);
+	if (!World->LineTraceSingleByChannel(
+			GroundHit,
+			TraceStart,
+			TraceEnd,
+			ECC_WorldStatic,
+			QueryParams)
+		|| !GroundHit.bBlockingHit)
+	{
+		return false;
+	}
+
+	OutSpawnLocation =
+		GroundHit.ImpactPoint
+		+ FVector::UpVector * (CapsuleHalfHeight + 3.0f);
+	return true;
+}
+
+bool ASnowmanModeGameMode::IsSpawnCapsuleClear(
+	const FVector& SpawnLocation) const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	float CapsuleRadius = 42.0f;
+	float CapsuleHalfHeight = 96.0f;
+	GetDefaultPawnCapsuleSize(CapsuleRadius, CapsuleHalfHeight);
+
+	const FCollisionShape CapsuleShape =
+		FCollisionShape::MakeCapsule(CapsuleRadius, CapsuleHalfHeight);
+	FCollisionQueryParams QueryParams(
+		SCENE_QUERY_STAT(SnowmanModeSpawnCapsule),
+		false);
+	return !World->OverlapBlockingTestByChannel(
+		SpawnLocation,
+		FQuat::Identity,
+		ECC_Pawn,
+		CapsuleShape,
+		QueryParams);
+}
+
+void ASnowmanModeGameMode::GetDefaultPawnCapsuleSize(
+	float& OutCapsuleRadius,
+	float& OutCapsuleHalfHeight) const
+{
+	OutCapsuleRadius = 42.0f;
+	OutCapsuleHalfHeight = 96.0f;
+
+	const ASnowRumbleCharacter* DefaultCharacter =
+		DefaultPawnClass
+			? Cast<ASnowRumbleCharacter>(DefaultPawnClass->GetDefaultObject())
+			: nullptr;
+	const UCapsuleComponent* DefaultCapsule =
+		DefaultCharacter ? DefaultCharacter->GetCapsuleComponent() : nullptr;
+	if (DefaultCapsule)
+	{
+		OutCapsuleRadius = DefaultCapsule->GetScaledCapsuleRadius();
+		OutCapsuleHalfHeight = DefaultCapsule->GetScaledCapsuleHalfHeight();
+	}
+
+	TSubclassOf<ASnowmanModeSnowmanCharacter> SpawnClass =
+		SnowmanCharacterClass;
+	if (!SpawnClass)
+	{
+		SpawnClass = ASnowmanModeSnowmanCharacter::StaticClass();
+	}
+	const ASnowmanModeSnowmanCharacter* SnowmanDefaultObject =
+		SpawnClass ? SpawnClass.GetDefaultObject() : nullptr;
+	const UCapsuleComponent* SnowmanCapsule =
+		SnowmanDefaultObject
+			? SnowmanDefaultObject->GetCapsuleComponent()
+			: nullptr;
+	if (!SnowmanCapsule)
+	{
+		return;
+	}
+
+	OutCapsuleRadius = FMath::Max(
+		OutCapsuleRadius,
+		SnowmanCapsule->GetScaledCapsuleRadius());
+	OutCapsuleHalfHeight = FMath::Max(
+		OutCapsuleHalfHeight,
+		SnowmanCapsule->GetScaledCapsuleHalfHeight());
 }
 
 bool ASnowmanModeGameMode::IsSpawnLocationFarEnough(

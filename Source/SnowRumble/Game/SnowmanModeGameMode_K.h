@@ -79,6 +79,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Infection", meta = (ClampMin = "0.01"))
 	float InfectionScanIntervalSeconds = 0.1f;
 
+	/** 스폰 또는 눈사람 전환 직후 접촉 감염을 무시할 시간이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Infection", meta = (ClampMin = "0.0"))
+	float SpawnInfectionGraceSeconds = 3.0f;
+
 	/** 접촉 감염 후보와 판정 결과를 서버 로그에 출력한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Debug")
 	bool bLogSnowmanInfectionDebug = true;
@@ -148,6 +152,16 @@ private:
 	/** 현재 GameState의 SnowRumble PlayerState 목록을 수집한다. */
 	TArray<ASnowRumblePlayerState*> CollectSnowmanPlayerStates() const;
 
+	/** 지정 플레이어에게 스폰 직후 감염 면역 시간을 부여한다. */
+	void GrantSpawnInfectionGrace(ASnowRumblePlayerState* PlayerState);
+
+	/** 현재 접촉 감염 면역 시간 안에 있는지 확인한다. */
+	bool IsSpawnInfectionGraceActive(
+		const ASnowRumblePlayerState* PlayerState) const;
+
+	/** 현재 참가자 전체에게 감염 면역 시간을 부여한다. */
+	void GrantSpawnInfectionGraceToAllPlayers();
+
 	/** 지정 PlayerState가 소유한 캐릭터를 찾는다. */
 	ASnowRumbleCharacter* FindCharacterForPlayerState(
 		const ASnowRumblePlayerState* PlayerState) const;
@@ -167,6 +181,10 @@ private:
 
 	/** 이번 눈사람 모드에서 이미 확정한 실제 스폰 위치다. */
 	TArray<FVector> UsedSpawnLocations;
+
+	/** PlayerState별 접촉 감염 면역 종료 월드 시간이다. */
+	TMap<TWeakObjectPtr<ASnowRumblePlayerState>, double>
+		SpawnInfectionGraceEndTimes;
 
 	FTimerHandle InfectionScanTimerHandle;
 	FTimerHandle SnowmanRoleInitializationRetryTimerHandle;
@@ -190,6 +208,19 @@ private:
 	/** 선택된 PlayerStart를 기준으로 실제 Pawn 생성 transform을 만든다. */
 	FTransform BuildScatteredPlayerStartTransform(
 		const AActor* StartSpot) const;
+
+	/** 후보 위치 아래 바닥을 찾아 Pawn 캡슐 높이에 맞는 스폰 위치로 보정한다. */
+	bool TryResolveSpawnLocationOnGround(
+		const FVector& CandidateLocation,
+		FVector& OutSpawnLocation) const;
+
+	/** 후보 스폰 위치에 Pawn 캡슐을 놓을 수 있는지 확인한다. */
+	bool IsSpawnCapsuleClear(const FVector& SpawnLocation) const;
+
+	/** 기본 인간 Pawn과 눈사람 Pawn 중 더 큰 캡슐 크기를 스폰 검사 기준으로 반환한다. */
+	void GetDefaultPawnCapsuleSize(
+		float& OutCapsuleRadius,
+		float& OutCapsuleHalfHeight) const;
 
 	/** 이번 모드에서 이미 확정한 스폰 위치와 충분히 떨어져 있는지 확인한다. */
 	bool IsSpawnLocationFarEnough(const FVector& CandidateLocation) const;
