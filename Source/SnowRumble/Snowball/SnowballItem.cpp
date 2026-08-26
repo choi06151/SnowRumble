@@ -582,7 +582,7 @@ void ASnowballItem::DestroyThrownRolling(const FHitResult& Hit)
 
 bool ASnowballItem::IsFullyGrown() const
 {
-	return GrowthProgress >= 0.999f;
+	return GrowthProgress >= FMath::Clamp(LargeSnowballGrowthThreshold, 0.0f, 1.0f);
 }
 
 float ASnowballItem::GetRollingCollisionRadius() const
