@@ -592,7 +592,7 @@ bool UMainMenuWidget::ValidateAndSavePlayerNameInput()
 	}
 
 	const FString InputName = PlayerNameTextBox->GetText().ToString();
-	if (InputName.TrimStartAndEnd().Len() > 7)
+	if (InputName.TrimStartAndEnd().Len() > 10)
 	{
 		ShowMainMenuAlarm(NSLOCTEXT(
 			"SnowRumble",

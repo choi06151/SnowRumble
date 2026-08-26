@@ -12,6 +12,7 @@
 #include "../Environment/SnowTrailRenderTargetManager_C.h"
 #include "../Interaction/LobbyInteractionBoard_C.h"
 #include "../Interaction/PhotoInteractionActor_C.h"
+#include "../Interaction/JukeboxActor_C.h"
 #include "../Interaction/OutlineComponent.h"
 #include "../Item/GiftBox_C.h"
 #include "../Item/GiftBoxItemPickup_C.h"
@@ -284,11 +285,83 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 	EnsureOverheadTimedActionWidget();
 
+	if (USkeletalMeshComponent* CharacterMesh = GetMesh())
+	{
+		if (bIsPickingUpItem)
+		{
+			SetActorRotation(PickupLockedRotation);
+
+			if (IsLocallyControlled())
+			{
+				if (AController* LocalController = GetController())
+				{
+					FRotator LockedControlRotation =
+						LocalController->GetControlRotation();
+					LockedControlRotation.Yaw =
+						PickupLockedControlRotation.Yaw;
+					LocalController->SetControlRotation(LockedControlRotation);
+				}
+			}
+		}
+
+		FVector TargetMeshRelativeLocation = DefaultCharacterMeshRelativeLocation;
+		bool bHasRollingSurface = false;
+		bool bIsRollingOnSnowSurface = false;
+		if (SnowballEquipmentComponent
+			&& SnowballEquipmentComponent->IsRollingSnowball())
+		{
+			FHitResult RollingSurfaceHit;
+			bHasRollingSurface = FindFootstepSurface(
+				NAME_None,
+				RollingSurfaceHit);
+			bIsRollingOnSnowSurface = bHasRollingSurface
+				&& RollingSurfaceHit.GetActor()
+				&& RollingSurfaceHit.GetActor()->ActorHasTag(
+					SnowFootstepSurfaceTag);
+		}
+		if (bHasRollingSurface)
+		{
+			TargetMeshRelativeLocation.Z += bIsRollingOnSnowSurface
+				? RollingPlayerMeshSnowSurfaceZOffset
+				: RollingPlayerMeshGroundZOffset;
+		}
+
+		if (!CharacterMesh->GetRelativeLocation().Equals(
+			TargetMeshRelativeLocation,
+			KINDA_SMALL_NUMBER))
+		{
+			CharacterMesh->SetRelativeLocation(TargetMeshRelativeLocation);
+		}
+	}
+
 	const UWorld* World = GetWorld();
 	const bool bUseAimCameraPresentation =
 		IsAiming()
 		|| (World
 			&& World->GetTimeSeconds() < PostThrowAimCameraEndTime);
+	const ASnowballItem* HeldSnowball = SnowballEquipmentComponent
+		? SnowballEquipmentComponent->GetHeldSnowball()
+		: nullptr;
+	const bool bHasLargeSnowball =
+		HeldSnowball && HeldSnowball->IsFullyGrown();
+	const bool bUseLargeSnowballAimCamera =
+		IsAiming()
+		&& bHasLargeSnowball;
+	const bool bUseSprintCamera =
+		IsSprinting()
+		&& !bUseAimCameraPresentation
+		&& !bHasLargeSnowball;
+	const float CameraTransitionInterpSpeed = FMath::Max(
+		0.0f,
+		bUseLargeSnowballAimCamera
+			? LargeSnowballAimCameraInterpSpeed
+			: (bHasLargeSnowball
+				? LargeSnowballHeldCameraInterpSpeed
+				: (bUseAimCameraPresentation
+					? AimFieldOfViewInterpSpeed
+					: (bUseSprintCamera
+						? SprintCameraInterpSpeed
+						: CameraPositionInterpSpeed))));
 	if (IsLocallyControlled() && bTiebreakerSpectator)
 	{
 		RefreshTiebreakerSpectatorViewTarget();
@@ -301,36 +374,54 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 		FVector TargetCameraOffset = DefaultCameraSocketOffset;
 		const float ShoulderOffset =
 			bUseAimCameraPresentation
-				? AimShoulderOffset
-				: DefaultShoulderOffset;
+				? (bUseLargeSnowballAimCamera
+					? LargeSnowballAimShoulderOffset
+					: AimShoulderOffset)
+				: (bHasLargeSnowball
+					? LargeSnowballHeldShoulderOffset
+					: (bUseSprintCamera
+						? SprintShoulderOffset
+						: DefaultShoulderOffset));
 		TargetCameraOffset.Y += CameraShoulderSide * ShoulderOffset;
 
 		CameraBoom->SocketOffset = FMath::VInterpTo(
 			CameraBoom->SocketOffset,
 			TargetCameraOffset,
 			DeltaSeconds,
-			CameraPositionInterpSpeed);
+			CameraTransitionInterpSpeed);
 		CameraBoom->SocketOffset += CalculateLocalDamageCameraShakeOffset();
 		CameraBoom->TargetArmLength = FMath::FInterpTo(
 			CameraBoom->TargetArmLength,
 			bUseAimCameraPresentation
-				? AimCameraArmLength
-				: DesiredCameraArmLength,
+				? (bUseLargeSnowballAimCamera
+					? LargeSnowballAimCameraArmLength
+					: AimCameraArmLength)
+				: (bHasLargeSnowball
+					? LargeSnowballHeldCameraArmLength
+					: (bUseSprintCamera
+						? SprintCameraArmLength
+						: DesiredCameraArmLength)),
 			DeltaSeconds,
-			CameraPositionInterpSpeed);
+			CameraTransitionInterpSpeed);
 	}
 
 	if (IsLocallyControlled() && FollowCamera && !bTiebreakerSpectator)
 	{
 		const float TargetFieldOfView =
 			bUseAimCameraPresentation
-				? AimFieldOfView
-				: DefaultFieldOfView;
+				? (bUseLargeSnowballAimCamera
+					? LargeSnowballAimFieldOfView
+					: AimFieldOfView)
+				: (bHasLargeSnowball
+					? LargeSnowballHeldFieldOfView
+					: (bUseSprintCamera
+						? SprintFieldOfView
+						: DefaultFieldOfView));
 		FollowCamera->SetFieldOfView(FMath::FInterpTo(
 			FollowCamera->FieldOfView,
 			TargetFieldOfView,
 			DeltaSeconds,
-			AimFieldOfViewInterpSpeed));
+			CameraTransitionInterpSpeed));
 	}
 	if (IsLocallyControlled())
 	{
@@ -350,6 +441,10 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 			&& !FocusedPhotoActor)
 		{
 			OutlinedActor = FindClosestPhotoInteractionCandidate();
+			if (!OutlinedActor)
+			{
+				OutlinedActor = FindClosestJukeboxCandidate();
+			}
 			if (!OutlinedActor)
 			{
 				OutlinedActor = FindClosestLobbyBoardCandidate();
@@ -534,6 +629,12 @@ bool ASnowRumbleCharacter::IsAiming() const
 {
 	return SnowballEquipmentComponent
 		&& SnowballEquipmentComponent->IsAiming();
+}
+
+bool ASnowRumbleCharacter::IsHoldingLargeSnowball() const
+{
+	return SnowballEquipmentComponent
+		&& SnowballEquipmentComponent->IsHoldingLargeSnowball();
 }
 
 bool ASnowRumbleCharacter::IsChargingSnowball() const
@@ -1375,6 +1476,14 @@ float ASnowRumbleCharacter::TakeDamage(
 		EventInstigator,
 		DamageCauser);
 
+	const UWorld* World = GetWorld();
+	const double CurrentTime = World ? World->GetTimeSeconds() : 0.0;
+	if (PostDamageInvulnerabilitySeconds > 0.0f
+		&& CurrentTime < DamageInvulnerableUntilTime)
+	{
+		return 0.0f;
+	}
+
 	if (GiftItemEffectComponent && GiftItemEffectComponent->IsInvulnerable())
 	{
 		return 0.0f;
@@ -1393,6 +1502,9 @@ float ASnowRumbleCharacter::TakeDamage(
 		HealthComponent ? HealthComponent->ApplyDamage(AdjustedDamage) : 0.0f;
 	if (AppliedDamage > 0.0f)
 	{
+		DamageInvulnerableUntilTime =
+			CurrentTime + PostDamageInvulnerabilitySeconds;
+
 		if (SnowballEquipmentComponent)
 		{
 			SnowballEquipmentComponent->InterruptThrowStateFromServer();
@@ -1420,6 +1532,11 @@ void ASnowRumbleCharacter::OnConstruction(const FTransform& Transform)
 void ASnowRumbleCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (GetMesh())
+	{
+		DefaultCharacterMeshRelativeLocation = GetMesh()->GetRelativeLocation();
+	}
 
 	if (FollowCamera)
 	{
@@ -2756,15 +2873,11 @@ void ASnowRumbleCharacter::RefreshInteractionPromptWidget()
 		return;
 	}
 
-	FVector PromptOrigin;
-	FVector PromptExtent;
-	PromptActor->GetActorBounds(true, PromptOrigin, PromptExtent);
-	const FVector PromptWorldLocation =
-		PromptOrigin
-		+ FVector(
-			0.0f,
-			0.0f,
-			PromptExtent.Z + InteractionPromptWorldHeightOffset);
+	const FVector PromptRootLocation = PromptActor->GetRootComponent()
+		? PromptActor->GetRootComponent()->GetComponentLocation()
+		: PromptActor->GetActorLocation();
+	const FVector PromptWorldLocation = PromptRootLocation
+		+ FVector(0.0f, 0.0f, InteractionPromptWorldHeightOffset);
 
 	FVector2D PromptScreenPosition;
 	if (!PlayerController->ProjectWorldLocationToScreen(
@@ -2805,6 +2918,16 @@ bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
 			"InteractPromptPhoto",
 			"E - 사진찍기");
 		OutPromptActor = PhotoActor;
+		return true;
+	}
+
+	if (AJukeboxActor* Jukebox = FindClosestJukeboxCandidate())
+	{
+		OutPromptText = NSLOCTEXT(
+			"SnowRumble",
+			"InteractPromptJukebox",
+			"E - 노래틀기");
+		OutPromptActor = Jukebox;
 		return true;
 	}
 
@@ -3460,27 +3583,38 @@ void ASnowRumbleCharacter::HandleInteractCompleted()
 			}
 			else
 			{
-			const ALobbyInteractionBoard* OutlinedBoard = OutlineComponent
-				? Cast<ALobbyInteractionBoard>(OutlineComponent->GetOutlinedActor())
-				: nullptr;
-			if (OutlinedBoard)
-			{
-				TryInteractWithLobbyBoard();
-			}
-			else if (OutlineComponent
-				&& Cast<AGiftBox>(OutlineComponent->GetOutlinedActor()))
-			{
-				TryInteractWithGiftBox();
-			}
-			else if (OutlineComponent
-				&& Cast<AGiftBoxItemPickup>(OutlineComponent->GetOutlinedActor()))
-			{
-				TryPickupGiftBoxItem();
-			}
-			else
-			{
-				SnowballEquipmentComponent->TryPickupSnowball();
-			}
+				AJukeboxActor* OutlinedJukebox = OutlineComponent
+					? Cast<AJukeboxActor>(OutlineComponent->GetOutlinedActor())
+					: nullptr;
+				if (OutlinedJukebox
+					&& OutlinedJukebox == FindClosestJukeboxCandidate())
+				{
+					TryInteractWithJukebox();
+				}
+				else
+				{
+					const ALobbyInteractionBoard* OutlinedBoard = OutlineComponent
+						? Cast<ALobbyInteractionBoard>(OutlineComponent->GetOutlinedActor())
+						: nullptr;
+					if (OutlinedBoard)
+					{
+						TryInteractWithLobbyBoard();
+					}
+					else if (OutlineComponent
+						&& Cast<AGiftBox>(OutlineComponent->GetOutlinedActor()))
+					{
+						TryInteractWithGiftBox();
+					}
+					else if (OutlineComponent
+						&& Cast<AGiftBoxItemPickup>(OutlineComponent->GetOutlinedActor()))
+					{
+						TryPickupGiftBoxItem();
+					}
+					else
+					{
+						SnowballEquipmentComponent->TryPickupSnowball();
+					}
+				}
 			}
 		}
 	}
@@ -3505,6 +3639,8 @@ void ASnowRumbleCharacter::HandleAimCompleted()
 	{
 		if (SnowballEquipmentComponent->IsCharging())
 		{
+			SnowballEquipmentComponent->HideThrowTrajectoryPreview();
+
 			if (IsLocallyControlled() && GetWorld())
 			{
 				PostThrowAimCameraEndTime =
@@ -3582,6 +3718,8 @@ void ASnowRumbleCharacter::HandleActionCompleted()
 
 	if (SnowballEquipmentComponent && SnowballEquipmentComponent->IsCharging())
 	{
+		SnowballEquipmentComponent->HideThrowTrajectoryPreview();
+
 		if (IsLocallyControlled() && GetWorld())
 		{
 			PostThrowAimCameraEndTime =
@@ -4368,6 +4506,12 @@ void ASnowRumbleCharacter::HandleGrabbedByCharacterChanged(bool bNewGrabbed)
 
 void ASnowRumbleCharacter::HandleSnowballAimingChanged(bool bNewAiming)
 {
+	if (IsLocallyControlled() && MainHUDWidget)
+	{
+		MainHUDWidget->SetAimCrosshairVisibleImmediate(
+			bNewAiming && !IsHoldingLargeSnowball());
+	}
+
 	if (IsHangingFromWorldGrab() || IsGrabbedByCharacter())
 	{
 		bUseControllerRotationYaw = false;
@@ -4483,6 +4627,39 @@ ASnowRumbleCharacter::FindClosestPhotoInteractionCandidate() const
 	}
 
 	return ClosestPhotoActor;
+}
+
+AJukeboxActor* ASnowRumbleCharacter::FindClosestJukeboxCandidate() const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return nullptr;
+	}
+
+	const FVector CharacterLocation = GetActorLocation();
+	float ClosestDistanceSquared = TNumericLimits<float>::Max();
+	AJukeboxActor* ClosestJukebox = nullptr;
+
+	for (TActorIterator<AJukeboxActor> Iterator(World); Iterator; ++Iterator)
+	{
+		AJukeboxActor* Candidate = *Iterator;
+		if (!Candidate || !Candidate->CanInteractWith(this))
+		{
+			continue;
+		}
+
+		const float DistanceSquared = FVector::DistSquared(
+			CharacterLocation,
+			Candidate->GetActorLocation());
+		if (DistanceSquared < ClosestDistanceSquared)
+		{
+			ClosestDistanceSquared = DistanceSquared;
+			ClosestJukebox = Candidate;
+		}
+	}
+
+	return ClosestJukebox;
 }
 
 AGiftBox* ASnowRumbleCharacter::FindClosestGiftBoxCandidate() const
@@ -4658,6 +4835,29 @@ void ASnowRumbleCharacter::TryInteractWithPhotoActor()
 	else
 	{
 		ServerTryInteractWithPhotoActor(PhotoActor);
+	}
+}
+
+void ASnowRumbleCharacter::TryInteractWithJukebox()
+{
+	if (!IsLocallyControlled() || !CanPerformGameplayAction())
+	{
+		return;
+	}
+
+	AJukeboxActor* Jukebox = FindClosestJukeboxCandidate();
+	if (!Jukebox)
+	{
+		return;
+	}
+
+	if (HasAuthority())
+	{
+		ServerTryInteractWithJukebox_Implementation(Jukebox);
+	}
+	else
+	{
+		ServerTryInteractWithJukebox(Jukebox);
 	}
 }
 
@@ -4920,6 +5120,19 @@ void ASnowRumbleCharacter::ServerTryInteractWithPhotoActor_Implementation(
 	}
 
 	PhotoActor->Interact(this);
+}
+
+void ASnowRumbleCharacter::ServerTryInteractWithJukebox_Implementation(
+	AJukeboxActor* Jukebox)
+{
+	if (!CanPerformGameplayAction()
+		|| !Jukebox
+		|| !Jukebox->CanInteractWith(this))
+	{
+		return;
+	}
+
+	Jukebox->Interact(this);
 }
 
 void ASnowRumbleCharacter::ServerTryOpenGiftBox_Implementation(
@@ -5248,7 +5461,7 @@ bool ASnowRumbleCharacter::FindFootstepSurface(
 	FName FootSocketName,
 	FHitResult& OutFootstepHit) const
 {
-	if (!GetMesh() || FootSocketName.IsNone())
+	if (!GetMesh())
 	{
 		return false;
 	}
@@ -5259,9 +5472,11 @@ bool ASnowRumbleCharacter::FindFootstepSurface(
 		return false;
 	}
 
-	const FVector SocketLocation = GetMesh()->DoesSocketExist(FootSocketName)
-		? GetMesh()->GetSocketLocation(FootSocketName)
-		: GetActorLocation();
+	const FVector SocketLocation = FootSocketName.IsNone()
+		? GetSnowTrailProbeLocation()
+		: (GetMesh()->DoesSocketExist(FootSocketName)
+			? GetMesh()->GetSocketLocation(FootSocketName)
+			: GetActorLocation());
 	const float TraceUpOffset = FMath::Max(80.0f, SnowFootstepTraceUpOffset);
 	const float TraceDownDistance =
 		FMath::Max(140.0f, SnowFootstepTraceDownDistance);
@@ -5921,6 +6136,15 @@ void ASnowRumbleCharacter::FinishHitReactAnimationState()
 
 void ASnowRumbleCharacter::OnRep_IsPickingUpItem()
 {
+	if (bIsPickingUpItem)
+	{
+		PickupLockedRotation = GetActorRotation();
+		if (AController* LocalController = GetController())
+		{
+			PickupLockedControlRotation = LocalController->GetControlRotation();
+		}
+	}
+
 	UCharacterMovementComponent* MovementComponent = GetCharacterMovement();
 	if (bIsPickingUpItem && MovementComponent)
 	{

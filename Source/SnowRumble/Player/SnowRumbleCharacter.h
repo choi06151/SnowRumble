@@ -50,6 +50,7 @@ class AGiftBox;
 class AGiftBoxItemPickup;
 class ALobbyInteractionBoard;
 class APhotoInteractionActor;
+class AJukeboxActor;
 class ASnowballItem;
 struct FDamageEvent;
 struct FInputActionValue;
@@ -156,6 +157,10 @@ public:
 	/** Animation Blueprint에서 눈덩이 조준 상태인지 확인한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
 	bool IsAiming() const;
+
+	/** 현재 큰 눈덩이를 들고 있는지 확인한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
+	bool IsHoldingLargeSnowball() const;
 
 	/** Animation Blueprint에서 눈덩이 투척 충전 중인지 확인한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Animation")
@@ -649,6 +654,7 @@ protected:
 
 	/** 로컬 플레이어가 상호작용할 가장 가까운 사진 촬영 액터를 찾는다. */
 	APhotoInteractionActor* FindClosestPhotoInteractionCandidate() const;
+	AJukeboxActor* FindClosestJukeboxCandidate() const;
 
 	/** 로컬 플레이어가 상호작용할 가장 가까운 선물상자를 찾는다. */
 	AGiftBox* FindClosestGiftBoxCandidate() const;
@@ -673,6 +679,7 @@ protected:
 
 	/** 소유 플레이어가 가까운 사진 촬영 액터 상호작용을 서버에 요청한다. */
 	void TryInteractWithPhotoActor();
+	void TryInteractWithJukebox();
 
 	/** 사진 촬영 상태에서 P 키를 눌러 로컬 스크린샷을 저장한다. */
 	void HandlePhotoCapture();
@@ -693,6 +700,9 @@ protected:
 	/** 서버가 현재 위치와 상태를 검사해 사진 촬영 상호작용을 확정한다. */
 	UFUNCTION(Server, Reliable)
 	void ServerTryInteractWithPhotoActor(APhotoInteractionActor* PhotoActor);
+
+	UFUNCTION(Server, Reliable)
+	void ServerTryInteractWithJukebox(AJukeboxActor* Jukebox);
 
 	/** 서버가 현재 위치와 상태를 검사해 선물상자 개봉을 확정한다. */
 	UFUNCTION(Server, Reliable)
@@ -927,6 +937,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage Feedback", meta = (ClampMin = "0.0"))
 	float DamageFeedbackCameraShakeFrequency = 34.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage", meta = (ClampMin = "0.0"))
+	float PostDamageInvulnerabilitySeconds = 1.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Effect")
 	TObjectPtr<UGiftItemEffectComponent> GiftItemEffectComponent;
@@ -1395,9 +1408,18 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling|Debug")
 	bool bDrawRollingSnowballCollisionDebug = true;
 
+	/** SnowSurface 위에서 눈덩이를 굴리는 동안 캐릭터 메쉬에 적용할 상대 Z 오프셋이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling", meta = (ClampMin = "-200.0", ClampMax = "200.0"))
+	float RollingPlayerMeshSnowSurfaceZOffset = 0.0f;
+
+	/** 일반 지면에서 눈덩이를 굴리는 동안 캐릭터 메쉬에 적용할 상대 Z 오프셋이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling", meta = (ClampMin = "-200.0", ClampMax = "200.0"))
+	float RollingPlayerMeshGroundZOffset = 0.0f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera", meta = (ClampMin = "5.0", ClampMax = "170.0"))
 	float AimFieldOfView = 75.0f;
 
+	/** 작은 눈덩이 조준 또는 일반 조준 카메라로 전환되는 보간 속도다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera", meta = (ClampMin = "0.0"))
 	float AimFieldOfViewInterpSpeed = 3.0f;
 
@@ -1409,6 +1431,54 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera", meta = (ClampMin = "0.0"))
 	float AimCameraArmLength = 340.0f;
+
+	/** 실제 스프린트 이동 중 사용할 Field of View다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Sprint", meta = (ClampMin = "5.0", ClampMax = "170.0"))
+	float SprintFieldOfView = 95.0f;
+
+	/** 실제 스프린트 이동 중 사용할 어깨 오프셋이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Sprint", meta = (ClampMin = "0.0"))
+	float SprintShoulderOffset = 80.0f;
+
+	/** 실제 스프린트 이동 중 사용할 SpringArm 길이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Sprint", meta = (ClampMin = "0.0"))
+	float SprintCameraArmLength = 430.0f;
+
+	/** 스프린트 카메라 설정으로 전환되는 보간 속도다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Sprint", meta = (ClampMin = "0.0"))
+	float SprintCameraInterpSpeed = 5.0f;
+
+	/** 큰 눈덩이를 조준할 때 사용할 Field of View다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Large Snowball", meta = (ClampMin = "5.0", ClampMax = "170.0"))
+	float LargeSnowballAimFieldOfView = 70.0f;
+
+	/** 큰 눈덩이를 조준할 때 사용할 어깨 오프셋이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Large Snowball", meta = (ClampMin = "0.0"))
+	float LargeSnowballAimShoulderOffset = 105.0f;
+
+	/** 큰 눈덩이를 조준할 때 사용할 SpringArm 길이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Large Snowball", meta = (ClampMin = "0.0"))
+	float LargeSnowballAimCameraArmLength = 390.0f;
+
+	/** 큰 눈덩이를 들고 조준하지 않을 때 사용할 Field of View다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Large Snowball", meta = (ClampMin = "5.0", ClampMax = "170.0"))
+	float LargeSnowballHeldFieldOfView = 85.0f;
+
+	/** 큰 눈덩이를 들고 조준하지 않을 때 사용할 어깨 오프셋이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Large Snowball", meta = (ClampMin = "0.0"))
+	float LargeSnowballHeldShoulderOffset = 85.0f;
+
+	/** 큰 눈덩이를 들고 조준하지 않을 때 사용할 SpringArm 길이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Large Snowball", meta = (ClampMin = "0.0"))
+	float LargeSnowballHeldCameraArmLength = 430.0f;
+
+	/** 큰 눈덩이를 들고 있을 때 카메라 설정으로 전환되는 보간 속도다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Large Snowball", meta = (ClampMin = "0.0"))
+	float LargeSnowballHeldCameraInterpSpeed = 5.0f;
+
+	/** 큰 눈덩이를 조준할 때 카메라 설정으로 전환되는 보간 속도다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Large Snowball", meta = (ClampMin = "0.0"))
+	float LargeSnowballAimCameraInterpSpeed = 5.0f;
 
 	/** 마우스 휠 한 칸당 카메라 SpringArm 길이 변화량이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Zoom", meta = (ClampMin = "1.0"))
@@ -1422,6 +1492,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Zoom", meta = (ClampMin = "0.0"))
 	float MaximumCameraArmLength = 650.0f;
 
+	/** 일반 카메라 설정으로 전환되는 보간 속도다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera", meta = (ClampMin = "0.0"))
 	float CameraPositionInterpSpeed = 1.0f;
 
@@ -1637,7 +1708,11 @@ public:
 	float DefaultCameraArmLength = 400.0f;
 	float DesiredCameraArmLength = 400.0f;
 	float CameraShoulderSide = 1.0f;
+	FVector DefaultCharacterMeshRelativeLocation = FVector::ZeroVector;
+	FRotator PickupLockedRotation = FRotator::ZeroRotator;
+	FRotator PickupLockedControlRotation = FRotator::ZeroRotator;
 	double PostThrowAimCameraEndTime = -1.0;
+	double DamageInvulnerableUntilTime = -1.0;
 	double LocalDamageCameraShakeStartTime = -1.0;
 	double LocalDamageCameraShakeEndTime = -1.0;
 	double LastSnowFootstepEffectTime = -1.0;

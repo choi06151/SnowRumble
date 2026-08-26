@@ -14,6 +14,7 @@ class UAudioComponent;
 class ULoadingScreenWidget;
 class UTexture2D;
 class UUserWidget;
+class UTimedDropAnnouncementWidget;
 class UVoiceMuteMenuWidget;
 class ACameraActor;
 class USoundBase;
@@ -128,6 +129,11 @@ public:
 	UFUNCTION(Client, Reliable, Category = "SnowRumble|UI|Personal Alarm")
 	void ClientShowPersonalTextAlarm(const FText& Message);
 
+	UFUNCTION(Client, Reliable, Category = "SnowRumble|UI|Timed Drop")
+	void ClientShowTimedDropAnnouncement(
+		TSubclassOf<UTimedDropAnnouncementWidget> WidgetClass,
+		float DisplayDurationSeconds);
+
 	UFUNCTION(Client, Reliable, Category = "SnowRumble|Match Intro")
 	void ClientPlayPvpTeamIntroShot(
 		ESnowRumbleTeam Team,
@@ -165,6 +171,9 @@ protected:
 		const FText& Message);
 	virtual void ClientShowPersonalTextAlarm_Implementation(
 		const FText& Message);
+	virtual void ClientShowTimedDropAnnouncement_Implementation(
+		TSubclassOf<UTimedDropAnnouncementWidget> WidgetClass,
+		float DisplayDurationSeconds);
 	virtual void ClientPlayPvpTeamIntroShot_Implementation(
 		ESnowRumbleTeam Team,
 		float ShotDurationSeconds);
@@ -402,6 +411,10 @@ private:
 	float PvpIntroCameraDurationSeconds = 0.0f;
 	bool bPvpIntroCameraActive = false;
 	FTimerHandle PvpIntroCameraDestroyTimerHandle;
+	FTimerHandle TimedDropAnnouncementTimerHandle;
+
+	UPROPERTY()
+	TObjectPtr<UTimedDropAnnouncementWidget> TimedDropAnnouncementWidget;
 
 	FKey BoundChatInputKey = EKeys::Invalid;
 	FKey BoundChatChannelToggleKey = EKeys::Invalid;
