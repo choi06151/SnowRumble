@@ -12,6 +12,7 @@
 #include "../Environment/SnowTrailRenderTargetManager_C.h"
 #include "../Interaction/LobbyInteractionBoard_C.h"
 #include "../Interaction/PhotoInteractionActor_C.h"
+#include "../Interaction/JukeboxActor_C.h"
 #include "../Interaction/OutlineComponent.h"
 #include "../Item/GiftBox_C.h"
 #include "../Item/GiftBoxItemPickup_C.h"
@@ -350,6 +351,10 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 			&& !FocusedPhotoActor)
 		{
 			OutlinedActor = FindClosestPhotoInteractionCandidate();
+			if (!OutlinedActor)
+			{
+				OutlinedActor = FindClosestJukeboxCandidate();
+			}
 			if (!OutlinedActor)
 			{
 				OutlinedActor = FindClosestLobbyBoardCandidate();
@@ -2756,15 +2761,11 @@ void ASnowRumbleCharacter::RefreshInteractionPromptWidget()
 		return;
 	}
 
-	FVector PromptOrigin;
-	FVector PromptExtent;
-	PromptActor->GetActorBounds(true, PromptOrigin, PromptExtent);
-	const FVector PromptWorldLocation =
-		PromptOrigin
-		+ FVector(
-			0.0f,
-			0.0f,
-			PromptExtent.Z + InteractionPromptWorldHeightOffset);
+	const FVector PromptRootLocation = PromptActor->GetRootComponent()
+		? PromptActor->GetRootComponent()->GetComponentLocation()
+		: PromptActor->GetActorLocation();
+	const FVector PromptWorldLocation = PromptRootLocation
+		+ FVector(0.0f, 0.0f, InteractionPromptWorldHeightOffset);
 
 	FVector2D PromptScreenPosition;
 	if (!PlayerController->ProjectWorldLocationToScreen(
@@ -2805,6 +2806,16 @@ bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
 			"InteractPromptPhoto",
 			"E - 사진찍기");
 		OutPromptActor = PhotoActor;
+		return true;
+	}
+
+	if (AJukeboxActor* Jukebox = FindClosestJukeboxCandidate())
+	{
+		OutPromptText = NSLOCTEXT(
+			"SnowRumble",
+			"InteractPromptJukebox",
+			"E - 노래틀기");
+		OutPromptActor = Jukebox;
 		return true;
 	}
 
@@ -3460,27 +3471,38 @@ void ASnowRumbleCharacter::HandleInteractCompleted()
 			}
 			else
 			{
-			const ALobbyInteractionBoard* OutlinedBoard = OutlineComponent
-				? Cast<ALobbyInteractionBoard>(OutlineComponent->GetOutlinedActor())
-				: nullptr;
-			if (OutlinedBoard)
-			{
-				TryInteractWithLobbyBoard();
-			}
-			else if (OutlineComponent
-				&& Cast<AGiftBox>(OutlineComponent->GetOutlinedActor()))
-			{
-				TryInteractWithGiftBox();
-			}
-			else if (OutlineComponent
-				&& Cast<AGiftBoxItemPickup>(OutlineComponent->GetOutlinedActor()))
-			{
-				TryPickupGiftBoxItem();
-			}
-			else
-			{
-				SnowballEquipmentComponent->TryPickupSnowball();
-			}
+				AJukeboxActor* OutlinedJukebox = OutlineComponent
+					? Cast<AJukeboxActor>(OutlineComponent->GetOutlinedActor())
+					: nullptr;
+				if (OutlinedJukebox
+					&& OutlinedJukebox == FindClosestJukeboxCandidate())
+				{
+					TryInteractWithJukebox();
+				}
+				else
+				{
+					const ALobbyInteractionBoard* OutlinedBoard = OutlineComponent
+						? Cast<ALobbyInteractionBoard>(OutlineComponent->GetOutlinedActor())
+						: nullptr;
+					if (OutlinedBoard)
+					{
+						TryInteractWithLobbyBoard();
+					}
+					else if (OutlineComponent
+						&& Cast<AGiftBox>(OutlineComponent->GetOutlinedActor()))
+					{
+						TryInteractWithGiftBox();
+					}
+					else if (OutlineComponent
+						&& Cast<AGiftBoxItemPickup>(OutlineComponent->GetOutlinedActor()))
+					{
+						TryPickupGiftBoxItem();
+					}
+					else
+					{
+						SnowballEquipmentComponent->TryPickupSnowball();
+					}
+				}
 			}
 		}
 	}
@@ -4485,6 +4507,39 @@ ASnowRumbleCharacter::FindClosestPhotoInteractionCandidate() const
 	return ClosestPhotoActor;
 }
 
+AJukeboxActor* ASnowRumbleCharacter::FindClosestJukeboxCandidate() const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return nullptr;
+	}
+
+	const FVector CharacterLocation = GetActorLocation();
+	float ClosestDistanceSquared = TNumericLimits<float>::Max();
+	AJukeboxActor* ClosestJukebox = nullptr;
+
+	for (TActorIterator<AJukeboxActor> Iterator(World); Iterator; ++Iterator)
+	{
+		AJukeboxActor* Candidate = *Iterator;
+		if (!Candidate || !Candidate->CanInteractWith(this))
+		{
+			continue;
+		}
+
+		const float DistanceSquared = FVector::DistSquared(
+			CharacterLocation,
+			Candidate->GetActorLocation());
+		if (DistanceSquared < ClosestDistanceSquared)
+		{
+			ClosestDistanceSquared = DistanceSquared;
+			ClosestJukebox = Candidate;
+		}
+	}
+
+	return ClosestJukebox;
+}
+
 AGiftBox* ASnowRumbleCharacter::FindClosestGiftBoxCandidate() const
 {
 	UWorld* World = GetWorld();
@@ -4658,6 +4713,29 @@ void ASnowRumbleCharacter::TryInteractWithPhotoActor()
 	else
 	{
 		ServerTryInteractWithPhotoActor(PhotoActor);
+	}
+}
+
+void ASnowRumbleCharacter::TryInteractWithJukebox()
+{
+	if (!IsLocallyControlled() || !CanPerformGameplayAction())
+	{
+		return;
+	}
+
+	AJukeboxActor* Jukebox = FindClosestJukeboxCandidate();
+	if (!Jukebox)
+	{
+		return;
+	}
+
+	if (HasAuthority())
+	{
+		ServerTryInteractWithJukebox_Implementation(Jukebox);
+	}
+	else
+	{
+		ServerTryInteractWithJukebox(Jukebox);
 	}
 }
 
@@ -4920,6 +4998,19 @@ void ASnowRumbleCharacter::ServerTryInteractWithPhotoActor_Implementation(
 	}
 
 	PhotoActor->Interact(this);
+}
+
+void ASnowRumbleCharacter::ServerTryInteractWithJukebox_Implementation(
+	AJukeboxActor* Jukebox)
+{
+	if (!CanPerformGameplayAction()
+		|| !Jukebox
+		|| !Jukebox->CanInteractWith(this))
+	{
+		return;
+	}
+
+	Jukebox->Interact(this);
 }
 
 void ASnowRumbleCharacter::ServerTryOpenGiftBox_Implementation(

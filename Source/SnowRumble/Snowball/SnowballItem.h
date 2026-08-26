@@ -32,6 +32,8 @@ class SNOWRUMBLE_API ASnowballItem : public AActor
 public:
 	ASnowballItem();
 
+	virtual void Tick(float DeltaSeconds) override;
+
 	/** 서버가 바닥 눈덩이를 플레이어의 장착 위치에 귀속한다. */
 	bool TrySetHeldBy(ASnowRumbleCharacter* NewHolder, USceneComponent* HoldPoint);
 
@@ -137,6 +139,15 @@ protected:
 	/** 서버에서 처음 확인한 투척 충돌의 피해, 이펙트와 제거를 처리한다. */
 	void HandleThrownImpact(AActor* OtherActor, const FHitResult& Hit);
 
+	/** 큰 눈덩이가 바닥이나 플레이어에 닿은 뒤 물리 굴리기로 전환한다. */
+	void StartThrownRolling();
+
+	/** 굴러가는 큰 눈덩이의 이동 거리와 크기를 갱신한다. */
+	void UpdateThrownRolling();
+
+	/** 굴러가는 큰 눈덩이가 벽에 부딪혀 제거될 때 충돌 연출을 재생한다. */
+	void DestroyThrownRolling(const FHitResult& Hit);
+
 	/** 임시 충돌 무시가 끝난 Actor를 다시 충돌 대상으로 복구한다. */
 	void RestoreTemporarilyIgnoredActor(
 		TWeakObjectPtr<AActor> IgnoredActor);
@@ -227,6 +238,18 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Growth", meta = (ClampMin = "1.0"))
 	float DistanceForMaximumGrowth = 1000.0f;
 
+	/** 큰 눈덩이가 투척 후 이 거리만큼 굴러가면 완전히 작아진다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Large", meta = (ClampMin = "1.0"))
+	float DistanceForThrownLargeSnowballToDissolve = 1400.0f;
+
+	/** 굴러가는 큰 눈덩이가 이 횟수만큼 충돌하면 제거된다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Large", meta = (ClampMin = "1"))
+	int32 MaximumThrownRollingCollisionCount = 3;
+
+	/** 굴러가는 큰 눈덩이의 수평 속도가 이 값 이하가 되면 제거된다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Large", meta = (ClampMin = "0.0"))
+	float MinimumThrownRollingSpeed = 75.0f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Grounding", meta = (ClampMin = "0.0"))
 	float GroundSettleTraceUpDistance = 120.0f;
 
@@ -257,6 +280,12 @@ protected:
 	bool bHasProcessedThrownImpact = false;
 	float CurrentThrowChargeProgress = 0.0f;
 	float CurrentThrowDamageMultiplier = 1.0f;
+	bool bIsThrownRolling = false;
+	float AccumulatedThrownRollingDistance = 0.0f;
+	FVector LastThrownRollingLocation = FVector::ZeroVector;
+	FVector ThrownRollingDirection = FVector::ForwardVector;
+	int32 ThrownRollingCollisionCount = 0;
+	TSet<TWeakObjectPtr<AActor>> ThrownRollingHitCharacters;
 
 	TSet<TWeakObjectPtr<AActor>> TemporarilyIgnoredActors;
 	ECollisionResponse CachedPawnCollisionResponse = ECR_Block;
