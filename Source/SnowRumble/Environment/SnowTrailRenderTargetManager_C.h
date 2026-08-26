@@ -93,6 +93,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snow Trail|Material")
 	void RefreshSnowTrailMaterialParameters();
 
+	/** 눈길 stamp 실패 원인을 Output Log에 출력할지 정한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snow Trail|Debug")
+	bool ShouldLogSnowTrailDebug() const;
+
 protected:
 	/** 눈길 마스크 RenderTarget을 에디터 지정 없이 런타임에 만들지 여부다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail")
@@ -138,6 +142,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Draw")
 	TObjectPtr<UMaterialInterface> SnowTrailStampMaterial;
 
+	/** 월드 반지름 변환값이 너무 작을 때 RT 확인과 머티리얼 마스크용으로 보장할 최소 stamp 반지름(px)이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Draw", meta = (ClampMin = "1.0"))
+	float MinimumStampRadiusPixels = 10.0f;
+
 	/** RenderTarget 갱신 때 다시 그릴 최대 stamp 개수다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail", meta = (ClampMin = "1"))
 	int32 MaxStoredStampCount = 4096;
@@ -154,25 +162,65 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
 	TArray<TObjectPtr<UPrimitiveComponent>> SnowTrailMaterialComponents;
 
+	/** 지정된 머티리얼 대상 Bounds에서 눈길 월드 중심과 크기를 자동 계산할지 정한다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
+	bool bAutoFitTrailWorldAreaFromMaterialBounds = false;
+
+	/** Bounds 기반 자동 계산 시 지형 가장자리에 더할 여유 거리(cm)다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material", meta = (ClampMin = "0.0"))
+	float TrailWorldBoundsPadding = 500.0f;
+
 	/** 지정한 컴포넌트 머티리얼에 RenderTarget/월드 범위 파라미터를 자동 적용할지 정한다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
 	bool bApplySnowTrailParametersToMaterials = true;
+
+	/** SnowSurface 태그가 붙은 바닥 액터에도 RenderTarget/월드 범위 파라미터를 자동 적용한다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
+	bool bAutoApplyToSnowSurfaceTaggedActors = true;
+
+	/** 자동 머티리얼 적용 대상으로 찾을 액터 태그다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
+	FName SnowTrailMaterialAutoApplyActorTag = TEXT("SnowSurface");
 
 	/** 눈길 마스크 RenderTarget을 받는 texture parameter 이름이다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
 	FName SnowTrailRenderTargetParameterName = TEXT("SnowTrailMask");
 
-	/** 눈길 RenderTarget이 덮는 월드 중심 XY를 받는 vector parameter 이름이다. */
+	/** 눈길 RenderTarget이 덮는 월드 중심 X를 받는 scalar parameter 이름이다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
-	FName SnowTrailWorldCenterParameterName = TEXT("Position");
+	FName SnowTrailWorldCenterXParameterName = TEXT("PositionX");
+
+	/** 눈길 RenderTarget이 덮는 월드 중심 Y를 받는 scalar parameter 이름이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
+	FName SnowTrailWorldCenterYParameterName = TEXT("PositionY");
 
 	/** 눈길 RenderTarget 한 변의 월드 거리(cm)를 받는 scalar parameter 이름이다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
 	FName SnowTrailWorldSizeParameterName = TEXT("TrailWorldSize");
 
+	/** 맵별 Landscape 머티리얼 UV 차이를 보정할 배율이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
+	FVector2D SnowTrailUVScale = FVector2D(1.0f, 1.0f);
+
+	/** 맵별 Landscape 머티리얼 UV 차이를 보정할 오프셋이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
+	FVector2D SnowTrailUVOffset = FVector2D::ZeroVector;
+
+	/** 머티리얼에서 눈길 UV의 U축을 뒤집을지 정한다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
+	bool bSnowTrailFlipU = false;
+
+	/** 머티리얼에서 눈길 UV의 V축을 뒤집을지 정한다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Material")
+	bool bSnowTrailFlipV = false;
+
 	/** 현재 RenderTarget에 다시 그릴 누적 stamp 목록이다. */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "SnowRumble|Snow Trail")
 	TArray<FSnowTrailStampData> SnowTrailStamps;
+
+	/** PIE 진단용 눈길 stamp 로그를 출력한다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Debug")
+	bool bLogSnowTrailDebug = false;
 
 	/** Blueprint가 stamp 요청 시 지형 머티리얼 파라미터 갱신 같은 부가 작업을 수행한다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Snow Trail")
@@ -213,6 +261,14 @@ private:
 
 	/** 게임 시작 시 RenderTarget을 런타임 상태에 맞게 준비한다. */
 	void InitializeSnowTrailRenderTargetForPlay();
+
+	/** 지정한 지형/메쉬 대상의 Bounds를 기준으로 눈길 월드 범위를 갱신한다. */
+	bool UpdateTrailWorldAreaFromMaterialBounds();
+
+	/** 자동 범위 계산에 사용할 컴포넌트 Bounds를 누적한다. */
+	bool AccumulateTrailMaterialComponentBounds(
+		UPrimitiveComponent* TargetComponent,
+		FBox& InOutBounds) const;
 
 	/** 에디터 지정 또는 런타임 생성 RenderTarget에 Canvas 갱신 콜백을 연결한다. */
 	void BindSnowTrailRenderTargetUpdate();

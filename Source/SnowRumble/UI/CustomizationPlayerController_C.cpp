@@ -4,9 +4,11 @@
 
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
+#include "../Audio/SnowRumbleBackgroundMusicSubsystem_C.h"
 #include "Components/Border.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/Image.h"
+#include "Components/PrimitiveComponent.h"
 #include "Components/SizeBox.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/WidgetComponent.h"
@@ -27,6 +29,60 @@
 #include "Widgets/Colors/SColorPicker.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "../Player/SnowRumbleCustomizationSubsystem_C.h"
+#include "Sound/SoundBase.h"
+
+namespace
+{
+constexpr EMouseCursor::Type CustomizationCursorTypes[] =
+{
+	EMouseCursor::Default,
+	EMouseCursor::TextEditBeam,
+	EMouseCursor::ResizeLeftRight,
+	EMouseCursor::ResizeUpDown,
+	EMouseCursor::ResizeSouthEast,
+	EMouseCursor::ResizeSouthWest,
+	EMouseCursor::CardinalCross,
+	EMouseCursor::Crosshairs,
+	EMouseCursor::Hand,
+	EMouseCursor::GrabHand,
+	EMouseCursor::GrabHandClosed,
+	EMouseCursor::SlashedCircle,
+	EMouseCursor::EyeDropper
+};
+
+void DisableCustomizationActorShadowCasting(AActor* Actor)
+{
+	if (!Actor)
+	{
+		return;
+	}
+
+	TArray<UPrimitiveComponent*> PrimitiveComponents;
+	Actor->GetComponents(PrimitiveComponents);
+	for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
+	{
+		if (PrimitiveComponent)
+		{
+			PrimitiveComponent->SetCastShadow(false);
+		}
+	}
+}
+
+void SetCustomizationCursorWidget(
+	APlayerController* PlayerController,
+	UUserWidget* CursorWidget)
+{
+	if (!PlayerController)
+	{
+		return;
+	}
+
+	for (const EMouseCursor::Type CursorType : CustomizationCursorTypes)
+	{
+		PlayerController->SetMouseCursorWidget(CursorType, CursorWidget);
+	}
+}
+}
 
 void ACustomizationPlayerController::BeginPlay()
 {
@@ -35,12 +91,15 @@ void ACustomizationPlayerController::BeginPlay()
 	if (IsLocalController())
 	{
 		EnsurePreviewCharacter();
+		ApplyPreviewCharacterMeshScale();
+		ApplyPreviewCharacterZOffset();
 		ApplyPreviewAnimationSettings();
 		LoadSavedCustomizationForPreview();
 		ConfigurePreviewCharacterForPainting();
 		EnsurePaintRenderTarget();
 		ApplyCustomizationCameraView();
 		ShowCustomizationMenu();
+		PlayBackgroundMusic();
 	}
 }
 
@@ -69,6 +128,11 @@ void ACustomizationPlayerController::PlayerTick(float DeltaTime)
 		UpdatePaintUndoInput();
 		UpdatePaintInput();
 		UpdatePaintMouseCursorPresentation();
+		// 슬라이더 드래그 중에도 Slate가 선택한 다른 커서가 남지 않게 페인트 커서를 유지한다.
+		if (bIsPaintCursorActive)
+		{
+			ApplyCurrentMouseCursorWidget();
+		}
 	}
 }
 
@@ -219,6 +283,31 @@ void ACustomizationPlayerController::AdjustPaintBrushSizeFromWheel(
 	UpdatePaintMouseCursorPresentation();
 }
 
+void ACustomizationPlayerController::SetPaintBrushSizeFromNormalizedValue(
+	float NormalizedValue)
+{
+	const float SafeMinSize = FMath::Max(1.0f, MinPaintBrushSize);
+	const float SafeMaxSize = FMath::Max(SafeMinSize, MaxPaintBrushSize);
+	const float SafeNormalizedValue = FMath::Clamp(NormalizedValue, 0.0f, 1.0f);
+	PaintStrokeThickness = FMath::Lerp(
+		SafeMinSize,
+		SafeMaxSize,
+		SafeNormalizedValue);
+	UpdatePaintMouseCursorPresentation();
+}
+
+float ACustomizationPlayerController::GetPaintBrushSizeNormalizedValue() const
+{
+	const float SafeMinSize = FMath::Max(1.0f, MinPaintBrushSize);
+	const float SafeMaxSize = FMath::Max(SafeMinSize, MaxPaintBrushSize);
+	return FMath::Clamp(FMath::GetRangePct(
+		SafeMinSize,
+		SafeMaxSize,
+		PaintStrokeThickness),
+		0.0f,
+		1.0f);
+}
+
 float ACustomizationPlayerController::GetPaintBrushSize() const
 {
 	return PaintStrokeThickness;
@@ -349,6 +438,131 @@ int32 ACustomizationPlayerController::GetPreviewHatMeshIndex() const
 	return PreviewCustomizationData.HatMeshIndex;
 }
 
+void ACustomizationPlayerController::SetPreviewAccessoryMeshIndex(
+	ESnowRumbleCustomizationAccessory Accessory,
+	int32 NewMeshIndex)
+{
+	FSnowRumbleCustomizationData NewData = PreviewCustomizationData;
+	switch (Accessory)
+	{
+	case ESnowRumbleCustomizationAccessory::Hat:
+		NewData.HatMeshIndex = NewMeshIndex;
+		break;
+	case ESnowRumbleCustomizationAccessory::Glasses:
+		NewData.GlassesMeshIndex = NewMeshIndex;
+		break;
+	case ESnowRumbleCustomizationAccessory::Nose:
+		NewData.NoseMeshIndex = NewMeshIndex;
+		break;
+	case ESnowRumbleCustomizationAccessory::Earmuffs:
+		NewData.EarmuffsMeshIndex = NewMeshIndex;
+		break;
+	default:
+		return;
+	}
+
+	if (ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter())
+	{
+		NewMeshIndex = PreviewCharacter->NormalizeCustomizationAccessoryMeshIndex(
+			Accessory,
+			NewMeshIndex);
+	}
+	else
+	{
+		NewMeshIndex = FMath::Clamp(NewMeshIndex, INDEX_NONE, 255);
+	}
+
+	switch (Accessory)
+	{
+	case ESnowRumbleCustomizationAccessory::Hat:
+		NewData.HatMeshIndex = NewMeshIndex;
+		break;
+	case ESnowRumbleCustomizationAccessory::Glasses:
+		NewData.GlassesMeshIndex = NewMeshIndex;
+		break;
+	case ESnowRumbleCustomizationAccessory::Nose:
+		NewData.NoseMeshIndex = NewMeshIndex;
+		break;
+	case ESnowRumbleCustomizationAccessory::Earmuffs:
+		NewData.EarmuffsMeshIndex = NewMeshIndex;
+		break;
+	default:
+		return;
+	}
+
+	PreviewCustomizationData = NewData;
+	ApplyPreviewDataToCharacter();
+	SavePreviewCustomizationData();
+}
+
+void ACustomizationPlayerController::SelectPreviousPreviewAccessory(
+	ESnowRumbleCustomizationAccessory Accessory)
+{
+	ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter();
+	if (!PreviewCharacter)
+	{
+		SetPreviewAccessoryMeshIndex(Accessory, INDEX_NONE);
+		return;
+	}
+	const int32 OptionCount =
+		PreviewCharacter->GetCustomizationAccessoryOptionCount(Accessory);
+	if (OptionCount <= 0)
+	{
+		SetPreviewAccessoryMeshIndex(Accessory, INDEX_NONE);
+		return;
+	}
+	const int32 CurrentIndex =
+		PreviewCharacter->NormalizeCustomizationAccessoryMeshIndex(
+			Accessory,
+			GetPreviewAccessoryMeshIndex(Accessory));
+	SetPreviewAccessoryMeshIndex(
+		Accessory,
+		CurrentIndex == INDEX_NONE ? OptionCount - 1 : CurrentIndex - 1);
+}
+
+void ACustomizationPlayerController::SelectNextPreviewAccessory(
+	ESnowRumbleCustomizationAccessory Accessory)
+{
+	ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter();
+	if (!PreviewCharacter)
+	{
+		SetPreviewAccessoryMeshIndex(Accessory, INDEX_NONE);
+		return;
+	}
+	const int32 OptionCount =
+		PreviewCharacter->GetCustomizationAccessoryOptionCount(Accessory);
+	if (OptionCount <= 0)
+	{
+		SetPreviewAccessoryMeshIndex(Accessory, INDEX_NONE);
+		return;
+	}
+	const int32 CurrentIndex =
+		PreviewCharacter->NormalizeCustomizationAccessoryMeshIndex(
+			Accessory,
+			GetPreviewAccessoryMeshIndex(Accessory));
+	SetPreviewAccessoryMeshIndex(
+		Accessory,
+		CurrentIndex >= OptionCount - 1 ? INDEX_NONE : CurrentIndex + 1);
+}
+
+int32 ACustomizationPlayerController::GetPreviewAccessoryMeshIndex(
+	ESnowRumbleCustomizationAccessory Accessory) const
+{
+	switch (Accessory)
+	{
+	case ESnowRumbleCustomizationAccessory::Hat:
+		return PreviewCustomizationData.HatMeshIndex;
+	case ESnowRumbleCustomizationAccessory::Glasses:
+		return PreviewCustomizationData.GlassesMeshIndex;
+	case ESnowRumbleCustomizationAccessory::Nose:
+		return PreviewCustomizationData.NoseMeshIndex;
+	case ESnowRumbleCustomizationAccessory::Earmuffs:
+		return PreviewCustomizationData.EarmuffsMeshIndex;
+	default:
+		return INDEX_NONE;
+	}
+}
+
 void ACustomizationPlayerController::UndoLastPaintStroke()
 {
 	if (bIsPaintingStroke || !ActivePaintStroke.Points.IsEmpty())
@@ -413,6 +627,27 @@ void ACustomizationPlayerController::SetPaintCursorActive(
 
 	bIsPaintCursorActive = bNewPaintCursorActive;
 	ApplyCurrentMouseCursorWidget();
+}
+
+void ACustomizationPlayerController::RefreshCustomizationMouseCursor()
+{
+	ApplyCurrentMouseCursorWidget();
+}
+
+void ACustomizationPlayerController::SetBackgroundMusicPreviewVolume(
+	float MasterVolume,
+	float BgmVolume)
+{
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->SetBackgroundMusicPreviewVolume(
+				MasterVolume,
+				BgmVolume);
+		}
+	}
 }
 
 void ACustomizationPlayerController::ApplyCustomizationCameraView()
@@ -557,6 +792,48 @@ FTransform ACustomizationPlayerController::GetPreviewCharacterSpawnTransform()
 		FVector::OneVector);
 }
 
+void ACustomizationPlayerController::ApplyPreviewCharacterZOffset()
+{
+	if (FMath::IsNearlyZero(PreviewCharacterZOffset))
+	{
+		return;
+	}
+
+	ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter();
+	if (!PreviewCharacter)
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* PreviewMesh = PreviewCharacter->GetMesh();
+	if (!PreviewMesh)
+	{
+		return;
+	}
+
+	FVector AdjustedRelativeLocation = PreviewMesh->GetRelativeLocation();
+	AdjustedRelativeLocation.Z += PreviewCharacterZOffset;
+	PreviewMesh->SetRelativeLocation(AdjustedRelativeLocation);
+}
+
+void ACustomizationPlayerController::ApplyPreviewCharacterMeshScale()
+{
+	ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter();
+	if (!PreviewCharacter)
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* PreviewMesh = PreviewCharacter->GetMesh();
+	if (!PreviewMesh)
+	{
+		return;
+	}
+
+	const float SafeMeshScale = FMath::Max(0.1f, PreviewCharacterMeshScale);
+	PreviewMesh->SetRelativeScale3D(FVector(SafeMeshScale));
+}
+
 void ACustomizationPlayerController::ApplyPreviewAnimationSettings()
 {
 	ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter();
@@ -564,6 +841,8 @@ void ACustomizationPlayerController::ApplyPreviewAnimationSettings()
 	{
 		return;
 	}
+
+	DisableCustomizationActorShadowCasting(PreviewCharacter);
 
 	TArray<USkeletalMeshComponent*> MeshComponents;
 	PreviewCharacter->GetComponents(MeshComponents);
@@ -611,6 +890,35 @@ void ACustomizationPlayerController::ApplyPreviewDataToCharacter()
 		if (PaintRenderTarget)
 		{
 			PreviewCharacter->SetCustomizationPaintTexture(PaintRenderTarget);
+		}
+	}
+}
+
+void ACustomizationPlayerController::PlayBackgroundMusic()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->PlayBackgroundMusic(BackgroundMusicSound);
+		}
+	}
+}
+
+void ACustomizationPlayerController::StopBackgroundMusic()
+{
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->StopBackgroundMusic();
 		}
 	}
 }
@@ -881,8 +1189,13 @@ bool ACustomizationPlayerController::GetPaintCursorScreenPosition(
 float ACustomizationPlayerController::GetPaintCursorDiameter() const
 {
 	const float SafeMinDiameter = FMath::Max(1.0f, MinPaintCursorDiameter);
-	const float SafeMaxDiameter =
-		FMath::Max(SafeMinDiameter, MaxPaintCursorDiameter);
+	const float SafeMinBrushSize = FMath::Max(1.0f, MinPaintBrushSize);
+	const float SafeMaxBrushSize =
+		FMath::Max(SafeMinBrushSize, MaxPaintBrushSize);
+	const float SafeMaxDiameter = FMath::Max(
+		SafeMinDiameter,
+		FMath::Max(MaxPaintCursorDiameter,
+			SafeMaxBrushSize * PaintCursorBrushSizeScale));
 	return FMath::Clamp(
 		PaintStrokeThickness * PaintCursorBrushSizeScale,
 		SafeMinDiameter,
@@ -1115,7 +1428,18 @@ void ACustomizationPlayerController::UpdatePaintUndoInput()
 
 void ACustomizationPlayerController::UpdatePreviewRotation(float DeltaTime)
 {
-	if (FMath::IsNearlyZero(PreviewRotationInput))
+	// 커스터마이징 화면에서는 이동 대신 A/D를 프리뷰 회전 입력으로 사용한다.
+	float PreviewYawInput = PreviewRotationInput;
+	if (IsInputKeyDown(EKeys::A))
+	{
+		PreviewYawInput = 1.0f;
+	}
+	else if (IsInputKeyDown(EKeys::D))
+	{
+		PreviewYawInput = -1.0f;
+	}
+
+	if (FMath::IsNearlyZero(PreviewYawInput))
 	{
 		return;
 	}
@@ -1128,7 +1452,7 @@ void ACustomizationPlayerController::UpdatePreviewRotation(float DeltaTime)
 
 	const FRotator CurrentRotation = PreviewCharacter->GetActorRotation();
 	const float DeltaYaw =
-		PreviewRotationInput * PreviewRotationSpeedDegrees * DeltaTime;
+		PreviewYawInput * PreviewRotationSpeedDegrees * DeltaTime;
 	PreviewCharacter->SetActorRotation(
 		FRotator(
 			CurrentRotation.Pitch,
@@ -1375,7 +1699,7 @@ void ACustomizationPlayerController::ApplyCurrentMouseCursorWidget()
 
 	if (!bIsPaintCursorActive)
 	{
-		SetMouseCursorWidget(EMouseCursor::Default, nullptr);
+		SetCustomizationCursorWidget(this, nullptr);
 		return;
 	}
 
@@ -1384,11 +1708,11 @@ void ACustomizationPlayerController::ApplyCurrentMouseCursorWidget()
 		: DefaultMouseCursorWidget;
 	if (!TargetCursorWidget)
 	{
-		SetMouseCursorWidget(EMouseCursor::Default, nullptr);
+		SetCustomizationCursorWidget(this, nullptr);
 		return;
 	}
 
-	SetMouseCursorWidget(EMouseCursor::Default, TargetCursorWidget);
+	SetCustomizationCursorWidget(this, TargetCursorWidget);
 	UpdatePaintMouseCursorPresentation();
 }
 

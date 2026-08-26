@@ -18,7 +18,7 @@ enum class ESnowRumbleTeam : uint8
 	Purple,
 	Pink,
 	Blue,
-	White
+	Orange
 };
 
 UENUM(BlueprintType)

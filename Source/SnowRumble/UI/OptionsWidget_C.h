@@ -3,7 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "AudioCaptureCore.h"
+#include "SnowRumbleAudioUserWidget.h"
 #include "Input/Events.h"
 #include "Input/Reply.h"
 #include "InputCoreTypes.h"
@@ -12,9 +13,11 @@
 #include "OptionsWidget_C.generated.h"
 
 class UButton;
+class UComboBoxString;
 class UOptionsKeyBindingRowWidget;
 class UPanelWidget;
 class USoundClass;
+class USoundMix;
 class USlider;
 class UTextBlock;
 class UWidgetSwitcher;
@@ -47,7 +50,7 @@ enum class ESnowRumbleOptionsCategory : uint8
 };
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API UOptionsWidget : public UUserWidget
+class SNOWRUMBLE_API UOptionsWidget : public USnowRumbleAudioUserWidget
 {
 	GENERATED_BODY()
 
@@ -84,6 +87,9 @@ public:
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+	virtual void NativeTick(
+		const FGeometry& MyGeometry,
+		float InDeltaTime) override;
 	virtual FReply NativeOnPreviewKeyDown(
 		const FGeometry& InGeometry,
 		const FKeyEvent& InKeyEvent) override;
@@ -136,6 +142,17 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Options|Microphone")
 	void OnMicrophoneModeChanged(ESnowRumbleMicrophoneMode NewMode);
 
+	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Options|Microphone")
+	void OnMicrophoneDeviceChanged(const FString& DeviceId, const FString& DeviceName);
+
+	/** 마이크 테스트 상태와 현재 입력 레벨을 Blueprint가 표시할 수 있는 이벤트다. */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Options|Microphone")
+	void OnMicrophoneTestStateChanged(
+		bool bIsTesting,
+		bool bInputDetected,
+		float InputLevel,
+		const FText& StatusText);
+
 	/** 상단 감도 카테고리 버튼이다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options")
 	TObjectPtr<UButton> SensitivityCategoryButton;
@@ -176,6 +193,14 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Sensitivity")
 	TObjectPtr<UTextBlock> SensitivityValueText;
 
+	/** 전체 볼륨을 조절하는 슬라이더다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Audio")
+	TObjectPtr<USlider> MasterVolumeSlider;
+
+	/** 전체 볼륨 값을 퍼센트로 표시하는 텍스트다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Audio")
+	TObjectPtr<UTextBlock> MasterVolumeValueText;
+
 	/** 배경음악 볼륨을 조절하는 슬라이더다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Audio")
 	TObjectPtr<USlider> BgmVolumeSlider;
@@ -192,6 +217,14 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Audio")
 	TObjectPtr<UTextBlock> SfxVolumeValueText;
 
+	/** 보이스 볼륨을 조절하는 슬라이더다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Audio")
+	TObjectPtr<USlider> VoiceVolumeSlider;
+
+	/** 보이스 볼륨 값을 퍼센트로 표시하는 텍스트다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Audio")
+	TObjectPtr<UTextBlock> VoiceVolumeValueText;
+
 	/** 지정하면 적용 시 배경음악 SoundClass 볼륨에 저장값을 반영한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Options|Audio")
 	TObjectPtr<USoundClass> BgmSoundClass;
@@ -199,6 +232,14 @@ protected:
 	/** 지정하면 적용 시 효과음 SoundClass 볼륨에 저장값을 반영한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Options|Audio")
 	TObjectPtr<USoundClass> SfxSoundClass;
+
+	/** 지정하면 적용 시 보이스 SoundClass 볼륨에 저장값을 반영한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Options|Audio")
+	TObjectPtr<USoundClass> VoiceSoundClass;
+
+	/** 옵션 메뉴가 열려 있는 동안만 사용하는 라이브 오디오 프리뷰 믹스다. */
+	UPROPERTY(Transient)
+	TObjectPtr<USoundMix> LiveAudioPreviewSoundMix;
 
 	/** 마이크 입력 음량을 조절하는 슬라이더다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Microphone")
@@ -215,6 +256,26 @@ protected:
 	/** 항상 말하기 방식을 선택하는 버튼이다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Microphone")
 	TObjectPtr<UButton> MicrophoneAlwaysOnButton;
+
+	/** 현재 사용할 마이크 장치를 선택하는 ComboBoxString이다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Microphone")
+	TObjectPtr<UComboBoxString> MicrophoneDeviceComboBox;
+
+	/** 선택한 장치의 로컬 입력 테스트를 시작하거나 중지하는 버튼이다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Microphone")
+	TObjectPtr<UButton> MicrophoneTestButton;
+
+	/** 마이크 테스트 상태를 표시하는 텍스트다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Microphone")
+	TObjectPtr<UTextBlock> MicrophoneTestStatusText;
+
+	/** 마이크 테스트 입력 레벨을 0~1로 표시하는 ProgressBar다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Microphone")
+	TObjectPtr<class UProgressBar> MicrophoneInputLevelProgressBar;
+
+	/** 게임에서 사용할 언어를 선택하는 ComboBoxString이다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Language")
+	TObjectPtr<UComboBoxString> LanguageComboBox;
 
 	/** 키 설정 행을 자동 생성할 패널이다. VerticalBox 또는 ScrollBox를 쓸 수 있다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Key Binding")
@@ -254,10 +315,16 @@ private:
 	void HandleSensitivitySliderValueChanged(float NewValue);
 
 	UFUNCTION()
+	void HandleMasterVolumeSliderValueChanged(float NewValue);
+
+	UFUNCTION()
 	void HandleBgmVolumeSliderValueChanged(float NewValue);
 
 	UFUNCTION()
 	void HandleSfxVolumeSliderValueChanged(float NewValue);
+
+	UFUNCTION()
+	void HandleVoiceVolumeSliderValueChanged(float NewValue);
 
 	UFUNCTION()
 	void HandleMicrophoneVolumeSliderValueChanged(float NewValue);
@@ -267,6 +334,19 @@ private:
 
 	UFUNCTION()
 	void HandleMicrophoneAlwaysOnButtonClicked();
+
+	UFUNCTION()
+	void HandleMicrophoneDeviceSelectionChanged(
+		FString SelectedItem,
+		ESelectInfo::Type SelectionType);
+
+	UFUNCTION()
+	void HandleMicrophoneTestButtonClicked();
+
+	UFUNCTION()
+	void HandleLanguageSelectionChanged(
+		FString SelectedItem,
+		ESelectInfo::Type SelectionType);
 
 	void HandleKeyRowRebindRequested(FName BindingId);
 	void HandleKeyRowResetRequested(FName BindingId);
@@ -289,8 +369,33 @@ private:
 	/** 저장된 BGM/SFX 볼륨을 지정된 SoundClass에 반영한다. */
 	void ApplyAudioVolumeSettings() const;
 
+	/** 현재 임시 오디오 값을 활성 사운드 믹스에 바로 반영한다. */
+	void ApplyAudioPreviewSoundMix();
+
 	/** 마이크 슬라이더와 방식 버튼을 저장된 설정 기준으로 구성한다. */
 	void InitializeMicrophoneSettings();
+	void InitializeLanguageSetting();
+
+	/** 운영체제에서 사용 가능한 마이크 장치 목록을 조회해 ComboBox를 구성한다. */
+	void RefreshMicrophoneDeviceList();
+
+	/** 현재 선택 장치의 오디오 캡처 테스트를 시작한다. */
+	void StartMicrophoneTest();
+
+	/** 오디오 캡처 테스트를 중지하고 스트림을 닫는다. */
+	void StopMicrophoneTest();
+
+	/** 오디오 캡처 콜백에서 입력 레벨을 축적한다. */
+	void HandleMicrophoneCapture(
+		const void* AudioData,
+		int32 NumFrames,
+		int32 NumChannels,
+		int32 SampleRate,
+		double StreamTime,
+		bool bOverFlow);
+
+	/** 테스트 버튼과 상태 텍스트·레벨 표시를 갱신한다. */
+	void RefreshMicrophoneTestDisplay(float InDeltaTime);
 
 	/** 선택 바인딩된 버튼 클릭 이벤트를 연결한다. */
 	void BindOptionButtons();
@@ -340,6 +445,9 @@ private:
 	/** 마이크 표시 텍스트를 현재 임시값 기준으로 갱신한다. */
 	void RefreshMicrophoneValueText();
 
+	/** 현재 로컬 플레이어의 배경음악 프리뷰 볼륨을 갱신한다. */
+	void ApplyBackgroundMusicPreviewVolume() const;
+
 	/** 버튼 기본 스타일을 보관한 뒤 선택 상태에서는 Pressed 스타일을 유지한다. */
 	void SetButtonSelectedVisual(UButton* Button, bool bSelected);
 
@@ -348,6 +456,10 @@ private:
 
 	/** 현재 선택된 마이크 방식 버튼의 눌림 표시를 갱신한다. */
 	void RefreshMicrophoneModeButtonSelection();
+
+	/** 언어 변경 뒤 C++에서 직접 세팅한 텍스트와 레이아웃을 다시 갱신한다. */
+	void RefreshLocalizedDynamicText();
+	void HandleTextRevisionChanged();
 
 	/** 키 변경 대기를 시작한다. */
 	void BeginKeyRebind(FName BindingId);
@@ -371,14 +483,21 @@ private:
 
 	float PendingMouseSensitivity = 1.0f;
 
+	float PendingMasterVolume = 1.0f;
+
 	float PendingBgmVolume = 1.0f;
 
 	float PendingSfxVolume = 1.0f;
+
+	float PendingVoiceVolume = 1.0f;
 
 	float PendingMicrophoneVolume = 1.0f;
 
 	ESnowRumbleMicrophoneMode PendingMicrophoneMode =
 		ESnowRumbleMicrophoneMode::PushToTalk;
+
+	FString PendingMicrophoneDeviceId;
+	FString PendingMicrophoneDeviceName;
 
 	bool bIsUpdatingSensitivitySlider = false;
 
@@ -386,7 +505,27 @@ private:
 
 	bool bIsUpdatingMicrophoneSlider = false;
 
+	bool bIsUpdatingMicrophoneDeviceComboBox = false;
+	bool bIsUpdatingLanguageComboBox = false;
+
 	bool bHasPendingOptionChanges = false;
 
+	TMap<FString, FString> MicrophoneDeviceIdsByName;
+
+	TMap<FString, int32> MicrophoneDeviceIndicesByName;
+
+	TUniquePtr<Audio::FAudioCapture> MicrophoneTestCapture;
+
+	FCriticalSection MicrophoneTestCaptureCriticalSection;
+
+	float PendingMicrophoneInputLevel = 0.0f;
+
+	float DisplayedMicrophoneInputLevel = 0.0f;
+
+	bool bIsMicrophoneTestActive = false;
+
+	FDelegateHandle TextRevisionChangedHandle;
+
 	TMap<UButton*, FButtonStyle> DefaultButtonStyles;
+
 };

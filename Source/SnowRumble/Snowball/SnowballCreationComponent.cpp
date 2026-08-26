@@ -2,14 +2,18 @@
 
 #include "SnowballCreationComponent.h"
 
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "Camera/CameraComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/GameStateBase.h"
 #include "Net/UnrealNetwork.h"
+#include "Sound/SoundBase.h"
 #include "SnowballItem.h"
 #include "SnowballEquipmentComponent.h"
 #include "TimerManager.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogSnowballCreation, Log, All);
 
 USnowballCreationComponent::USnowballCreationComponent()
 {
@@ -143,6 +147,25 @@ void USnowballCreationComponent::ServerStartCreatingSnowball_Implementation(
 
 	if (!bCanStartCreation)
 	{
+		const float CameraDistance = Character
+			? FVector::Distance(ViewLocation, Character->GetActorLocation())
+			: -1.0f;
+		UE_LOG(
+			LogSnowballCreation,
+			Warning,
+			TEXT("Creation rejected. Character=%s Creating=%d Frozen=%d Aiming=%d Held=%d ItemClass=%d CameraOriginValid=%d CameraDistance=%.1f MaxCameraOriginDistance=%.1f SurfaceHit=%d ViewLocation=%s ViewDirection=%s"),
+			Character ? *Character->GetName() : TEXT("None"),
+			bIsCreating ? 1 : 0,
+			Character && Character->IsFrozen() ? 1 : 0,
+			Character && Character->IsAiming() ? 1 : 0,
+			Equipment && Equipment->HasHeldSnowball() ? 1 : 0,
+			SnowballItemClass ? 1 : 0,
+			bCameraOriginValid ? 1 : 0,
+			CameraDistance,
+			MaxCameraOriginDistance,
+			bSurfaceHit ? 1 : 0,
+			*ViewLocation.ToCompactString(),
+			*ViewDirection.ToCompactString());
 		return;
 	}
 
@@ -206,6 +229,19 @@ void USnowballCreationComponent::CompleteCreation()
 		|| !CreationSurfaceActor.IsValid()
 		|| !CreationSurfaceActor->ActorHasTag(SnowSurfaceTag))
 	{
+		UE_LOG(
+			LogSnowballCreation,
+			Warning,
+			TEXT("Creation completion rejected. Character=%s CharacterValid=%d Frozen=%d Aiming=%d Held=%d ItemClass=%d SurfaceActorValid=%d SurfaceHasTag=%d"),
+			Character ? *Character->GetName() : TEXT("None"),
+			Character ? 1 : 0,
+			Character && Character->IsFrozen() ? 1 : 0,
+			Character && Character->IsAiming() ? 1 : 0,
+			Equipment && Equipment->HasHeldSnowball() ? 1 : 0,
+			SnowballItemClass ? 1 : 0,
+			CreationSurfaceActor.IsValid() ? 1 : 0,
+			CreationSurfaceActor.IsValid()
+				&& CreationSurfaceActor->ActorHasTag(SnowSurfaceTag) ? 1 : 0);
 		SetCreatingState(false);
 		return;
 	}
@@ -220,23 +256,35 @@ void USnowballCreationComponent::CompleteCreation()
 	const FVector ForwardLocation =
 		Character->GetActorLocation()
 		+ Character->GetActorForwardVector() * CreationForwardDistance;
-	const FVector SpawnLocation =
+	const FVector SurfaceSpawnPoint =
 		FVector::PointPlaneProject(
 			ForwardLocation,
 			CreationSurfacePoint,
-			CreationSurfaceNormal)
-		+ CreationSurfaceNormal * 20.0f;
+			CreationSurfaceNormal);
+	const FVector SpawnLocation =
+		SurfaceSpawnPoint + CreationSurfaceNormal.GetSafeNormal() * 20.0f;
 	FActorSpawnParameters SpawnParameters;
 	SpawnParameters.Owner = Character;
 	SpawnParameters.Instigator = Character;
 	SpawnParameters.SpawnCollisionHandlingOverride =
-		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+		ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 	ASnowballItem* CreatedSnowball = World->SpawnActor<ASnowballItem>(
 		SnowballItemClass,
 		SpawnLocation,
 		FRotator::ZeroRotator,
 		SpawnParameters);
+
+	if (CreatedSnowball)
+	{
+		MulticastPlayCreationSound(SpawnLocation);
+		CreatedSnowball->SettleOnGroundFromSurface(
+			SurfaceSpawnPoint,
+			CreationSurfaceNormal);
+		CreatedSnowball->IgnoreActorTemporarily(
+			Character,
+			CreatedSnowballOwnerCollisionIgnoreSeconds);
+	}
 
 	if (CreatedSnowball
 		&& Character->HasEquippedSnowDuckMaker()
@@ -250,6 +298,19 @@ void USnowballCreationComponent::CompleteCreation()
 
 	SetCreatingState(false);
 	Character->ForceNetUpdate();
+}
+
+void USnowballCreationComponent::MulticastPlayCreationSound_Implementation(
+	FVector_NetQuantize Location)
+{
+	SnowRumbleAudio::PlaySoundAtLocation(
+		this,
+		SnowballCreationSound,
+		ESnowRumbleAudioMixChannel::Gameplay,
+		Location,
+		1.0f,
+		1.0f,
+		SnowballCreationSoundAttenuation);
 }
 
 bool USnowballCreationComponent::FindSnowSurface(
@@ -276,19 +337,30 @@ bool USnowballCreationComponent::FindSnowSurface(
 		+ FVector::Distance(ViewLocation, Character->GetActorLocation());
 	const FVector TraceEnd =
 		ViewLocation + ViewDirection.GetSafeNormal() * EffectiveTraceDistance;
-	const bool bHit = World->LineTraceSingleByChannel(
-		OutHit,
+	TArray<FHitResult> Hits;
+	const bool bHit = World->LineTraceMultiByChannel(
+		Hits,
 		ViewLocation,
 		TraceEnd,
 		ECC_Visibility,
 		QueryParams);
 
-	const bool bHitSnowSurface =
-		bHit
-		&& OutHit.GetActor()
-		&& OutHit.GetActor()->ActorHasTag(SnowSurfaceTag);
+	if (!bHit)
+	{
+		return false;
+	}
 
-	return bHitSnowSurface;
+	for (const FHitResult& Hit : Hits)
+	{
+		if (AActor* HitActor = Hit.GetActor();
+			HitActor && HitActor->ActorHasTag(SnowSurfaceTag))
+		{
+			OutHit = Hit;
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void USnowballCreationComponent::SetCreatingState(bool bNewCreating)

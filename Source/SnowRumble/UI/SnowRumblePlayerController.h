@@ -10,10 +10,14 @@
 #include "SnowRumblePlayerController.generated.h"
 
 class UChatWidget;
+class UAudioComponent;
 class ULoadingScreenWidget;
+class UTexture2D;
 class UUserWidget;
 class UVoiceMuteMenuWidget;
 class ACameraActor;
+class USoundBase;
+class ASnowRumbleCharacter;
 
 UCLASS(Blueprintable)
 class SNOWRUMBLE_API ASnowRumblePlayerController : public APlayerController
@@ -83,6 +87,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Voice")
 	void ToggleManualVoiceMute(ASnowRumblePlayerState* TargetPlayerState);
 
+	/** 현재 재생 중인 배경음악의 볼륨 프리뷰를 갱신한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Audio")
+	void SetBackgroundMusicPreviewVolume(float MasterVolume, float BgmVolume);
+
 	/** 대상 플레이어가 수동 음소거 상태인지 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Voice")
 	bool IsVoicePlayerManuallyMuted(
@@ -100,6 +108,13 @@ public:
 
 	UFUNCTION(Client, Reliable, Category = "SnowRumble|UI|Loading")
 	void ClientShowLoadingScreen();
+
+	UFUNCTION(Client, Reliable, Category = "SnowRumble|UI|Loading")
+	void ClientSetLoadingPresentation(
+		const FString& MapPackageName,
+		const FText& MapDisplayName,
+		const TSoftObjectPtr<UTexture2D>& MapLoadingImage,
+		const TArray<FString>& TeamPlayerNames);
 
 	UFUNCTION(Client, Reliable, Category = "SnowRumble|UI|Loading")
 	void ClientHideLoadingScreen();
@@ -124,12 +139,24 @@ public:
 	UFUNCTION(Client, Reliable, Category = "SnowRumble|Match Intro")
 	void ClientFinishPvpTeamIntro();
 
+	UFUNCTION(Client, Reliable, Category = "SnowRumble|Audio")
+	void ClientPlayBackgroundMusic(USoundBase* BackgroundMusicSound);
+
+	UFUNCTION(Client, Reliable, Category = "SnowRumble|Audio")
+	void ClientStopBackgroundMusic();
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual bool InputKey(const FInputKeyEventArgs& Params) override;
 	virtual void SetupInputComponent() override;
 	virtual void PlayerTick(float DeltaTime) override;
 	virtual void ClientShowLoadingScreen_Implementation();
+	virtual void ClientSetLoadingPresentation_Implementation(
+		const FString& MapPackageName,
+		const FText& MapDisplayName,
+		const TSoftObjectPtr<UTexture2D>& MapLoadingImage,
+		const TArray<FString>& TeamPlayerNames);
 	virtual void ClientUpdateLoadingProgress_Implementation(
 		int32 LoadedPlayers,
 		int32 ExpectedPlayers);
@@ -144,6 +171,9 @@ protected:
 	virtual void ClientStartPvpIntroFadeOut_Implementation(
 		float FadeOutSeconds);
 	virtual void ClientFinishPvpTeamIntro_Implementation();
+	virtual void ClientPlayBackgroundMusic_Implementation(
+		USoundBase* BackgroundMusicSound);
+	virtual void ClientStopBackgroundMusic_Implementation();
 
 	/** 현재 상태에서 Enter 채팅 입력을 열 수 있는지 반환한다. */
 	virtual bool CanOpenChatInput() const;
@@ -211,6 +241,12 @@ protected:
 	/** 기본 마우스 커서 위젯 슬롯을 소프트웨어 커서로 적용한다. */
 	void ApplyDefaultMouseCursorWidget();
 
+	/** 현재 재생 중인 배경음악을 중지한다. */
+	void StopBackgroundMusic();
+
+	/** 배경음악을 현재 로컬 볼륨 설정에 맞춰 재생한다. */
+	void PlayBackgroundMusic(USoundBase* BackgroundMusicSound);
+
 private:
 	/** 로컬 옵션 설정 기준으로 채팅 직접 키 바인딩을 다시 묶는다. */
 	void RebindConfiguredInputKeys();
@@ -244,7 +280,7 @@ private:
 	/** 채팅 입력이 열려 있을 때 전체/팀 채널을 전환한다. */
 	void HandleChatChannelTogglePressed();
 
-	/** M 입력으로 음성 송출 채널을 전체/팀으로 전환한다. */
+	/** N 입력 또는 캐릭터 Blueprint 입력으로 음성 송출 채널을 전체/팀으로 전환한다. */
 	void HandleVoiceChannelTogglePressed();
 
 	/** 눌러서 말하기 마이크 입력을 시작한다. */
@@ -258,6 +294,12 @@ private:
 
 	/** 엔진 네트워크 음성 송출 시작/중지를 실제로 호출한다. */
 	void ApplyNetworkVoiceInputState(bool bShouldSpeak);
+
+	/** OnlineSubsystem 음성 인터페이스와 로컬 토커 등록 상태를 보장한다. */
+	bool EnsureLocalVoiceTalkerReady();
+
+	/** OnlineSubsystem 음성 인터페이스와 세션의 원격 토커 등록 상태를 보장한다. */
+	void EnsureRemoteVoiceTalkersReady();
 
 	/** 현재 마이크 입력 상태를 speaking 표시로 그대로 쓸 수 있는지 반환한다. */
 	bool ShouldMirrorMicrophoneInputToVoiceSpeaking() const;
@@ -296,6 +338,15 @@ private:
 	/** 현재 저장된 마이크 설정에 맞춰 로컬 입력 상태를 갱신한다. */
 	void RefreshMicrophoneInputState();
 
+	/** PvP 월드에서 맵·Pawn·HUD 초기화 후 Ready 제출을 예약한다. */
+	void TrySchedulePvpReadyHandshake();
+
+	/** 제한된 Warmup 시간이 지나고 Pawn이 준비되면 서버에 Ready를 제출한다. */
+	void TryNotifyPvpReady();
+
+	UFUNCTION(Server, Reliable)
+	void ServerNotifyPvpReady(const FString& PvpMapName);
+
 	/** PvP 팀 소개용 임시 카메라 이동을 갱신한다. */
 	void UpdatePvpIntroCamera(float DeltaTime);
 
@@ -314,6 +365,9 @@ private:
 
 	/** 채팅 위젯 인스턴스가 없으면 생성한다. */
 	UChatWidget* EnsureChatWidget();
+
+	/** PvP 팀 소개 연출 중 PlayerController 소유 WBP를 숨기거나 복원한다. */
+	void SetPvpIntroWidgetsHidden(bool bShouldHide);
 
 	/** 서버가 채팅을 받을 클라이언트인지 확인한다. */
 	bool ShouldReceiveChatMessage(
@@ -335,7 +389,11 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<ACameraActor> PvpIntroCameraActor;
 
+	TWeakObjectPtr<UAudioComponent> BackgroundMusicComponent;
+
 	bool bChatInputIgnoringPawnInput = false;
+	bool bPvpIntroWidgetsHidden = false;
+	ESlateVisibility PvpIntroChatVisibility = ESlateVisibility::Visible;
 
 	FTransform PvpIntroCameraCurrentStartTransform;
 	FTransform PvpIntroCameraDollyStartTransform;
@@ -354,9 +412,16 @@ private:
 	bool bMicrophoneInputActive = false;
 
 	bool bNetworkVoiceInputActive = false;
+	bool bLocalVoiceTalkerReady = false;
 
 	ESnowRumbleVoiceChannel LocalVoiceChannel =
 		ESnowRumbleVoiceChannel::All;
+	double LastVoiceChannelToggleTimeSeconds = -1.0;
 
+	TSet<FString> RegisteredRemoteVoiceTalkerIds;
 	TSet<FString> ManuallyMutedVoicePlayerKeys;
+
+	FString PvpReadyMapName;
+	float PvpReadyWarmupElapsedSeconds = 0.0f;
+	bool bPvpReadySubmitted = false;
 };

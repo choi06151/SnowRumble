@@ -2,15 +2,52 @@
 
 #include "MainMenuWidget.h"
 
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "../Player/LocalPlayerIdentitySubsystem_C.h"
 #include "Components/Button.h"
+#include "Components/ContentWidget.h"
 #include "Components/EditableTextBox.h"
+#include "Components/PanelWidget.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "Engine/GameInstance.h"
 #include "MainMenuPlayerController.h"
 
 const TArray<FSnowRumbleSessionInfo> UMainMenuWidget::EmptyResults;
+
+namespace
+{
+	void CollectButtonTextBlocks(
+		UWidget* Widget,
+		TArray<UTextBlock*>& OutTextBlocks)
+	{
+		if (!Widget)
+		{
+			return;
+		}
+
+		if (UTextBlock* TextBlock = Cast<UTextBlock>(Widget))
+		{
+			OutTextBlocks.AddUnique(TextBlock);
+		}
+
+		if (UPanelWidget* PanelWidget = Cast<UPanelWidget>(Widget))
+		{
+			for (int32 ChildIndex = 0;
+				ChildIndex < PanelWidget->GetChildrenCount();
+				++ChildIndex)
+			{
+				CollectButtonTextBlocks(
+					PanelWidget->GetChildAt(ChildIndex),
+					OutTextBlocks);
+			}
+		}
+		else if (UContentWidget* ContentWidget = Cast<UContentWidget>(Widget))
+		{
+			CollectButtonTextBlocks(ContentWidget->GetContent(), OutTextBlocks);
+		}
+	}
+}
 
 void UMainMenuWidget::NativeConstruct()
 {
@@ -233,6 +270,24 @@ void UMainMenuWidget::HandleCustomizationButtonClicked()
 	}
 }
 
+void UMainMenuWidget::HandleQuitGameButtonClicked()
+{
+	if (AMainMenuPlayerController* MainMenuPlayerController =
+		Cast<AMainMenuPlayerController>(GetOwningPlayer()))
+	{
+		MainMenuPlayerController->QuitGame();
+	}
+}
+
+void UMainMenuWidget::HandleKeyGuideButtonClicked()
+{
+	if (AMainMenuPlayerController* MainMenuPlayerController =
+		Cast<AMainMenuPlayerController>(GetOwningPlayer()))
+	{
+		MainMenuPlayerController->ToggleKeyGuideWidget();
+	}
+}
+
 void UMainMenuWidget::HandleConfirmRoomCodeJoinClicked()
 {
 	const FString RoomCode = RoomCodeTextBox
@@ -248,6 +303,14 @@ void UMainMenuWidget::HandleCancelRoomCodeJoinClicked()
 
 void UMainMenuWidget::BindMenuButtons()
 {
+	// 메인메뉴의 주요 4개 버튼만 텍스트 호버 색상 처리를 적용한다.
+	BindTargetButtonTextColor(HostButton);
+	BindTargetButtonTextColor(QuickJoinButton);
+	BindTargetButtonTextColor(FindButton);
+	BindTargetButtonTextColor(CustomizationButton);
+	BindTargetButtonTextColor(QuitGameButton);
+	BindTargetButtonTextColor(KeyGuideButton);
+
 	if (HostButton)
 	{
 		HostButton->OnClicked.AddUniqueDynamic(
@@ -283,6 +346,20 @@ void UMainMenuWidget::BindMenuButtons()
 			&UMainMenuWidget::HandleCustomizationButtonClicked);
 	}
 
+	if (QuitGameButton)
+	{
+		QuitGameButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UMainMenuWidget::HandleQuitGameButtonClicked);
+	}
+
+	if (KeyGuideButton)
+	{
+		KeyGuideButton->OnClicked.AddUniqueDynamic(
+			this,
+			&UMainMenuWidget::HandleKeyGuideButtonClicked);
+	}
+
 	if (ConfirmRoomCodeJoinButton)
 	{
 		ConfirmRoomCodeJoinButton->OnClicked.AddUniqueDynamic(
@@ -307,6 +384,13 @@ void UMainMenuWidget::BindMenuButtons()
 
 void UMainMenuWidget::UnbindMenuButtons()
 {
+	UnbindTargetButtonTextColor(HostButton);
+	UnbindTargetButtonTextColor(QuickJoinButton);
+	UnbindTargetButtonTextColor(FindButton);
+	UnbindTargetButtonTextColor(CustomizationButton);
+	UnbindTargetButtonTextColor(QuitGameButton);
+	UnbindTargetButtonTextColor(KeyGuideButton);
+
 	if (HostButton)
 	{
 		HostButton->OnClicked.RemoveAll(this);
@@ -332,6 +416,16 @@ void UMainMenuWidget::UnbindMenuButtons()
 		CustomizationButton->OnClicked.RemoveAll(this);
 	}
 
+	if (QuitGameButton)
+	{
+		QuitGameButton->OnClicked.RemoveAll(this);
+	}
+
+	if (KeyGuideButton)
+	{
+		KeyGuideButton->OnClicked.RemoveAll(this);
+	}
+
 	if (ConfirmRoomCodeJoinButton)
 	{
 		ConfirmRoomCodeJoinButton->OnClicked.RemoveAll(this);
@@ -345,6 +439,93 @@ void UMainMenuWidget::UnbindMenuButtons()
 	if (PlayerNameTextBox)
 	{
 		PlayerNameTextBox->OnTextCommitted.RemoveAll(this);
+	}
+}
+
+void UMainMenuWidget::BindTargetButtonTextColor(UButton* Button)
+{
+	if (!Button)
+	{
+		return;
+	}
+
+	Button->OnHovered.AddUniqueDynamic(
+		this,
+		&UMainMenuWidget::RefreshTargetButtonTextColors);
+	Button->OnUnhovered.AddUniqueDynamic(
+		this,
+		&UMainMenuWidget::RefreshTargetButtonTextColors);
+	Button->OnPressed.AddUniqueDynamic(
+		this,
+		&UMainMenuWidget::RefreshTargetButtonTextColors);
+	Button->OnReleased.AddUniqueDynamic(
+		this,
+		&UMainMenuWidget::RefreshTargetButtonTextColors);
+
+	TArray<UTextBlock*> TextBlocks;
+	CollectButtonTextBlocks(Button->GetContent(), TextBlocks);
+	for (UTextBlock* TextBlock : TextBlocks)
+	{
+		if (TextBlock)
+		{
+			TargetButtonTextDefaultColors.FindOrAdd(
+				TextBlock,
+				TextBlock->GetColorAndOpacity());
+		}
+	}
+}
+
+void UMainMenuWidget::UnbindTargetButtonTextColor(UButton* Button)
+{
+	if (Button)
+	{
+		Button->OnHovered.RemoveAll(this);
+		Button->OnUnhovered.RemoveAll(this);
+		Button->OnPressed.RemoveAll(this);
+		Button->OnReleased.RemoveAll(this);
+	}
+}
+
+void UMainMenuWidget::RefreshTargetButtonTextColors()
+{
+	const FSlateColor ActiveTextColor(MainMenuButtonActiveTextColor);
+	const TArray<UButton*> TargetButtons =
+	{
+		HostButton,
+		QuickJoinButton,
+		FindButton,
+		CustomizationButton,
+		QuitGameButton,
+		KeyGuideButton
+	};
+
+	for (UButton* Button : TargetButtons)
+	{
+		if (!Button)
+		{
+			continue;
+		}
+
+		TArray<UTextBlock*> TextBlocks;
+		CollectButtonTextBlocks(Button->GetContent(), TextBlocks);
+		const bool bUseActiveColor = Button->IsHovered() || Button->IsPressed();
+		for (UTextBlock* TextBlock : TextBlocks)
+		{
+			if (!TextBlock)
+			{
+				continue;
+			}
+
+			if (bUseActiveColor)
+			{
+				TextBlock->SetColorAndOpacity(ActiveTextColor);
+			}
+			else if (const FSlateColor* DefaultColor =
+				TargetButtonTextDefaultColors.Find(TextBlock))
+			{
+				TextBlock->SetColorAndOpacity(*DefaultColor);
+			}
+		}
 	}
 }
 
@@ -410,8 +591,19 @@ bool UMainMenuWidget::ValidateAndSavePlayerNameInput()
 		return true;
 	}
 
+	const FString InputName = PlayerNameTextBox->GetText().ToString();
+	if (InputName.TrimStartAndEnd().Len() > 10)
+	{
+		ShowMainMenuAlarm(NSLOCTEXT(
+			"SnowRumble",
+			"MainMenuPlayerNameTooLong",
+			"닉네임이 너무 길어서 사용할 수 없습니다."));
+		RestorePlayerNameInput();
+		return false;
+	}
+
 	if (!IdentitySubsystem->TrySetDesiredPlayerName(
-		PlayerNameTextBox->GetText().ToString()))
+		InputName))
 	{
 		ShowMainMenuAlarm(NSLOCTEXT(
 			"SnowRumble",
