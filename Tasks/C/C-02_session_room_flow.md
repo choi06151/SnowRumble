@@ -15,7 +15,7 @@
 - [x] 호스트 로비 UI가 세션 생성 타이밍과 무관하게 pending 방 코드를 fallback으로 읽을 수 있게 한다.
 - [x] 방 찾기에서 입력한 방 코드와 일치하는 검색 결과에만 참가하는 요청을 제공한다.
 - [x] 메인 메뉴의 `QuitGameButton`으로 로컬 게임을 완전히 종료하는 기능을 제공한다.
-- [x] 메인 메뉴의 `KeyGuideButton`으로 로비에서 사용하는 기존 조작법 WBP를 표시·숨김한다.
+- [x] 메인 메뉴의 `KeyGuideButton`으로 메인 메뉴 전용 조작법 WBP를 표시하고 전용 닫기 버튼으로 제거한다.
 - [x] 메인 메뉴 닉네임을 10글자로 제한하고, 초과 입력은 욕설 입력과 같은 실패 처리와 길이 초과 알람을 표시한다.
 - [x] 에디터 확인 중 세션 호출 여부와 검색 결과를 추적할 수 있도록 `LogSnowRumbleSession` 로그를 추가한다.
 
@@ -41,7 +41,9 @@
   - `ULocalPlayerIdentitySubsystem`: 메인메뉴에서 입력한 로컬 닉네임을 GameInstance 수명 동안 저장한다. 현재는 닉네임만 저장하며, 추후 커스터마이징 데이터는 같은 로컬 정체성 책임 안에서 확장한다.
   - `UMainMenuWidget`의 선택 바인딩 위젯 `PlayerNameTextBox`: C++ 부모가 최초 표시 시 랜덤 기본 닉네임을 채우고, 최대 10글자 입력을 검증한다. 초과하면 기존 닉네임을 유지하고 `닉네임이 너무 길어서 사용할 수 없습니다.` 알람을 표시한다.
   - `UMainMenuWidget`의 선택 바인딩 위젯 `QuitGameButton`: 클릭하면 로컬 `AMainMenuPlayerController::QuitGame()`을 호출해 게임을 종료한다. 기존 메인 메뉴 버튼과 동일하게 내부 TextBlock을 hover/pressed 남색으로 표시한다.
-  - `UMainMenuWidget`의 선택 바인딩 위젯 `KeyGuideButton`: 클릭하면 `AMainMenuPlayerController::ToggleKeyGuideWidget()`을 호출해 기존 `WBP_KeyGuideWidget`을 표시하거나 숨긴다.
+  - `UMainMenuWidget`의 선택 바인딩 위젯 `KeyGuideButton`: 클릭하면 `AMainMenuPlayerController::ToggleKeyGuideWidget()`을 호출해 메인 메뉴 전용 키가이드 WBP를 표시한다.
+  - `AMainMenuPlayerController::CloseKeyGuideWidget()`: 메인 메뉴 전용 키가이드 WBP를 제거하고 `WBP_MainMenu`에 UI 입력 포커스를 복구한다.
+  - `UMainMenuKeyGuideWidget`: `UKeyGuideWidget`을 상속하는 메인 메뉴 전용 키가이드 WBP 부모다. 선택 바인딩 위젯 `CloseButton` 클릭 시 `CloseKeyGuideWidget()`을 호출한다.
   - `ALobbyPlayerController::RequestApplyLobbyPlayerName(const FString& NewName)`: 소유 클라이언트가 서버의 자기 `PlayerState` 닉네임 변경을 요청하는 RPC 경로다.
   - `ULobbyWidget`: 로비 입장 후 저장된 로컬 닉네임을 `ALobbyPlayerController::RequestApplyLobbyPlayerName()`으로 서버에 적용한다.
 - 인계 대상: S-02, C-03
@@ -83,7 +85,8 @@
 - 방 찾기 버튼은 `FindButton` 이름을 유지하면 C++ 부모가 `RoomCodeJoinPanel`을 열고, 확인 버튼은 `RoomCodeTextBox` 값을 읽어 `JoinLanGameByRoomCode(RoomCode)`를 호출한다.
 - S-02에서 방 만들기 UI가 방 이름을 받는 경우 `UMainMenuWidget::HostLanGame(8, RoomName)`으로 전달한다.
 - S-02에서 `WBP_MainMenu`에 게임 종료 버튼을 배치하고 이름을 `QuitGameButton`으로 맞춘다. 버튼 내부 TextBlock은 기존 메인 메뉴 버튼과 동일하게 구성하면 hover/pressed 시 남색으로 바뀐다.
-- S-02에서 `WBP_MainMenu`에 조작법 버튼을 배치하고 이름을 `KeyGuideButton`으로 맞춘다. `BP_MainMenuPlayerController`의 `KeyGuideWidgetClass`에는 로비 캐릭터의 `KeyGuideWidgetClass`와 같은 `WBP_KeyGuideWidget`을 지정한다.
+- S-02에서 기존 `WBP_KeyGuideWidget`을 복제해 메인 메뉴 전용 WBP를 만든다. 부모 클래스를 `UMainMenuKeyGuideWidget`으로 설정하고, 닫기 버튼 이름을 `CloseButton`으로 맞춘다. 기존 키 표시 TextBlock 이름은 필요한 항목에 한해 그대로 유지한다.
+- S-02에서 `WBP_MainMenu`에 조작법 버튼을 배치하고 이름을 `KeyGuideButton`으로 맞춘다. `BP_MainMenuPlayerController`의 `KeyGuideWidgetClass`에는 새 메인 메뉴 전용 키가이드 WBP를 지정한다.
 - S-02에서 `WBP_Lobby` 오른쪽 상단에 TextBlock을 만들고 `RoomCodeTextBlock` 이름으로 바인딩한다. C++ 부모가 `ULobbyWidget::GetCurrentRoomCode()` 결과를 자동 표시한다.
 - C-03은 C-02의 방 입장 완료 후 기존 `ASnowRumbleLobbyGameState`와 `ASnowRumblePlayerState` 대기방 상태를 확장한다.
 
@@ -94,7 +97,7 @@
 - [x] S-02 인계 기록 완료
 - [x] `git diff --check` 공백 점검 통과
 - [x] `QuitGameButton` 자동 바인딩·게임 종료·남색 텍스트 상태 처리 완료
-- [x] `KeyGuideButton` 자동 바인딩·기존 조작법 WBP 표시·남색 텍스트 상태 처리 완료
+- [x] `KeyGuideButton` 자동 바인딩·메인 메뉴 전용 조작법 WBP 표시·닫기 버튼 제거·남색 텍스트 상태 처리 완료
 - [x] 닉네임 10글자 제한·길이 초과 알람 처리 완료
 - [x] `SnowRumbleEditor Win64 Development` 최종 빌드 확인
 
@@ -116,8 +119,14 @@
 - 2026-08-21: 클라이언트가 참가 중 호스트 연결을 잃으면 DemoMap 등 기본 맵으로 빠지는 문제에 대응했다. 네트워크 실패 처리에서 메인메뉴 travel URL에 `BP_MainMenuGameMode`를 강제하고, 메인메뉴 진입 알림을 `호스트의 연결이 해제되었습니다.`로 표시하게 했다. C++ 컴파일과 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됐다.
 - 2026-08-21: 접속 실패 일부가 `NetworkFailure`가 아닌 `TravelFailure` 경로로 처리되고, 프로젝트 기본 맵이 PvP 테스트용 DemoMap이면 엔진 fallback이 DemoMap으로 이동하는 원인을 확인했다. `TravelFailure`도 세션 실패로 처리하고, `GameDefaultMap`과 `ServerDefaultMap`을 `L_MainMenu`로 고정해 실패 fallback도 메인메뉴가 되게 했다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
 - 2026-08-23: 호스트가 로비에 들어갔을 때 간헐적으로 방 코드가 비어 보이는 문제를 보강했다. `GetCurrentRoomCode()`는 `CurrentRoomCode`가 비었더라도 호스트 생성 중이면 `PendingHostRoomCode`를 반환하고, `CreateLanSession()`과 생성 성공 처리에서도 `CurrentRoomCode`를 pending 코드로 복구한다.
+- 2026-08-27: 메인 메뉴 키가이드가 인게임 공용 WBP를 재사용하지 않도록 `UMainMenuKeyGuideWidget` 전용 부모와 `CloseButton` 바인딩을 추가했다. `AMainMenuPlayerController`는 전용 WBP를 Z 순서 100으로 표시하고, 닫기 요청 시 위젯을 제거한 뒤 `WBP_MainMenu` 입력 포커스를 복구한다. C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됐다.
+- 2026-08-27: 메인 메뉴 `KeyGuideButton`은 일반 메뉴 버튼 텍스트 색상 자동 바인딩에서 제외해 기본 글자색을 유지하도록 수정했다.
 
 ### 결과 확인
+
+- 메인 메뉴에서 `KeyGuideButton`을 누르면 전용 키가이드 WBP가 메인 메뉴 위에 표시되는지 확인한다.
+- 전용 키가이드의 `CloseButton`을 누르면 위젯이 제거되고 메인 메뉴 버튼 입력과 마우스 커서가 복구되는지 확인한다.
+- 인게임에서 `T`를 눌렀을 때 기존 `WBP_KeyGuideWidget`이 이전과 동일하게 동작하는지 확인한다.
 - [ ] 호스트가 방을 만들면 `L_Lobby`로 이동하고 대기방 UI에서 6자리 방 코드를 확인할 수 있다.
 - [ ] 호스트가 세션 생성 완료 전 로비 UI를 먼저 보더라도 방 코드가 비어 있지 않다.
 - [ ] 다른 클라이언트가 빠른 게임을 누르면 빈자리가 있는 LAN 방에 자동 참가한다.

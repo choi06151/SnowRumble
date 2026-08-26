@@ -12,7 +12,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "MainMenuWidget.h"
-#include "KeyGuideWidget_C.h"
+#include "MainMenuKeyGuideWidget_C.h"
 #include "OptionsWidget_C.h"
 #include "../Online/SnowRumbleSessionSubsystem.h"
 #include "../Player/SnowRumbleCharacter.h"
@@ -218,12 +218,36 @@ void AMainMenuPlayerController::ToggleKeyGuideWidget()
 	if (bKeyGuideWidgetVisible)
 	{
 		KeyGuideWidget->RefreshKeyGuideTexts();
-		KeyGuideWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
+		KeyGuideWidget->SetVisibility(ESlateVisibility::Visible);
+		bShowMouseCursor = true;
+		ApplyDefaultMouseCursorWidget();
+
+		FInputModeUIOnly InputMode;
+		InputMode.SetWidgetToFocus(KeyGuideWidget->TakeWidget());
+		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		SetInputMode(InputMode);
 	}
 	else
 	{
-		KeyGuideWidget->SetVisibility(ESlateVisibility::Collapsed);
+		CloseKeyGuideWidget();
 	}
+}
+
+void AMainMenuPlayerController::CloseKeyGuideWidget()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (KeyGuideWidget)
+	{
+		KeyGuideWidget->RemoveFromParent();
+		KeyGuideWidget = nullptr;
+	}
+	bKeyGuideWidgetVisible = false;
+
+	ShowMainMenu();
 }
 
 void AMainMenuPlayerController::SetBackgroundMusicPreviewVolume(
@@ -265,12 +289,12 @@ void AMainMenuPlayerController::EnsureKeyGuideWidget()
 		return;
 	}
 
-	KeyGuideWidget = CreateWidget<UKeyGuideWidget>(
+	KeyGuideWidget = CreateWidget<UMainMenuKeyGuideWidget>(
 		this,
 		KeyGuideWidgetClass);
 	if (KeyGuideWidget)
 	{
-		KeyGuideWidget->AddToViewport();
+		KeyGuideWidget->AddToViewport(100);
 		KeyGuideWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
 }
