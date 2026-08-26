@@ -131,6 +131,9 @@ private:
 	/** 메인 메뉴 전용 조작법 WBP 인스턴스가 없으면 생성한다. */
 	void EnsureKeyGuideWidget();
 
+	/** 세션 종료 후 메인 메뉴 월드에 남은 원격 캐릭터를 제거한다. */
+	void RemoveStaleNetworkCharacters();
+
 	UPROPERTY(Transient)
 	TObjectPtr<UMainMenuWidget> MainMenuWidget;
 
