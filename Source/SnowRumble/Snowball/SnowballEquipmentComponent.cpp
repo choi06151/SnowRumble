@@ -5,8 +5,15 @@
 #include "../Player/SnowRumbleCharacter.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/SplineComponent.h"
+#include "Components/SplineMeshComponent.h"
 #include "EngineUtils.h"
+#include "Engine/StaticMesh.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Net/UnrealNetwork.h"
+#include "NiagaraComponent.h"
+#include "NiagaraDataInterfaceArrayFunctionLibrary.h"
+#include "NiagaraSystem.h"
 #include "SnowballItem.h"
 
 USnowballEquipmentComponent::USnowballEquipmentComponent()
@@ -21,6 +28,7 @@ void USnowballEquipmentComponent::TickComponent(
 	FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	UpdateThrowTrajectoryPreview();
 
 	ASnowRumbleCharacter* Character = Cast<ASnowRumbleCharacter>(GetOwner());
 	if (!Character
@@ -223,6 +231,11 @@ void USnowballEquipmentComponent::StartCharging()
 		return;
 	}
 
+	if (OwningPawn->IsLocallyControlled())
+	{
+		bHideTrajectoryPreviewForCurrentThrow = false;
+	}
+
 	if (OwningPawn->HasAuthority())
 	{
 		ServerStartCharging_Implementation();
@@ -242,6 +255,11 @@ void USnowballEquipmentComponent::ReleaseChargedSnowball()
 		|| !bIsCharging)
 	{
 		return;
+	}
+
+	if (OwningPawn->IsLocallyControlled())
+	{
+		HideThrowTrajectoryPreview();
 	}
 
 	FVector ViewLocation = FVector::ZeroVector;
@@ -289,6 +307,18 @@ void USnowballEquipmentComponent::ConfirmPendingThrowFromAnimationNotify()
 	}
 
 	ServerConfirmPendingThrowFromAnimationNotify(ViewLocation, ViewDirection);
+}
+
+void USnowballEquipmentComponent::HideThrowTrajectoryPreview()
+{
+	APawn* OwningPawn = Cast<APawn>(GetOwner());
+	if (!OwningPawn || !OwningPawn->IsLocallyControlled())
+	{
+		return;
+	}
+
+	bHideTrajectoryPreviewForCurrentThrow = true;
+	ClearThrowTrajectoryPreview();
 }
 
 void USnowballEquipmentComponent::CancelCharging()
@@ -752,6 +782,46 @@ FVector USnowballEquipmentComponent::BuildRollingSnowballTargetLocation(
 		Character->GetActorLocation()
 		+ RollingDirection * EffectiveRollingDistance;
 	TargetLocation.Z = Snowball->GetActorLocation().Z;
+
+	if (const UWorld* World = GetWorld())
+	{
+		const FVector TraceStart =
+			TargetLocation + FVector::UpVector * RollingGroundTraceUpDistance;
+		const FVector TraceEnd =
+			TargetLocation - FVector::UpVector * RollingGroundTraceDownDistance;
+		FCollisionQueryParams QueryParams(
+			SCENE_QUERY_STAT(RollingSnowballGroundTrace),
+			false,
+			Character);
+		QueryParams.AddIgnoredActor(Snowball);
+
+		FHitResult GroundHit;
+		if (World->LineTraceSingleByChannel(
+			GroundHit,
+			TraceStart,
+			TraceEnd,
+			ECC_Visibility,
+			QueryParams)
+			&& GroundHit.bBlockingHit)
+		{
+			if (Snowball->IsSnowSurfaceActor(GroundHit.GetActor()))
+			{
+				const float GroundNormalZ = FMath::Max(
+					GroundHit.ImpactNormal.GetSafeNormal().Z,
+					0.1f);
+				TargetLocation.Z =
+					GroundHit.ImpactPoint.Z
+					+ Snowball->GetRollingCollisionRadius() * GroundNormalZ
+					+ RollingSnowballSnowSurfaceZOffset;
+			}
+			else
+			{
+				TargetLocation.Z =
+					GroundHit.ImpactPoint.Z + RollingSnowballGroundZOffset;
+			}
+		}
+	}
+
 	return TargetLocation;
 }
 
@@ -814,6 +884,387 @@ bool USnowballEquipmentComponent::BuildCurrentThrowView(
 	return !OutViewLocation.ContainsNaN()
 		&& !OutViewDirection.ContainsNaN()
 		&& !OutViewDirection.IsNearlyZero();
+}
+
+void USnowballEquipmentComponent::UpdateThrowTrajectoryPreview()
+{
+	ASnowRumbleCharacter* Character = Cast<ASnowRumbleCharacter>(GetOwner());
+	if (!Character
+		|| !Character->IsLocallyControlled()
+		|| !bDrawTrajectoryPreview
+		|| bHideTrajectoryPreviewForCurrentThrow
+		|| !bIsAiming
+		|| !HeldSnowball
+		|| !HeldSnowball->IsFullyGrown())
+	{
+		ClearThrowTrajectoryPreview();
+		return;
+	}
+
+	FVector ViewLocation = FVector::ZeroVector;
+	FVector ViewDirection = FVector::ForwardVector;
+	FVector AimTarget = FVector::ZeroVector;
+	if (!BuildCurrentThrowView(ViewLocation, ViewDirection)
+		|| !FindServerAimTarget(ViewLocation, ViewDirection, AimTarget))
+	{
+		ClearThrowTrajectoryPreview();
+		return;
+	}
+
+	const FVector AimDirection =
+		(AimTarget - HeldSnowball->GetActorLocation()).GetSafeNormal();
+	if (AimDirection.IsNearlyZero())
+	{
+		ClearThrowTrajectoryPreview();
+		return;
+	}
+
+	const FVector ThrowDirection =
+		(AimDirection + FVector::UpVector * LargeSnowballArcLift).GetSafeNormal();
+	const float ThrowSpeed = FMath::Lerp(
+		LargeSnowballMinimumThrowSpeed,
+		LargeSnowballMaximumThrowSpeed,
+		GetChargeProgress());
+	const FVector InitialVelocity = ThrowDirection * ThrowSpeed;
+	const FVector GravityAcceleration = FVector(
+		0.0f,
+		0.0f,
+		GetWorld()
+			? GetWorld()->GetGravityZ()
+				* HeldSnowball->GetProjectileGravityScale()
+			: -980.0f);
+	const int32 SampleCount = FMath::Clamp(
+		TrajectoryPreviewSampleCount,
+		2,
+		64);
+	const float TimeStep = FMath::Max(0.01f, TrajectoryPreviewTimeStep);
+
+	if (!ThrowTrajectorySpline)
+	{
+		ThrowTrajectorySpline = NewObject<USplineComponent>(
+			Character,
+			TEXT("ThrowTrajectorySpline"));
+		ThrowTrajectorySpline->SetupAttachment(Character->GetRootComponent());
+		ThrowTrajectorySpline->SetMobility(EComponentMobility::Movable);
+		ThrowTrajectorySpline->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		ThrowTrajectorySpline->RegisterComponent();
+	}
+
+	ThrowTrajectorySpline->ClearSplinePoints(false);
+	ThrowTrajectorySpline->SetVisibility(true);
+
+	const FVector StartLocation = HeldSnowball->GetActorLocation();
+	TArray<FVector> PreviewPoints;
+	PreviewPoints.Reserve(SampleCount + 1);
+	FVector PreviousLocation = StartLocation;
+	PreviewPoints.Add(PreviousLocation);
+	ThrowTrajectorySpline->AddSplinePoint(
+		PreviousLocation,
+		ESplineCoordinateSpace::World,
+		false);
+
+	FCollisionQueryParams QueryParams(
+		SCENE_QUERY_STAT(SnowballTrajectoryPreviewTrace),
+		false,
+		Character);
+	QueryParams.AddIgnoredActor(Character);
+	QueryParams.AddIgnoredActor(HeldSnowball);
+
+	for (int32 SampleIndex = 1; SampleIndex <= SampleCount; ++SampleIndex)
+	{
+		const float Time = TimeStep * static_cast<float>(SampleIndex);
+		const FVector SampleLocation =
+			StartLocation
+			+ InitialVelocity * Time
+			+ GravityAcceleration * (0.5f * Time * Time);
+		FHitResult Hit;
+		FVector SegmentEnd = SampleLocation;
+		const bool bHit = GetWorld()
+			&& GetWorld()->LineTraceSingleByChannel(
+				Hit,
+				PreviousLocation,
+				SampleLocation,
+				ECC_Visibility,
+				QueryParams);
+		if (bHit && Hit.bBlockingHit)
+		{
+			SegmentEnd = Hit.ImpactPoint;
+		}
+
+		ThrowTrajectorySpline->AddSplinePoint(
+			SegmentEnd,
+			ESplineCoordinateSpace::World,
+			false);
+		PreviewPoints.Add(SegmentEnd);
+
+		PreviousLocation = SegmentEnd;
+		if (bHit && Hit.bBlockingHit)
+		{
+			break;
+		}
+	}
+
+	ThrowTrajectorySpline->UpdateSpline();
+
+	if (bUseTrajectoryPreviewNiagara)
+	{
+		if (!TrajectoryPreviewNiagaraComponent && TrajectoryPreviewNiagaraSystem)
+		{
+			TrajectoryPreviewNiagaraComponent = NewObject<UNiagaraComponent>(
+				Character,
+				TEXT("ThrowTrajectoryPreviewNiagara"));
+			TrajectoryPreviewNiagaraComponent->SetupAttachment(
+				Character->GetRootComponent());
+			TrajectoryPreviewNiagaraComponent->SetAsset(
+				TrajectoryPreviewNiagaraSystem);
+			TrajectoryPreviewNiagaraComponent->SetAutoActivate(false);
+			TrajectoryPreviewNiagaraComponent->SetCollisionEnabled(
+				ECollisionEnabled::NoCollision);
+			TrajectoryPreviewNiagaraComponent->RegisterComponent();
+		}
+
+		if (TrajectoryPreviewNiagaraComponent)
+		{
+			if (TrajectoryPreviewNiagaraSystem
+				&& TrajectoryPreviewNiagaraComponent->GetAsset()
+				!= TrajectoryPreviewNiagaraSystem.Get())
+			{
+				TrajectoryPreviewNiagaraComponent->SetAsset(
+					TrajectoryPreviewNiagaraSystem);
+			}
+
+			TrajectoryPreviewNiagaraComponent->SetVariableInt(
+				TrajectoryPreviewNiagaraPointCountParameter,
+				PreviewPoints.Num());
+			TrajectoryPreviewNiagaraComponent->SetVariableLinearColor(
+				TrajectoryPreviewNiagaraColorParameter,
+				TrajectoryPreviewColor);
+			TrajectoryPreviewNiagaraComponent->SetVariableVec3(
+				TrajectoryPreviewNiagaraStartParameter,
+				PreviewPoints[0]);
+			TrajectoryPreviewNiagaraComponent->SetVariableVec3(
+				TrajectoryPreviewNiagaraEndParameter,
+				PreviewPoints.Last());
+			UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(
+				TrajectoryPreviewNiagaraComponent,
+				TrajectoryPreviewNiagaraPointsParameter,
+				PreviewPoints);
+			if (!TrajectoryPreviewNiagaraComponent->IsActive())
+			{
+				TrajectoryPreviewNiagaraComponent->Activate(true);
+			}
+		}
+	}
+
+	if (TrajectoryPreviewLandingActorClass && PreviewPoints.Num() > 1)
+	{
+		if (TrajectoryPreviewLandingActor
+			&& TrajectoryPreviewLandingActor->GetClass()
+			!= TrajectoryPreviewLandingActorClass.Get())
+		{
+			TrajectoryPreviewLandingActor->Destroy();
+			TrajectoryPreviewLandingActor = nullptr;
+		}
+
+		if (!TrajectoryPreviewLandingActor && GetWorld())
+		{
+			FActorSpawnParameters SpawnParameters;
+			SpawnParameters.Owner = Character;
+			SpawnParameters.SpawnCollisionHandlingOverride =
+				ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			TrajectoryPreviewLandingActor = GetWorld()->SpawnActor<AActor>(
+				TrajectoryPreviewLandingActorClass,
+				PreviewPoints.Last(),
+				FRotator::ZeroRotator,
+				SpawnParameters);
+			if (TrajectoryPreviewLandingActor)
+			{
+				TrajectoryPreviewLandingActor->SetActorEnableCollision(false);
+			}
+		}
+
+		if (TrajectoryPreviewLandingActor)
+		{
+			TrajectoryPreviewLandingActor->SetActorLocation(PreviewPoints.Last());
+			TrajectoryPreviewLandingActor->SetActorHiddenInGame(false);
+		}
+	}
+	else if (TrajectoryPreviewLandingActor)
+	{
+		TrajectoryPreviewLandingActor->SetActorHiddenInGame(true);
+	}
+
+	const int32 SegmentCount = FMath::Max(0, PreviewPoints.Num() - 1);
+	for (int32 SegmentIndex = SegmentCount;
+		SegmentIndex < ThrowTrajectorySplineMeshes.Num();
+		++SegmentIndex)
+	{
+		if (ThrowTrajectorySplineMeshes[SegmentIndex])
+		{
+			ThrowTrajectorySplineMeshes[SegmentIndex]->SetVisibility(false);
+		}
+	}
+	if (ThrowTrajectorySplineMeshes.Num() < SegmentCount)
+	{
+		ThrowTrajectorySplineMeshes.SetNum(SegmentCount);
+	}
+	for (int32 SegmentIndex = 0; SegmentIndex < SegmentCount; ++SegmentIndex)
+	{
+		TObjectPtr<USplineMeshComponent>& SplineMesh =
+			ThrowTrajectorySplineMeshes[SegmentIndex];
+		if (!SplineMesh)
+		{
+			SplineMesh = NewObject<USplineMeshComponent>(
+				Character,
+				*FString::Printf(TEXT("ThrowTrajectorySplineMesh_%d"), SegmentIndex));
+			SplineMesh->SetupAttachment(Character->GetRootComponent());
+			SplineMesh->SetMobility(EComponentMobility::Movable);
+			SplineMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			SplineMesh->RegisterComponent();
+		}
+
+		if (SplineMesh->GetStaticMesh() != TrajectoryPreviewMesh.Get())
+		{
+			SplineMesh->SetStaticMesh(TrajectoryPreviewMesh);
+		}
+		SplineMesh->SetVisibility(TrajectoryPreviewMesh != nullptr);
+		const FTransform RootTransform =
+			Character->GetRootComponent()->GetComponentTransform();
+		const FVector LocalStartLocation = RootTransform.InverseTransformPosition(
+			PreviewPoints[SegmentIndex]);
+		const FVector LocalEndLocation = RootTransform.InverseTransformPosition(
+			PreviewPoints[SegmentIndex + 1]);
+		const FVector StartTangent =
+			ThrowTrajectorySpline->GetTangentAtSplinePoint(
+				SegmentIndex,
+				ESplineCoordinateSpace::Local);
+		const FVector EndTangent =
+			ThrowTrajectorySpline->GetTangentAtSplinePoint(
+				SegmentIndex + 1,
+				ESplineCoordinateSpace::Local);
+		SplineMesh->SetStartAndEnd(
+			LocalStartLocation,
+			StartTangent,
+			LocalEndLocation,
+			EndTangent,
+			true);
+		const FVector2D MeshScale(
+			TrajectoryPreviewMeshScale,
+			TrajectoryPreviewMeshScale);
+		SplineMesh->SetStartScale(MeshScale, true);
+		SplineMesh->SetEndScale(MeshScale, true);
+
+		const int32 MaterialCount = TrajectoryPreviewMesh
+			? FMath::Max(1, TrajectoryPreviewMesh->GetStaticMaterials().Num())
+			: FMath::Max(1, SplineMesh->GetNumMaterials());
+		for (int32 MaterialIndex = 0;
+			MaterialIndex < MaterialCount;
+			++MaterialIndex)
+		{
+			FName StaticMeshSlotName = NAME_None;
+			if (TrajectoryPreviewMesh
+				&& TrajectoryPreviewMesh->GetStaticMaterials().IsValidIndex(
+					MaterialIndex))
+			{
+				StaticMeshSlotName =
+					TrajectoryPreviewMesh
+						->GetStaticMaterials()[MaterialIndex]
+						.MaterialSlotName;
+			}
+
+			UMaterialInterface* SourceMaterial = TrajectoryPreviewMaterial.Get();
+			if (!SourceMaterial && TrajectoryPreviewMesh)
+			{
+				SourceMaterial = TrajectoryPreviewMesh->GetMaterial(MaterialIndex);
+			}
+			if (!SourceMaterial)
+			{
+				SourceMaterial = SplineMesh->GetMaterial(MaterialIndex);
+			}
+			if (SourceMaterial)
+			{
+				SplineMesh->SetMaterial(MaterialIndex, SourceMaterial);
+				if (!StaticMeshSlotName.IsNone())
+				{
+					const int32 NamedMaterialIndex =
+						SplineMesh->GetMaterialIndex(StaticMeshSlotName);
+					if (NamedMaterialIndex != INDEX_NONE)
+					{
+						SplineMesh->SetMaterial(
+							NamedMaterialIndex,
+							SourceMaterial);
+					}
+				}
+			}
+
+			UMaterialInstanceDynamic* DynamicMaterial = SourceMaterial
+				? UMaterialInstanceDynamic::Create(SourceMaterial, SplineMesh)
+				: nullptr;
+			if (DynamicMaterial)
+			{
+				DynamicMaterial->SetVectorParameterValue(
+					TEXT("TrajectoryPreviewColor"),
+					TrajectoryPreviewColor);
+				DynamicMaterial->SetVectorParameterValue(
+					TEXT("BaseColor"),
+					TrajectoryPreviewColor);
+				DynamicMaterial->SetVectorParameterValue(
+					TEXT("Color"),
+					TrajectoryPreviewColor);
+				DynamicMaterial->SetVectorParameterValue(
+					TEXT("TintColor"),
+					TrajectoryPreviewColor);
+				SplineMesh->SetMaterial(MaterialIndex, DynamicMaterial);
+				if (!StaticMeshSlotName.IsNone())
+				{
+					const int32 NamedMaterialIndex =
+						SplineMesh->GetMaterialIndex(StaticMeshSlotName);
+					if (NamedMaterialIndex != INDEX_NONE)
+					{
+						SplineMesh->SetMaterial(
+							NamedMaterialIndex,
+							DynamicMaterial);
+					}
+				}
+				if (!TrajectoryPreviewMaterialSlotName.IsNone())
+				{
+					const int32 PreferredMaterialIndex =
+						SplineMesh->GetMaterialIndex(
+							TrajectoryPreviewMaterialSlotName);
+					if (PreferredMaterialIndex != INDEX_NONE)
+					{
+						SplineMesh->SetMaterial(
+							PreferredMaterialIndex,
+							DynamicMaterial);
+					}
+				}
+			}
+		}
+	}
+}
+
+void USnowballEquipmentComponent::ClearThrowTrajectoryPreview()
+{
+	if (ThrowTrajectorySpline)
+	{
+		ThrowTrajectorySpline->ClearSplinePoints(false);
+		ThrowTrajectorySpline->SetVisibility(false);
+	}
+	for (USplineMeshComponent* SplineMesh : ThrowTrajectorySplineMeshes)
+	{
+		if (SplineMesh)
+		{
+			SplineMesh->SetVisibility(false);
+		}
+	}
+	if (TrajectoryPreviewLandingActor)
+	{
+		TrajectoryPreviewLandingActor->SetActorHiddenInGame(true);
+	}
+	if (TrajectoryPreviewNiagaraComponent)
+	{
+		TrajectoryPreviewNiagaraComponent->Deactivate();
+	}
 }
 
 void USnowballEquipmentComponent::ExecutePendingThrowFromServer(

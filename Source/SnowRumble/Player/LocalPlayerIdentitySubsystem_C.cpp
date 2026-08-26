@@ -83,7 +83,7 @@ bool ULocalPlayerIdentitySubsystem::IsPlayerNameAllowed(
 		return false;
 	}
 
-	constexpr int32 MaximumNameLength = 7;
+	constexpr int32 MaximumNameLength = 10;
 	if (SanitizedName.Len() > MaximumNameLength)
 	{
 		return false;
@@ -108,7 +108,7 @@ FString ULocalPlayerIdentitySubsystem::SanitizePlayerName(
 	const FString& NewName)
 {
 	FString SanitizedName = NewName.TrimStartAndEnd();
-	constexpr int32 MaximumNameLength = 7;
+	constexpr int32 MaximumNameLength = 10;
 	if (SanitizedName.Len() > MaximumNameLength)
 	{
 		SanitizedName.LeftInline(MaximumNameLength);

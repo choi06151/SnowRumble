@@ -32,6 +32,8 @@ class SNOWRUMBLE_API ASnowballItem : public AActor
 public:
 	ASnowballItem();
 
+	virtual void Tick(float DeltaSeconds) override;
+
 	/** 서버가 바닥 눈덩이를 플레이어의 장착 위치에 귀속한다. */
 	bool TrySetHeldBy(ASnowRumbleCharacter* NewHolder, USceneComponent* HoldPoint);
 
@@ -45,6 +47,11 @@ public:
 		float ThrowSpeed,
 		float ThrowChargeProgress,
 		float ThrowDamageMultiplier = 1.0f);
+
+	/** 서버가 공중 낙하 이벤트용 완전 성장 눈덩이를 초기화한다. */
+	void InitializeFallingLargeSnowball(
+		float ImpactDamage,
+		const FVector& InitialVelocity);
 
 	/** 서버가 장착된 눈덩이를 현재 손 위치에서 바닥 상태로 놓는다. */
 	bool DropToGround();
@@ -67,7 +74,8 @@ public:
 	/** 서버가 확인한 눈 표면에 눈덩이를 물리 낙하 없이 고정한다. */
 	void SettleOnGroundFromSurface(
 		const FVector& SurfacePoint,
-		const FVector& SurfaceNormal);
+		const FVector& SurfaceNormal,
+		bool bIsSnowSurface);
 
 	/** 서버가 마지막 확인 위치부터 실제 이동한 거리를 성장값에 누적한다. */
 	void UpdateRollingGrowth();
@@ -83,6 +91,9 @@ public:
 	/** 현재 성장 크기가 적용된 굴리기 충돌 반지름을 반환한다. */
 	float GetRollingCollisionRadius() const;
 
+	/** 현재 눈덩이에 적용되는 투사체 중력 배율을 반환한다. */
+	float GetProjectileGravityScale() const;
+
 	/** 생성 직후 지정 Actor와 잠시 충돌하지 않도록 한다. */
 	void IgnoreActorTemporarily(AActor* ActorToIgnore, float DurationSeconds);
 
@@ -91,6 +102,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
 	ASnowRumbleCharacter* GetHolder() const;
+
+	/** 지정한 Actor가 눈 표면 태그를 가진 지면인지 확인한다. */
+	bool IsSnowSurfaceActor(const AActor* SurfaceActor) const;
 
 protected:
 	virtual void BeginPlay() override;
@@ -136,6 +150,18 @@ protected:
 
 	/** 서버에서 처음 확인한 투척 충돌의 피해, 이펙트와 제거를 처리한다. */
 	void HandleThrownImpact(AActor* OtherActor, const FHitResult& Hit);
+
+	/** 큰 눈덩이가 바닥이나 플레이어에 닿은 뒤 물리 굴리기로 전환한다. */
+	void StartThrownRolling();
+
+	/** 낙하 큰 눈덩이가 표면에 닿은 뒤 물리 시뮬레이션을 시작한다. */
+	void StartFallingSnowballPhysics(const FVector& InitialVelocity);
+
+	/** 굴러가는 큰 눈덩이의 이동 거리와 크기를 갱신한다. */
+	void UpdateThrownRolling();
+
+	/** 굴러가는 큰 눈덩이가 벽에 부딪혀 제거될 때 충돌 연출을 재생한다. */
+	void DestroyThrownRolling(const FHitResult& Hit);
 
 	/** 임시 충돌 무시가 끝난 Actor를 다시 충돌 대상으로 복구한다. */
 	void RestoreTemporarilyIgnoredActor(
@@ -227,6 +253,26 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Growth", meta = (ClampMin = "1.0"))
 	float DistanceForMaximumGrowth = 1000.0f;
 
+	/** 큰 눈덩이가 투척 후 이 거리만큼 굴러가면 완전히 작아진다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Large", meta = (ClampMin = "1.0"))
+	float DistanceForThrownLargeSnowballToDissolve = 1400.0f;
+
+	/** 굴러가는 큰 눈덩이가 이 횟수만큼 충돌하면 제거된다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Large", meta = (ClampMin = "1"))
+	int32 MaximumThrownRollingCollisionCount = 3;
+
+	/** 굴러가는 큰 눈덩이의 수평 속도가 이 값 이하가 되면 제거된다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Large", meta = (ClampMin = "0.0"))
+	float MinimumThrownRollingSpeed = 75.0f;
+
+	/** 낙하 큰 눈덩이가 물리로 굴러갈 때 적용할 선형 감쇠다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Falling", meta = (ClampMin = "0.0"))
+	float FallingSnowballLinearDamping = 2.5f;
+
+	/** 낙하 큰 눈덩이가 물리로 굴러갈 때 적용할 회전 감쇠다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Falling", meta = (ClampMin = "0.0"))
+	float FallingSnowballAngularDamping = 3.0f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Grounding", meta = (ClampMin = "0.0"))
 	float GroundSettleTraceUpDistance = 120.0f;
 
@@ -235,6 +281,18 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Grounding", meta = (ClampMin = "0.0"))
 	float GroundSettleExtraClearance = 0.5f;
+
+	/** 눈길 표면으로 취급해 일반 지면 후보보다 후순위로 배치할 Actor 태그다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Grounding")
+	FName GroundSnowSurfaceTag = TEXT("SnowSurface");
+
+	/** 작은 눈덩이의 레이트레이스 정착 위치에 적용할 추가 월드 Z 오프셋이다. 음수면 눈을 더 아래로 내린다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Grounding")
+	float SmallSnowballGroundSettleZOffset = 0.0f;
+
+	/** 큰 눈덩이의 레이트레이스 정착 위치에 적용할 추가 월드 Z 오프셋이다. 음수면 눈을 더 아래로 내린다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Grounding")
+	float LargeSnowballGroundSettleZOffset = 0.0f;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemState, Category = "SnowRumble|Snowball")
 	ESnowballItemState ItemState = ESnowballItemState::Ground;
@@ -257,6 +315,16 @@ protected:
 	bool bHasProcessedThrownImpact = false;
 	float CurrentThrowChargeProgress = 0.0f;
 	float CurrentThrowDamageMultiplier = 1.0f;
+	float FallingSnowballDamage = 0.0f;
+	bool bIsFallingSnowball = false;
+	bool bIsFallingSnowballPhysicsActive = false;
+	float FallingSnowballRestTime = 0.0f;
+	bool bIsThrownRolling = false;
+	float AccumulatedThrownRollingDistance = 0.0f;
+	FVector LastThrownRollingLocation = FVector::ZeroVector;
+	FVector ThrownRollingDirection = FVector::ForwardVector;
+	int32 ThrownRollingCollisionCount = 0;
+	TSet<TWeakObjectPtr<AActor>> ThrownRollingHitCharacters;
 
 	TSet<TWeakObjectPtr<AActor>> TemporarilyIgnoredActors;
 	ECollisionResponse CachedPawnCollisionResponse = ECR_Block;
