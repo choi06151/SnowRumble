@@ -749,6 +749,9 @@ protected:
 	/** 스프린트 상태에 맞는 최대 이동속도를 CharacterMovement에 적용한다. */
 	void ApplyMovementSpeed();
 
+	/** 빙하 맵의 현재 바닥에 맞춰 이동 마찰을 적용한다. */
+	void UpdateIceGlacierMovementSurface();
+
 	/** 유효한 이모션 인덱스인지 확인한다. */
 	bool IsValidEmoteIndex(int32 EmoteIndex) const;
 
@@ -1337,6 +1340,18 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Movement", meta = (ClampMin = "0.0"))
 	float AimWalkSpeed = 300.0f;
 
+	/** L_IceGlacier_J에서 SnowSurface가 아닌 바닥에 미끄러짐을 적용할지 정한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Movement|Ice")
+	bool bEnableIceGlacierSlipperyMovement = true;
+
+	/** 빙하의 미끄러운 바닥에 적용할 GroundFriction 값이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Movement|Ice", meta = (ClampMin = "0.0"))
+	float SlipperyGroundFriction = 0.15f;
+
+	/** 빙하의 미끄러운 바닥에서 멈출 때 적용할 감속값이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Movement|Ice", meta = (ClampMin = "0.0"))
+	float SlipperyBrakingDecelerationWalking = 80.0f;
+
 	/** 눈 밟힘 효과를 허용할 바닥 Actor 태그다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep")
 	FName SnowFootstepSurfaceTag = TEXT("SnowSurface");
@@ -1741,6 +1756,10 @@ public:
 	bool bDistanceSnowTrailActive = false;
 	FVector LastDistanceSnowTrailStampLocation = FVector::ZeroVector;
 	FName LastDistanceSnowTrailFootSocketName = NAME_None;
+	bool bIsIceGlacierMap = false;
+	bool bSlipperyMovementApplied = false;
+	float DefaultGroundFriction = 8.0f;
+	float DefaultBrakingDecelerationWalking = 2048.0f;
 
 	UPROPERTY(Transient)
 	TObjectPtr<ALobbyInteractionBoard> FocusedLobbyBoard;

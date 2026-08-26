@@ -122,6 +122,10 @@ protected:
 	UFUNCTION()
 	void OnRep_GrowthProgress();
 
+	/** 서버가 확정한 눈덩이 초기 스케일을 클라이언트에 적용한다. */
+	UFUNCTION()
+	void OnRep_InitialActorScale();
+
 	/** 복제된 지면 고정 상태에 맞춰 바닥 물리를 갱신한다. */
 	UFUNCTION()
 	void OnRep_IsSettledOnGround();
@@ -313,6 +317,7 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_IsSettledOnGround, Category = "SnowRumble|Snowball")
 	bool bIsSettledOnGround = true;
 
+	UPROPERTY(VisibleInstanceOnly, ReplicatedUsing = OnRep_InitialActorScale, Category = "SnowRumble|Snowball|Growth")
 	FVector InitialActorScale = FVector::OneVector;
 	FVector LastRollingLocation = FVector::ZeroVector;
 	float AccumulatedRollingDistance = 0.0f;
