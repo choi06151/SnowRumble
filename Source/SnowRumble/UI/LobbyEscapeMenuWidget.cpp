@@ -2,6 +2,7 @@
 
 #include "LobbyEscapeMenuWidget.h"
 
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "Components/Button.h"
 #include "InputCoreTypes.h"
 #include "LobbyPlayerController.h"
@@ -124,6 +125,10 @@ void ULobbyEscapeMenuWidget::HandleSettingsButtonClicked()
 void ULobbyEscapeMenuWidget::HandleInviteFriendsButtonClicked()
 {
 	OnInviteFriendsRequested();
+	if (LobbyPlayerController)
+	{
+		LobbyPlayerController->OpenSteamSessionInviteUI();
+	}
 }
 
 void ULobbyEscapeMenuWidget::HandleBackButtonClicked()

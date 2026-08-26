@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "SnowRumbleAudioUserWidget.h"
 #include "OptionsWidget_C.h"
 #include "OptionsKeyBindingRowWidget_C.generated.h"
 
@@ -13,7 +13,7 @@ class UTextBlock;
 DECLARE_MULTICAST_DELEGATE_OneParam(FSnowRumbleKeyBindingRowRequest, FName);
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API UOptionsKeyBindingRowWidget : public UUserWidget
+class SNOWRUMBLE_API UOptionsKeyBindingRowWidget : public USnowRumbleAudioUserWidget
 {
 	GENERATED_BODY()
 

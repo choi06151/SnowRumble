@@ -2,8 +2,10 @@
 
 #include "SnowRumbleLobbyGameMode.h"
 
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/PlayerController.h"
+#include "Misc/PackageName.h"
 #include "../Player/SnowRumbleCharacter.h"
 #include "../UI/LobbyPlayerController.h"
 #include "../UI/SnowRumblePlayerController.h"
@@ -13,9 +15,13 @@
 #include "SnowRumbleLobbyGameState.h"
 #include "SnowRumbleMatchSubsystem_C.h"
 #include "SnowRumblePlayerState.h"
+#include "Sound/SoundBase.h"
 
 namespace
 {
+constexpr const TCHAR* LobbyPvpGameModeTravelPath =
+	TEXT("/Game/Game/BP_SnowRumblePVPGameMode.BP_SnowRumblePVPGameMode_C");
+
 const TArray<ESnowRumbleTeam>& GetLobbyTeamChoices()
 {
 	static const TArray<ESnowRumbleTeam> TeamChoices = {
@@ -26,9 +32,48 @@ const TArray<ESnowRumbleTeam>& GetLobbyTeamChoices()
 		ESnowRumbleTeam::Purple,
 		ESnowRumbleTeam::Pink,
 		ESnowRumbleTeam::Blue,
-		ESnowRumbleTeam::White
+		ESnowRumbleTeam::Orange
 	};
 	return TeamChoices;
+}
+
+void EnsureLobbyTravelOption(FString& TravelUrl, const TCHAR* Option)
+{
+	if (!TravelUrl.Contains(Option, ESearchCase::IgnoreCase))
+	{
+		TravelUrl += Option;
+	}
+}
+
+void EnsureLobbyTravelOptionValue(
+	FString& TravelUrl,
+	const TCHAR* OptionName,
+	const FString& OptionValue)
+{
+	if (OptionValue.IsEmpty())
+	{
+		return;
+	}
+
+	const FString OptionPrefix = FString::Printf(TEXT("%s="), OptionName);
+	if (!TravelUrl.Contains(OptionPrefix, ESearchCase::IgnoreCase))
+	{
+		TravelUrl += FString::Printf(
+			TEXT("?%s=%s"),
+			OptionName,
+			*OptionValue);
+	}
+}
+
+FString GetMapPackageNameFromTravelUrl(const FString& TravelUrl)
+{
+	FString MapPackageName = TravelUrl;
+	int32 OptionStartIndex = INDEX_NONE;
+	if (MapPackageName.FindChar(TEXT('?'), OptionStartIndex))
+	{
+		MapPackageName.LeftInline(OptionStartIndex);
+	}
+	return MapPackageName;
 }
 }
 
@@ -41,11 +86,19 @@ ASnowRumbleLobbyGameMode::ASnowRumbleLobbyGameMode()
 	SnowmanModeGameModeClass = ASnowmanModeGameMode::StaticClass();
 	bUseSeamlessTravel = true;
 
+#if WITH_EDITOR
 	if (IConsoleVariable* AllowPieSeamlessTravel =
 		IConsoleManager::Get().FindConsoleVariable(TEXT("net.AllowPIESeamlessTravel")))
 	{
 		AllowPieSeamlessTravel->Set(1);
 	}
+#endif
+}
+
+void ASnowRumbleLobbyGameMode::BeginPlay()
+{
+	Super::BeginPlay();
+	BroadcastBackgroundMusic();
 }
 
 void ASnowRumbleLobbyGameMode::RequestStartMatch(
@@ -66,22 +119,34 @@ void ASnowRumbleLobbyGameMode::RequestStartMatch(
 		return;
 	}
 
+	const int32 ExpectedPlayerCount = ResolveExpectedMatchPlayerCount();
 	PendingMatchTravelUrl =
 		LobbyGameState->GetLobbyMode() == ESnowRumbleLobbyMode::Snowman
-			? BuildSnowmanModeTravelUrl(LobbyGameState->GetLobbyPlayers().Num())
-			: BuildMatchTravelUrl(LobbyGameState->GetLobbyPlayers().Num());
+			? BuildSnowmanModeTravelUrl(ExpectedPlayerCount)
+			: BuildMatchTravelUrl(ExpectedPlayerCount);
 	if (PendingMatchTravelUrl.IsEmpty())
 	{
 		return;
 	}
 
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("SnowRumble lobby match travel: expected=%d connected=%d url=%s"),
+		ExpectedPlayerCount,
+		GetNumPlayers(),
+		*PendingMatchTravelUrl);
+
 	bMatchTravelPending = true;
 	ShowMatchLoadingScreens();
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().SetTimerForNextTick(
+		World->GetTimerManager().SetTimer(
+			PendingMatchTravelTimerHandle,
 			this,
-			&ASnowRumbleLobbyGameMode::StartPendingMatchTravel);
+			&ASnowRumbleLobbyGameMode::StartPendingMatchTravel,
+			FMath::Max(0.0f, MatchTravelDelaySeconds),
+			false);
 	}
 }
 
@@ -111,6 +176,21 @@ void ASnowRumbleLobbyGameMode::PostLogin(APlayerController* NewPlayer)
 	{
 		LobbyGameState->NotifyLobbyStateChanged();
 	}
+
+	BroadcastBackgroundMusic();
+}
+
+void ASnowRumbleLobbyGameMode::HandleSeamlessTravelPlayer(AController*& C)
+{
+	Super::HandleSeamlessTravelPlayer(C);
+	BroadcastBackgroundMusic();
+}
+
+void ASnowRumbleLobbyGameMode::HandleStartingNewPlayer_Implementation(
+	APlayerController* NewPlayer)
+{
+	Super::HandleStartingNewPlayer_Implementation(NewPlayer);
+	BroadcastBackgroundMusic();
 }
 
 void ASnowRumbleLobbyGameMode::ShuffleLobbyTeamsFromServer(int32 TeamCount)
@@ -279,6 +359,36 @@ int32 ASnowRumbleLobbyGameMode::CountLobbyTeamPlayers(
 		: 0;
 }
 
+int32 ASnowRumbleLobbyGameMode::ResolveExpectedMatchPlayerCount() const
+{
+	const ASnowRumbleLobbyGameState* LobbyGameState =
+		GetGameState<ASnowRumbleLobbyGameState>();
+	const int32 LobbyPlayerCount = LobbyGameState
+		? LobbyGameState->GetLobbyPlayers().Num()
+		: 0;
+	if (LobbyPlayerCount > 0)
+	{
+		return LobbyPlayerCount;
+	}
+
+	// 패키징/전환 타이밍에서 PlayerArray가 비어 보이면 실제 연결 컨트롤러 수를 사용한다.
+	int32 ConnectedPlayerCount = 0;
+	if (const UWorld* World = GetWorld())
+	{
+		for (FConstPlayerControllerIterator It =
+				World->GetPlayerControllerIterator();
+			It;
+			++It)
+		{
+			if (It->Get())
+			{
+				++ConnectedPlayerCount;
+			}
+		}
+	}
+	return ConnectedPlayerCount;
+}
+
 FString ASnowRumbleLobbyGameMode::BuildMatchTravelUrl(
 	int32 ExpectedPlayerCount)
 {
@@ -313,16 +423,19 @@ FString ASnowRumbleLobbyGameMode::BuildMatchTravelUrl(
 		return FString();
 	}
 
-	if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
-	{
-		TravelUrl += TEXT("?listen");
-	}
+	PendingMatchMapPackageName = GetMapPackageNameFromTravelUrl(TravelUrl);
+	EnsureLobbyTravelOption(TravelUrl, TEXT("?listen"));
+	EnsureLobbyTravelOptionValue(
+		TravelUrl,
+		TEXT("game"),
+		LobbyPvpGameModeTravelPath);
 
 	if (ExpectedPlayerCount > 0)
 	{
-		TravelUrl += FString::Printf(
-			TEXT("?ExpectedPlayers=%d"),
-			ExpectedPlayerCount);
+		EnsureLobbyTravelOptionValue(
+			TravelUrl,
+			TEXT("ExpectedPlayers"),
+			FString::FromInt(ExpectedPlayerCount));
 	}
 	return TravelUrl;
 }
@@ -344,23 +457,18 @@ FString ASnowRumbleLobbyGameMode::BuildSnowmanModeTravelUrl(
 		return FString();
 	}
 
-	if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
-	{
-		TravelUrl += TEXT("?listen");
-	}
+	PendingMatchMapPackageName = GetMapPackageNameFromTravelUrl(TravelUrl);
+	EnsureLobbyTravelOption(TravelUrl, TEXT("?listen"));
 
 	const FString GameModePath = SnowmanModeGameModeClass->GetPathName();
-	if (!GameModePath.IsEmpty()
-		&& !TravelUrl.Contains(TEXT("?game="), ESearchCase::IgnoreCase))
-	{
-		TravelUrl += FString::Printf(TEXT("?game=%s"), *GameModePath);
-	}
+	EnsureLobbyTravelOptionValue(TravelUrl, TEXT("game"), GameModePath);
 
 	if (ExpectedPlayerCount > 0)
 	{
-		TravelUrl += FString::Printf(
-			TEXT("?ExpectedPlayers=%d"),
-			ExpectedPlayerCount);
+		EnsureLobbyTravelOptionValue(
+			TravelUrl,
+			TEXT("ExpectedPlayers"),
+			FString::FromInt(ExpectedPlayerCount));
 	}
 	return TravelUrl;
 }
@@ -406,6 +514,88 @@ TArray<FString> ASnowRumbleLobbyGameMode::GetPvPLevelCandidatePaths() const
 	return CandidateLevelPaths;
 }
 
+FSnowRumbleLoadingMapPresentation
+ASnowRumbleLobbyGameMode::GetLoadingMapPresentation(
+	const FString& MapPackageName) const
+{
+	FSnowRumbleLoadingMapPresentation FallbackPresentation;
+	if (!MapPackageName.IsEmpty())
+	{
+		FallbackPresentation.DisplayName =
+			FText::FromString(FPackageName::GetShortName(MapPackageName));
+	}
+
+	for (const FSnowRumbleLoadingMapPresentation& Presentation
+		: PvPLevelLoadingPresentations)
+	{
+		const FSoftObjectPath LevelPath =
+			Presentation.Level.ToSoftObjectPath();
+		if (!LevelPath.IsValid())
+		{
+			continue;
+		}
+
+		if (LevelPath.GetLongPackageName().Equals(
+			MapPackageName,
+			ESearchCase::IgnoreCase))
+		{
+			FSnowRumbleLoadingMapPresentation Result = Presentation;
+			if (Result.DisplayName.IsEmpty())
+			{
+				Result.DisplayName = FallbackPresentation.DisplayName;
+			}
+			return Result;
+		}
+	}
+
+	return FallbackPresentation;
+}
+
+TArray<FString> ASnowRumbleLobbyGameMode::GetTeamPlayerNamesFor(
+	const ASnowRumblePlayerState* LocalPlayerState) const
+{
+	TArray<FString> TeamPlayerNames;
+	const ASnowRumbleLobbyGameState* LobbyGameState =
+		GetGameState<ASnowRumbleLobbyGameState>();
+	if (!LobbyGameState || !LocalPlayerState)
+	{
+		return TeamPlayerNames;
+	}
+
+	const ESnowRumbleTeam LocalTeam = LocalPlayerState->GetLobbyTeam();
+	for (const ASnowRumblePlayerState* CandidatePlayerState
+		: LobbyGameState->GetLobbyPlayers())
+	{
+		if (!CandidatePlayerState)
+		{
+			continue;
+		}
+
+		if (LocalTeam != ESnowRumbleTeam::None
+			&& CandidatePlayerState->GetLobbyTeam() != LocalTeam)
+		{
+			continue;
+		}
+		if (LocalTeam == ESnowRumbleTeam::None
+			&& CandidatePlayerState != LocalPlayerState)
+		{
+			continue;
+		}
+
+		FString PlayerName = CandidatePlayerState->GetLobbyPlayerName();
+		if (PlayerName.IsEmpty())
+		{
+			PlayerName = CandidatePlayerState->GetPlayerName();
+		}
+		if (!PlayerName.IsEmpty())
+		{
+			TeamPlayerNames.Add(PlayerName);
+		}
+	}
+
+	return TeamPlayerNames;
+}
+
 void ASnowRumbleLobbyGameMode::ShowMatchLoadingScreens()
 {
 	UWorld* World = GetWorld();
@@ -416,9 +606,9 @@ void ASnowRumbleLobbyGameMode::ShowMatchLoadingScreens()
 
 	const ASnowRumbleLobbyGameState* LobbyGameState =
 		GetGameState<ASnowRumbleLobbyGameState>();
-	const int32 ExpectedPlayerCount = LobbyGameState
-		? LobbyGameState->GetLobbyPlayers().Num()
-		: 0;
+	const int32 ExpectedPlayerCount = ResolveExpectedMatchPlayerCount();
+	const FSnowRumbleLoadingMapPresentation LoadingMapPresentation =
+		GetLoadingMapPresentation(PendingMatchMapPackageName);
 
 	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
 		It;
@@ -427,10 +617,37 @@ void ASnowRumbleLobbyGameMode::ShowMatchLoadingScreens()
 		if (ASnowRumblePlayerController* PlayerController =
 			Cast<ASnowRumblePlayerController>(It->Get()))
 		{
+			const ASnowRumblePlayerState* LocalPlayerState =
+				PlayerController->GetPlayerState<ASnowRumblePlayerState>();
+			PlayerController->ClientSetLoadingPresentation(
+				PendingMatchMapPackageName,
+				LoadingMapPresentation.DisplayName,
+				LoadingMapPresentation.LoadingImage,
+				GetTeamPlayerNamesFor(LocalPlayerState));
 			PlayerController->ClientShowLoadingScreen();
 			PlayerController->ClientUpdateLoadingProgress(
 				0,
 				ExpectedPlayerCount);
+		}
+	}
+}
+
+void ASnowRumbleLobbyGameMode::BroadcastBackgroundMusic() const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
+		It;
+		++It)
+	{
+		if (ASnowRumblePlayerController* PlayerController =
+			Cast<ASnowRumblePlayerController>(It->Get()))
+		{
+			PlayerController->ClientPlayBackgroundMusic(BackgroundMusicSound);
 		}
 	}
 }
@@ -448,6 +665,7 @@ void ASnowRumbleLobbyGameMode::StartPendingMatchTravel()
 		{
 			bMatchTravelPending = false;
 			PendingMatchTravelUrl.Empty();
+			PendingMatchMapPackageName.Empty();
 			for (FConstPlayerControllerIterator It =
 					World->GetPlayerControllerIterator();
 				It;

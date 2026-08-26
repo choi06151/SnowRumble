@@ -2,14 +2,21 @@
 
 #include "PlayerGrabComponent_C.h"
 
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "SnowRumbleCharacter.h"
+#include "../Game/SnowRumblePlayerState.h"
+#include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/EngineTypes.h"
 #include "Engine/World.h"
+#include "GameFramework/GameStateBase.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
+#include "Sound/SoundAttenuation.h"
+#include "Sound/SoundBase.h"
+#include "DrawDebugHelpers.h"
 
 UPlayerGrabComponent::UPlayerGrabComponent()
 {
@@ -44,8 +51,21 @@ void UPlayerGrabComponent::TickComponent(
 		return;
 	}
 
+	if (IsGrabAttached()
+		&& MaximumGrabHoldSeconds > 0.0f
+		&& GetGrabRemainingTimeProgress() <= 0.0f)
+	{
+		ServerStopGrabReach_Implementation();
+		return;
+	}
+
 	if (GrabbedCharacter)
 	{
+		if (GrabbedCharacter->IsDead())
+		{
+			ServerStopGrabReach_Implementation();
+			return;
+		}
 		UpdateGrabbedCharacterTether(DeltaTime);
 		return;
 	}
@@ -61,12 +81,23 @@ void UPlayerGrabComponent::TickComponent(
 	FVector AttachedWorldLocation = FVector::ZeroVector;
 	ESnowRumbleGrabAttachmentType AttachmentType =
 		ESnowRumbleGrabAttachmentType::None;
+	const UWorld* World = GetWorld();
+	const bool bAllowWorldAttachment =
+		World
+		&& World->GetTimeSeconds() - GrabReachStartedTimeSeconds
+			>= WorldGrabMinReachHoldSeconds
+		&& CurrentGrabReachAlpha >= MinGrabReachAlphaForAttachment;
+	if (CurrentGrabReachAlpha < MinGrabReachAlphaForAttachment)
+	{
+		return;
+	}
 	if (FindGrabCandidate(
 		TargetCharacter,
 		TargetMesh,
 		TargetBoneName,
 		AttachedWorldLocation,
-		AttachmentType))
+		AttachmentType,
+		bAllowWorldAttachment))
 	{
 		if (AttachmentType == ESnowRumbleGrabAttachmentType::Character)
 		{
@@ -94,6 +125,11 @@ void UPlayerGrabComponent::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(UPlayerGrabComponent, GrabAttachedWorldLocation);
 	DOREPLIFETIME(UPlayerGrabComponent, GrabbedTargetBoneName);
 	DOREPLIFETIME(UPlayerGrabComponent, ActiveGrabHand);
+	DOREPLIFETIME(UPlayerGrabComponent, GrabReachStartedServerTime);
+	DOREPLIFETIME(UPlayerGrabComponent, GrabAttachmentStartedServerTime);
+	DOREPLIFETIME(UPlayerGrabComponent, GrabHoldProgress);
+	DOREPLIFETIME(UPlayerGrabComponent, GrabProgressAtAttachmentStart);
+	DOREPLIFETIME(UPlayerGrabComponent, GrabRecoveryStartedServerTime);
 }
 
 void UPlayerGrabComponent::StartGrabReach()
@@ -110,6 +146,14 @@ void UPlayerGrabComponent::StartGrabReach()
 	}
 
 	bIsGrabReaching = true;
+	if (const UWorld* World = GetWorld())
+	{
+		GrabReachStartedTimeSeconds = World->GetTimeSeconds();
+		const AGameStateBase* GameState = World->GetGameState();
+		GrabReachStartedServerTime = GameState
+			? GameState->GetServerWorldTimeSeconds()
+			: World->GetTimeSeconds();
+	}
 	OnRep_IsGrabReaching();
 
 	if (Character->HasAuthority())
@@ -130,6 +174,8 @@ void UPlayerGrabComponent::StopGrabReach()
 	}
 
 	bIsGrabReaching = false;
+	GrabReachStartedTimeSeconds = 0.0;
+	GrabReachStartedServerTime = 0.0f;
 	OnRep_IsGrabReaching();
 	ClearGrabConstraint();
 
@@ -190,6 +236,43 @@ float UPlayerGrabComponent::GetGrabReachAlpha() const
 	return FMath::Clamp(CurrentGrabReachAlpha, 0.0f, 1.0f);
 }
 
+float UPlayerGrabComponent::GetGrabRemainingTimeProgress() const
+{
+	if (MaximumGrabHoldSeconds <= 0.0f)
+	{
+		return 1.0f;
+	}
+
+	if (IsGrabAttached()
+		&& GrabAttachmentStartedServerTime > 0.0f)
+	{
+		const float ElapsedSeconds = FMath::Max(
+			0.0f,
+			GetCurrentServerTimeSeconds() - GrabAttachmentStartedServerTime);
+		return FMath::Clamp(
+			GrabProgressAtAttachmentStart
+				- ElapsedSeconds / MaximumGrabHoldSeconds,
+			0.0f,
+			1.0f);
+	}
+
+	if (GrabRecoveryStartedServerTime <= 0.0f
+		|| GrabHoldProgress >= 1.0f
+		|| GrabRecoverySeconds <= 0.0f)
+	{
+		return FMath::Clamp(GrabHoldProgress, 0.0f, 1.0f);
+	}
+
+	const float RecoveryElapsedSeconds = FMath::Max(
+		0.0f,
+		GetCurrentServerTimeSeconds() - GrabRecoveryStartedServerTime);
+	return FMath::Clamp(
+		GrabHoldProgress
+			+ RecoveryElapsedSeconds / GrabRecoverySeconds,
+		0.0f,
+		1.0f);
+}
+
 void UPlayerGrabComponent::ServerStartGrabReach_Implementation()
 {
 	if (!CanStartGrabReach())
@@ -198,6 +281,14 @@ void UPlayerGrabComponent::ServerStartGrabReach_Implementation()
 	}
 
 	bIsGrabReaching = true;
+	if (const UWorld* World = GetWorld())
+	{
+		GrabReachStartedTimeSeconds = World->GetTimeSeconds();
+		const AGameStateBase* GameState = World->GetGameState();
+		GrabReachStartedServerTime = GameState
+			? GameState->GetServerWorldTimeSeconds()
+			: World->GetTimeSeconds();
+	}
 	OnRep_IsGrabReaching();
 	if (AActor* Owner = GetOwner())
 	{
@@ -208,6 +299,8 @@ void UPlayerGrabComponent::ServerStartGrabReach_Implementation()
 void UPlayerGrabComponent::ServerStopGrabReach_Implementation()
 {
 	bIsGrabReaching = false;
+	GrabReachStartedTimeSeconds = 0.0;
+	GrabReachStartedServerTime = 0.0f;
 	OnRep_IsGrabReaching();
 	ClearGrabConstraint();
 	if (AActor* Owner = GetOwner())
@@ -244,7 +337,9 @@ bool UPlayerGrabComponent::CanStartGrabReach() const
 {
 	const ASnowRumbleCharacter* Character = GetOwnerCharacter();
 	return Character
-		&& Character->CanStartPlayerGrabReach();
+		&& Character->CanStartPlayerGrabReach()
+		&& (MaximumGrabHoldSeconds <= 0.0f
+			|| GetGrabRemainingTimeProgress() > 0.0f);
 }
 
 bool UPlayerGrabComponent::FindGrabCandidate(
@@ -252,7 +347,8 @@ bool UPlayerGrabComponent::FindGrabCandidate(
 	USkeletalMeshComponent*& OutMesh,
 	FName& OutBoneName,
 	FVector& OutAttachedWorldLocation,
-	ESnowRumbleGrabAttachmentType& OutAttachmentType) const
+	ESnowRumbleGrabAttachmentType& OutAttachmentType,
+	bool bAllowWorldAttachment) const
 {
 	OutCharacter = nullptr;
 	OutMesh = nullptr;
@@ -291,6 +387,43 @@ bool UPlayerGrabComponent::FindGrabCandidate(
 		ObjectQueryParams,
 		FCollisionShape::MakeSphere(GrabTraceRadius),
 		QueryParams);
+	if (bDrawGrabTraceDebug)
+	{
+		const FColor TraceColor = bHit ? FColor::Green : FColor::Red;
+		DrawDebugLine(
+			World,
+			TraceStart,
+			TraceEnd,
+			TraceColor,
+			false,
+			GrabTraceDebugDrawSeconds,
+			0,
+			1.5f);
+		DrawDebugSphere(
+			World,
+			TargetLocation,
+			GrabTraceRadius,
+			12,
+			TraceColor,
+			false,
+			GrabTraceDebugDrawSeconds);
+		DrawDebugSphere(
+			World,
+			TraceStart,
+			GrabTraceRadius,
+			12,
+			FColor::Cyan,
+			false,
+			GrabTraceDebugDrawSeconds);
+		DrawDebugSphere(
+			World,
+			TraceEnd,
+			GrabTraceRadius,
+			12,
+			FColor::Yellow,
+			false,
+			GrabTraceDebugDrawSeconds);
+	}
 	if (!bHit)
 	{
 		return false;
@@ -298,13 +431,49 @@ bool UPlayerGrabComponent::FindGrabCandidate(
 
 	for (const FHitResult& Hit : Hits)
 	{
+		if (bDrawGrabTraceDebug)
+		{
+			const FVector HitPoint =
+				Hit.ImpactPoint.IsNearlyZero() ? Hit.Location : Hit.ImpactPoint;
+			DrawDebugSphere(
+				World,
+				HitPoint,
+				GrabTraceRadius * 0.5f,
+				12,
+				FColor::Orange,
+				false,
+				GrabTraceDebugDrawSeconds);
+		}
+
+		const UPrimitiveComponent* HitComponent = Hit.GetComponent();
+		if (Hit.GetActor() == Character
+			|| (HitComponent && HitComponent->GetOwner() == Character))
+		{
+			continue;
+		}
+
 		ASnowRumbleCharacter* HitCharacter =
 			Cast<ASnowRumbleCharacter>(Hit.GetActor());
 		if (!HitCharacter)
 		{
-			if (Hit.bBlockingHit && Hit.GetActor() && Hit.GetActor() != Character)
+			const FVector ImpactPoint =
+				Hit.ImpactPoint.IsNearlyZero() ? Hit.Location : Hit.ImpactPoint;
+			const float AttachHeightFromActor =
+				ImpactPoint.Z - Character->GetActorLocation().Z;
+			const bool bVerticalEnoughSurface =
+				FMath::Abs(Hit.ImpactNormal.GetSafeNormal().Z)
+					<= WorldGrabMaxSurfaceNormalZ;
+			const bool bReachableHeight =
+				AttachHeightFromActor >= WorldGrabMinAttachHeightFromActor
+				&& AttachHeightFromActor <= WorldGrabMaxAttachHeightFromActor;
+			if (bAllowWorldAttachment
+				&& Hit.bBlockingHit
+				&& Hit.GetActor()
+				&& Hit.GetActor() != Character
+				&& bVerticalEnoughSurface
+				&& bReachableHeight)
 			{
-				OutAttachedWorldLocation = Hit.ImpactPoint;
+				OutAttachedWorldLocation = ImpactPoint;
 				OutAttachmentType = ESnowRumbleGrabAttachmentType::World;
 				return true;
 			}
@@ -313,6 +482,28 @@ bool UPlayerGrabComponent::FindGrabCandidate(
 		if (HitCharacter == Character || HitCharacter->IsDead())
 		{
 			continue;
+		}
+		if (HitCharacter->IsGrabbedByCharacter())
+		{
+			continue;
+		}
+
+		if (HitCharacter->IsFrozen())
+		{
+			const ASnowRumblePlayerState* GrabberPlayerState =
+				Character->GetPlayerState<ASnowRumblePlayerState>();
+			const ASnowRumblePlayerState* TargetPlayerState =
+				HitCharacter->GetPlayerState<ASnowRumblePlayerState>();
+			const bool bSameNonDefaultTeam =
+				GrabberPlayerState
+				&& TargetPlayerState
+				&& GrabberPlayerState->GetLobbyTeam() != ESnowRumbleTeam::None
+				&& GrabberPlayerState->GetLobbyTeam()
+					== TargetPlayerState->GetLobbyTeam();
+			if (!bSameNonDefaultTeam)
+			{
+				continue;
+			}
 		}
 
 		USkeletalMeshComponent* HitMesh =
@@ -357,11 +548,22 @@ void UPlayerGrabComponent::AttachGrabConstraint(
 	}
 
 	ClearGrabConstraint();
+	const float CurrentGrabProgress = GetGrabRemainingTimeProgress();
+	GrabHoldProgress = CurrentGrabProgress;
+	GrabProgressAtAttachmentStart = CurrentGrabProgress;
+	GrabRecoveryStartedServerTime = 0.0f;
 
 	GrabbedCharacter = TargetCharacter;
 	GrabbedTargetBoneName = TargetBoneName;
 	GrabAttachedWorldLocation = AttachedWorldLocation;
 	GrabAttachmentType = ESnowRumbleGrabAttachmentType::Character;
+	if (const UWorld* World = GetWorld())
+	{
+		const AGameStateBase* GameState = World->GetGameState();
+		GrabAttachmentStartedServerTime = GameState
+			? GameState->GetServerWorldTimeSeconds()
+			: World->GetTimeSeconds();
+	}
 	GrabbedActorLocationOffsetFromAttachedPoint =
 		TargetCharacter->GetActorLocation() - AttachedWorldLocation;
 	TargetCharacter->ApplyGrabbedByCharacter(Character);
@@ -396,6 +598,7 @@ void UPlayerGrabComponent::AttachGrabConstraint(
 
 	Character->ForceNetUpdate();
 	TargetCharacter->ForceNetUpdate();
+	MulticastPlayGrabSound(Character->GetActorLocation(), false);
 }
 
 void UPlayerGrabComponent::AttachWorldGrab(FVector AttachedWorldLocation)
@@ -407,17 +610,32 @@ void UPlayerGrabComponent::AttachWorldGrab(FVector AttachedWorldLocation)
 	}
 
 	ClearGrabConstraint();
+	const float CurrentGrabProgress = GetGrabRemainingTimeProgress();
+	GrabHoldProgress = CurrentGrabProgress;
+	GrabProgressAtAttachmentStart = CurrentGrabProgress;
+	GrabRecoveryStartedServerTime = 0.0f;
 
 	GrabAttachedWorldLocation = AttachedWorldLocation;
 	GrabAttachmentType = ESnowRumbleGrabAttachmentType::World;
+	if (const UWorld* World = GetWorld())
+	{
+		const AGameStateBase* GameState = World->GetGameState();
+		GrabAttachmentStartedServerTime = GameState
+			? GameState->GetServerWorldTimeSeconds()
+			: World->GetTimeSeconds();
+	}
 	GrabbedActorLocationOffsetFromAttachedPoint = FVector::ZeroVector;
 	Character->HandleWorldGrabChanged(true);
 	Character->ForceNetUpdate();
+	MulticastPlayGrabSound(Character->GetActorLocation(), false);
 }
 
 void UPlayerGrabComponent::ClearGrabConstraint()
 {
 	ASnowRumbleCharacter* PreviousGrabbedCharacter = GrabbedCharacter.Get();
+	const bool bWasAttached = IsGrabAttached();
+	const bool bWasWorldGrab =
+		GrabAttachmentType == ESnowRumbleGrabAttachmentType::World;
 	if (GrabConstraintComponent)
 	{
 		GrabConstraintComponent->BreakConstraint();
@@ -427,6 +645,18 @@ void UPlayerGrabComponent::ClearGrabConstraint()
 
 	if (AActor* Owner = GetOwner(); Owner && Owner->HasAuthority())
 	{
+		if (bWasAttached)
+		{
+			MulticastPlayGrabSound(Owner->GetActorLocation(), true);
+		}
+		if (bWasAttached)
+		{
+			GrabHoldProgress = GetGrabRemainingTimeProgress();
+			GrabProgressAtAttachmentStart = GrabHoldProgress;
+			GrabRecoveryStartedServerTime = GrabHoldProgress < 1.0f
+				? GetCurrentServerTimeSeconds() + GrabRecoveryDelaySeconds
+				: 0.0f;
+		}
 		if (PreviousGrabbedCharacter)
 		{
 			PreviousGrabbedCharacter->ClearGrabbedByCharacter(GetOwnerCharacter());
@@ -435,12 +665,36 @@ void UPlayerGrabComponent::ClearGrabConstraint()
 		GrabbedTargetBoneName = NAME_None;
 		GrabAttachmentType = ESnowRumbleGrabAttachmentType::None;
 		GrabAttachedWorldLocation = FVector::ZeroVector;
+		GrabAttachmentStartedServerTime = 0.0f;
 		GrabbedActorLocationOffsetFromAttachedPoint = FVector::ZeroVector;
 		if (ASnowRumbleCharacter* OwnerCharacter = GetOwnerCharacter())
 		{
 			OwnerCharacter->HandleWorldGrabChanged(false);
+			if (bWasWorldGrab)
+			{
+				if (UCharacterMovementComponent* MovementComponent =
+					OwnerCharacter->GetCharacterMovement())
+				{
+					MovementComponent->Velocity.Z =
+						FMath::Min(MovementComponent->Velocity.Z, 0.0f);
+				}
+			}
 		}
 	}
+}
+
+void UPlayerGrabComponent::MulticastPlayGrabSound_Implementation(
+	FVector_NetQuantize Location,
+	bool bReleased)
+{
+	SnowRumbleAudio::PlaySoundAtLocation(
+		this,
+		bReleased ? ReleaseGrabSound : GrabSound,
+		ESnowRumbleAudioMixChannel::Gameplay,
+		Location,
+		1.0f,
+		1.0f,
+		GrabSoundAttenuation);
 }
 
 void UPlayerGrabComponent::UpdateGrabbedCharacterTether(float DeltaTime)
@@ -459,7 +713,13 @@ void UPlayerGrabComponent::UpdateGrabbedCharacterTether(float DeltaTime)
 		return;
 	}
 
-	GrabAttachedWorldLocation = BuildHandGrabTargetLocation(ActiveGrabHand);
+	GrabAttachedWorldLocation = BuildHandGrabAnchorLocation(ActiveGrabHand);
+	if (GrabConstraintComponent)
+	{
+		GrabConstraintComponent->SetWorldLocation(GrabAttachedWorldLocation);
+	}
+	TargetCharacter->SetGrabbedByCharacterWorldLocationFromServer(
+		GrabAttachedWorldLocation);
 	const FVector DesiredTargetLocation =
 		GrabAttachedWorldLocation + GrabbedActorLocationOffsetFromAttachedPoint;
 	const FVector CurrentTargetLocation = TargetCharacter->GetActorLocation();
@@ -554,7 +814,10 @@ void UPlayerGrabComponent::UpdateWorldGrabTether(float DeltaTime)
 		(Distance - WorldGrabTetherSlackDistance) * WorldGrabTetherPullStrength,
 		0.0f,
 		WorldGrabTetherMaxPullSpeed);
-	const FVector CorrectionVelocity = PullDirection * PullSpeed;
+	FVector CorrectionVelocity = PullDirection * PullSpeed;
+	CorrectionVelocity.Z = FMath::Min(
+		CorrectionVelocity.Z,
+		WorldGrabTetherMaxUpwardSpeed);
 	MovementComponent->Velocity =
 		MovementComponent->Velocity * WorldGrabInputVelocityRetention
 		+ CorrectionVelocity;
@@ -583,7 +846,48 @@ FVector UPlayerGrabComponent::BuildHandGrabTargetLocation(
 		+ Character->GetActorRightVector() * GrabReachSideOffset * SideSign;
 }
 
+FVector UPlayerGrabComponent::BuildHandGrabAnchorLocation(
+	ESnowRumbleGrabHand Hand) const
+{
+	const ASnowRumbleCharacter* Character = GetOwnerCharacter();
+	const USkeletalMeshComponent* OwnerMesh =
+		Character ? Character->GetMesh() : nullptr;
+	if (!OwnerMesh)
+	{
+		return BuildHandGrabTargetLocation(Hand);
+	}
+
+	const FName HandBoneName = Hand == ESnowRumbleGrabHand::Right
+		? RightGrabHandBoneName
+		: LeftGrabHandBoneName;
+	if (HandBoneName == NAME_None)
+	{
+		return BuildHandGrabTargetLocation(Hand);
+	}
+
+	if (OwnerMesh->DoesSocketExist(HandBoneName)
+		|| OwnerMesh->GetBoneIndex(HandBoneName) != INDEX_NONE)
+	{
+		return OwnerMesh->GetSocketLocation(HandBoneName);
+	}
+
+	return BuildHandGrabTargetLocation(Hand);
+}
+
 ASnowRumbleCharacter* UPlayerGrabComponent::GetOwnerCharacter() const
 {
 	return Cast<ASnowRumbleCharacter>(GetOwner());
+}
+
+float UPlayerGrabComponent::GetCurrentServerTimeSeconds() const
+{
+	const UWorld* World = GetWorld();
+	const AGameStateBase* GameState = World
+		? World->GetGameState()
+		: nullptr;
+	return GameState
+		? GameState->GetServerWorldTimeSeconds()
+		: World
+			? World->GetTimeSeconds()
+			: 0.0f;
 }

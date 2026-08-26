@@ -123,6 +123,19 @@ float USnowRumbleHealthComponent::GetFrozenSecondsRemaining() const
 	return FMath::Max(0.0f, FrozenDeathServerTime - CurrentServerTime);
 }
 
+float USnowRumbleHealthComponent::GetFrozenProgress() const
+{
+	if (!bIsFrozen || bIsDead || FrozenDeathDelaySeconds <= 0.0f)
+	{
+		return 0.0f;
+	}
+
+	return FMath::Clamp(
+		GetFrozenSecondsRemaining() / FrozenDeathDelaySeconds,
+		0.0f,
+		1.0f);
+}
+
 bool USnowRumbleHealthComponent::ReviveFromFrozen(float HealthRatio)
 {
 	AActor* OwningActor = GetOwner();

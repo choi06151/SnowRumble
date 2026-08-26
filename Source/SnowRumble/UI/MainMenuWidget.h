@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "SnowRumbleAudioUserWidget.h"
 #include "../Online/SnowRumbleSessionSubsystem.h"
 #include "MainMenuWidget.generated.h"
 
@@ -14,7 +14,7 @@ class UWidget;
 class UWidgetAnimation;
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API UMainMenuWidget : public UUserWidget
+class SNOWRUMBLE_API UMainMenuWidget : public USnowRumbleAudioUserWidget
 {
 	GENERATED_BODY()
 
@@ -74,6 +74,14 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Main Menu")
 	TObjectPtr<UButton> CustomizationButton;
 
+	/** 있으면 게임을 완전히 종료하는 버튼이다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Main Menu")
+	TObjectPtr<UButton> QuitGameButton;
+
+	/** 있으면 기존 조작법 WBP를 표시하거나 숨기는 버튼이다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Main Menu")
+	TObjectPtr<UButton> KeyGuideButton;
+
 	/** 있으면 참가하기 버튼을 눌렀을 때 표시되는 방 코드 입력 패널이다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Main Menu")
 	TObjectPtr<UWidget> RoomCodeJoinPanel;
@@ -105,6 +113,10 @@ protected:
 	/** MainMenuAlarmText 대신 AlarmText 이름을 쓴 WBP용 호환 바인딩이다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Main Menu")
 	TObjectPtr<UTextBlock> AlarmText;
+
+	/** 메인메뉴 주요 버튼이 호버·눌림 상태일 때 내부 텍스트에 적용할 남색이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Main Menu")
+	FLinearColor MainMenuButtonActiveTextColor = FLinearColor(0.02f, 0.08f, 0.32f, 1.0f);
 
 	/** WBP에 같은 이름으로 만든 메인메뉴 진입 알림 애니메이션이다. */
 	UPROPERTY(Transient, meta = (BindWidgetAnimOptional))
@@ -162,6 +174,12 @@ private:
 	void HandleCustomizationButtonClicked();
 
 	UFUNCTION()
+	void HandleQuitGameButtonClicked();
+
+	UFUNCTION()
+	void HandleKeyGuideButtonClicked();
+
+	UFUNCTION()
 	void HandleConfirmRoomCodeJoinClicked();
 
 	UFUNCTION()
@@ -185,6 +203,14 @@ private:
 	FText GetSessionProgressAlarmText(
 		ESnowRumbleSessionOperation Operation) const;
 	void RefreshJoinButtonEnabled();
+	void BindTargetButtonTextColor(UButton* Button);
+	void UnbindTargetButtonTextColor(UButton* Button);
+
+	UFUNCTION()
+	void RefreshTargetButtonTextColors();
+
+	TMap<TObjectPtr<UTextBlock>, FSlateColor> TargetButtonTextDefaultColors;
 
 	static const TArray<FSnowRumbleSessionInfo> EmptyResults;
+
 };

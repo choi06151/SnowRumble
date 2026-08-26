@@ -9,13 +9,14 @@
 - 완료 가능: Steam 빌드에서 방 생성·검색·참가·초대·초대 수락·세션 정리가 검증된 뒤
 
 ## 구현 항목
-- [ ] `OnlineSubsystemSteam` 설정과 Steam App ID 적용 경로를 정리한다.
-- [ ] `USnowRumbleSessionSubsystem`의 공개 API는 유지하고 내부 구현만 LAN/Steam 경로로 분리한다.
-- [ ] Steam 사용 가능 상태에서는 Steam 세션 생성·검색·참가를 사용한다.
-- [ ] Steam을 사용할 수 없는 에디터·로컬 개발 환경에서는 현재 LAN fallback을 유지한다.
+- [x] `OnlineSubsystemSteam` 플러그인·Steam NetDriver 설정과 Steam App ID 적용 경로를 정리한다. 실제 App ID는 사용자 확인 전까지 placeholder로 유지한다.
+- [x] `USnowRumbleSessionSubsystem`의 공개 API는 유지하고 내부 구현만 LAN/Steam 경로로 분리한다.
+- [x] Steam 사용 가능 상태에서는 Steam Presence/Lobby 세션 생성·검색·참가를 사용한다.
+- [x] Steam을 사용할 수 없는 에디터·로컬 개발 환경에서는 기존 NULL LAN 설정을 유지한다.
 - [ ] 로비 ESC 메뉴의 친구 부르기 버튼을 Steam Overlay 친구 초대 또는 초대창으로 연결한다.
 - [ ] Steam 초대 수락 후 메인메뉴·로비·PvP 상태에서 안전하게 세션 참가하는 흐름을 제공한다.
 - [ ] 메인메뉴 복귀, 로비 복귀, 게임 종료 시 세션 정리 정책을 Steam 기준으로 재검증한다.
+- [x] Steam 호스트 종료·메인메뉴 복귀 시 클라이언트가 기존 호스트 이탈 알람과 함께 메인메뉴로 복귀한다.
 
 ## 작업 배정
 - 담당자·기능·계약 소유자: 최재원(C)
@@ -55,6 +56,8 @@
 - Steamworks/Steam 계정 테스트 환경을 준비한다.
 - Steam Overlay가 동작하는 Standalone 또는 패키지 테스트 절차를 확정한다.
 - 필요하면 테스트용 Steam 계정 2개 이상 또는 2PC 환경을 준비한다.
+- 호스트가 로비 또는 PvP에서 메인메뉴로 이동하거나 게임을 종료할 때 클라이언트가 `L_MainMenu`로 이동하고 `호스트의 연결이 해제되었습니다.` 알람을 한 번 표시하는지 확인한다.
+- 위 복귀 때 이전 네트워크 플레이어 Pawn이 메뉴에 남지 않고 메뉴 전용 프리뷰만 표시되는지 확인한다.
 
 ## 완료 조건
 ### 에이전트 확인
@@ -69,6 +72,7 @@
 ### 검증 메모
 
 - 2026-08-10: 사용자 결정에 따라 현재 개발과 테스트는 LAN/NULL 세션으로 계속 진행하고, Steam 세션 전환은 최종 통합 Task로 분리했다. 앞으로 새 로비·메인메뉴·PvP 기능은 `USnowRumbleSessionSubsystem` 등 공개 세션 계약을 통해서만 세션 기능을 사용하고, UI나 게임 규칙 코드가 LAN/Steam 구현 세부사항에 직접 의존하지 않게 유지한다.
+- 2026-08-25: `LanToSteam` 브랜치에서 공개 LAN API를 유지한 Steam/NULL 세션 분기를 추가했다. Steam 사용 시 `bIsLANMatch=false`, Presence/Lobby 검색, Steam 초대 허용을 사용한다. 개발 테스트를 위해 기본 서비스를 Steam으로 전환하고 SpaceWar App ID 480을 적용했으며, 출시 전 전용 App ID로 교체한다.
 
 ### 결과 확인
 
@@ -78,3 +82,4 @@
 - [ ] 친구 부르기 버튼이 Steam Overlay 초대 흐름을 연다.
 - [ ] 초대받은 클라이언트가 초대를 수락해 세션에 참가할 수 있다.
 - [ ] 메인메뉴 복귀 또는 게임 종료 시 세션이 올바르게 정리된다.
+- [ ] Steam 호스트 이탈 시 클라이언트가 엉뚱한 맵에 남지 않고 메인메뉴로 복귀하며 호스트 이탈 알람을 표시한다.

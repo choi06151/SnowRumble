@@ -4,7 +4,10 @@
 
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Blueprint/UserWidget.h"
+#include "../Audio/SnowRumbleBackgroundMusicSubsystem_C.h"
 #include "../Game/SnowRumblePlayerState.h"
+#include "../Game/SnowRumbleGameMode.h"
+#include "../Game/SnowRumbleGameState_C.h"
 #include "../Player/SnowRumbleUserSettingsSubsystem_C.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
@@ -20,7 +23,14 @@
 #include "LobbyWidget.h"
 #include "LoadingScreenSubsystem.h"
 #include "MainHUDWidget.h"
+#include "OnlineSubsystem.h"
+#include "OnlineSubsystemUtils.h"
+#include "Interfaces/VoiceInterface.h"
+#include "Sound/SoundBase.h"
 #include "VoiceMuteMenuWidget_C.h"
+#include "../Player/SnowRumbleCharacter.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogSnowRumbleVoice, Log, All);
 
 void ASnowRumblePlayerController::BeginPlay()
 {
@@ -49,6 +59,8 @@ void ASnowRumblePlayerController::BeginPlay()
 				Widget->AddToViewport(50);
 			}
 		}
+		EnsureLocalVoiceTalkerReady();
+		EnsureRemoteVoiceTalkersReady();
 	}
 }
 
@@ -58,6 +70,8 @@ void ASnowRumblePlayerController::EndPlay(
 	ApplyNetworkVoiceInputState(false);
 	ApplyReplicatedVoiceSpeakingState(false);
 	GameplayUnmuteAllPlayers();
+	RegisteredRemoteVoiceTalkerIds.Reset();
+	bLocalVoiceTalkerReady = false;
 
 	if (ChatWidget)
 	{
@@ -88,6 +102,20 @@ void ASnowRumblePlayerController::EndPlay(
 	}
 
 	Super::EndPlay(EndPlayReason);
+}
+
+bool ASnowRumblePlayerController::InputKey(const FInputKeyEventArgs& Params)
+{
+	if (IsLocalController()
+		&& Params.Event == IE_Pressed
+		&& (Params.Key == BoundVoiceTargetMuteKey
+			|| (!BoundVoiceTargetMuteKey.IsValid() && Params.Key == EKeys::M)))
+	{
+		RequestVoiceTargetMute();
+		return true;
+	}
+
+	return Super::InputKey(Params);
 }
 
 void ASnowRumblePlayerController::SetupInputComponent()
@@ -144,16 +172,31 @@ void ASnowRumblePlayerController::RebindConfiguredInputKeys()
 			EKeys::M)
 		: EKeys::M;
 
-	if (BoundChatInputKey.IsValid())
+	// 플레이어 지정 음소거는 M 키가 다른 음성 입력 설정에 남아 있어도
+	// 항상 우선 처리한다. 이후 바인딩에서 같은 키를 건너뛰어 입력 소비 충돌을 막는다.
+	if (BoundVoiceTargetMuteKey.IsValid())
 	{
 		InputComponent->BindKey(
-			BoundChatInputKey,
+			BoundVoiceTargetMuteKey,
 			IE_Pressed,
 			this,
-			&ASnowRumblePlayerController::HandleChatInputPressed);
+			&ASnowRumblePlayerController::RequestVoiceTargetMute);
+	}
+
+	if (BoundChatInputKey.IsValid())
+	{
+		if (BoundChatInputKey != BoundVoiceTargetMuteKey)
+		{
+			InputComponent->BindKey(
+				BoundChatInputKey,
+				IE_Pressed,
+				this,
+				&ASnowRumblePlayerController::HandleChatInputPressed);
+		}
 	}
 	if (BoundChatChannelToggleKey.IsValid()
-		&& BoundChatChannelToggleKey != BoundChatInputKey)
+		&& BoundChatChannelToggleKey != BoundChatInputKey
+		&& BoundChatChannelToggleKey != BoundVoiceTargetMuteKey)
 	{
 		FInputKeyBinding& ChatChannelToggleBinding = InputComponent->BindKey(
 			BoundChatChannelToggleKey,
@@ -162,7 +205,8 @@ void ASnowRumblePlayerController::RebindConfiguredInputKeys()
 			&ASnowRumblePlayerController::HandleChatChannelTogglePressed);
 		ChatChannelToggleBinding.bConsumeInput = false;
 	}
-	if (BoundMicrophonePushToTalkKey.IsValid())
+	if (BoundMicrophonePushToTalkKey.IsValid()
+		&& BoundMicrophonePushToTalkKey != BoundVoiceTargetMuteKey)
 	{
 		InputComponent->BindKey(
 			BoundMicrophonePushToTalkKey,
@@ -174,6 +218,17 @@ void ASnowRumblePlayerController::RebindConfiguredInputKeys()
 			IE_Released,
 			this,
 			&ASnowRumblePlayerController::HandleMicrophonePushToTalkReleased);
+	}
+	if (BoundVoiceChannelToggleKey.IsValid()
+		&& BoundVoiceChannelToggleKey != BoundChatInputKey
+		&& BoundVoiceChannelToggleKey != BoundChatChannelToggleKey
+		&& BoundVoiceChannelToggleKey != BoundVoiceTargetMuteKey)
+	{
+		InputComponent->BindKey(
+			BoundVoiceChannelToggleKey,
+			IE_Pressed,
+			this,
+			&ASnowRumblePlayerController::RequestVoiceChannelToggle);
 	}
 	RefreshMicrophoneInputState();
 	ApplyReplicatedVoiceChannel(LocalVoiceChannel);
@@ -197,6 +252,66 @@ void ASnowRumblePlayerController::PlayerTick(float DeltaTime)
 	{
 		RefreshGameplayVoiceMutes();
 		UpdatePvpIntroCamera(DeltaTime);
+		TrySchedulePvpReadyHandshake();
+		TryNotifyPvpReady();
+	}
+}
+
+void ASnowRumblePlayerController::TrySchedulePvpReadyHandshake()
+{
+	if (!IsLocalController() || !GetWorld())
+	{
+		return;
+	}
+
+	if (!GetWorld()->GetGameState<ASnowRumbleGameState>())
+	{
+		return;
+	}
+
+	const FString CurrentMapName = GetWorld()->GetMapName();
+	if (PvpReadyMapName != CurrentMapName)
+	{
+		PvpReadyMapName = CurrentMapName;
+		PvpReadyWarmupElapsedSeconds = 0.0f;
+		bPvpReadySubmitted = false;
+	}
+}
+
+void ASnowRumblePlayerController::TryNotifyPvpReady()
+{
+	if (!IsLocalController()
+		|| bPvpReadySubmitted
+		|| !GetWorld()->GetGameState<ASnowRumbleGameState>()
+		|| !GetPawn()
+		|| !PlayerState)
+	{
+		return;
+	}
+
+	PvpReadyWarmupElapsedSeconds += GetWorld()->GetDeltaSeconds();
+	if (PvpReadyWarmupElapsedSeconds < 0.5f)
+	{
+		return;
+	}
+
+	bPvpReadySubmitted = true;
+	ServerNotifyPvpReady(PvpReadyMapName);
+}
+
+void ASnowRumblePlayerController::ServerNotifyPvpReady_Implementation(
+	const FString& PvpMapName)
+{
+	if (!HasAuthority() || !GetWorld() || PvpMapName.IsEmpty())
+	{
+		return;
+	}
+
+	ASnowRumbleGameMode* SnowRumbleGameMode =
+		Cast<ASnowRumbleGameMode>(GetWorld()->GetAuthGameMode());
+	if (SnowRumbleGameMode)
+	{
+		SnowRumbleGameMode->NotifyPvpPlayerReady(this);
 	}
 }
 
@@ -389,6 +504,14 @@ void ASnowRumblePlayerController::RequestMicrophonePushToTalkCompleted()
 
 void ASnowRumblePlayerController::RequestVoiceChannelToggle()
 {
+	const UWorld* World = GetWorld();
+	const double CurrentTimeSeconds = World ? World->GetTimeSeconds() : 0.0;
+	if (CurrentTimeSeconds - LastVoiceChannelToggleTimeSeconds < 0.1)
+	{
+		return;
+	}
+	LastVoiceChannelToggleTimeSeconds = CurrentTimeSeconds;
+
 	HandleVoiceChannelTogglePressed();
 }
 
@@ -408,7 +531,9 @@ void ASnowRumblePlayerController::HideVoiceMuteMenu()
 	VoiceMuteMenuWidget->RemoveFromParent();
 	VoiceMuteMenuWidget = nullptr;
 
-	bShowMouseCursor = false;
+	ResetIgnoreMoveInput();
+	ResetIgnoreLookInput();
+	SetShowMouseCursor(false);
 	FInputModeGameOnly InputMode;
 	SetInputMode(InputMode);
 }
@@ -436,6 +561,22 @@ void ASnowRumblePlayerController::ToggleManualVoiceMute(
 	RefreshGameplayVoiceMutes();
 }
 
+void ASnowRumblePlayerController::SetBackgroundMusicPreviewVolume(
+	float MasterVolume,
+	float BgmVolume)
+{
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->SetBackgroundMusicPreviewVolume(
+				MasterVolume,
+				BgmVolume);
+		}
+	}
+}
+
 bool ASnowRumblePlayerController::IsVoicePlayerManuallyMuted(
 	const ASnowRumblePlayerState* TargetPlayerState) const
 {
@@ -453,6 +594,26 @@ void ASnowRumblePlayerController::ClientShowLoadingScreen_Implementation()
 	if (LoadingScreenSubsystem)
 	{
 		LoadingScreenSubsystem->ShowLoadingScreen(LoadingScreenWidgetClass);
+	}
+}
+
+void ASnowRumblePlayerController::ClientSetLoadingPresentation_Implementation(
+	const FString& MapPackageName,
+	const FText& MapDisplayName,
+	const TSoftObjectPtr<UTexture2D>& MapLoadingImage,
+	const TArray<FString>& TeamPlayerNames)
+{
+	UGameInstance* GameInstance = GetGameInstance();
+	ULoadingScreenSubsystem* LoadingScreenSubsystem = GameInstance
+		? GameInstance->GetSubsystem<ULoadingScreenSubsystem>()
+		: nullptr;
+	if (LoadingScreenSubsystem)
+	{
+		LoadingScreenSubsystem->SetLoadingPresentation(
+			MapPackageName,
+			MapDisplayName,
+			MapLoadingImage,
+			TeamPlayerNames);
 	}
 }
 
@@ -636,6 +797,8 @@ void ASnowRumblePlayerController::ClientPlayPvpTeamIntroShot_Implementation(
 		return;
 	}
 
+	SetPvpIntroWidgetsHidden(true);
+
 	GetWorldTimerManager().ClearTimer(PvpIntroCameraDestroyTimerHandle);
 
 	FVector CurrentCameraLocation = FVector::ZeroVector;
@@ -736,6 +899,27 @@ void ASnowRumblePlayerController::ClientFinishPvpTeamIntro_Implementation()
 	}
 }
 
+void ASnowRumblePlayerController::ClientPlayBackgroundMusic_Implementation(
+	USoundBase* BackgroundMusicSound)
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	PlayBackgroundMusic(BackgroundMusicSound);
+}
+
+void ASnowRumblePlayerController::ClientStopBackgroundMusic_Implementation()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	StopBackgroundMusic();
+}
+
 void ASnowRumblePlayerController::HandleChatInputPressed()
 {
 	if (ChatWidget && ChatWidget->IsChatInputOpen())
@@ -797,6 +981,13 @@ void ASnowRumblePlayerController::SetMicrophoneInputActive(bool bNewActive)
 	}
 
 	bMicrophoneInputActive = bNewActive;
+	UE_LOG(
+		LogSnowRumbleVoice,
+		Log,
+		TEXT("Microphone input %s. Controller=%s Mode=%d"),
+		bMicrophoneInputActive ? TEXT("ON") : TEXT("OFF"),
+		*GetNameSafe(this),
+		static_cast<int32>(GetMicrophoneMode()));
 	ApplyNetworkVoiceInputState(bMicrophoneInputActive);
 	ApplyReplicatedVoiceSpeakingState(bNewVoiceSpeaking);
 	OnMicrophoneInputStateChanged(bMicrophoneInputActive);
@@ -805,19 +996,225 @@ void ASnowRumblePlayerController::SetMicrophoneInputActive(bool bNewActive)
 void ASnowRumblePlayerController::ApplyNetworkVoiceInputState(
 	bool bShouldSpeak)
 {
-	if (!IsLocalController() || bNetworkVoiceInputActive == bShouldSpeak)
+	if (!IsLocalController())
 	{
+		UE_LOG(
+			LogSnowRumbleVoice,
+			Warning,
+			TEXT("Network voice input skipped: controller is not local. Controller=%s ShouldSpeak=%d"),
+			*GetNameSafe(this),
+			bShouldSpeak ? 1 : 0);
+		return;
+	}
+
+	if (bNetworkVoiceInputActive == bShouldSpeak)
+	{
+		UE_LOG(
+			LogSnowRumbleVoice,
+			Verbose,
+			TEXT("Network voice input unchanged. Controller=%s ShouldSpeak=%d"),
+			*GetNameSafe(this),
+			bShouldSpeak ? 1 : 0);
 		return;
 	}
 
 	bNetworkVoiceInputActive = bShouldSpeak;
 	if (bNetworkVoiceInputActive)
 	{
+		EnsureLocalVoiceTalkerReady();
+		UE_LOG(
+			LogSnowRumbleVoice,
+			Log,
+			TEXT("StartTalking requested. Controller=%s"),
+			*GetNameSafe(this));
 		StartTalking();
 	}
 	else
 	{
+		UE_LOG(
+			LogSnowRumbleVoice,
+			Log,
+			TEXT("StopTalking requested. Controller=%s"),
+			*GetNameSafe(this));
 		StopTalking();
+	}
+}
+
+bool ASnowRumblePlayerController::EnsureLocalVoiceTalkerReady()
+{
+	if (!IsLocalController())
+	{
+		return false;
+	}
+
+	const ULocalPlayer* LocalPlayer = Cast<ULocalPlayer>(Player);
+	if (!LocalPlayer)
+	{
+		UE_LOG(
+			LogSnowRumbleVoice,
+			Warning,
+			TEXT("Voice setup skipped: local player is missing. Controller=%s"),
+			*GetNameSafe(this));
+		return false;
+	}
+
+	IOnlineSubsystem* OnlineSubsystem = Online::GetSubsystem(GetWorld());
+	if (!OnlineSubsystem)
+	{
+		UE_LOG(
+			LogSnowRumbleVoice,
+			Warning,
+			TEXT("Voice setup failed: OnlineSubsystem is unavailable."));
+		return false;
+	}
+
+	IOnlineVoicePtr VoiceInterface = OnlineSubsystem->GetVoiceInterface();
+	if (!VoiceInterface.IsValid())
+	{
+		UE_LOG(
+			LogSnowRumbleVoice,
+			Warning,
+			TEXT("Voice setup failed: VoiceInterface is unavailable. Subsystem=%s"),
+			*OnlineSubsystem->GetSubsystemName().ToString());
+		return false;
+	}
+
+	const uint32 LocalUserNum =
+		static_cast<uint32>(LocalPlayer->GetControllerId());
+	const bool bRegistered = VoiceInterface->RegisterLocalTalker(LocalUserNum);
+	const bool bWasReady = bLocalVoiceTalkerReady;
+	bLocalVoiceTalkerReady = bRegistered;
+	if (bRegistered && !bWasReady && !bNetworkVoiceInputActive)
+	{
+		StopTalking();
+	}
+	const bool bHeadsetPresent = VoiceInterface->IsHeadsetPresent(LocalUserNum);
+	UE_LOG(
+		LogSnowRumbleVoice,
+		Log,
+		TEXT("Voice local talker ready check. User=%u Registered=%d HeadsetPresent=%d Subsystem=%s"),
+		LocalUserNum,
+		bRegistered ? 1 : 0,
+		bHeadsetPresent ? 1 : 0,
+		*OnlineSubsystem->GetSubsystemName().ToString());
+
+	return bRegistered;
+}
+
+void ASnowRumblePlayerController::EnsureRemoteVoiceTalkersReady()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	IOnlineSubsystem* OnlineSubsystem = Online::GetSubsystem(GetWorld());
+	IOnlineVoicePtr VoiceInterface = OnlineSubsystem
+		? OnlineSubsystem->GetVoiceInterface()
+		: nullptr;
+	if (!VoiceInterface.IsValid())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	const AGameStateBase* GameState = World ? World->GetGameState() : nullptr;
+	const ASnowRumblePlayerState* LocalPlayerState =
+		GetPlayerState<ASnowRumblePlayerState>();
+	if (!GameState || !LocalPlayerState)
+	{
+		return;
+	}
+
+	for (APlayerState* CandidatePlayerState : GameState->PlayerArray)
+	{
+		const ASnowRumblePlayerState* SnowRumblePlayerState =
+			Cast<ASnowRumblePlayerState>(CandidatePlayerState);
+		if (!SnowRumblePlayerState
+			|| SnowRumblePlayerState == LocalPlayerState)
+		{
+			continue;
+		}
+
+		const FUniqueNetIdRepl& PlayerNetId =
+			SnowRumblePlayerState->GetUniqueId();
+		if (!PlayerNetId.IsValid() || !PlayerNetId.IsV1())
+		{
+			continue;
+		}
+
+		const FString TalkerId = PlayerNetId->ToString();
+		if (RegisteredRemoteVoiceTalkerIds.Contains(TalkerId))
+		{
+			continue;
+		}
+
+		const bool bRegistered =
+			VoiceInterface->RegisterRemoteTalker(*PlayerNetId);
+		UE_LOG(
+			LogSnowRumbleVoice,
+			Log,
+			TEXT("Voice remote talker register. Player=%s Registered=%d Subsystem=%s"),
+			*GetNameSafe(SnowRumblePlayerState),
+			bRegistered ? 1 : 0,
+			*OnlineSubsystem->GetSubsystemName().ToString());
+		if (bRegistered)
+		{
+			RegisteredRemoteVoiceTalkerIds.Add(TalkerId);
+		}
+	}
+
+	SetPvpIntroWidgetsHidden(false);
+}
+
+void ASnowRumblePlayerController::SetPvpIntroWidgetsHidden(bool bShouldHide)
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (bShouldHide)
+	{
+		if (bPvpIntroWidgetsHidden)
+		{
+			return;
+		}
+
+		bPvpIntroWidgetsHidden = true;
+		CloseChatInput();
+		if (ChatWidget)
+		{
+			PvpIntroChatVisibility = ChatWidget->GetVisibility();
+			ChatWidget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		if (VoiceMuteMenuWidget)
+		{
+			HideVoiceMuteMenu();
+		}
+		if (ASnowRumbleCharacter* LocalCharacter =
+			Cast<ASnowRumbleCharacter>(GetPawn()))
+		{
+			LocalCharacter->SetPvpIntroWidgetsHidden(true);
+		}
+		RestoreGameOnlyInput();
+		return;
+	}
+
+	if (!bPvpIntroWidgetsHidden)
+	{
+		return;
+	}
+
+	bPvpIntroWidgetsHidden = false;
+	if (ChatWidget)
+	{
+		ChatWidget->SetVisibility(PvpIntroChatVisibility);
+	}
+	if (ASnowRumbleCharacter* LocalCharacter =
+		Cast<ASnowRumbleCharacter>(GetPawn()))
+	{
+		LocalCharacter->SetPvpIntroWidgetsHidden(false);
 	}
 }
 
@@ -911,9 +1308,13 @@ void ASnowRumblePlayerController::ShowVoiceMuteMenu()
 	}
 	VoiceMuteMenuWidget->RefreshPlayerList();
 
-	bShowMouseCursor = true;
+	ResetIgnoreMoveInput();
+	ResetIgnoreLookInput();
+	SetIgnoreMoveInput(true);
+	SetIgnoreLookInput(true);
+	SetShowMouseCursor(true);
 	ApplyDefaultMouseCursorWidget();
-	FInputModeGameAndUI InputMode;
+	FInputModeUIOnly InputMode;
 	InputMode.SetWidgetToFocus(VoiceMuteMenuWidget->TakeWidget());
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	SetInputMode(InputMode);
@@ -936,6 +1337,8 @@ void ASnowRumblePlayerController::RefreshGameplayVoiceMutes()
 	{
 		return;
 	}
+
+	EnsureRemoteVoiceTalkersReady();
 
 	const ASnowRumblePlayerState* LocalPlayerState =
 		GetPlayerState<ASnowRumblePlayerState>();
@@ -1230,8 +1633,8 @@ FText ASnowRumblePlayerController::GetPvpIntroTeamDisplayText(
 		return NSLOCTEXT("SnowRumble", "PvpIntroPinkTeam", "분홍팀");
 	case ESnowRumbleTeam::Blue:
 		return NSLOCTEXT("SnowRumble", "PvpIntroBlueTeam", "파란팀");
-	case ESnowRumbleTeam::White:
-		return NSLOCTEXT("SnowRumble", "PvpIntroWhiteTeam", "하얀팀");
+	case ESnowRumbleTeam::Orange:
+		return NSLOCTEXT("SnowRumble", "PvpIntroOrangeTeam", "주황팀");
 	default:
 		return NSLOCTEXT("SnowRumble", "PvpIntroUnknownTeam", "팀 소개");
 	}
@@ -1306,6 +1709,42 @@ void ASnowRumblePlayerController::ApplyDefaultMouseCursorWidget()
 	}
 
 	SetMouseCursorWidget(EMouseCursor::Default, DefaultMouseCursorWidget);
+}
+
+void ASnowRumblePlayerController::StopBackgroundMusic()
+{
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->StopBackgroundMusic();
+		}
+	}
+}
+
+void ASnowRumblePlayerController::PlayBackgroundMusic(
+	USoundBase* BackgroundMusicSound)
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (!BackgroundMusicSound)
+	{
+		StopBackgroundMusic();
+		return;
+	}
+
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
+		{
+			BackgroundMusicSubsystem->PlayBackgroundMusic(BackgroundMusicSound);
+		}
+	}
 }
 
 bool ASnowRumblePlayerController::ShouldReceiveChatMessage(

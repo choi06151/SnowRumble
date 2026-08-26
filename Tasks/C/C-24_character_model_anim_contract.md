@@ -98,7 +98,7 @@
 - 2026-08-13: `GetPrimaryAnimation()` 단일 출력 방식은 조준+이동, 스프린트+장착처럼 상태 조합이 늘어날 때 ABP에서 쓰기 어렵고 thread-safe 경고를 만들 수 있어, C++ 부모가 `LocomotionAnimState`, `UpperBodyAnimState`, `FullBodyAnimState`를 계산하는 구조로 확장했다. ABP는 이 세 enum으로 pose를 조합한다. C++ 컴파일은 통과했고, 최종 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
 - 2026-08-13: ABP에서 애니메이션 에셋을 Sequence Player에 직접 연결하기로 결정해 `GetPrimaryAnimation()` 함수와 `IdleAnimation` 등 Class Defaults 슬롯 프로퍼티를 제거했다.
 - 2026-08-13: 지속 pose만으로는 큰 눈덩이를 허리 펴며 드는 동작처럼 시작/종료가 있는 애니메이션을 표현하기 어려워 `ESnowRumbleCharacterAnimTrigger`와 `OnAnimationTriggerRequested` 이벤트를 추가했다. 눈덩이 줍기·던지기·아이템 상호작용·피격 반응은 서버 확정 후 모든 화면의 AnimBP로 trigger가 전달된다. UHT와 C++ 컴파일은 통과했고, 최종 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됐다.
-- 2026-08-18: 눈덩이 던지기 실제 발사 시점을 몽타주 Notify로 옮겼다. 입력 release 때 서버가 투척 방향·속도·충전량을 검증해 pending으로 저장하고 `ThrowSmallSnowball`/`ThrowLargeSnowball` 몽타주 trigger를 보낸 뒤, `UAnimNotify_SnowballThrowRelease`가 호출될 때 기존 `ASnowballItem::Throw()`를 실행한다.
+- 2026-08-18: 눈덩이 던지기 실제 발사 시점을 몽타주 Notify로 옮겼다. 입력 release 때 서버가 투척 속도·충전량을 검증해 pending으로 저장하고 `ThrowSmallSnowball`/`ThrowLargeSnowball` 몽타주 trigger를 보낸 뒤, `UAnimNotify_SnowballThrowRelease`가 호출될 때 기존 `ASnowballItem::Throw()`를 실행한다.
 - 2026-08-18: 위 변경은 `git diff --check`, UHT, C++ 컴파일과 `.lib` 생성을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
 - 2026-08-18: 큰 눈덩이 전용 부착 위치를 추가했다. 작은 눈은 기존 `SnowballSocket`, 최대 성장 큰 눈은 `LargeSnowballSocket`에 붙고, 큰 눈 소켓이 아직 없으면 기존 작은 눈 소켓으로 fallback한다.
 - 2026-08-18: 큰 눈덩이 소켓 변경은 `git diff --check`, UHT, C++ 컴파일과 `.lib` 생성을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
@@ -110,6 +110,7 @@
 - 2026-08-18: 눈오리 제작기 던지기 trigger 변경은 `git diff --check`, UHT, C++ 컴파일과 `.lib` 생성을 통과했다. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
 - 2026-08-19: 캐릭터 목도리 표현용 `ScarfMeshComponent`를 StaticMesh 슬롯으로 추가했다. 기본 부착 소켓은 `ScarfSocket`이며, `BP_SnowRumbleCharacter`에서 목도리 StaticMesh와 상대 Transform을 조정한다. 목도리 Dynamic Material에는 현재 팀 색을 `TeamColor` Vector Parameter로 적용한다.
 - 2026-08-20: 작은 눈덩이 투척 one-shot trigger를 지상과 공중으로 분리했다. 서버가 `NotifySnowballThrowSucceeded()`에서 작은 눈덩이 투척 성공 시 캐릭터가 공중이면 `ThrowSmallSnowballInAir`, 지상이면 기존 `ThrowSmallSnowball`을 multicast한다. 큰 눈덩이와 눈오리 제작기 투척 trigger는 기존 분기를 유지한다.
+- 2026-08-22: Notify 기반 투척이 입력 release 시점 조준으로 고정되는 문제를 수정했다. `UAnimNotify_SnowballThrowRelease`는 로컬 소유자에서만 발사 확정을 보내고, `USnowballEquipmentComponent`는 Notify 시점의 현재 카메라 위치·방향을 서버 RPC로 전달해 서버 trace와 손 위치 기준 방향을 다시 계산한다. `git diff --check`, UHT, C++ 컴파일과 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
 
 ## 수동 작업
 
@@ -123,7 +124,7 @@
 - Event Graph에서 `OnAnimationTriggerRequested`를 구현하고 `Switch on ESnowRumbleCharacterAnimTrigger`로 분기한다.
 - `PickupSmallSnowball`/`PickupLargeSnowball`에는 눈덩이를 허리 펴며 드는 시작 동작 Montage를 연결하고, Montage 종료 뒤에는 `UpperBodyAnimState`의 보유 pose가 자연스럽게 유지되게 한다.
 - `ThrowSmallSnowball`/`ThrowSmallSnowballInAir`/`ThrowLargeSnowball`/`ThrowSnowDuckMaker`, `ItemInteraction`, `HitReact`도 같은 이벤트에서 각 Montage를 재생한다.
-- 작은 눈덩이 지상 Throw, 작은 눈덩이 공중 Throw, 큰 눈덩이 Throw 몽타주에는 실제 눈덩이가 손을 떠나야 하는 프레임에 `Snow Rumble Snowball Throw Release` AnimNotify를 한 번 배치한다. 이 Notify가 없으면 서버가 pending throw를 실제 발사로 확정하지 않는다.
+- 작은 눈덩이 지상 Throw, 작은 눈덩이 공중 Throw, 큰 눈덩이 Throw 몽타주에는 실제 눈덩이가 손을 떠나야 하는 프레임에 `Snow Rumble Snowball Throw Release` AnimNotify를 한 번 배치한다. 이 Notify가 없으면 서버가 pending throw를 실제 발사로 확정하지 않는다. 실제 투척 방향은 입력 release 시점이 아니라 Notify 시점의 로컬 카메라 방향으로 다시 계산된다.
 - Notify를 중복 배치해도 서버 pending throw는 한 번만 소비되지만, 몽타주당 한 번만 배치한다.
 - 우선 넣을 애니메이션은 맨손 Idle/Walk/Run/Jump/Fall, 작은 눈덩이 Hold/Walk/Aim/ThrowCharge/Throw, 큰 눈덩이 Hold/HeavyWalk/Aim/ThrowCharge/Throw, 눈삽 Hold/Walk/Swing, 눈오리 제작기 Hold/Walk/Use, 눈 만들기, 굴리기, 눈덩이 줍기, 선물상자/선물 아이템 상호작용, 피격 반응, 얼음, 사망이다.
 - `BP_SnowRumbleCharacter`의 Mesh에 새 SkeletalMesh를 지정한다.
