@@ -38,6 +38,7 @@ bool AreSnowballCharactersOnSameTeam(
 
 ASnowballItem::ASnowballItem()
 {
+	PrimaryActorTick.bCanEverTick = true;
 	bReplicates = true;
 	SetReplicateMovement(true);
 	SetNetUpdateFrequency(30.0f);
@@ -73,6 +74,17 @@ void ASnowballItem::BeginPlay()
 
 	InitialActorScale = GetActorScale3D();
 	ApplyGrowthScale();
+}
+
+void ASnowballItem::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+	(void)DeltaSeconds;
+
+	if (HasAuthority() && bIsThrownRolling)
+	{
+		UpdateThrownRolling();
+	}
 }
 
 bool ASnowballItem::TrySetHeldBy(
@@ -117,6 +129,12 @@ bool ASnowballItem::Throw(
 	Holder = nullptr;
 	bIsSettledOnGround = false;
 	bHasProcessedThrownImpact = false;
+	bIsThrownRolling = false;
+	AccumulatedThrownRollingDistance = 0.0f;
+	LastThrownRollingLocation = GetActorLocation();
+	ThrownRollingDirection = ThrowDirection.GetSafeNormal2D();
+	ThrownRollingCollisionCount = 0;
+	ThrownRollingHitCharacters.Reset();
 	CurrentThrowChargeProgress = FMath::Clamp(ThrowChargeProgress, 0.0f, 1.0f);
 	CurrentThrowDamageMultiplier = FMath::Max(0.0f, ThrowDamageMultiplier);
 
@@ -332,6 +350,113 @@ void ASnowballItem::UpdateRollingGrowth()
 float ASnowballItem::GetGrowthProgress() const
 {
 	return GrowthProgress;
+}
+
+void ASnowballItem::StartThrownRolling()
+{
+	if (!HasAuthority()
+		|| !IsFullyGrown()
+		|| bIsThrownRolling
+		|| !CollisionComponent)
+	{
+		return;
+	}
+
+	const FVector RollingVelocity = ProjectileMovement
+		? ProjectileMovement->Velocity
+		: FVector::ZeroVector;
+	if (ProjectileMovement)
+	{
+		ProjectileMovement->Deactivate();
+		ProjectileMovement->Velocity = FVector::ZeroVector;
+	}
+
+	bIsThrownRolling = true;
+	AccumulatedThrownRollingDistance = 0.0f;
+	LastThrownRollingLocation = GetActorLocation();
+	ThrownRollingDirection = RollingVelocity.GetSafeNormal2D();
+	ThrownRollingCollisionCount = 0;
+	ThrownRollingHitCharacters.Reset();
+	SetLifeSpan(0.0f);
+	CollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	CollisionComponent->SetEnableGravity(true);
+	CollisionComponent->SetSimulatePhysics(true);
+	CollisionComponent->SetPhysicsLinearVelocity(RollingVelocity);
+	SetReplicateMovement(true);
+	ForceNetUpdate();
+}
+
+void ASnowballItem::UpdateThrownRolling()
+{
+	if (!HasAuthority() || !bIsThrownRolling || !CollisionComponent)
+	{
+		return;
+	}
+
+	const FVector CurrentLocation = GetActorLocation();
+	const FVector CurrentVelocity = CollisionComponent->GetPhysicsLinearVelocity();
+	if (MinimumThrownRollingSpeed > 0.0f
+		&& CurrentVelocity.SizeSquared2D()
+			<= FMath::Square(MinimumThrownRollingSpeed))
+	{
+		DestroyThrownRolling(FHitResult());
+		return;
+	}
+	if (CurrentVelocity.SizeSquared2D() > KINDA_SMALL_NUMBER)
+	{
+		ThrownRollingDirection = CurrentVelocity.GetSafeNormal2D();
+	}
+	AccumulatedThrownRollingDistance += FVector::Dist2D(
+		CurrentLocation,
+		LastThrownRollingLocation);
+	LastThrownRollingLocation = CurrentLocation;
+
+	if (DistanceForThrownLargeSnowballToDissolve <= 0.0f)
+	{
+		return;
+	}
+
+	const float NewGrowthProgress = FMath::Clamp(
+		1.0f - (AccumulatedThrownRollingDistance
+			/ DistanceForThrownLargeSnowballToDissolve),
+		0.0f,
+		1.0f);
+	if (!FMath::IsNearlyEqual(GrowthProgress, NewGrowthProgress, 0.001f))
+	{
+		GrowthProgress = NewGrowthProgress;
+		OnRep_GrowthProgress();
+		ForceNetUpdate();
+	}
+
+	if (NewGrowthProgress <= KINDA_SMALL_NUMBER)
+	{
+		DestroyThrownRolling(FHitResult());
+	}
+}
+
+void ASnowballItem::DestroyThrownRolling(const FHitResult& Hit)
+{
+	if (!HasAuthority() || !bIsThrownRolling)
+	{
+		return;
+	}
+
+	bIsThrownRolling = false;
+	if (CollisionComponent)
+	{
+		CollisionComponent->SetSimulatePhysics(false);
+	}
+
+	const FVector HitImpactPoint(Hit.ImpactPoint);
+	const FVector ImpactPoint = HitImpactPoint.IsNearlyZero()
+		? GetActorLocation()
+		: HitImpactPoint;
+	const FVector HitImpactNormal(Hit.ImpactNormal);
+	const FVector ImpactNormal = HitImpactNormal.IsNearlyZero()
+		? FVector::UpVector
+		: HitImpactNormal.GetSafeNormal();
+	MulticastPlayImpactEffect(ImpactPoint, ImpactNormal);
+	Destroy();
 }
 
 bool ASnowballItem::IsFullyGrown() const
@@ -573,7 +698,9 @@ void ASnowballItem::HandleCollision(
 
 void ASnowballItem::HandleProjectileStopped(const FHitResult& Hit)
 {
-	if (!HasAuthority() || ItemState != ESnowballItemState::Thrown)
+	if (!HasAuthority()
+		|| ItemState != ESnowballItemState::Thrown
+		|| bIsThrownRolling)
 	{
 		return;
 	}
@@ -591,21 +718,52 @@ void ASnowballItem::HandleThrownImpact(
 	AActor* OtherActor,
 	const FHitResult& Hit)
 {
-	if (!HasAuthority()
-		|| ItemState != ESnowballItemState::Thrown
-		|| bHasProcessedThrownImpact)
+	if (!HasAuthority() || ItemState != ESnowballItemState::Thrown)
 	{
 		return;
 	}
 
-	bHasProcessedThrownImpact = true;
+	ASnowRumbleCharacter* HitCharacter = Cast<ASnowRumbleCharacter>(OtherActor);
+	if (bIsThrownRolling)
+	{
+		++ThrownRollingCollisionCount;
+		const bool bShouldDestroyAfterImpact =
+			MaximumThrownRollingCollisionCount > 0
+			&& ThrownRollingCollisionCount
+			>= MaximumThrownRollingCollisionCount;
+		if (!HitCharacter)
+		{
+			if (bShouldDestroyAfterImpact)
+			{
+				DestroyThrownRolling(Hit);
+			}
+			return;
+		}
+
+		if (ThrownRollingHitCharacters.Contains(HitCharacter))
+		{
+			if (bShouldDestroyAfterImpact)
+			{
+				DestroyThrownRolling(Hit);
+			}
+			return;
+		}
+		ThrownRollingHitCharacters.Add(HitCharacter);
+	}
+	else if (bHasProcessedThrownImpact)
+	{
+		return;
+	}
+
+	if (!bIsThrownRolling)
+	{
+		bHasProcessedThrownImpact = true;
+	}
 
 	if (OtherActor)
 	{
 		const ASnowRumbleCharacter* ThrowingCharacter =
 			Cast<ASnowRumbleCharacter>(GetOwner());
-		ASnowRumbleCharacter* HitCharacter =
-			Cast<ASnowRumbleCharacter>(OtherActor);
 		const bool bIgnoreFriendlyFire =
 			HitCharacter
 			&& AreSnowballCharactersOnSameTeam(
@@ -639,9 +797,11 @@ void ASnowballItem::HandleThrownImpact(
 			if (HitCharacter)
 			{
 				FVector KnockbackDirection =
-					ProjectileMovement
+					bIsThrownRolling
+						? ThrownRollingDirection
+						: (ProjectileMovement
 						? ProjectileMovement->Velocity.GetSafeNormal2D()
-						: FVector::ZeroVector;
+						: FVector::ZeroVector);
 				if (KnockbackDirection.IsNearlyZero())
 				{
 					KnockbackDirection =
@@ -677,6 +837,23 @@ void ASnowballItem::HandleThrownImpact(
 				}
 			}
 		}
+	}
+
+	if (bIsThrownRolling)
+	{
+		if (MaximumThrownRollingCollisionCount > 0
+			&& ThrownRollingCollisionCount
+			>= MaximumThrownRollingCollisionCount)
+		{
+			DestroyThrownRolling(Hit);
+		}
+		return;
+	}
+
+	if (IsFullyGrown())
+	{
+		StartThrownRolling();
+		return;
 	}
 
 	const FVector HitImpactPoint(

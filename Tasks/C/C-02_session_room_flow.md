@@ -16,7 +16,7 @@
 - [x] 방 찾기에서 입력한 방 코드와 일치하는 검색 결과에만 참가하는 요청을 제공한다.
 - [x] 메인 메뉴의 `QuitGameButton`으로 로컬 게임을 완전히 종료하는 기능을 제공한다.
 - [x] 메인 메뉴의 `KeyGuideButton`으로 로비에서 사용하는 기존 조작법 WBP를 표시·숨김한다.
-- [x] 메인 메뉴 닉네임을 7글자로 제한하고, 초과 입력은 욕설 입력과 같은 실패 처리와 길이 초과 알람을 표시한다.
+- [x] 메인 메뉴 닉네임을 10글자로 제한하고, 초과 입력은 욕설 입력과 같은 실패 처리와 길이 초과 알람을 표시한다.
 - [x] 에디터 확인 중 세션 호출 여부와 검색 결과를 추적할 수 있도록 `LogSnowRumbleSession` 로그를 추가한다.
 
 ## 작업 배정
@@ -39,7 +39,7 @@
   - `ULobbyWidget::GetCurrentRoomCode()`: S-02 대기방 WBP가 오른쪽 상단에 표시할 방 코드 조회 함수다.
   - `ULobbyWidget`의 선택 바인딩 위젯 `RoomCodeTextBlock`: 이름을 맞춰 배치하면 C++ 부모가 현재 방 코드를 자동 표시한다.
   - `ULocalPlayerIdentitySubsystem`: 메인메뉴에서 입력한 로컬 닉네임을 GameInstance 수명 동안 저장한다. 현재는 닉네임만 저장하며, 추후 커스터마이징 데이터는 같은 로컬 정체성 책임 안에서 확장한다.
-  - `UMainMenuWidget`의 선택 바인딩 위젯 `PlayerNameTextBox`: C++ 부모가 최초 표시 시 랜덤 기본 닉네임을 채우고, 최대 7글자 입력을 검증한다. 초과하면 기존 닉네임을 유지하고 `닉네임이 너무 길어서 사용할 수 없습니다.` 알람을 표시한다.
+  - `UMainMenuWidget`의 선택 바인딩 위젯 `PlayerNameTextBox`: C++ 부모가 최초 표시 시 랜덤 기본 닉네임을 채우고, 최대 10글자 입력을 검증한다. 초과하면 기존 닉네임을 유지하고 `닉네임이 너무 길어서 사용할 수 없습니다.` 알람을 표시한다.
   - `UMainMenuWidget`의 선택 바인딩 위젯 `QuitGameButton`: 클릭하면 로컬 `AMainMenuPlayerController::QuitGame()`을 호출해 게임을 종료한다. 기존 메인 메뉴 버튼과 동일하게 내부 TextBlock을 hover/pressed 남색으로 표시한다.
   - `UMainMenuWidget`의 선택 바인딩 위젯 `KeyGuideButton`: 클릭하면 `AMainMenuPlayerController::ToggleKeyGuideWidget()`을 호출해 기존 `WBP_KeyGuideWidget`을 표시하거나 숨긴다.
   - `ALobbyPlayerController::RequestApplyLobbyPlayerName(const FString& NewName)`: 소유 클라이언트가 서버의 자기 `PlayerState` 닉네임 변경을 요청하는 RPC 경로다.
@@ -77,7 +77,7 @@
 - S-02에서 `WBP_MainMenu` 또는 새 시작화면 WBP의 빠른 게임 버튼을 `UMainMenuWidget::QuickJoinLanGame()`에 연결한다.
 - 빠른 참여 버튼은 `QuickJoinButton` 이름으로 바인딩하면 C++ 부모가 자동으로 `QuickJoinLanGame()`을 호출한다.
 - S-02에서 메인메뉴 닉네임 입력창을 만들고 `PlayerNameTextBox` 이름으로 바인딩한다. C++ 부모가 최초 랜덤 닉네임을 표시하고 Host, 빠른 참여, 방 코드 참가 전에 입력값을 저장한다.
-- 닉네임은 최대 7글자다. 7글자를 초과해 저장을 시도하면 기존 욕설 예외처리와 같이 기존 닉네임을 유지하고 길이 초과 알람을 표시한다.
+- 닉네임은 최대 10글자다. 10글자를 초과해 저장을 시도하면 기존 욕설 예외처리와 같이 기존 닉네임을 유지하고 길이 초과 알람을 표시한다.
 - S-02에서 `WBP_MainMenu`에 방 코드 입력 패널을 만들고 `RoomCodeJoinPanel` 이름으로 바인딩한다. 기본 표시는 C++ 부모가 `Collapsed`로 설정한다.
 - S-02에서 방 코드 입력창은 `RoomCodeTextBox`, 확인 버튼은 `ConfirmRoomCodeJoinButton`, 취소 버튼은 `CancelRoomCodeJoinButton` 이름으로 바인딩한다.
 - 방 찾기 버튼은 `FindButton` 이름을 유지하면 C++ 부모가 `RoomCodeJoinPanel`을 열고, 확인 버튼은 `RoomCodeTextBox` 값을 읽어 `JoinLanGameByRoomCode(RoomCode)`를 호출한다.
@@ -95,7 +95,7 @@
 - [x] `git diff --check` 공백 점검 통과
 - [x] `QuitGameButton` 자동 바인딩·게임 종료·남색 텍스트 상태 처리 완료
 - [x] `KeyGuideButton` 자동 바인딩·기존 조작법 WBP 표시·남색 텍스트 상태 처리 완료
-- [x] 닉네임 7글자 제한·길이 초과 알람 처리 완료
+- [x] 닉네임 10글자 제한·길이 초과 알람 처리 완료
 - [x] `SnowRumbleEditor Win64 Development` 최종 빌드 확인
 
 ### 검증 메모

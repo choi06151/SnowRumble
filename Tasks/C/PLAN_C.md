@@ -54,6 +54,7 @@
 | 29 | [C-28](C-28_player_grab_control_rig_foundation.md) | 플레이어 잡기와 Control Rig 기본틀 | C-24 | 진행중 |
 | 30 | [C-29](C-29_travel_url_and_loading_stability.md) | 전환 URL과 PvP 로딩 안정화 | C-04, C-05, C-17 | 진행중 |
 | 31 | [C-31](C-31_pvp_loading_ready_and_pso.md) | PvP 로딩 Ready 핸드셰이크와 PSO 안정화 | C-29 | 진행중 |
+| 32 | [C-32](C-32_jukebox_interaction.md) | 주크박스 상호작용 | C-15, C-22, C-30 | 진행중 |
 
 ## 통합 변경 요청
 
@@ -92,6 +93,10 @@
 - 2026-08-25: C-06 관전 카메라를 대상 캐릭터 ViewTarget 방식에서 실제 시점 복제 방식으로 변경했다. 소유 클라이언트의 `FollowCamera` 위치·회전·FOV를 `ServerUpdateSpectatorCameraView`로 전달하고, 관전자는 복제값을 적용한 로컬 `ACameraActor`를 사용한다.
 - 2026-08-25: 사용자가 PvP 로딩 불안정성 개선을 요청해 C-31을 추가했다. 컨트롤러 수 대신 클라이언트별 Ready 핸드셰이크를 사용하고, 45초 타임아웃 시 전체 매치를 취소해 로비로 복귀하며, PSO Precaching·캐시 수집 경로를 정리한다.
 - 2026-08-25: C-31 Ready 핸드셰이크와 45초 전체 매치 취소·로비 복귀, PSO Precaching 및 Material Shader Code 공유 설정을 구현하고 `SnowRumbleEditor Win64 Development` 빌드를 성공했다. 실제 4인 PIE와 PSO Cache 수집은 사용자 확인으로 남겼다.
+- 2026-08-26: 사용자가 주크박스 상호작용을 요청해 C-32를 추가했다. 기존 E 상호작용과 outline에 `E - 노래틀기`를 연결하고, 서버 확정 Sound duration 동안 Box Collision 내부 캐릭터를 반복 점프시키는 범위를 진행한다.
+- 2026-08-26: C-32 후속 요청을 반영했다. 상호작용 안내 위치를 액터 전체 Bounds가 아닌 RootComponent 기준으로 바꾸고, 인스턴스에서 지정하는 Spotlight 배열을 재생 중 랜덤 순환하는 멀티캐스트 연출을 추가했다.
+- 2026-08-26: C-09 후속 요청을 반영했다. 완전히 성장한 큰 눈덩이가 바닥·플레이어 충돌 후 물리 굴리기로 전환되고, 이동 거리로 작아지며, 플레이어에는 피해·진행 방향 넉백을 주고 벽 충돌 또는 완전 소멸 시 제거되도록 구현을 진행한다.
+- 2026-08-26: C-02 후속 요청을 반영했다. 로컬 저장·메인 메뉴 검증의 닉네임 최대 길이를 7글자에서 10글자로 변경했다.
 - 2026-08-24: C-06/C-28 얼음·Grab 연동을 추가했다. 서버는 얼은 대상의 같은 팀 Grab만 허용하고, 얼음 행동 제한을 유지한 채 tether 운반을 지원하며 사망 시 자동 해제한다.
 - 2026-08-24: C-09 눈덩이 투척 충돌에 같은 팀 피해·넉백 무시를 추가했다. 서버가 눈덩이 Owner와 피격 캐릭터의 `LobbyTeam`을 비교하고, 같은 팀이면 충돌 연출만 유지한다.
 - 2026-08-24: C-09 눈덩이 피해가 `GrowthProgress`에 따라 1배에서 기본 최대 3배까지 증가하도록 `MaximumGrowthDamageMultiplier`를 추가했다. 기존 차지 피해 배율은 유지한다.

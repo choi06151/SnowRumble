@@ -50,6 +50,7 @@ class AGiftBox;
 class AGiftBoxItemPickup;
 class ALobbyInteractionBoard;
 class APhotoInteractionActor;
+class AJukeboxActor;
 class ASnowballItem;
 struct FDamageEvent;
 struct FInputActionValue;
@@ -649,6 +650,7 @@ protected:
 
 	/** 로컬 플레이어가 상호작용할 가장 가까운 사진 촬영 액터를 찾는다. */
 	APhotoInteractionActor* FindClosestPhotoInteractionCandidate() const;
+	AJukeboxActor* FindClosestJukeboxCandidate() const;
 
 	/** 로컬 플레이어가 상호작용할 가장 가까운 선물상자를 찾는다. */
 	AGiftBox* FindClosestGiftBoxCandidate() const;
@@ -673,6 +675,7 @@ protected:
 
 	/** 소유 플레이어가 가까운 사진 촬영 액터 상호작용을 서버에 요청한다. */
 	void TryInteractWithPhotoActor();
+	void TryInteractWithJukebox();
 
 	/** 사진 촬영 상태에서 P 키를 눌러 로컬 스크린샷을 저장한다. */
 	void HandlePhotoCapture();
@@ -693,6 +696,9 @@ protected:
 	/** 서버가 현재 위치와 상태를 검사해 사진 촬영 상호작용을 확정한다. */
 	UFUNCTION(Server, Reliable)
 	void ServerTryInteractWithPhotoActor(APhotoInteractionActor* PhotoActor);
+
+	UFUNCTION(Server, Reliable)
+	void ServerTryInteractWithJukebox(AJukeboxActor* Jukebox);
 
 	/** 서버가 현재 위치와 상태를 검사해 선물상자 개봉을 확정한다. */
 	UFUNCTION(Server, Reliable)
