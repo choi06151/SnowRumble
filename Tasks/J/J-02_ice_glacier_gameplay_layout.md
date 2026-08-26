@@ -43,6 +43,15 @@
 ## 결정 필요
 - 얼음물에 빠진 플레이어의 수영 복귀 지점과 경계 처리
 
+## 변경 기록
+
+- 2026-08-19 `0d8dace`: `Source/SnowRumble/Map/SnowRumbleIceGlacierCollapseActor_J.h`, `Source/SnowRumble/Map/SnowRumbleIceGlacierCollapseActor_J.cpp`를 추가하고 `L_IceGlacier_J.umap`에 연결할 빙판 침몰 Actor의 1차 구조를 만들었다.
+- 2026-08-19 `0d8dace`: 1차 구조는 경기 경과 시간 기준으로 Group 1은 240~300초, Group 2는 300~360초에 침몰하도록 하고, Final Core는 침몰 대상에서 제외하는 방향으로 기록한다.
+- 2026-08-21 `e2dee52`: 기존 `CollapseGroup1`, `CollapseGroup2` 단순 Actor 배열을 `Group1Pieces`, `Group2Pieces` 구조체 배열로 바꾸고, 조각별 `StartDelaySeconds`, `WarningDurationSeconds`, `ShakeAmplitude`, `ShakeFrequency`, `FallDurationSeconds`, `SinkDistance`를 설정할 수 있게 보강했다.
+- 2026-08-21 `e2dee52`: 각 빙판 조각의 상태를 `Idle -> Warning -> Falling -> Done`으로 계산하고, Warning 흔들림과 Falling 하강을 `InitialTransform` 기준 절대 Transform 계산으로 처리하도록 정리했다.
+- 2026-08-21 `e2dee52`: 완전히 침몰한 빙판 조각은 `bDisableCollisionAfterFullySunk` 값에 따라 기존 Collision 상태를 저장한 뒤 비활성화할 수 있게 했다.
+- 2026-08-24 `c916bd9`: 원격 J 브랜치의 `L_IceGlacier_J.umap` 최신 수정분을 반영했다. 해당 커밋은 맵 자산만 수정하므로 C++ 기능 상태 변경으로 보지 않는다.
+
 ## 현재 C++ 구현 기록
 
 ### SnowRumbleIceGlacierCollapseActor_J
