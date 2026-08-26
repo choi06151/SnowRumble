@@ -2,6 +2,7 @@
 
 #include "VoiceMutePlayerRowWidget_C.h"
 
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"

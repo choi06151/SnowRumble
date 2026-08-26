@@ -3,14 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "SnowRumbleAudioUserWidget.h"
 #include "LobbyEscapeMenuWidget.generated.h"
 
 class ALobbyPlayerController;
 class UButton;
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API ULobbyEscapeMenuWidget : public UUserWidget
+class SNOWRUMBLE_API ULobbyEscapeMenuWidget : public USnowRumbleAudioUserWidget
 {
 	GENERATED_BODY()
 
@@ -76,4 +76,5 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<ALobbyPlayerController> LobbyPlayerController;
+
 };

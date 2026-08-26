@@ -16,6 +16,7 @@ PvP 맵에서 로컬 플레이어와 같은 팀 색을 가진 다른 플레이�
 - [x] 팀원이 아니거나 팀 정보가 없거나 Pawn이 사라진 플레이어의 HP 바를 제거한다.
 - [x] 팀원 HP 바는 기존 `UHealthBarWidget`을 재사용해 복제 HP 변경을 실시간 표시한다.
 - [x] 팀원 HP 바 클래스가 비어 있으면 기존 로컬 HP 바 클래스 fallback을 사용한다.
+- [x] `UHealthBarWidget`에 선택 바인딩 가능한 `PlayerNameText`를 추가해 자기와 팀원의 이름을 표시한다.
 
 ## 작업 배정
 
@@ -65,6 +66,8 @@ PvP 맵에서 로컬 플레이어와 같은 팀 색을 가진 다른 플레이�
 - HUD WBP 좌측 상단에 Vertical Box 또는 Panel을 만들고 이름을 `OtherPlayersHealthPanel`로 맞춘다.
 - 팀원 HP 바 전용 WBP를 따로 쓰려면 `OtherPlayerHealthBarWidgetClass`에 `UHealthBarWidget` 기반 WBP를 연결한다.
 - `OtherPlayerHealthBarWidgetClass`를 비워 두면 C++ 부모가 `LocalHealthBar`와 같은 WBP 클래스를 팀원 HP 바에도 사용한다.
+- `MainHUDWidgetClass`가 다른 WBP를 가리키거나 병합으로 참조가 끊겨도 C++가 `/Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C`를 우선 사용한다.
+- 이름을 표시하려면 체력바 WBP에 선택적으로 `PlayerNameText`라는 TextBlock을 추가한다. 연결되면 해당 체력바가 관찰하는 캐릭터의 `GetLobbyPlayerName()`을 표시한다.
 
 ## 완료 조건
 

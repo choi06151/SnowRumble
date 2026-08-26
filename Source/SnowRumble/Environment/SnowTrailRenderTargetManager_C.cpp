@@ -4,6 +4,7 @@
 
 #include "../Player/SnowRumbleCharacter.h"
 #include "Engine/Canvas.h"
+#include "CanvasItem.h"
 #include "Engine/CanvasRenderTarget2D.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -11,6 +12,8 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "Components/PrimitiveComponent.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogSnowTrail, Log, All);
 
 ASnowTrailRenderTargetManager::ASnowTrailRenderTargetManager()
 {
@@ -38,6 +41,20 @@ ASnowTrailRenderTargetManager::FindSnowTrailManager(
 
 	for (TActorIterator<ASnowTrailRenderTargetManager> It(World); It; ++It)
 	{
+		ASnowTrailRenderTargetManager* Manager = *It;
+		if (Manager && Manager->ShouldLogSnowTrailDebug())
+		{
+			UE_LOG(
+				LogSnowTrail,
+				Log,
+				TEXT("[SnowTrail] Found manager=%s World=%s Center=(%.1f, %.1f) Size=%.1f RT=%s"),
+				*GetNameSafe(Manager),
+				*GetNameSafe(World),
+				Manager->TrailWorldCenter.X,
+				Manager->TrailWorldCenter.Y,
+				Manager->TrailWorldSize,
+				*GetNameSafe(Manager->SnowTrailRenderTarget));
+		}
 		return *It;
 	}
 
@@ -74,6 +91,8 @@ ASnowTrailRenderTargetManager::EnsureSnowTrailRenderTarget()
 
 void ASnowTrailRenderTargetManager::InitializeSnowTrailRenderTargetForPlay()
 {
+	UpdateTrailWorldAreaFromMaterialBounds();
+
 	if (!bAutoCreateRenderTarget && !SnowTrailRenderTarget)
 	{
 		return;
@@ -104,6 +123,131 @@ void ASnowTrailRenderTargetManager::InitializeSnowTrailRenderTargetForPlay()
 		TrailWorldSize);
 }
 
+bool ASnowTrailRenderTargetManager::UpdateTrailWorldAreaFromMaterialBounds()
+{
+	if (!bAutoFitTrailWorldAreaFromMaterialBounds)
+	{
+		return false;
+	}
+
+	FBox CombinedBounds(ForceInit);
+	bool bHasValidBounds = false;
+	auto AccumulateActorBounds =
+		[this, &CombinedBounds, &bHasValidBounds](AActor* TargetActor)
+	{
+		if (!TargetActor)
+		{
+			return;
+		}
+
+		TArray<UPrimitiveComponent*> PrimitiveComponents;
+		TargetActor->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
+		for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
+		{
+			bHasValidBounds |= AccumulateTrailMaterialComponentBounds(
+				PrimitiveComponent,
+				CombinedBounds);
+		}
+	};
+
+	for (UPrimitiveComponent* PrimitiveComponent : SnowTrailMaterialComponents)
+	{
+		bHasValidBounds |= AccumulateTrailMaterialComponentBounds(
+			PrimitiveComponent,
+			CombinedBounds);
+	}
+
+	for (AActor* MaterialActor : SnowTrailMaterialActors)
+	{
+		AccumulateActorBounds(MaterialActor);
+	}
+
+	if (bAutoApplyToSnowSurfaceTaggedActors
+		&& !SnowTrailMaterialAutoApplyActorTag.IsNone())
+	{
+		UWorld* World = GetWorld();
+		if (World)
+		{
+			for (TActorIterator<AActor> It(World); It; ++It)
+			{
+				AActor* TaggedActor = *It;
+				if (TaggedActor
+					&& TaggedActor->ActorHasTag(
+						SnowTrailMaterialAutoApplyActorTag))
+				{
+					AccumulateActorBounds(TaggedActor);
+				}
+			}
+		}
+	}
+
+	if (!bHasValidBounds || !CombinedBounds.IsValid)
+	{
+		if (bLogSnowTrailDebug)
+		{
+			UE_LOG(
+				LogSnowTrail,
+				Warning,
+				TEXT("[SnowTrail] Auto-fit skipped: no valid material bounds Manager=%s"),
+				*GetNameSafe(this));
+		}
+		return false;
+	}
+
+	const FVector BoundsCenter = CombinedBounds.GetCenter();
+	const FVector BoundsExtent = CombinedBounds.GetExtent();
+	const float SafePadding = FMath::Max(0.0f, TrailWorldBoundsPadding);
+	const float FittedWorldSize = FMath::Max(
+		FMath::Max(BoundsExtent.X * 2.0f, BoundsExtent.Y * 2.0f)
+			+ SafePadding * 2.0f,
+		100.0f);
+
+	TrailWorldCenter = FVector2D(BoundsCenter.X, BoundsCenter.Y);
+	TrailWorldSize = FittedWorldSize;
+
+	if (bLogSnowTrailDebug)
+	{
+		UE_LOG(
+			LogSnowTrail,
+			Log,
+			TEXT("[SnowTrail] Auto-fit bounds Manager=%s Center=(%.1f, %.1f) Size=%.1f Padding=%.1f BoundsMin=%s BoundsMax=%s"),
+			*GetNameSafe(this),
+			TrailWorldCenter.X,
+			TrailWorldCenter.Y,
+			TrailWorldSize,
+			SafePadding,
+			*CombinedBounds.Min.ToCompactString(),
+			*CombinedBounds.Max.ToCompactString());
+	}
+	return true;
+}
+
+bool ASnowTrailRenderTargetManager::AccumulateTrailMaterialComponentBounds(
+	UPrimitiveComponent* TargetComponent,
+	FBox& InOutBounds) const
+{
+	if (!TargetComponent)
+	{
+		return false;
+	}
+
+	const FBoxSphereBounds& ComponentBounds = TargetComponent->Bounds;
+	const FVector BoundsExtent = ComponentBounds.BoxExtent;
+	if (BoundsExtent.X <= 0.0f || BoundsExtent.Y <= 0.0f)
+	{
+		return false;
+	}
+
+	const FBox ComponentBox = ComponentBounds.GetBox();
+	if (!ComponentBox.IsValid)
+	{
+		return false;
+	}
+
+	InOutBounds += ComponentBox;
+	return true;
+}
+
 void ASnowTrailRenderTargetManager::BindSnowTrailRenderTargetUpdate()
 {
 	if (!SnowTrailRenderTarget)
@@ -126,20 +270,32 @@ void ASnowTrailRenderTargetManager::ApplySnowTrailMaterialParameters(
 
 	AppliedSnowTrailMaterials.Reset();
 
-	const FLinearColor WorldCenterParameter(
-		TrailWorldCenter.X,
-		TrailWorldCenter.Y,
+	const FLinearColor UVScaleParameter(
+		SnowTrailUVScale.X,
+		SnowTrailUVScale.Y,
 		0.0f,
 		0.0f);
+	const FLinearColor UVOffsetParameter(
+		SnowTrailUVOffset.X,
+		SnowTrailUVOffset.Y,
+		0.0f,
+		0.0f);
+	TSet<UPrimitiveComponent*> AppliedComponents;
 
 	auto ApplyToComponent =
-		[this, TargetRenderTarget, WorldCenterParameter](
+		[
+			this,
+			TargetRenderTarget,
+			UVScaleParameter,
+			UVOffsetParameter,
+			&AppliedComponents](
 			UPrimitiveComponent* TargetComponent)
 	{
-		if (!TargetComponent)
+		if (!TargetComponent || AppliedComponents.Contains(TargetComponent))
 		{
 			return;
 		}
+		AppliedComponents.Add(TargetComponent);
 
 		const int32 MaterialCount = TargetComponent->GetNumMaterials();
 		for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
@@ -162,18 +318,18 @@ void ASnowTrailRenderTargetManager::ApplySnowTrailMaterialParameters(
 					SnowTrailRenderTargetParameterName,
 					TargetRenderTarget);
 			}
-			if (!SnowTrailWorldCenterParameterName.IsNone())
+			if (!SnowTrailWorldCenterXParameterName.IsNone())
 			{
-				DynamicMaterial->SetVectorParameterValue(
-					SnowTrailWorldCenterParameterName,
-					WorldCenterParameter);
+				DynamicMaterial->SetScalarParameterValue(
+					SnowTrailWorldCenterXParameterName,
+					TrailWorldCenter.X);
 			}
-			DynamicMaterial->SetVectorParameterValue(
-				TEXT("SnowTrailWorldCenter"),
-				WorldCenterParameter);
-			DynamicMaterial->SetVectorParameterValue(
-				TEXT("TrailWorldCenter"),
-				WorldCenterParameter);
+			if (!SnowTrailWorldCenterYParameterName.IsNone())
+			{
+				DynamicMaterial->SetScalarParameterValue(
+					SnowTrailWorldCenterYParameterName,
+					TrailWorldCenter.Y);
+			}
 			if (!SnowTrailWorldSizeParameterName.IsNone())
 			{
 				DynamicMaterial->SetScalarParameterValue(
@@ -186,6 +342,39 @@ void ASnowTrailRenderTargetManager::ApplySnowTrailMaterialParameters(
 			DynamicMaterial->SetScalarParameterValue(
 				TEXT("TrailWorldSize"),
 				TrailWorldSize);
+			DynamicMaterial->SetScalarParameterValue(
+				TEXT("Size"),
+				TrailWorldSize);
+			DynamicMaterial->SetScalarParameterValue(
+				TEXT("WorldSize"),
+				TrailWorldSize);
+			DynamicMaterial->SetScalarParameterValue(
+				TEXT("TrailSize"),
+				TrailWorldSize);
+			DynamicMaterial->SetVectorParameterValue(
+				TEXT("SnowTrailUVScale"),
+				UVScaleParameter);
+			DynamicMaterial->SetVectorParameterValue(
+				TEXT("TrailUVScale"),
+				UVScaleParameter);
+			DynamicMaterial->SetVectorParameterValue(
+				TEXT("SnowTrailUVOffset"),
+				UVOffsetParameter);
+			DynamicMaterial->SetVectorParameterValue(
+				TEXT("TrailUVOffset"),
+				UVOffsetParameter);
+			DynamicMaterial->SetScalarParameterValue(
+				TEXT("SnowTrailFlipU"),
+				bSnowTrailFlipU ? 1.0f : 0.0f);
+			DynamicMaterial->SetScalarParameterValue(
+				TEXT("TrailFlipU"),
+				bSnowTrailFlipU ? 1.0f : 0.0f);
+			DynamicMaterial->SetScalarParameterValue(
+				TEXT("SnowTrailFlipV"),
+				bSnowTrailFlipV ? 1.0f : 0.0f);
+			DynamicMaterial->SetScalarParameterValue(
+				TEXT("TrailFlipV"),
+				bSnowTrailFlipV ? 1.0f : 0.0f);
 
 			AppliedSnowTrailMaterials.Add(DynamicMaterial);
 		}
@@ -209,6 +398,45 @@ void ASnowTrailRenderTargetManager::ApplySnowTrailMaterialParameters(
 		{
 			ApplyToComponent(PrimitiveComponent);
 		}
+	}
+
+	if (bAutoApplyToSnowSurfaceTaggedActors
+		&& !SnowTrailMaterialAutoApplyActorTag.IsNone())
+	{
+		UWorld* World = GetWorld();
+		if (World)
+		{
+			for (TActorIterator<AActor> It(World); It; ++It)
+			{
+				AActor* TaggedActor = *It;
+				if (!TaggedActor
+					|| !TaggedActor->ActorHasTag(
+						SnowTrailMaterialAutoApplyActorTag))
+				{
+					continue;
+				}
+
+				TArray<UPrimitiveComponent*> PrimitiveComponents;
+				TaggedActor->GetComponents<UPrimitiveComponent>(
+					PrimitiveComponents);
+				for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
+				{
+					ApplyToComponent(PrimitiveComponent);
+				}
+			}
+		}
+	}
+
+	if (bLogSnowTrailDebug)
+	{
+		UE_LOG(
+			LogSnowTrail,
+			Log,
+			TEXT("[SnowTrail] Applied material params RT=%s Components=%d Materials=%d AutoTag=%s"),
+			*GetNameSafe(TargetRenderTarget),
+			AppliedComponents.Num(),
+			AppliedSnowTrailMaterials.Num(),
+			*SnowTrailMaterialAutoApplyActorTag.ToString());
 	}
 }
 
@@ -244,10 +472,24 @@ bool ASnowTrailRenderTargetManager::ConvertWorldLocationToTrailUV(
 		(WorldLocation.X - MinimumWorld.X) / TrailWorldSize,
 		(WorldLocation.Y - MinimumWorld.Y) / TrailWorldSize);
 
-	return OutTrailUV.X >= 0.0f
+	const bool bInsideBounds = OutTrailUV.X >= 0.0f
 		&& OutTrailUV.X <= 1.0f
 		&& OutTrailUV.Y >= 0.0f
 		&& OutTrailUV.Y <= 1.0f;
+	if (!bInsideBounds && bLogSnowTrailDebug)
+	{
+		UE_LOG(
+			LogSnowTrail,
+			Warning,
+			TEXT("[SnowTrail] UV outside bounds Location=%s UV=(%.3f, %.3f) Center=(%.1f, %.1f) Size=%.1f"),
+			*WorldLocation.ToCompactString(),
+			OutTrailUV.X,
+			OutTrailUV.Y,
+			TrailWorldCenter.X,
+			TrailWorldCenter.Y,
+			TrailWorldSize);
+	}
+	return bInsideBounds;
 }
 
 bool ASnowTrailRenderTargetManager::StampSnowTrailAtWorldLocation(
@@ -260,6 +502,14 @@ bool ASnowTrailRenderTargetManager::StampSnowTrailAtWorldLocation(
 	UCanvasRenderTarget2D* TargetRenderTarget = EnsureSnowTrailRenderTarget();
 	if (!TargetRenderTarget)
 	{
+		if (bLogSnowTrailDebug)
+		{
+			UE_LOG(
+				LogSnowTrail,
+				Warning,
+				TEXT("[SnowTrail] Stamp failed: render target missing Manager=%s"),
+				*GetNameSafe(this));
+		}
 		return false;
 	}
 
@@ -311,6 +561,18 @@ bool ASnowTrailRenderTargetManager::StampSnowTrailAtWorldLocation(
 		SourceCharacter,
 		FinalStampData))
 	{
+		if (bLogSnowTrailDebug)
+		{
+			UE_LOG(
+				LogSnowTrail,
+				Warning,
+				TEXT("[SnowTrail] Stamp rejected Location=%s Normal=%s Radius=%.1f Foot=%s Source=%s"),
+				*WorldLocation.ToCompactString(),
+				*SafeWorldNormal.ToCompactString(),
+				RadiusWorld,
+				*FootSocketName.ToString(),
+				*GetNameSafe(SourceCharacter));
+		}
 		return bAddedAnyStamp;
 	}
 
@@ -330,6 +592,20 @@ bool ASnowTrailRenderTargetManager::StampSnowTrailAtWorldLocation(
 		FinalStampData.FootSocketName,
 		FinalStampData.SourceCharacter);
 	TargetRenderTarget->UpdateResource();
+	if (bLogSnowTrailDebug)
+	{
+		UE_LOG(
+			LogSnowTrail,
+			Log,
+			TEXT("[SnowTrail] Stamp accepted Location=%s UV=(%.3f, %.3f) RadiusWorld=%.1f RadiusPixels=%.1f Count=%d RT=%s"),
+			*FinalStampData.WorldLocation.ToCompactString(),
+			FinalStampData.TrailUV.X,
+			FinalStampData.TrailUV.Y,
+			FinalStampData.RadiusWorld,
+			FinalStampData.RadiusPixels,
+			SnowTrailStamps.Num(),
+			*GetNameSafe(TargetRenderTarget));
+	}
 	return bAddedAnyStamp;
 }
 
@@ -388,6 +664,11 @@ ASnowTrailRenderTargetManager::GetSnowTrailStamps() const
 	return SnowTrailStamps;
 }
 
+bool ASnowTrailRenderTargetManager::ShouldLogSnowTrailDebug() const
+{
+	return bLogSnowTrailDebug;
+}
+
 void ASnowTrailRenderTargetManager::RefreshSnowTrailMaterialParameters()
 {
 	ApplySnowTrailMaterialParameters(EnsureSnowTrailRenderTarget());
@@ -403,9 +684,22 @@ void ASnowTrailRenderTargetManager::HandleSnowTrailCanvasUpdate(
 		return;
 	}
 
+	if (bLogSnowTrailDebug)
+	{
+		UE_LOG(
+			LogSnowTrail,
+			Verbose,
+			TEXT("[SnowTrail] Canvas update RT=%s Width=%d Height=%d Count=%d StampMaterial=%s"),
+			*GetNameSafe(SnowTrailRenderTarget),
+			Width,
+			Height,
+			SnowTrailStamps.Num(),
+			*GetNameSafe(SnowTrailStampMaterial));
+	}
+
 	for (const FSnowTrailStampData& StampData : SnowTrailStamps)
 	{
-		if (bDrawStampsInCpp)
+		if (bDrawStampsInCpp || !SnowTrailStampMaterial)
 		{
 			DrawSnowTrailStampInCpp(Canvas, Width, Height, StampData);
 		}
@@ -421,7 +715,6 @@ void ASnowTrailRenderTargetManager::DrawSnowTrailStampInCpp(
 	const FSnowTrailStampData& StampData) const
 {
 	if (!Canvas
-		|| !SnowTrailStampMaterial
 		|| Width <= 0
 		|| Height <= 0
 		|| StampData.RadiusPixels <= 0.0f)
@@ -429,19 +722,29 @@ void ASnowTrailRenderTargetManager::DrawSnowTrailStampInCpp(
 		return;
 	}
 
-	const float DiameterPixels = StampData.RadiusPixels * 2.0f;
+	const float SafeRadiusPixels =
+		FMath::Max(StampData.RadiusPixels, MinimumStampRadiusPixels);
+	const float DiameterPixels = SafeRadiusPixels * 2.0f;
 	const FVector2D StampSize(DiameterPixels, DiameterPixels);
 	const FVector2D StampCenter(
 		StampData.TrailUV.X * static_cast<float>(Width),
 		StampData.TrailUV.Y * static_cast<float>(Height));
 	const FVector2D StampPosition = StampCenter - StampSize * 0.5f;
 
-	Canvas->K2_DrawMaterial(
-		SnowTrailStampMaterial,
-		StampPosition,
-		StampSize,
-		FVector2D::ZeroVector,
-		FVector2D::UnitVector,
-		0.0f,
-		FVector2D(0.5f, 0.5f));
+	if (SnowTrailStampMaterial)
+	{
+		Canvas->K2_DrawMaterial(
+			SnowTrailStampMaterial,
+			StampPosition,
+			StampSize,
+			FVector2D::ZeroVector,
+			FVector2D::UnitVector,
+			0.0f,
+			FVector2D(0.5f, 0.5f));
+		return;
+	}
+
+	FCanvasTileItem TileItem(StampPosition, StampSize, FLinearColor::White);
+	TileItem.BlendMode = SE_BLEND_Translucent;
+	Canvas->DrawItem(TileItem);
 }

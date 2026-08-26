@@ -2,6 +2,7 @@
 
 #include "SnowRumbleCharacterAnimInstance_C.h"
 
+#include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/PawnMovementComponent.h"
 
 void USnowRumbleCharacterAnimInstance::NativeInitializeAnimation()
@@ -60,6 +61,37 @@ void USnowRumbleCharacterAnimInstance::RefreshFromOwnerCharacter()
 	bIsPickingUpItem = CachedCharacter->IsPickingUpItem();
 	bIsInteractingWithItem = CachedCharacter->IsInteractingWithItem();
 	bIsHitReacting = CachedCharacter->IsHitReacting();
+	bIsGrabReaching = CachedCharacter->IsGrabReaching();
+	bIsGrabbingCharacter = CachedCharacter->IsGrabbingCharacter();
+	bIsGrabAttached = CachedCharacter->IsGrabAttached();
+	bIsHangingFromWorldGrab = CachedCharacter->IsHangingFromWorldGrab();
+	bIsGrabbedByCharacter = CachedCharacter->IsGrabbedByCharacter();
+	GrabAttachedWorldLocation =
+		CachedCharacter->GetGrabAttachedWorldLocation();
+	GrabbedByCharacterWorldLocation =
+		CachedCharacter->GetGrabbedByCharacterWorldLocation();
+	GrabbedByCharacterComponentLocation = FVector::ZeroVector;
+	if (bIsGrabbedByCharacter)
+	{
+		if (const USkeletalMeshComponent* MeshComponent = GetSkelMeshComponent())
+		{
+			GrabbedByCharacterComponentLocation =
+				MeshComponent->GetComponentTransform().InverseTransformPosition(
+					GrabbedByCharacterWorldLocation);
+		}
+	}
+	RightHandGrabTargetLocation =
+		CachedCharacter->GetRightHandGrabTargetLocation();
+	LeftHandGrabTargetLocation =
+		CachedCharacter->GetLeftHandGrabTargetLocation();
+	GrabReachAlpha =
+		FMath::Clamp(CachedCharacter->GetGrabReachAlpha(), 0.0f, 1.0f);
+	ViewPitchDegrees = CachedCharacter->GetViewPitchDegrees();
+	ViewPitchAlpha =
+		FMath::Clamp(CachedCharacter->GetViewPitchAlpha(), 0.0f, 1.0f);
+	ViewYawDegrees = CachedCharacter->GetViewYawDegrees();
+	ViewYawAlpha =
+		FMath::Clamp(CachedCharacter->GetViewYawAlpha(), -0.5f, 0.5f);
 	SnowballCarryState = CachedCharacter->GetSnowballCarryState();
 	HeldAnimationState = CachedCharacter->GetHeldAnimationState();
 	SnowballActionState = CachedCharacter->GetSnowballActionState();
@@ -206,6 +238,21 @@ void USnowRumbleCharacterAnimInstance::ResetAnimationState()
 	bIsPickingUpItem = false;
 	bIsInteractingWithItem = false;
 	bIsHitReacting = false;
+	bIsGrabReaching = false;
+	bIsGrabbingCharacter = false;
+	bIsGrabAttached = false;
+	bIsHangingFromWorldGrab = false;
+	bIsGrabbedByCharacter = false;
+	GrabAttachedWorldLocation = FVector::ZeroVector;
+	GrabbedByCharacterWorldLocation = FVector::ZeroVector;
+	GrabbedByCharacterComponentLocation = FVector::ZeroVector;
+	RightHandGrabTargetLocation = FVector::ZeroVector;
+	LeftHandGrabTargetLocation = FVector::ZeroVector;
+	GrabReachAlpha = 0.0f;
+	ViewPitchDegrees = 0.0f;
+	ViewPitchAlpha = 0.5f;
+	ViewYawDegrees = 0.0f;
+	ViewYawAlpha = 0.0f;
 	SnowballCarryState = ESnowballCarryState::Normal;
 	HeldAnimationState = ESnowRumbleHeldAnimationState::BareHands;
 	SnowballActionState = ESnowballActionState::None;

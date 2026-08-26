@@ -62,6 +62,7 @@ void ALobbyInteractionBoard::Interact(ASnowRumbleCharacter* Character)
 		return;
 	}
 
+	Character->NotifyLobbyBoardInteractionSucceeded();
 	Character->ClientFocusLobbyBoard(this);
 	OnBoardInteracted(Character);
 }
@@ -75,6 +76,7 @@ void ALobbyInteractionBoard::HandleBoardAction(
 		return;
 	}
 
+	Character->NotifyLobbyBoardInteractionSucceeded();
 	OnBoardActionRequested(Character, BoardAction);
 }
 

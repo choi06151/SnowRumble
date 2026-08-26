@@ -52,6 +52,9 @@ struct FSnowRumbleSessionInfo
 	FString GameModeName;
 
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Session")
+	FString MapName;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Session")
 	int32 CurrentPlayers = 0;
 
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Session")
@@ -130,6 +133,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Session")
 	ESnowRumbleSessionState GetCurrentState() const;
 
+	/** Steam 세션 초대 UI를 열고 현재 세션을 초대 대상으로 지정한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Session")
+	bool ShowSessionInviteUI();
+
 	UPROPERTY(BlueprintAssignable, Category = "SnowRumble|Session")
 	FOnSnowRumbleSessionStateChanged OnSessionStateChanged;
 
@@ -139,6 +146,9 @@ public:
 private:
 	/** 현재 프로젝트에 설정된 OnlineSubsystem의 세션 인터페이스를 가져온다. */
 	IOnlineSessionPtr GetSessionInterface() const;
+
+	/** 현재 OnlineSubsystem이 Steam인지 확인한다. */
+	bool IsSteamSubsystem() const;
 
 	/** Listen Server NetDriver가 준비된 뒤 실제 LAN 세션을 생성한다. */
 	void CreateLanSession(int32 MaxPlayers);
@@ -155,6 +165,9 @@ private:
 
 	/** Host 맵 로드 완료 시 열린 포트를 사용해 LAN 세션 생성을 계속한다. */
 	void HandlePostLoadMap(UWorld* LoadedWorld);
+
+	/** 현재 호스트 맵을 세션 검색 광고에 반영해 메인메뉴 참가 대상을 제한한다. */
+	void UpdateAdvertisedSessionMap(UWorld* LoadedWorld);
 
 	/** 요청 상태를 저장하고 Blueprint 구독자에게 전달한다. */
 	void SetOperationState(
@@ -183,6 +196,22 @@ private:
 		ENetworkFailure::Type FailureType,
 		const FString& ErrorString);
 
+	/** 접속 URL 해석 실패 같은 travel 실패를 메인메뉴 알림으로 변환한다. */
+	void HandleTravelFailure(
+		UWorld* World,
+		ETravelFailure::Type FailureType,
+		const FString& ErrorString);
+
+	/** 세션 연결 실패 또는 호스트 이탈 후 메인메뉴로 복귀한다. */
+	void ReturnToMainMenuAfterSessionFailure(const FString& AlarmMessage);
+
+	/** Steam Overlay에서 수락한 초대를 실제 세션 참가 요청으로 변환한다. */
+	void HandleSessionUserInviteAccepted(
+		const bool bWasSuccessful,
+		const int32 ControllerId,
+		FUniqueNetIdPtr UserId,
+		const FOnlineSessionSearchResult& InviteResult);
+
 	/** 등록된 세션 생성 완료 델리게이트를 해제한다. */
 	void ClearCreateSessionDelegate();
 
@@ -191,6 +220,9 @@ private:
 
 	/** 등록된 세션 참가 완료 델리게이트를 해제한다. */
 	void ClearJoinSessionDelegate();
+
+	/** 실패한 참가 시도 뒤 남은 로컬 named session을 정리한다. */
+	void DestroyLocalSessionIfPresent(const TCHAR* Reason);
 
 	/** UI 입력 또는 세션 광고용 방 코드를 정규화한다. */
 	FString NormalizeRoomCode(const FString& RoomCode) const;
@@ -204,8 +236,10 @@ private:
 	FDelegateHandle CreateSessionCompleteHandle;
 	FDelegateHandle FindSessionsCompleteHandle;
 	FDelegateHandle JoinSessionCompleteHandle;
+	FDelegateHandle SessionUserInviteAcceptedHandle;
 	FDelegateHandle PostLoadMapHandle;
 	FDelegateHandle NetworkFailureHandle;
+	FDelegateHandle TravelFailureHandle;
 
 	FName LocalSessionName;
 	int32 PendingHostMaxPlayers = 8;
@@ -215,7 +249,8 @@ private:
 	FString PendingMainMenuAlarmMessage;
 	FString CurrentRoomCode;
 	bool bHostTravelPending = false;
-	bool bWasInLanSession = false;
+	bool bWasInOnlineSession = false;
+	bool bReturningToMainMenuAfterSessionFailure = false;
 	ESnowRumbleSessionOperation CurrentOperation = ESnowRumbleSessionOperation::None;
 	ESnowRumbleSessionState CurrentState = ESnowRumbleSessionState::Idle;
 };
