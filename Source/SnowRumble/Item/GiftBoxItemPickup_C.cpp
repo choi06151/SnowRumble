@@ -10,6 +10,8 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "Net/UnrealNetwork.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
 #include "TimerManager.h"
 
 AGiftBoxItemPickup::AGiftBoxItemPickup()
@@ -132,6 +134,7 @@ bool AGiftBoxItemPickup::TryPickup(ASnowRumbleCharacter* Character)
 
 	Character->NotifyItemInteractionSucceeded();
 	NotifyPickedUp(Character);
+	MulticastPlayPickedUpEffect();
 	OnItemPickedUp(Character);
 	SetLifeSpan(PickedUpDestroyDelaySeconds);
 	ForceNetUpdate();
@@ -167,6 +170,11 @@ void AGiftBoxItemPickup::GetLifetimeReplicatedProps(
 void AGiftBoxItemPickup::OnRep_ItemData()
 {
 	OnItemDataChanged(ItemType, ItemId, DisplayName);
+}
+
+void AGiftBoxItemPickup::MulticastPlayPickedUpEffect_Implementation()
+{
+	SpawnPickedUpEffect();
 }
 
 void AGiftBoxItemPickup::InitializePlacedPickupFromDefaults()
@@ -243,6 +251,20 @@ void AGiftBoxItemPickup::NotifyPickedUp(
 			PlayerController->ClientShowPersonalTextAlarm(PersonalMessage);
 		}
 	}
+}
+
+void AGiftBoxItemPickup::SpawnPickedUpEffect() const
+{
+	if (!PickedUpEffect)
+	{
+		return;
+	}
+
+	UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+		this,
+		PickedUpEffect,
+		GetActorLocation() + PickedUpEffectLocationOffset,
+		GetActorRotation());
 }
 
 FString AGiftBoxItemPickup::GetCharacterDisplayName(

@@ -11,6 +11,7 @@ class ACameraActor;
 class APlayerStart;
 class APodiumPlayerController;
 class USnowRumbleMatchSubsystem;
+class USoundBase;
 enum class ESnowRumbleTeam : uint8;
 
 USTRUCT()
@@ -44,31 +45,35 @@ private:
 	/** 포디움 맵 접속자가 모두 준비된 뒤 배치를 다시 시도한다. */
 	void SchedulePodiumSetup();
 
+	/** 현재 로컬 클라이언트에 포디움 배경음악을 재생하도록 지시한다. */
+	void BroadcastBackgroundMusic() const;
+
 	/** 서버가 참가 팀 순위, 캐릭터 위치, 카메라, UI 텍스트를 확정한다. */
 	void SetupPodiumFromServer();
 
 	/** 포디움 결과를 10초 보여준 뒤 매치 상태를 정리하고 로비로 복귀한다. */
 	void ReturnToLobbyAfterPodium();
 
+	/** 포디움 복귀 카운트다운을 시작한다. */
+	void StartPodiumReturnCountdown(ESnowRumbleTeam WinningTeam);
+
+	/** 포디움 복귀 카운트다운을 1초 갱신한다. */
+	void TickPodiumReturnCountdown();
+
+	/** 포디움 복귀 카운트다운 텍스트를 모든 클라이언트에 보낸다. */
+	void BroadcastPodiumReturnCountdown();
+
 	/** 현재 포디움 맵에 접속한 플레이어의 팀만 순위 후보로 수집한다. */
 	void BuildParticipatingTeamResults(
 		USnowRumbleMatchSubsystem* MatchSubsystem,
 		TArray<FSnowRumblePodiumTeamResult>& OutResults) const;
 
-	/** 순위별 PlayerStart 후보를 수집한다. */
+	/** 1등팀이 사용할 PlayerStart 후보를 1~4번 위치 기준으로 수집한다. */
 	void CollectPodiumPlayerStarts(
-		TArray<APlayerStart*>& OutFirstPlaceStarts,
-		TArray<APlayerStart*>& OutSecondPlaceStarts,
-		TArray<APlayerStart*>& OutThirdPlaceStarts) const;
+		TArray<APlayerStart*>& OutWinningTeamStarts) const;
 
 	/** 포디움 카메라 액터를 찾는다. */
 	ACameraActor* FindPodiumCamera() const;
-
-	/** 팀 이름과 승수를 UI 표시 텍스트로 변환한다. */
-	FText BuildResultText(const FSnowRumblePodiumTeamResult* Result) const;
-
-	/** 팀 색 이름을 UI 표시 텍스트로 변환한다. */
-	FText GetTeamDisplayName(ESnowRumbleTeam Team) const;
 
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Podium")
 	FString PodiumLobbyReturnTravelUrl = TEXT("/Game/Maps/L_Lobby?listen");
@@ -79,8 +84,15 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Podium", meta = (ClampMin = "0.0"))
 	float PodiumSetupRetryDelaySeconds = 0.25f;
 
+	/** 포디움에서 재생할 배경음악이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Audio")
+	TObjectPtr<USoundBase> BackgroundMusicSound;
+
 	int32 ExpectedPlayerCount = 0;
 	bool bPodiumSetupComplete = false;
 	FTimerHandle PodiumSetupTimerHandle;
+	FTimerHandle PodiumReturnCountdownTimerHandle;
 	FTimerHandle PodiumReturnTimerHandle;
+	ESnowRumbleTeam PodiumWinningTeam = ESnowRumbleTeam::None;
+	int32 PodiumReturnCountdownRemainingSeconds = 0;
 };

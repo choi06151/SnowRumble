@@ -51,6 +51,9 @@ USnowRumbleCustomizationSubsystem::GetDefaultCustomizationData()
 	DefaultData.PaintStrokes.Reset();
 	DefaultData.bFlipPaintUvY = false;
 	DefaultData.HatMeshIndex = INDEX_NONE;
+	DefaultData.GlassesMeshIndex = INDEX_NONE;
+	DefaultData.NoseMeshIndex = INDEX_NONE;
+	DefaultData.EarmuffsMeshIndex = INDEX_NONE;
 	return DefaultData;
 }
 
@@ -65,6 +68,18 @@ USnowRumbleCustomizationSubsystem::SanitizeCustomizationData(
 	SanitizedData.BodyColor.A = 1.0f;
 	SanitizedData.HatMeshIndex = FMath::Clamp(
 		SanitizedData.HatMeshIndex,
+		INDEX_NONE,
+		255);
+	SanitizedData.GlassesMeshIndex = FMath::Clamp(
+		SanitizedData.GlassesMeshIndex,
+		INDEX_NONE,
+		255);
+	SanitizedData.NoseMeshIndex = FMath::Clamp(
+		SanitizedData.NoseMeshIndex,
+		INDEX_NONE,
+		255);
+	SanitizedData.EarmuffsMeshIndex = FMath::Clamp(
+		SanitizedData.EarmuffsMeshIndex,
 		INDEX_NONE,
 		255);
 

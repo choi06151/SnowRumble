@@ -18,7 +18,7 @@ void ASnowRumbleGameState::StartMatchCountdownFromServer(
 		GetServerWorldTimeSeconds() + MatchStartCountdownSeconds;
 	RoundStartServerTime = MatchStartServerTime;
 	NextMapShrinkServerTime = RoundStartServerTime
-		+ GetMapShrinkIntervalSeconds();
+		+ MapShrinkWaitDurationSeconds;
 	bStartCountdownActive = true;
 	ForceNetUpdate();
 }
@@ -47,7 +47,7 @@ void ASnowRumbleGameState::CompleteMapShrinkFromServer()
 
 	bMapShrinkInProgress = false;
 	NextMapShrinkServerTime =
-		GetServerWorldTimeSeconds() + GetMapShrinkIntervalSeconds();
+		GetServerWorldTimeSeconds() + MapShrinkWaitDurationSeconds;
 	ForceNetUpdate();
 }
 
@@ -127,7 +127,7 @@ int32 ASnowRumbleGameState::GetTeamRoundWinCount(
 		return PinkTeamRoundWins;
 	case ESnowRumbleTeam::Blue:
 		return BlueTeamRoundWins;
-	case ESnowRumbleTeam::White:
+	case ESnowRumbleTeam::Orange:
 		return WhiteTeamRoundWins;
 	default:
 		return 0;
@@ -197,9 +197,7 @@ float ASnowRumbleGameState::GetRoundElapsedSeconds() const
 
 FText ASnowRumbleGameState::GetRoundElapsedTimeText() const
 {
-	return FText::Format(
-		NSLOCTEXT("SnowRumble", "RoundElapsedTimeFormat", "경기 시간 {0}"),
-		FormatSecondsAsClock(GetRoundElapsedSeconds()));
+	return FormatSecondsAsClock(GetRoundElapsedSeconds());
 }
 
 float ASnowRumbleGameState::GetSecondsUntilNextMapShrink() const
@@ -210,7 +208,7 @@ float ASnowRumbleGameState::GetSecondsUntilNextMapShrink() const
 	}
 	if (!bStartCountdownActive || NextMapShrinkServerTime <= 0.0f)
 	{
-		return GetMapShrinkIntervalSeconds();
+		return MapShrinkWaitDurationSeconds;
 	}
 
 	return FMath::Max(
@@ -220,21 +218,13 @@ float ASnowRumbleGameState::GetSecondsUntilNextMapShrink() const
 
 FText ASnowRumbleGameState::GetMapShrinkCountdownText() const
 {
-	if (bMapShrinkInProgress)
-	{
-		return NSLOCTEXT(
-			"SnowRumble",
-			"MapShrinkInProgressText",
-			"맵이 축소됩니다!");
-	}
-
 	const int32 DisplaySeconds =
 		FMath::Max(0, FMath::CeilToInt(GetSecondsUntilNextMapShrink()));
 	return FText::Format(
 		NSLOCTEXT(
 			"SnowRumble",
 			"MapShrinkCountdownFormat",
-			"{0}초 후 맵이 축소됩니다"),
+			"{0}초 후"),
 		FText::AsNumber(DisplaySeconds));
 }
 
@@ -250,7 +240,31 @@ ESnowRumbleGameSpeed ASnowRumbleGameState::GetGameSpeed() const
 
 float ASnowRumbleGameState::GetMapShrinkIntervalSeconds() const
 {
-	return USnowRumbleMatchSubsystem::GetMapShrinkIntervalSeconds(GameSpeed);
+	return FMath::Max(1.0f, MapShrinkIntervalSeconds);
+}
+
+void ASnowRumbleGameState::SetMapShrinkIntervalSecondsFromServer(
+	float IntervalSeconds)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	MapShrinkIntervalSeconds = FMath::Max(1.0f, IntervalSeconds);
+	ForceNetUpdate();
+}
+
+void ASnowRumbleGameState::SetMapShrinkWaitDurationSecondsFromServer(
+	float WaitDurationSeconds)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	MapShrinkWaitDurationSeconds = FMath::Max(1.0f, WaitDurationSeconds);
+	ForceNetUpdate();
 }
 
 void ASnowRumbleGameState::GetLifetimeReplicatedProps(
@@ -267,6 +281,8 @@ void ASnowRumbleGameState::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ASnowRumbleGameState, MapShrinkDurationSeconds);
 	DOREPLIFETIME(ASnowRumbleGameState, bMapShrinkInProgress);
 	DOREPLIFETIME(ASnowRumbleGameState, GameSpeed);
+	DOREPLIFETIME(ASnowRumbleGameState, MapShrinkIntervalSeconds);
+	DOREPLIFETIME(ASnowRumbleGameState, MapShrinkWaitDurationSeconds);
 	DOREPLIFETIME(ASnowRumbleGameState, bRoundEnded);
 	DOREPLIFETIME(ASnowRumbleGameState, RoundWinningTeam);
 	DOREPLIFETIME(ASnowRumbleGameState, RedTeamRoundWins);
@@ -328,5 +344,5 @@ void ASnowRumbleGameState::CopyRoundWinsFromMatchSubsystem(
 	BlueTeamRoundWins =
 		MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Blue);
 	WhiteTeamRoundWins =
-		MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::White);
+		MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Orange);
 }

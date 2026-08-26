@@ -83,13 +83,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snowball")
 	void ReleaseChargedSnowball();
 
-	/** 던지기 몽타주의 AnimNotify 시점에 서버가 보류 중인 투척을 실제 발사한다. */
+	/** 던지기 몽타주의 AnimNotify 시점에 현재 카메라 조준으로 보류 중인 투척을 실제 발사한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snowball")
 	void ConfirmPendingThrowFromAnimationNotify();
 
 	/** 투척 없이 진행 중인 충전을 취소한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snowball")
 	void CancelCharging();
+
+	/** 피격 등으로 던지기 연출이 끊겼을 때 보유 눈덩이는 유지하고 충전/보류 투척만 정리한다. */
+	void InterruptThrowStateFromServer();
 
 	/** 현재 투척 충전 중인지 확인한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
@@ -150,7 +153,9 @@ protected:
 		FVector_NetQuantizeNormal ViewDirection);
 
 	UFUNCTION(Server, Reliable)
-	void ServerConfirmPendingThrowFromAnimationNotify();
+	void ServerConfirmPendingThrowFromAnimationNotify(
+		FVector_NetQuantize ViewLocation,
+		FVector_NetQuantizeNormal ViewDirection);
 
 	UFUNCTION(Server, Reliable)
 	void ServerCancelCharging();
@@ -192,8 +197,15 @@ protected:
 		const FVector& ViewDirection,
 		FVector& OutAimTarget) const;
 
-	/** 서버가 저장해 둔 던지기 값을 사용해 실제 눈덩이 투척을 처리한다. */
-	void ExecutePendingThrowFromServer();
+	/** 로컬 소유자의 현재 카메라 또는 Pawn 시야 정보를 얻는다. */
+	bool BuildCurrentThrowView(
+		FVector& OutViewLocation,
+		FVector& OutViewDirection) const;
+
+	/** 서버가 저장해 둔 속도·충전값과 Notify 시점 조준으로 실제 눈덩이 투척을 처리한다. */
+	void ExecutePendingThrowFromServer(
+		const FVector& ViewLocation,
+		const FVector& ViewDirection);
 
 	/** 보류 중인 던지기 값을 모두 초기화한다. */
 	void ClearPendingThrow();
@@ -223,6 +235,14 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw", meta = (ClampMin = "0.0"))
 	float MaximumThrowSpeed = 2400.0f;
+
+	/** 공중에서 작은 눈덩이를 던질 때 적용할 피해 배율이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Airborne", meta = (ClampMin = "0.0"))
+	float AirborneThrowDamageMultiplier = 1.5f;
+
+	/** 공중에서 작은 눈덩이를 던질 때 적용할 속도 배율이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Airborne", meta = (ClampMin = "0.0"))
+	float AirborneThrowSpeedMultiplier = 1.2f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Aim", meta = (ClampMin = "0.0"))
 	float AimTraceDistance = 10000.0f;
@@ -263,7 +283,7 @@ protected:
 	double ChargeStartTime = -1.0;
 	bool bHasPendingThrow = false;
 	FVector LastRollingMovementDirection = FVector::ForwardVector;
-	FVector PendingThrowDirection = FVector::ZeroVector;
 	float PendingThrowSpeed = 0.0f;
 	float PendingThrowChargeProgress = 0.0f;
+	float PendingThrowDamageMultiplier = 1.0f;
 };

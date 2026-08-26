@@ -22,6 +22,9 @@ public:
 	/** 서버가 설치자를 기록하고 모닥불 수명을 시작한다. */
 	void InitializeCampfireFromServer(ASnowRumbleCharacter* NewInstaller);
 
+	/** 서버 물 침수 판정으로 모닥불을 즉시 끈다. */
+	void ExtinguishFromWater();
+
 	/** 눈덩이 등 공격을 받으면 서버가 모닥불 내구도를 감소시킨다. */
 	virtual float TakeDamage(
 		float DamageAmount,
@@ -70,13 +73,10 @@ protected:
 	float HealPerSecond = 4.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Campfire", meta = (ClampMin = "1"))
-	int32 MaximumHitPoints = 5;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Campfire", meta = (ClampMin = "0.0"))
-	float ExtinguishedDestroyDelaySeconds = 2.0f;
+	int32 MaximumHitPoints = 2;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_RemainingHitPoints, Category = "SnowRumble|Item|Campfire")
-	int32 RemainingHitPoints = 5;
+	int32 RemainingHitPoints = 2;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Item|Campfire")
 	TObjectPtr<ASnowRumbleCharacter> Installer;

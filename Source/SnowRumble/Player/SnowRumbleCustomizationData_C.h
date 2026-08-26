@@ -5,6 +5,15 @@
 #include "CoreMinimal.h"
 #include "SnowRumbleCustomizationData_C.generated.h"
 
+UENUM(BlueprintType)
+enum class ESnowRumbleCustomizationAccessory : uint8
+{
+	Hat,
+	Glasses,
+	Nose,
+	Earmuffs
+};
+
 USTRUCT(BlueprintType)
 struct SNOWRUMBLE_API FSnowRumblePaintStroke
 {
@@ -57,12 +66,24 @@ struct SNOWRUMBLE_API FSnowRumbleCustomizationData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SnowRumble|Customization")
 	int32 HatMeshIndex = INDEX_NONE;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SnowRumble|Customization")
+	int32 GlassesMeshIndex = INDEX_NONE;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SnowRumble|Customization")
+	int32 NoseMeshIndex = INDEX_NONE;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SnowRumble|Customization")
+	int32 EarmuffsMeshIndex = INDEX_NONE;
+
 	bool operator==(const FSnowRumbleCustomizationData& Other) const
 	{
 		return BodyColor == Other.BodyColor
 			&& PaintStrokes == Other.PaintStrokes
 			&& bFlipPaintUvY == Other.bFlipPaintUvY
-			&& HatMeshIndex == Other.HatMeshIndex;
+			&& HatMeshIndex == Other.HatMeshIndex
+			&& GlassesMeshIndex == Other.GlassesMeshIndex
+			&& NoseMeshIndex == Other.NoseMeshIndex
+			&& EarmuffsMeshIndex == Other.EarmuffsMeshIndex;
 	}
 
 	bool operator!=(const FSnowRumbleCustomizationData& Other) const
