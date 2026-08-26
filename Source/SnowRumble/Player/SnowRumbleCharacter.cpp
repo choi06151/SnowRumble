@@ -3,6 +3,7 @@
 #include "SnowRumbleCharacter.h"
 
 #include "SnowRumbleHealthComponent.h"
+#include "SnowmanModeSnowmanCharacter_K.h"
 #include "../Game/SnowmanModeGameState_K.h"
 #include "../Game/SnowRumbleGameState_C.h"
 #include "../Game/SnowRumbleLobbyGameState.h"
@@ -18,6 +19,7 @@
 #include "../Snowball/SnowballCreationComponent.h"
 #include "../Snowball/SnowballEquipmentComponent.h"
 #include "../Snowball/SnowballItem.h"
+#include "../Snowball/SnowballProjectile.h"
 #include "../UI/EmoteRadialMenuWidget.h"
 #include "../UI/CustomizationPlayerController_C.h"
 #include "../UI/InteractionPromptWidget_C.h"
@@ -59,6 +61,91 @@
 #include "SnowRumbleUserSettingsSubsystem_C.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSnowTrailCharacter, Log, All);
+
+namespace
+{
+bool IsSnowballDamageCauser(const AActor* DamageCauser)
+{
+	return DamageCauser
+		&& (DamageCauser->IsA<ASnowballProjectile>()
+			|| DamageCauser->IsA<ASnowballItem>());
+}
+
+const APlayerState* ResolveSnowballDamageInstigatorPlayerState(
+	AController* EventInstigator,
+	const AActor* DamageCauser)
+{
+	if (EventInstigator && EventInstigator->PlayerState)
+	{
+		return EventInstigator->PlayerState;
+	}
+
+	const ASnowRumbleCharacter* OwningCharacter =
+		DamageCauser
+			? Cast<ASnowRumbleCharacter>(DamageCauser->GetOwner())
+			: nullptr;
+	return OwningCharacter
+		? OwningCharacter->GetPlayerState()
+		: nullptr;
+}
+
+bool HandleSnowmanModeSnowballDamageOverride(
+	ASnowRumbleCharacter* DamagedCharacter,
+	AController* EventInstigator,
+	const AActor* DamageCauser)
+{
+	if (!DamagedCharacter || !IsSnowballDamageCauser(DamageCauser))
+	{
+		return false;
+	}
+
+	const UWorld* World = DamagedCharacter->GetWorld();
+	const ASnowmanModeGameState* SnowmanGameState = World
+		? World->GetGameState<ASnowmanModeGameState>()
+		: nullptr;
+	if (!SnowmanGameState)
+	{
+		return false;
+	}
+
+	const APlayerState* AttackerPlayerState =
+		ResolveSnowballDamageInstigatorPlayerState(
+			EventInstigator,
+			DamageCauser);
+	const APlayerState* TargetPlayerState = DamagedCharacter->GetPlayerState();
+	if (!AttackerPlayerState || !TargetPlayerState)
+	{
+		return false;
+	}
+
+	const ESnowmanModePlayerRole AttackerRole =
+		SnowmanGameState->GetSnowmanModePlayerRole(AttackerPlayerState);
+	const ESnowmanModePlayerRole TargetRole =
+		SnowmanGameState->GetSnowmanModePlayerRole(TargetPlayerState);
+	if (AttackerRole != ESnowmanModePlayerRole::Normal)
+	{
+		return false;
+	}
+
+	if (TargetRole == ESnowmanModePlayerRole::Normal)
+	{
+		return true;
+	}
+
+	if (TargetRole == ESnowmanModePlayerRole::Snowman)
+	{
+		if (ASnowmanModeSnowmanCharacter* SnowmanCharacter =
+			Cast<ASnowmanModeSnowmanCharacter>(DamagedCharacter))
+		{
+			SnowmanCharacter->ApplySnowballHitStunFromServer();
+			return true;
+		}
+	}
+
+	return false;
+}
+
+}
 
 ASnowRumbleCharacter::ASnowRumbleCharacter()
 {
@@ -1102,6 +1189,13 @@ float ASnowRumbleCharacter::TakeDamage(
 		EventInstigator,
 		DamageCauser);
 
+	if (HandleSnowmanModeSnowballDamageOverride(
+			this,
+			EventInstigator,
+			DamageCauser))
+	{
+		return 0.0f;
+	}
 	if (GiftItemEffectComponent && GiftItemEffectComponent->IsInvulnerable())
 	{
 		return 0.0f;
