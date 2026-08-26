@@ -107,8 +107,7 @@ void AJukeboxActor::RefreshPlaybackPresentation()
 bool AJukeboxActor::CanInteractWith(const ASnowRumbleCharacter* Character) const
 {
 	if (!IsValid(Character)
-		|| bIsPlaying
-		|| JukeboxSounds.IsEmpty()
+		|| (!bIsPlaying && JukeboxSounds.IsEmpty())
 		|| InteractionRadius <= 0.0f)
 	{
 		return false;
@@ -122,6 +121,22 @@ void AJukeboxActor::Interact(ASnowRumbleCharacter* Character)
 {
 	if (!HasAuthority() || !CanInteractWith(Character))
 	{
+		return;
+	}
+
+	if (bIsPlaying)
+	{
+		if (OptedOutCharacters.Contains(Character))
+		{
+			OptedOutCharacters.Remove(Character);
+			ApplyJumpPulse();
+		}
+		else
+		{
+			OptedOutCharacters.Add(Character);
+		}
+
+		ForceNetUpdate();
 		return;
 	}
 
@@ -147,6 +162,7 @@ void AJukeboxActor::Interact(ASnowRumbleCharacter* Character)
 	}
 
 	bIsPlaying = true;
+	OptedOutCharacters.Reset();
 	RefreshPlaybackPresentation();
 	OnJukeboxStarted(Character);
 	MulticastPlayJukeboxSound(ActiveSoundIndex);
@@ -185,6 +201,14 @@ bool AJukeboxActor::IsPlaying() const
 	return bIsPlaying;
 }
 
+bool AJukeboxActor::IsCharacterParticipating(
+	const ASnowRumbleCharacter* Character) const
+{
+	return bIsPlaying
+		&& IsValid(Character)
+		&& !OptedOutCharacters.Contains(Character);
+}
+
 void AJukeboxActor::ApplyJumpPulse()
 {
 	if (!HasAuthority() || !bIsPlaying || !JumpBoxComponent)
@@ -197,7 +221,10 @@ void AJukeboxActor::ApplyJumpPulse()
 	for (AActor* OverlappingActor : OverlappingActors)
 	{
 		ASnowRumbleCharacter* Character = Cast<ASnowRumbleCharacter>(OverlappingActor);
-		if (!Character || Character->IsDead() || Character->IsFrozen())
+		if (!Character
+			|| !IsCharacterParticipating(Character)
+			|| Character->IsDead()
+			|| Character->IsFrozen())
 		{
 			continue;
 		}
@@ -216,6 +243,7 @@ void AJukeboxActor::FinishPlayback()
 	GetWorldTimerManager().ClearTimer(JumpTimerHandle);
 	GetWorldTimerManager().ClearTimer(SpotlightTimerHandle);
 	bIsPlaying = false;
+	OptedOutCharacters.Reset();
 	RefreshPlaybackPresentation();
 	ActiveSoundIndex = INDEX_NONE;
 	for (ASpotLight* Spotlight : JukeboxSpotlights)
@@ -289,4 +317,5 @@ void AJukeboxActor::GetLifetimeReplicatedProps(
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AJukeboxActor, bIsPlaying);
+	DOREPLIFETIME(AJukeboxActor, OptedOutCharacters);
 }
