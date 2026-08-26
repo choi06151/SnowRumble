@@ -253,6 +253,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Growth", meta = (ClampMin = "1.0"))
 	float DistanceForMaximumGrowth = 1000.0f;
 
+	/** 이 성장도 이상이면 큰 눈덩이로 취급한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Growth", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float LargeSnowballGrowthThreshold = 2.0f / 3.0f;
+
 	/** 큰 눈덩이가 투척 후 이 거리만큼 굴러가면 완전히 작아진다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Large", meta = (ClampMin = "1.0"))
 	float DistanceForThrownLargeSnowballToDissolve = 1400.0f;
