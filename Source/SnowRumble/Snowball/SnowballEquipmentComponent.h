@@ -8,6 +8,13 @@
 
 class ASnowballItem;
 class ASnowRumbleCharacter;
+class AActor;
+class USplineComponent;
+class USplineMeshComponent;
+class UStaticMesh;
+class UMaterialInterface;
+class UNiagaraComponent;
+class UNiagaraSystem;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 	FOnHeldSnowballChanged,
@@ -86,6 +93,10 @@ public:
 	/** 던지기 몽타주의 AnimNotify 시점에 현재 카메라 조준으로 보류 중인 투척을 실제 발사한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snowball")
 	void ConfirmPendingThrowFromAnimationNotify();
+
+	/** 로컬 소유자의 큰 눈덩이 투척 궤적과 착탄 표시를 즉시 숨긴다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snowball")
+	void HideThrowTrajectoryPreview();
 
 	/** 투척 없이 진행 중인 충전을 취소한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snowball")
@@ -207,6 +218,12 @@ protected:
 		const FVector& ViewLocation,
 		const FVector& ViewDirection);
 
+	/** 로컬 조준 화면에 큰 눈덩이의 포물선 미리보기를 갱신한다. */
+	void UpdateThrowTrajectoryPreview();
+
+	/** 로컬 조준 화면의 포물선 미리보기를 비운다. */
+	void ClearThrowTrajectoryPreview();
+
 	/** 보류 중인 던지기 값을 모두 초기화한다. */
 	void ClearPendingThrow();
 
@@ -268,17 +285,106 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling", meta = (ClampMin = "0.0"))
 	float RollingDistance = 90.0f;
 
+	/** SnowSurface 위에서 굴릴 때 공 중심에 적용할 월드 Z 오프셋이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling")
+	float RollingSnowballSnowSurfaceZOffset = 0.0f;
+
+	/** 일반 지면 위에서 굴릴 때 공 위치에 적용할 월드 Z 오프셋이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling")
+	float RollingSnowballGroundZOffset = 0.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling", meta = (ClampMin = "0.0"))
+	float RollingGroundTraceUpDistance = 120.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling", meta = (ClampMin = "0.0"))
+	float RollingGroundTraceDownDistance = 500.0f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling", meta = (ClampMin = "0.0"))
 	float SmallSnowballRollingWalkSpeed = 300.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling", meta = (ClampMin = "0.0"))
 	float LargeSnowballRollingWalkSpeed = 150.0f;
 
+	/** 큰 눈덩이 포물선 미리보기에서 사용할 샘플 개수다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory", meta = (ClampMin = "2", ClampMax = "64"))
+	int32 TrajectoryPreviewSampleCount = 24;
+
+	/** 큰 눈덩이 포물선 미리보기의 샘플 시간 간격이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory", meta = (ClampMin = "0.01"))
+	float TrajectoryPreviewTimeStep = 0.08f;
+
+	/** 큰 눈덩이 포물선 미리보기를 화면에 표시할지 여부다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory")
+	bool bDrawTrajectoryPreview = true;
+
+	/** 패키징에서도 표시할 큰 눈덩이 포물선용 Static Mesh다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory")
+	TObjectPtr<UStaticMesh> TrajectoryPreviewMesh;
+
+	/** 큰 눈덩이 포물선 메쉬에 적용할 Material이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory")
+	TObjectPtr<UMaterialInterface> TrajectoryPreviewMaterial;
+
+	/** 큰 눈덩이 포물선 메쉬에 적용할 색상이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory")
+	FLinearColor TrajectoryPreviewColor = FLinearColor(0.2f, 0.75f, 1.0f, 1.0f);
+
+	/** 큰 눈덩이 포물선 메쉬에서 우선 적용할 머티리얼 슬롯 이름이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory")
+	FName TrajectoryPreviewMaterialSlotName = TEXT("TransformGizmoMaterial");
+
+	/** 포물선 Spline Mesh의 단면 스케일이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory", meta = (ClampMin = "0.01"))
+	float TrajectoryPreviewMeshScale = 1.0f;
+
+	/** 큰 눈덩이 착탄 예상 위치에 표시할 액터 블루프린트다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory")
+	TSubclassOf<AActor> TrajectoryPreviewLandingActorClass;
+
+	/** 큰 눈덩이 궤적 표시를 Niagara로도 출력할지 여부다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory|Niagara")
+	bool bUseTrajectoryPreviewNiagara = true;
+
+	/** BP에서 플레이어에 미리 붙여둔 궤적 Niagara 컴포넌트를 지정한다. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SnowRumble|Snowball|Throw|Trajectory|Niagara")
+	TObjectPtr<UNiagaraComponent> TrajectoryPreviewNiagaraComponent;
+
+	/** 지정 컴포넌트가 없을 때 런타임 생성에 사용할 궤적 Niagara 시스템이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory|Niagara")
+	TObjectPtr<UNiagaraSystem> TrajectoryPreviewNiagaraSystem;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory|Niagara")
+	FName TrajectoryPreviewNiagaraPointsParameter = TEXT("User.TrajectoryPoints");
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory|Niagara")
+	FName TrajectoryPreviewNiagaraPointCountParameter = TEXT("User.TrajectoryPointCount");
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory|Niagara")
+	FName TrajectoryPreviewNiagaraColorParameter = TEXT("User.TrajectoryColor");
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory|Niagara")
+	FName TrajectoryPreviewNiagaraStartParameter = TEXT("User.TrajectoryStart");
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory|Niagara")
+	FName TrajectoryPreviewNiagaraEndParameter = TEXT("User.TrajectoryEnd");
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling", meta = (ClampMin = "0.0"))
 	float RollingObstaclePushSpeed = 120.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Carry", meta = (ClampMin = "0.0"))
 	float LargeSnowballCarryWalkSpeed = 200.0f;
+
+	UPROPERTY(Transient)
+	TObjectPtr<USplineComponent> ThrowTrajectorySpline;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<USplineMeshComponent>> ThrowTrajectorySplineMeshes;
+
+	/** 착탄 예상 위치 표시용 로컬 액터다. */
+	UPROPERTY(Transient)
+	TObjectPtr<AActor> TrajectoryPreviewLandingActor;
+
+	bool bHideTrajectoryPreviewForCurrentThrow = false;
 
 	double ChargeStartTime = -1.0;
 	bool bHasPendingThrow = false;

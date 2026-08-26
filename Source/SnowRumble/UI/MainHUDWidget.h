@@ -32,6 +32,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Personal Alarm")
 	void ShowPersonalTextAlarm(const FText& Message);
 
+	/** 조준 입력 이벤트 직후 조준점 표시를 즉시 갱신한다. */
+	void SetAimCrosshairVisibleImmediate(bool bVisible);
+
 protected:
 	/** HUD 생성 시 로컬 플레이어와 다른 플레이어 체력 바를 초기화한다. */
 	virtual void NativeConstruct() override;
