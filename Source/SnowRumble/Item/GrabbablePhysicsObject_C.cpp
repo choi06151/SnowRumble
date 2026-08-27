@@ -103,10 +103,12 @@ void AGrabbablePhysicsObject::PushCharacterFromGrabMotion(
 
 void AGrabbablePhysicsObject::HandleGrabbedByCharacter(ACharacter* /*Grabber*/)
 {
+	bIsHeldByCharacter = true;
 }
 
 void AGrabbablePhysicsObject::HandleReleasedByCharacter(ACharacter* /*Grabber*/)
 {
+	bIsHeldByCharacter = false;
 }
 
 void AGrabbablePhysicsObject::TickGrabbedByCharacter(
@@ -123,7 +125,10 @@ void AGrabbablePhysicsObject::HandleComponentHit(
 	FVector NormalImpulse,
 	const FHitResult& Hit)
 {
-	if (!HasAuthority() || PlayerPushStrength <= 0.0f || !OtherActor)
+	if (!HasAuthority()
+		|| !bIsHeldByCharacter
+		|| PlayerPushStrength <= 0.0f
+		|| !OtherActor)
 	{
 		return;
 	}
