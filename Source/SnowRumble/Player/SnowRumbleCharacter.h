@@ -453,6 +453,9 @@ public:
 	/** PvP 팀 소개 연출 중 로컬 플레이어 화면의 WBP를 숨기거나 복원한다. */
 	void SetPvpIntroWidgetsHidden(bool bShouldHide);
 
+	/** 로컬 눈 VFX의 바람 방향 파라미터를 갱신한다. */
+	void SetLocalSnowEffectWindDirection(const FVector& WindDirection);
+
 protected:
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void BeginPlay() override;
@@ -567,6 +570,9 @@ protected:
 
 	/** 에디터와 런타임에서 이름표 컴포넌트 위치와 클래스를 현재 설정값으로 맞춘다. */
 	void RefreshOverheadNameplateComponentSettings();
+
+	/** 포디움 맵에서 캐릭터 메쉬만 크게 보이도록 표시 스케일을 적용한다. */
+	void ApplyPodiumMeshScale();
 
 	/** 월드 공간 이름표가 로컬 카메라를 향하도록 회전시킨다. */
 	void RefreshOverheadNameplateFacing();
@@ -1485,6 +1491,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling", meta = (ClampMin = "-200.0", ClampMax = "200.0"))
 	float RollingPlayerMeshGroundZOffset = 0.0f;
 
+	/** 포디움 맵에서 캐릭터 메쉬에만 적용할 표시 배율이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Podium", meta = (ClampMin = "0.01"))
+	float PodiumMeshScaleMultiplier = 1.35f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera", meta = (ClampMin = "5.0", ClampMax = "170.0"))
 	float AimFieldOfView = 75.0f;
 
@@ -1567,6 +1577,10 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera", meta = (ClampMin = "0.0"))
 	float PostThrowCameraHoldSeconds = 1.0f;
+
+	/** 로컬 눈 VFX에 전달할 바람 방향 Niagara Vector 파라미터 이름이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|VFX")
+	FName LocalSnowEffectWindDirectionParameterName = TEXT("Direction");
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera")
 	float CameraPivotHeight = 65.0f;
@@ -1775,6 +1789,7 @@ public:
 	float DesiredCameraArmLength = 400.0f;
 	float CameraShoulderSide = 1.0f;
 	FVector DefaultCharacterMeshRelativeLocation = FVector::ZeroVector;
+	FVector DefaultCharacterMeshRelativeScale = FVector::OneVector;
 	FRotator PickupLockedRotation = FRotator::ZeroRotator;
 	FRotator PickupLockedControlRotation = FRotator::ZeroRotator;
 	double PostThrowAimCameraEndTime = -1.0;

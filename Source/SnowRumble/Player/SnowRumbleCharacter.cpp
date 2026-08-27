@@ -872,6 +872,12 @@ void ASnowRumbleCharacter::SetPvpIntroWidgetsHidden(bool bShouldHide)
 	}
 
 	bPvpIntroWidgetsHidden = false;
+	EnsureEmoteRadialMenuWidget();
+	EnsureKeyGuideWidget();
+	EnsureMainHUDWidget();
+	EnsureInteractionPromptWidget();
+	RefreshLifeStateSpectator();
+
 	if (EmoteRadialMenuWidget)
 	{
 		EmoteRadialMenuWidget->SetVisibility(PvpIntroEmoteVisibility);
@@ -893,6 +899,20 @@ void ASnowRumbleCharacter::SetPvpIntroWidgetsHidden(bool bShouldHide)
 	{
 		SpectatorWidget->SetVisibility(PvpIntroSpectatorVisibility);
 	}
+	RefreshInteractionPromptWidget();
+}
+
+void ASnowRumbleCharacter::SetLocalSnowEffectWindDirection(
+	const FVector& WindDirection)
+{
+	if (!IsLocallyControlled() || !LocalSnowEffect)
+	{
+		return;
+	}
+
+	LocalSnowEffect->SetVariableVec3(
+		LocalSnowEffectWindDirectionParameterName,
+		WindDirection.GetSafeNormal());
 }
 
 void ASnowRumbleCharacter::ApplyGrabbedByCharacter(
@@ -1583,6 +1603,8 @@ void ASnowRumbleCharacter::BeginPlay()
 	if (GetMesh())
 	{
 		DefaultCharacterMeshRelativeLocation = GetMesh()->GetRelativeLocation();
+		DefaultCharacterMeshRelativeScale = GetMesh()->GetRelativeScale3D();
+		ApplyPodiumMeshScale();
 	}
 
 	if (FollowCamera)
@@ -2638,6 +2660,26 @@ void ASnowRumbleCharacter::RefreshOverheadNameplateComponentSettings()
 	{
 		OverheadNameplateComponent->SetWidgetClass(OverheadNameplateWidgetClass);
 	}
+}
+
+void ASnowRumbleCharacter::ApplyPodiumMeshScale()
+{
+	USkeletalMeshComponent* CharacterMesh = GetMesh();
+	const UWorld* World = GetWorld();
+	if (!CharacterMesh || !World)
+	{
+		return;
+	}
+
+	if (!World->GetMapName().Contains(TEXT("L_Podium")))
+	{
+		return;
+	}
+
+	const float SafeScaleMultiplier =
+		FMath::Max(0.01f, PodiumMeshScaleMultiplier);
+	CharacterMesh->SetRelativeScale3D(
+		DefaultCharacterMeshRelativeScale * SafeScaleMultiplier);
 }
 
 void ASnowRumbleCharacter::RefreshOverheadNameplateFacing()
