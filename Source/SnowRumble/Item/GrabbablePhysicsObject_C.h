@@ -75,6 +75,10 @@ protected:
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Interaction")
 	int32 InteractionCount = 0;
 
+	/** 현재 플레이어에게 잡혀 있는 동안에만 일반 충돌 밀침을 허용한다. */
+	UPROPERTY(Transient)
+	bool bIsHeldByCharacter = false;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Interaction")
 	TObjectPtr<UNiagaraSystem> InteractionBreakEffect;
 

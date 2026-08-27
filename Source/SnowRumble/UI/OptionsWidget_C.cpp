@@ -5,6 +5,7 @@
 #include "../Audio/SnowRumbleAudioHelpers.h"
 #include "Components/Button.h"
 #include "Components/ComboBoxString.h"
+#include "Components/ContentWidget.h"
 #include "Components/PanelWidget.h"
 #include "Components/ProgressBar.h"
 #include "Components/Slider.h"
@@ -23,6 +24,39 @@
 #include "Sound/SoundClass.h"
 #include "Sound/SoundMix.h"
 #include "AudioCaptureCore.h"
+
+namespace
+{
+	UTextBlock* FindFirstTextBlock(UWidget* RootWidget)
+	{
+		if (!RootWidget)
+		{
+			return nullptr;
+		}
+
+		if (UTextBlock* TextBlock = Cast<UTextBlock>(RootWidget))
+		{
+			return TextBlock;
+		}
+
+		if (UPanelWidget* PanelWidget = Cast<UPanelWidget>(RootWidget))
+		{
+			for (int32 ChildIndex = 0; ChildIndex < PanelWidget->GetChildrenCount(); ++ChildIndex)
+			{
+				if (UTextBlock* TextBlock = FindFirstTextBlock(PanelWidget->GetChildAt(ChildIndex)))
+				{
+					return TextBlock;
+				}
+			}
+		}
+		else if (UContentWidget* ContentWidget = Cast<UContentWidget>(RootWidget))
+		{
+			return FindFirstTextBlock(ContentWidget->GetContent());
+		}
+
+		return nullptr;
+	}
+}
 
 namespace
 {
@@ -75,6 +109,7 @@ void UOptionsWidget::NativeConstruct()
 	RefreshMicrophoneValueText();
 	RefreshKeyBindingPanel();
 	SetOptionsCategory(CurrentOptionsCategory);
+	RefreshCategoryButtonTextColors();
 	SetHasPendingOptionChanges(false);
 }
 
@@ -106,6 +141,7 @@ void UOptionsWidget::NativeTick(
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 	RefreshMicrophoneTestDisplay(InDeltaTime);
+	RefreshCategoryButtonTextColors();
 }
 
 void UOptionsWidget::SetOptionsCategory(
@@ -1794,6 +1830,55 @@ void UOptionsWidget::RefreshCategoryButtonSelection()
 	SetButtonSelectedVisual(
 		MicrophoneCategoryButton,
 		CurrentOptionsCategory == ESnowRumbleOptionsCategory::Microphone);
+	RefreshCategoryButtonTextColors();
+}
+
+void UOptionsWidget::RefreshButtonTextColor(UButton* Button, bool bSelected)
+{
+	if (!Button)
+	{
+		return;
+	}
+
+	UTextBlock* TextBlock = FindFirstTextBlock(Button->GetContent());
+	if (!TextBlock)
+	{
+		return;
+	}
+
+	FSlateColor* DefaultColor = DefaultButtonTextColors.Find(TextBlock);
+	if (!DefaultColor)
+	{
+		DefaultButtonTextColors.Add(TextBlock, TextBlock->GetColorAndOpacity());
+		DefaultColor = DefaultButtonTextColors.Find(TextBlock);
+	}
+
+	const bool bShouldBeWhite = bSelected || Button->IsHovered() || Button->IsPressed();
+	TextBlock->SetColorAndOpacity(
+		bShouldBeWhite ? FSlateColor(FLinearColor::White) : *DefaultColor);
+}
+
+void UOptionsWidget::RefreshCategoryButtonTextColors()
+{
+	RefreshButtonTextColor(
+		SensitivityCategoryButton,
+		CurrentOptionsCategory == ESnowRumbleOptionsCategory::Sensitivity);
+	RefreshButtonTextColor(
+		AudioCategoryButton,
+		CurrentOptionsCategory == ESnowRumbleOptionsCategory::Audio);
+	RefreshButtonTextColor(
+		KeyBindingCategoryButton,
+		CurrentOptionsCategory == ESnowRumbleOptionsCategory::KeyBinding);
+	RefreshButtonTextColor(
+		MicrophoneCategoryButton,
+		CurrentOptionsCategory == ESnowRumbleOptionsCategory::Microphone);
+	RefreshButtonTextColor(
+		MicrophonePushToTalkButton,
+		PendingMicrophoneMode == ESnowRumbleMicrophoneMode::PushToTalk);
+	RefreshButtonTextColor(
+		MicrophoneAlwaysOnButton,
+		PendingMicrophoneMode == ESnowRumbleMicrophoneMode::AlwaysOn);
+	RefreshButtonTextColor(ResetButton, false);
 }
 
 void UOptionsWidget::RefreshMicrophoneModeButtonSelection()
