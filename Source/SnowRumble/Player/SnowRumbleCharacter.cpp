@@ -20,6 +20,7 @@
 #include "../Item/GiftBoxItemPickup_C.h"
 #include "../Item/GiftItemEffectComponent_C.h"
 #include "PlayerGrabComponent_C.h"
+#include "SnowRumbleCharacterMovementComponent_C.h"
 #include "../Snowball/SnowballCreationComponent.h"
 #include "../Snowball/SnowballDamageTypes.h"
 #include "../Snowball/SnowballEquipmentComponent.h"
@@ -181,7 +182,11 @@ FTransform ResolveCustomizationAccessoryTransform(
 }
 }
 
-ASnowRumbleCharacter::ASnowRumbleCharacter()
+ASnowRumbleCharacter::ASnowRumbleCharacter(
+	const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<
+		USnowRumbleCharacterMovementComponent_C>(
+		ACharacter::CharacterMovementComponentName))
 {
 	static ConstructorHelpers::FObjectFinder<UInputAction> RollActionAsset(
 		TEXT("/Game/Input/IA_SnowRoll.IA_SnowRoll"));

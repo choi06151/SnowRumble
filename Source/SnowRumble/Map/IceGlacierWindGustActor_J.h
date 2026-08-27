@@ -7,7 +7,7 @@
 #include "IceGlacierWindGustActor_J.generated.h"
 
 class ASnowRumbleCharacter;
-class UCharacterMovementComponent;
+struct FEnvironmentalDriftState_C;
 class USceneComponent;
 
 UENUM(BlueprintType)
@@ -16,6 +16,28 @@ enum class EIceGlacierWindGustState : uint8
 	Idle,
 	Warning,
 	Gust
+};
+
+USTRUCT()
+struct FIceGlacierWindReplicatedState_J
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FVector CurrentWindDirection = FVector::ForwardVector;
+
+	UPROPERTY()
+	EIceGlacierWindGustState CurrentWindState =
+		EIceGlacierWindGustState::Idle;
+
+	UPROPERTY()
+	float CurrentGustStartServerTime = 0.0f;
+
+	UPROPERTY()
+	float CurrentStateEndServerTime = 0.0f;
+
+	UPROPERTY()
+	int32 WindGeneration = 0;
 };
 
 UCLASS(Blueprintable)
@@ -98,7 +120,7 @@ protected:
 private:
 	/** 복제된 상태 변경을 Blueprint 표현 이벤트로 전달한다. */
 	UFUNCTION()
-	void OnRep_CurrentWindState();
+	void OnRep_WindReplicatedState();
 
 	/** 서버가 Match 상태와 강풍 상태 머신을 갱신한다. */
 	void UpdateServerWind(float DeltaSeconds);
@@ -130,25 +152,27 @@ private:
 	/** 디자이너가 입력한 방향을 강풍에 사용할 수평 단위 방향으로 변환한다. */
 	FVector NormalizeWindDirection(FVector Direction) const;
 
-	/** Gust 중인 서버가 플레이어 캐릭터에 제한된 수평 드리프트 속도를 적용한다. */
-	void ApplyWindDriftToPlayers(float DeltaSeconds);
+	/** 현재 Gust 상태를 공용 환경 드리프트 계약 값으로 변환한다. */
+	FEnvironmentalDriftState_C BuildEnvironmentalDriftState() const;
 
-	/** 비권한 클라이언트가 로컬 캐릭터에 같은 바람 드리프트를 예측 적용한다. */
-	void ApplyPredictedWindDriftToLocalPlayer(float DeltaSeconds) const;
+	/** 서버가 모든 유효 플레이어 캐릭터 MovementComponent에 환경 드리프트를 설정한다. */
+	void ApplyEnvironmentalDriftToServerCharacters() const;
 
-	/** 캐릭터 하나에 바람 드리프트 속도를 적용한다. */
-	void ApplyWindDriftToCharacter(
-		ASnowRumbleCharacter& Character,
-		float DeltaSeconds,
-		const FVector& WindDirection,
-		float StrengthAlpha) const;
+	/** 서버가 모든 플레이어 캐릭터 MovementComponent에서 환경 드리프트를 해제한다. */
+	void ClearEnvironmentalDriftFromServerCharacters(int32 WindGeneration) const;
 
-	/** 복제된 강풍 상태를 로컬 플레이어 눈 VFX 방향 파라미터에 반영한다. */
-	void UpdateLocalSnowVfxWindDirection() const;
+	/** 소유 클라이언트가 자기 로컬 캐릭터 MovementComponent 상태만 갱신한다. */
+	void RefreshLocalEnvironmentalDrift() const;
 
-	/** 현재 이동 모드에 맞는 최대 바람 드리프트 속도를 반환한다. */
-	float GetMaxWindDriftSpeedForMovementMode(
-		const UCharacterMovementComponent& MovementComponent) const;
+	/** 지정 캐릭터의 MovementComponent에 환경 드리프트를 설정한다. */
+	void ApplyEnvironmentalDriftToCharacter(
+		ASnowRumbleCharacter* Character,
+		const FEnvironmentalDriftState_C& DriftState) const;
+
+	/** 지정 캐릭터의 MovementComponent에서 환경 드리프트를 해제한다. */
+	void ClearEnvironmentalDriftFromCharacter(
+		ASnowRumbleCharacter* Character,
+		int32 WindGeneration) const;
 
 	/** 현재 Gust 경과시간과 남은 시간 기준으로 0~1 강도 Alpha를 계산한다. */
 	float CalculateCurrentWindStrengthAlpha() const;
@@ -161,18 +185,12 @@ private:
 		EIceGlacierWindGustState PreviousState,
 		EIceGlacierWindGustState NewState);
 
-	UPROPERTY(Replicated)
-	FVector CurrentWindDirection = FVector::ForwardVector;
-
-	UPROPERTY(ReplicatedUsing = OnRep_CurrentWindState)
-	EIceGlacierWindGustState CurrentWindState =
-		EIceGlacierWindGustState::Idle;
+	UPROPERTY(ReplicatedUsing = OnRep_WindReplicatedState)
+	FIceGlacierWindReplicatedState_J WindReplicatedState;
 
 	EIceGlacierWindGustState LastNotifiedWindState =
 		EIceGlacierWindGustState::Idle;
 
 	float NextWindStartServerTime = 0.0f;
-	float CurrentGustStartServerTime = 0.0f;
-	float CurrentStateEndServerTime = 0.0f;
 	bool bWindScheduleStarted = false;
 };

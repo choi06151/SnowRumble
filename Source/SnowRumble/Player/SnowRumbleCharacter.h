@@ -107,7 +107,8 @@ class SNOWRUMBLE_API ASnowRumbleCharacter : public ACharacter
 	GENERATED_BODY()
 
 public:
-	ASnowRumbleCharacter();
+	ASnowRumbleCharacter(
+		const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual void Tick(float DeltaSeconds) override;
 
