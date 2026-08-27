@@ -2,6 +2,8 @@
 
 #include "SnowmanModePodiumPlayerController_K.h"
 
+#include "Camera/CameraActor.h"
+#include "EngineUtils.h"
 #include "../UI/PodiumWinnerWidget.h"
 
 ASnowmanModePodiumPlayerController::ASnowmanModePodiumPlayerController()
@@ -24,6 +26,18 @@ void ASnowmanModePodiumPlayerController
 	if (!IsLocalController())
 	{
 		return;
+	}
+
+	if (!GetLocalPlayer())
+	{
+		return;
+	}
+
+	if (!PodiumWinnerWidget && PodiumWinnerWidgetClass)
+	{
+		PodiumWinnerWidget = CreateWidget<UPodiumWinnerWidget>(
+			this,
+			PodiumWinnerWidgetClass);
 	}
 
 	// 부모가 기본으로 생성해 둔 위젯(PodiumWinnerWidget)을 캐스팅해서 사용합니다.
@@ -65,8 +79,40 @@ void ASnowmanModePodiumPlayerController
 	}
 }
 
+void ASnowmanModePodiumPlayerController
+	::ClientSetSnowmanPodiumCamera_Implementation()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	for (TActorIterator<ACameraActor> It(World); It; ++It)
+	{
+		ACameraActor* Camera = *It;
+		if (Camera
+			&& (Camera->ActorHasTag(TEXT("Podium_Camera"))
+				|| Camera->GetName().Contains(TEXT("Podium_Camera"))))
+		{
+			SetViewTargetWithBlend(Camera, 0.5f);
+			return;
+		}
+	}
+}
+
 void ASnowmanModePodiumPlayerController::EnsureSnowmanPodiumResultWidget()
 {
+	if (!GetLocalPlayer())
+	{
+		return;
+	}
+
 	if (!SnowmanPodiumResultWidget)
 	{
 		if (!SnowmanPodiumWinnerWidgetClass)

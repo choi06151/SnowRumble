@@ -14,6 +14,7 @@ class ASnowRumbleLobbyGameMode;
 class ASnowRumblePlayerState;
 class ASnowmanModeSnowmanCharacter;
 enum class ESnowmanModeResult : uint8;
+enum class ESnowRumbleTeam : uint8;
 class USoundBase;
 
 UCLASS()
@@ -59,6 +60,14 @@ protected:
 	/** 눈사람 모드 스폰 후 실제 시작까지 기다릴 카운트다운 시간이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman", meta = (ClampMin = "0.0"))
 	float SnowmanModeStartCountdownSeconds = 3.0f;
+
+	/** 로딩창을 닫은 뒤 역할 초기화·인트로를 시작하기 전 PvP와 동일하게 기다릴 시간이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman", meta = (ClampMin = "0.0"))
+	float SnowmanModeStartCountdownDelaySeconds = 5.0f;
+
+	/** 첫 라운드 시작 팀 소개 인트로에서 한 팀을 보여줄 시간이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Intro", meta = (ClampMin = "0.0"))
+	float SnowmanModeIntroTeamShotSeconds = 2.5f;
 
 	/** 이전 Pending 감염 BP 호환용 값이다. 현재 접촉 감염은 즉시 전환된다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Infection", meta = (ClampMin = "0.0"))
@@ -118,18 +127,42 @@ private:
 	bool bLoadingScreensDismissed = false;
 	bool bSnowmanTimerStarted = false;
 	bool bSnowmanRolesInitialized = false;
+	bool bSnowmanIntroStarted = false;
+	int32 SnowmanIntroTeamIndex = 0;
+	TArray<ESnowRumbleTeam> SnowmanIntroTeams;
 
-	/** 모든 예상 플레이어가 접속하면 전체 클라이언트의 로딩창을 닫는다. */
+	/** 모든 예상 플레이어가 접속하면 인트로 시작 대기를 예약한다. */
 	void TryDismissLoadingScreens();
+
+	/** PvP처럼 시작 인트로 직전에 전체 클라이언트의 로딩창을 닫는다. */
+	void HideLoadingScreensBeforeIntro();
 
 	/** 로딩이 끝난 뒤 눈사람 모드 시작 카운트다운을 시작한다. */
 	void StartSnowmanModeCountdownAfterLoading();
+
+	/** 로딩 종료 후 시작 대기가 끝나면 역할 초기화와 인트로를 시작한다. */
+	void StartSnowmanModeIntroAfterLoading();
+
+	/** 역할 초기화가 끝난 뒤 PvP와 같은 팀 소개 인트로를 시작한다. */
+	void StartSnowmanModeIntroSequence();
+
+	/** 현재 라운드에서 소개할 팀을 고정 순서로 수집한다. */
+	void GetActiveSnowmanModeTeams(TArray<ESnowRumbleTeam>& OutTeams) const;
+
+	/** 눈사람 모드 팀 소개 인트로의 다음 장면을 재생한다. */
+	void AdvanceSnowmanModeIntroSequence();
+
+	/** 팀 소개 인트로를 종료하고 눈사람 모드 카운트다운을 시작한다. */
+	void FinishSnowmanModeIntroSequence();
 
 	/** 시작 카운트다운이 끝난 뒤 눈사람 모드 제한시간을 시작한다. */
 	void StartSnowmanModeAfterCountdown();
 
 	/** 접속자를 초기화하고 시작 눈사람을 무작위로 선택한다. */
 	void InitializeSnowmanRoles();
+
+	/** 눈사람 모드 시작 시 모든 플레이어에게 실제 장갑·부츠 아이템 효과를 적용한다. */
+	void GrantSnowmanModeStartingItems();
 
 	/** 시작 눈사람 초기화가 아직 불가능하면 짧게 지연해 재시도한다. */
 	void ScheduleSnowmanRoleInitializationRetry();
@@ -163,6 +196,9 @@ private:
 
 	/** 포디움에서 배치할 승자 PlayerId 목록을 URL 옵션 값으로 만든다. */
 	FString BuildWinnerPlayerIdsOption(ESnowmanModeResult Result) const;
+
+	/** 포디움에서 PlayerId가 바뀐 승자를 보조 매칭할 플레이어 이름 목록을 만든다. */
+	FString BuildWinnerPlayerNamesOption(ESnowmanModeResult Result) const;
 
 	/** 지정 플레이어를 눈사람 전용 Pawn으로 교체한다. */
 	bool ConvertPlayerToSnowmanPawn(ASnowRumblePlayerState* PlayerState);
@@ -215,6 +251,7 @@ private:
 
 	FTimerHandle InfectionScanTimerHandle;
 	FTimerHandle SnowmanRoleInitializationRetryTimerHandle;
+	FTimerHandle SnowmanIntroTimerHandle;
 	FTimerHandle SnowmanModeTimeLimitTimerHandle;
 	FTimerHandle SnowmanModeLobbyReturnTimerHandle;
 

@@ -80,6 +80,9 @@ protected:
 	/** 등록된 PvP 후보 레벨 경로 목록을 반환한다. */
 	TArray<FString> GetPvPLevelCandidatePaths() const;
 
+	/** 등록된 눈사람 전용 후보가 없으면 PvP 후보로 fallback한 레벨 경로 목록을 반환한다. */
+	TArray<FString> GetSnowmanLevelCandidatePaths() const;
+
 	/** 선택된 맵의 로딩 화면 표시 설정을 반환한다. */
 	FSnowRumbleLoadingMapPresentation GetLoadingMapPresentation(
 		const FString& MapPackageName) const;
@@ -105,6 +108,10 @@ protected:
 	/** 대기방에서 PvP 시작 시 서버가 무작위로 고를 후보 레벨이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Lobby")
 	TArray<TSoftObjectPtr<UWorld>> PvPLevelCandidates;
+
+	/** 대기방에서 눈사람 모드 시작 시 서버가 무작위로 고를 전용 후보 레벨이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Lobby|Snowman")
+	TArray<TSoftObjectPtr<UWorld>> SnowmanLevelCandidates;
 
 	/** 로비에서 재생할 배경음악이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")

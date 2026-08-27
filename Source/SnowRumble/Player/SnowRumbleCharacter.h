@@ -1661,6 +1661,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI")
 	TSubclassOf<UMainHUDWidget> MainHUDWidgetClass;
 
+	/** 눈사람 모드에서 로컬 플레이어 화면에 생성할 HUD 위젯 클래스다. UMainHUDWidget을 부모로 사용한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI")
+	TSubclassOf<UMainHUDWidget> SnowmanModeHUDWidgetClass;
+
 	/** 로컬 플레이어가 소유한 메인 HUD 위젯 인스턴스다. */
 	UPROPERTY(Transient)
 	TObjectPtr<UMainHUDWidget> MainHUDWidget;

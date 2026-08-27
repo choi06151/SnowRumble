@@ -37,13 +37,10 @@ protected:
 	TObjectPtr<USoundAttenuation> JingleSoundAttenuation;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Tambourine|Audio", meta = (ClampMin = "0.0"))
-	float MinimumGrabberSpeedForJingle = 120.0f;
+	float MinimumGrabberLookSpeedForJingle = 90.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Tambourine|Audio", meta = (ClampMin = "0.0"))
-	float MinimumHeldTravelDistanceForJingle = 45.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Tambourine|Audio", meta = (ClampMin = "0.0"))
-	float JingleCooldownSeconds = 0.18f;
+	float MinimumHeldRotationDegreesForJingle = 18.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Tambourine|Audio", meta = (ClampMin = "0.0"))
 	float JingleVolumeMultiplier = 1.0f;
@@ -55,6 +52,7 @@ protected:
 	float MaximumJinglePitch = 1.08f;
 
 private:
-	float AccumulatedHeldTravelDistance = 0.0f;
-	float LastJingleTimeSeconds = -1000.0f;
+	float AccumulatedHeldRotationDegrees = 0.0f;
+	FRotator PreviousGrabberControlRotation = FRotator::ZeroRotator;
+	bool bHasPreviousGrabberControlRotation = false;
 };

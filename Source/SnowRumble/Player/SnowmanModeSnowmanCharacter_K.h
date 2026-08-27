@@ -23,6 +23,9 @@ public:
 	/** 눈사람 모드에서 인간 눈덩이에 맞았을 때 기절 시간을 새로 시작한다. */
 	void ApplySnowballHitStunFromServer();
 
+	/** 서버가 감염 성공을 확정한 직후 모든 클라이언트에서 위치 기반 감염음을 재생한다. */
+	void PlayInfectionSoundFromServer();
+
 	/** UI와 Blueprint에서 현재 눈덩이 피격 기절 상태인지 확인한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowman|Hit")
 	bool IsSnowballHitStunned() const;
@@ -44,7 +47,40 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Hit", meta = (ClampMin = "0.0"))
 	float SnowballHitStunSeconds = 10.0f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Hit Audio")
+	TObjectPtr<USoundBase> SnowmanHitSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Hit Audio")
+	TObjectPtr<USoundAttenuation> SnowmanHitSoundAttenuation;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Audio")
+	TObjectPtr<USoundBase> SnowmanJumpSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Audio")
+	TObjectPtr<USoundAttenuation> SnowmanJumpSoundAttenuation;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Audio")
+	TObjectPtr<USoundBase> SnowmanInfectionSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Audio")
+	TObjectPtr<USoundAttenuation> SnowmanInfectionSoundAttenuation;
+
 private:
+	void StartSnowmanJump();
+	void StopSnowmanJump();
+
+	UFUNCTION(Server, Reliable)
+	void ServerRequestSnowmanJumpSound();
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastPlaySnowmanJumpSound(FVector_NetQuantize SoundLocation);
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastPlaySnowmanInfectionSound(FVector_NetQuantize SoundLocation);
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastPlaySnowmanHitSound(FVector_NetQuantize SoundLocation);
+
 	UFUNCTION()
 	void OnRep_SnowballHitStunned();
 

@@ -37,7 +37,7 @@ void ASnowRumblePlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (IsLocalController())
+	if (IsLocalController() && HasAttachedLocalPlayer())
 	{
 		if (UGameInstance* GameInstance = GetGameInstance())
 		{
@@ -257,6 +257,14 @@ void ASnowRumblePlayerController::PlayerTick(float DeltaTime)
 	{
 		RefreshGameplayVoiceMutes();
 		UpdatePvpIntroCamera(DeltaTime);
+		if (bPvpIntroWidgetsHidden)
+		{
+			if (ASnowRumbleCharacter* LocalCharacter =
+				Cast<ASnowRumbleCharacter>(GetPawn()))
+			{
+				LocalCharacter->SetPvpIntroWidgetsHidden(true);
+			}
+		}
 		TrySchedulePvpReadyHandshake();
 		TryNotifyPvpReady();
 		ApplyVoiceMuteMenuInputState();
@@ -645,7 +653,10 @@ void ASnowRumblePlayerController::ClientShowLoadingScreen_Implementation()
 		: nullptr;
 	if (LoadingScreenSubsystem)
 	{
-		LoadingScreenSubsystem->ShowLoadingScreen(LoadingScreenWidgetClass);
+	LoadingScreenSubsystem->ShowLoadingScreen(
+		bUseSnowmanLoadingScreen && SnowmanLoadingScreenWidgetClass
+			? SnowmanLoadingScreenWidgetClass
+			: LoadingScreenWidgetClass);
 	}
 }
 
@@ -653,8 +664,10 @@ void ASnowRumblePlayerController::ClientSetLoadingPresentation_Implementation(
 	const FString& MapPackageName,
 	const FText& MapDisplayName,
 	const TSoftObjectPtr<UTexture2D>& MapLoadingImage,
-	const TArray<FString>& TeamPlayerNames)
+	const TArray<FString>& TeamPlayerNames,
+	bool bIsSnowmanMode)
 {
+	bUseSnowmanLoadingScreen = bIsSnowmanMode;
 	UGameInstance* GameInstance = GetGameInstance();
 	ULoadingScreenSubsystem* LoadingScreenSubsystem = GameInstance
 		? GameInstance->GetSubsystem<ULoadingScreenSubsystem>()
@@ -821,7 +834,7 @@ void ASnowRumblePlayerController::ClientShowTimedDropAnnouncement_Implementation
 	TSubclassOf<UTimedDropAnnouncementWidget> WidgetClass,
 	float DisplayDurationSeconds)
 {
-	if (!IsLocalController() || !WidgetClass)
+	if (!IsLocalController() || !HasAttachedLocalPlayer() || !WidgetClass)
 	{
 		return;
 	}
@@ -967,6 +980,11 @@ void ASnowRumblePlayerController::ClientStartPvpIntroFadeOut_Implementation(
 		false);
 }
 
+void ASnowRumblePlayerController::ClientPreparePvpIntroWidgets_Implementation()
+{
+	PreparePvpIntroWidgetsForLocalIntro();
+}
+
 void ASnowRumblePlayerController::ClientFinishPvpTeamIntro_Implementation()
 {
 	if (!IsLocalController())
@@ -974,7 +992,7 @@ void ASnowRumblePlayerController::ClientFinishPvpTeamIntro_Implementation()
 		return;
 	}
 
-	SetPvpIntroWidgetsHidden(false);
+	RestorePvpIntroWidgetsForLocalIntro();
 
 	if (APawn* ControlledPawn = GetPawn())
 	{
@@ -1279,6 +1297,7 @@ void ASnowRumblePlayerController::SetPvpIntroWidgetsHidden(bool bShouldHide)
 	{
 		if (bPvpIntroWidgetsHidden)
 		{
+			CollapseViewportMainHUDWidgets();
 			if (ChatWidget)
 			{
 				ChatWidget->SetVisibility(ESlateVisibility::Collapsed);
@@ -1298,6 +1317,7 @@ void ASnowRumblePlayerController::SetPvpIntroWidgetsHidden(bool bShouldHide)
 
 		bPvpIntroWidgetsHidden = true;
 		CloseChatInput();
+		CollapseViewportMainHUDWidgets();
 		if (ChatWidget)
 		{
 			PvpIntroChatVisibility = ChatWidget->GetVisibility();
@@ -1336,6 +1356,36 @@ void ASnowRumblePlayerController::SetPvpIntroWidgetsHidden(bool bShouldHide)
 bool ASnowRumblePlayerController::IsPvpIntroWidgetsHidden() const
 {
 	return bPvpIntroWidgetsHidden;
+}
+
+void ASnowRumblePlayerController::PreparePvpIntroWidgetsForLocalIntro()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	SetPvpIntroWidgetsHidden(true);
+}
+
+void ASnowRumblePlayerController::RestorePvpIntroWidgetsForLocalIntro()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	bPvpIntroWidgetsHidden = false;
+	if (ChatWidget)
+	{
+		ChatWidget->SetVisibility(PvpIntroChatVisibility);
+	}
+	if (ASnowRumbleCharacter* LocalCharacter =
+		Cast<ASnowRumbleCharacter>(GetPawn()))
+	{
+		LocalCharacter->SetPvpIntroWidgetsHidden(false);
+	}
+	RestoreViewportMainHUDWidgets();
 }
 
 bool ASnowRumblePlayerController::ShouldMirrorMicrophoneInputToVoiceSpeaking()
@@ -1393,7 +1443,7 @@ void ASnowRumblePlayerController::ToggleVoiceMuteMenu()
 
 void ASnowRumblePlayerController::ShowVoiceMuteMenu()
 {
-	if (!IsLocalController())
+	if (!IsLocalController() || !HasAttachedLocalPlayer())
 	{
 		return;
 	}
@@ -1778,7 +1828,7 @@ UChatWidget* ASnowRumblePlayerController::EnsureChatWidget()
 		return ChatWidget;
 	}
 
-	if (!ChatWidgetClass)
+	if (!HasAttachedLocalPlayer() || !ChatWidgetClass)
 	{
 		return nullptr;
 	}
@@ -1793,7 +1843,7 @@ UChatWidget* ASnowRumblePlayerController::EnsureChatWidget()
 
 void ASnowRumblePlayerController::ApplyDefaultMouseCursorWidget()
 {
-	if (!IsLocalController())
+	if (!IsLocalController() || !HasAttachedLocalPlayer())
 	{
 		return;
 	}
@@ -1819,6 +1869,51 @@ void ASnowRumblePlayerController::ApplyDefaultMouseCursorWidget()
 	}
 
 	SetMouseCursorWidget(EMouseCursor::Default, DefaultMouseCursorWidget);
+}
+
+bool ASnowRumblePlayerController::HasAttachedLocalPlayer() const
+{
+	return GetLocalPlayer() != nullptr;
+}
+
+void ASnowRumblePlayerController::CollapseViewportMainHUDWidgets()
+{
+	TArray<UUserWidget*> MainHUDWidgets;
+	UWidgetBlueprintLibrary::GetAllWidgetsOfClass(
+		this,
+		MainHUDWidgets,
+		UMainHUDWidget::StaticClass(),
+		false);
+	for (UUserWidget* UserWidget : MainHUDWidgets)
+	{
+		UMainHUDWidget* MainHUDWidget = Cast<UMainHUDWidget>(UserWidget);
+		if (MainHUDWidget
+			&& (!MainHUDWidget->GetOwningPlayer()
+				|| MainHUDWidget->GetOwningPlayer() == this))
+		{
+			MainHUDWidget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+}
+
+void ASnowRumblePlayerController::RestoreViewportMainHUDWidgets()
+{
+	TArray<UUserWidget*> MainHUDWidgets;
+	UWidgetBlueprintLibrary::GetAllWidgetsOfClass(
+		this,
+		MainHUDWidgets,
+		UMainHUDWidget::StaticClass(),
+		false);
+	for (UUserWidget* UserWidget : MainHUDWidgets)
+	{
+		UMainHUDWidget* MainHUDWidget = Cast<UMainHUDWidget>(UserWidget);
+		if (MainHUDWidget
+			&& (!MainHUDWidget->GetOwningPlayer()
+				|| MainHUDWidget->GetOwningPlayer() == this))
+		{
+			MainHUDWidget->SetVisibility(ESlateVisibility::Visible);
+		}
+	}
 }
 
 void ASnowRumblePlayerController::StopBackgroundMusic()

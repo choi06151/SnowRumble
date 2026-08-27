@@ -8,9 +8,13 @@
 #include "GrabbablePhysicsObject_C.generated.h"
 
 class UPrimitiveComponent;
+class UMaterialInterface;
+class UStaticMesh;
 class UStaticMeshComponent;
 class UNiagaraSystem;
 class ACharacter;
+class USoundAttenuation;
+class USoundBase;
 
 UCLASS(Blueprintable)
 class SNOWRUMBLE_API AGrabbablePhysicsObject : public AActor
@@ -42,7 +46,14 @@ public:
 	void ConfigureInteractionSettings(
 		float NewPlayerPushStrength,
 		int32 NewInteractionsToBreak,
-		UNiagaraSystem* NewInteractionBreakEffect);
+		UNiagaraSystem* NewInteractionBreakEffect,
+		USoundBase* NewInteractionBreakSound,
+		USoundAttenuation* NewInteractionBreakSoundAttenuation);
+
+	/** 서버가 변환한 Mesh와 Material을 복제 상태로 설정하고 로컬 물리 컴포넌트에 적용한다. */
+	void ConfigureReplicatedVisuals(
+		UStaticMesh* NewStaticMesh,
+		const TArray<UMaterialInterface*>& NewMaterials);
 
 	virtual void HandleGrabbedByCharacter(ACharacter* Grabber);
 	virtual void HandleReleasedByCharacter(ACharacter* Grabber);
@@ -55,6 +66,10 @@ protected:
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastPlayInteractionBreakEffect(FVector_NetQuantize Location);
 
+	/** 서버가 파괴를 확정한 위치에서 모든 클라이언트에 파괴음을 재생한다. */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastPlayInteractionBreakSound(FVector_NetQuantize Location);
+
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Grab|Interaction")
 	void OnInteractionBreak();
 
@@ -66,8 +81,20 @@ protected:
 		FVector NormalImpulse,
 		const FHitResult& Hit);
 
+	UFUNCTION()
+	void OnRep_ReplicatedStaticMesh();
+
+	void ApplyReplicatedVisuals();
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Grab|Physics")
 	TObjectPtr<UStaticMeshComponent> PhysicsComponent;
+
+	/** 런타임에 StaticMeshActor를 변환한 경우에도 클라이언트가 같은 Mesh를 표시하도록 복제한다. */
+	UPROPERTY(ReplicatedUsing = OnRep_ReplicatedStaticMesh)
+	TObjectPtr<UStaticMesh> ReplicatedStaticMesh;
+
+	UPROPERTY(ReplicatedUsing = OnRep_ReplicatedStaticMesh)
+	TArray<TObjectPtr<UMaterialInterface>> ReplicatedMaterials;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Physics", meta = (ClampMin = "0.0"))
 	float PlayerPushStrength = 3000.0f;
@@ -87,6 +114,12 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Interaction")
 	TObjectPtr<UNiagaraSystem> InteractionBreakEffect;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Interaction")
+	TObjectPtr<USoundBase> InteractionBreakSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Interaction")
+	TObjectPtr<USoundAttenuation> InteractionBreakSoundAttenuation;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Interaction", meta = (ClampMin = "0.0"))
 	float InteractionCooldownSeconds = 0.2f;

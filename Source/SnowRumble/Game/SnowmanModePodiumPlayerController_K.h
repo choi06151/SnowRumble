@@ -27,6 +27,10 @@ public:
 	UFUNCTION(Client, Reliable)
 	void ClientUpdateSnowmanPodiumSubtitle(const FText& SubtitleText);
 
+	/** 각 클라이언트가 로컬 포디움 카메라를 활성화한다. */
+	UFUNCTION(Client, Reliable)
+	void ClientSetSnowmanPodiumCamera();
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

@@ -71,6 +71,7 @@
 
 ### 검증 메모
 
+- 2026-08-27: 로비에서 선택한 `Snowman`/`TeamPvP` 모드를 온라인 세션 광고값에 갱신하고, 로비 밖에서 수락된 Steam 초대는 기존 세션을 정리하지 않고 거절하도록 보강했다.
 - 2026-08-10: 사용자 결정에 따라 현재 개발과 테스트는 LAN/NULL 세션으로 계속 진행하고, Steam 세션 전환은 최종 통합 Task로 분리했다. 앞으로 새 로비·메인메뉴·PvP 기능은 `USnowRumbleSessionSubsystem` 등 공개 세션 계약을 통해서만 세션 기능을 사용하고, UI나 게임 규칙 코드가 LAN/Steam 구현 세부사항에 직접 의존하지 않게 유지한다.
 - 2026-08-25: `LanToSteam` 브랜치에서 공개 LAN API를 유지한 Steam/NULL 세션 분기를 추가했다. Steam 사용 시 `bIsLANMatch=false`, Presence/Lobby 검색, Steam 초대 허용을 사용한다. 개발 테스트를 위해 기본 서비스를 Steam으로 전환하고 SpaceWar App ID 480을 적용했으며, 출시 전 전용 App ID로 교체한다.
 

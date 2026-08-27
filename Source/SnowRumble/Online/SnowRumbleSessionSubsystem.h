@@ -127,6 +127,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Session")
 	FString GetCurrentRoomCode() const;
 
+	/** 로비 호스트가 선택한 모드를 현재 온라인 세션 광고 정보에 반영한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Session")
+	void UpdateAdvertisedGameMode(const FString& GameModeName);
+
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Session")
 	ESnowRumbleSessionOperation GetCurrentOperation() const;
 
