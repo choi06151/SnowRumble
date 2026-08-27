@@ -20,6 +20,7 @@
 - [x] 컨트롤러를 잃은 감염 대기 참가자는 참가자 Entry를 유지한 채 Pending 상태만 1회 해제하고 반복 경고 로그를 남기지 않게 한다.
 - [x] 기존 PvP 모드의 PlayerStart 랜덤 선택, 주변 분산, 바닥 보정, 캡슐 충돌 검사를 눈사람 모드 스폰 경로에도 적용한다.
 - [x] 눈사람 모드에서는 Normal 플레이어끼리 눈덩이로 HP 피해를 주지 않게 하고, Normal이 Snowman을 맞추면 10초 기절을 적용하며 체력바 HUD를 숨긴다.
+- [x] 눈사람 모드에서는 `UHealthBarWidget` 자체가 `ASnowmanModeGameState`를 감지해 Collapsed 처리되도록 보강해 HUD 외부에 붙은 HP 바도 숨긴다.
 - [x] 눈사람이 기절 중 다시 눈덩이에 맞으면 기존 기절 타이머를 초기화하고 새 10초 기절로 갱신한다.
 - [x] 눈사람 기절 상태와 남은 시간을 UI가 읽을 수 있도록 BlueprintPure 조회 함수를 제공한다.
 - [x] 눈사람 모드 종료 후 포디움 결과 override 없이 결과 표시 시간 뒤 로비로 복귀한다.
@@ -34,7 +35,7 @@
 - 기능 소유자: 강혜원(K)
 - 계약 소유자: 눈사람 모드 승패는 강혜원(K), 공용 결과·로비 복귀 계약은 최재원(C)
 - 자산 수정자: 강혜원(K), 결과 UI·연출 자산은 사용자 또는 S 인계
-- 생성·변경 후보: 구현 승인 전 확정
+- 생성·변경 후보: `Source/SnowRumble/UI/HealthBarWidget.*`, 기존 K-14 변경 파일
 - 공유 확인 대상: C, S, 사용자
 - 병합 순서: K-12, K-13 후, C 통합 검토 전
 
@@ -77,10 +78,12 @@
 - 2026-08-26: 사용자 요청에 따라 눈사람 모드 눈덩이 피격 기절을 10초로 확정했다. `ASnowmanModeSnowmanCharacter::ApplySnowballHitStunFromServer()`는 서버에서 기존 `SnowballHitStunTimerHandle`을 지운 뒤 새 타이머를 설정하고, `ApplySnowballHitStunMovementState()`는 기절 중 `StopMovementImmediately()`, `DisableMovement()`, `StopJumping()`으로 이동과 점프를 막는다. 기절 해제 시 다른 행동 잠금이 없으면 `MOVE_Walking`으로 복구한다.
 - 2026-08-26: 눈사람 기절 UI 연동용 조회 함수를 추가했다. `IsSnowballHitStunned()`는 현재 기절 여부를 반환하고, `GetSnowballHitStunSecondsRemaining()`은 복제된 `SnowballHitStunEndServerTime`과 `GameState` 서버 시각 기준으로 남은 초를 계산해 반환한다.
 - 2026-08-27: 사용자 요청에 따라 눈사람 모드 전용 포디움 결과 문구와 배치 필터를 수정했다. `ASnowmanModePodiumPlayerController`는 부모 PvP `PodiumWinnerWidgetClass`를 비워 빨강/파랑 우승 UI를 만들지 않고, `/Game/WBP/WBP_PodiumWinnerWidget_Snowman_K`를 기본 결과 WBP로 생성해 `눈사람팀 우승`/`사람팀 우승` 문구를 직접 표시한다. 눈사람팀 승리는 모든 접속 플레이어를, 사람팀 승리는 전달된 생존자 PlayerId만 포디움에 배치한다.
+- 2026-08-27: 사용자 요청에 따라 눈사람 모드 플레이 중 HP 바 UI만 추가로 숨기도록 보강했다. `UMainHUDWidget`의 기존 로컬/타 플레이어 체력바 숨김 분기는 유지하고, `UHealthBarWidget`도 `ASnowmanModeGameState`가 있으면 자기 자신을 `Collapsed` 처리해 캐릭터 머리 위 WidgetComponent나 별도 HP 바 배치가 HUD 분기를 우회해 보이지 않게 했다.
 
 ## 수동 작업
 
 - 별도 에디터 자산 수정은 없다.
+- 머리 위 또는 HUD에 HP 바 WBP가 별도로 붙어 있어도 부모가 `UHealthBarWidget`이면 눈사람 모드에서 자동으로 `Collapsed` 처리된다.
 - `WBP_PodiumWinnerWidget_Snowman_K`는 `UPodiumWinnerWidget` 기반이어야 하며, `WinningTeamText`와 `SubtitleText` 텍스트 위젯 이름을 유지해야 C++가 `눈사람팀 우승`/`사람팀 우승`과 로비 복귀 카운트다운을 자동 반영한다.
 - 기절 표시 WBP를 만들거나 연결할 때 눈사람 Pawn을 `ASnowmanModeSnowmanCharacter`로 캐스팅한 뒤 `IsSnowballHitStunned()`가 true이면 `GetSnowballHitStunSecondsRemaining()` 값을 반올림 또는 올림 처리해 `기절 중! 남은 시간: X초` 형식으로 표시한다.
 - `BP_SnowmanModeGameMode_K` 같은 눈사람 모드 GameMode Blueprint가 있다면 `LobbyReturnTravelUrl`이 `/Game/Maps/L_Lobby?listen` 또는 로비 맵 경로를 가리키는지 확인한다. `LobbyReturnGameModeClass`는 기본값 `SnowRumbleLobbyGameMode`를 그대로 사용한다.
@@ -101,6 +104,7 @@
 - [x] 눈사람 기절 상태와 남은 시간 BlueprintPure 조회 함수 확인
 - [x] 눈사람 모드 전용 포디움에서 PvP 빨강/파랑 우승 UI가 생성되지 않는 코드 경로 확인
 - [x] 눈사람팀 승리 시 모든 플레이어, 사람팀 승리 시 생존자만 포디움에 배치되는 코드 경로 확인
+- [x] `UHealthBarWidget` 자체가 눈사람 모드에서 Collapsed 처리되는 코드 경로 확인
 - [x] 초기 역할 Snowman 스폰 클래스 분기 코드 경로 확인
 - [x] PvP PlayerStart 랜덤 스폰 보정 로직의 눈사람 모드 적용 경로 확인
 - [x] 컨트롤러 소실 Pending 상태 해제와 반복 로그 방지 코드 경로 확인

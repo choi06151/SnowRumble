@@ -42,6 +42,7 @@
 
 - 아이템 Task K-01~K-11은 K의 현재 담당 범위에서 제외되었으므로, MVP 아이템을 계속 진행하려면 담당자 재배정 또는 범위 축소 결정이 필요하다.
 - K-14에서 눈사람 모드 최소 눈덩이 피격 규칙을 연결했다. Normal끼리의 눈덩이 HP 피해는 무효화하고, Normal이 Snowman을 맞추면 HP 피해 대신 10초 기절을 적용한다. 기절 중 추가 피격은 기존 기절 타이머를 초기화하고 새 10초 기절로 갱신한다. 전용 VFX와 별도 밸런스 값은 후속 K/S 작업에서 조정한다.
+- K-14에서 공용 `UHealthBarWidget`에 눈사람 모드 감지 시 `Collapsed` 예외를 추가했다. HUD의 다른 PvP UI는 유지하고 HP 바 위젯만 숨기는 목적이며, 공용 UI 파일 변경이므로 C 통합 검토가 필요하다.
 
 ## 계획 변경 기록
 
@@ -79,3 +80,4 @@
 - 2026-08-26: 사용자 요청에 따라 눈사람 모드 눈덩이 피격 기절을 10초로 확정하고 연속 피격 예외 처리를 보강했다. `ASnowmanModeSnowmanCharacter`는 피격 때 기존 스턴 타이머를 지운 뒤 새 10초 타이머를 걸며, 스턴 중 `DisableMovement()`와 `StopJumping()`으로 이동과 점프를 막는다.
 - 2026-08-26: 눈사람 기절 UI 연동을 위해 `ASnowmanModeSnowmanCharacter::IsSnowballHitStunned()`와 `GetSnowballHitStunSecondsRemaining()` BlueprintPure 조회 함수를 추가했다. 남은 시간은 복제된 `SnowballHitStunEndServerTime`과 서버 시각 기준으로 계산한다.
 - 2026-08-27: 사용자 요청에 따라 눈사람 모드 전용 포디움 결과를 보정했다. K 전용 포디움 컨트롤러가 부모 PvP 우승 UI를 생성하지 않게 하고 `/Game/WBP/WBP_PodiumWinnerWidget_Snowman_K`를 기본 결과 WBP로 사용하게 했으며, 결과 문구를 `눈사람팀 우승`/`사람팀 우승`으로 변경했다. 눈사람팀 승리는 모든 플레이어, 사람팀 승리는 생존자만 배치하도록 수정했다.
+- 2026-08-27: 사용자 요청에 따라 눈사람 모드 플레이 중 HP 바 UI만 보이지 않도록 `UHealthBarWidget`에 `ASnowmanModeGameState` 기반 `Collapsed` 예외를 추가했다. 기존 `UMainHUDWidget`의 다른 PvP UI 표시 분기는 유지한다.
