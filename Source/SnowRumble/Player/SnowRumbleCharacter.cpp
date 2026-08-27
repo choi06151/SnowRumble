@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SnowRumbleCharacter.h"
+#include "UObject/ConstructorHelpers.h"
 
 #include "SnowRumbleHealthComponent.h"
 #include "../Audio/SnowRumbleAudioHelpers.h"
@@ -99,6 +100,20 @@ FTransform ResolveCustomizationAccessoryTransform(
 
 ASnowRumbleCharacter::ASnowRumbleCharacter()
 {
+	static ConstructorHelpers::FObjectFinder<UInputAction> RollActionAsset(
+		TEXT("/Game/Input/IA_SnowRoll.IA_SnowRoll"));
+	if (RollActionAsset.Succeeded())
+	{
+		RollAction = RollActionAsset.Object;
+	}
+
+	static ConstructorHelpers::FObjectFinder<UInputAction> SnowCreationActionAsset(
+		TEXT("/Game/Input/IA_SnowMake.IA_SnowMake"));
+	if (SnowCreationActionAsset.Succeeded())
+	{
+		SnowCreationAction = SnowCreationActionAsset.Object;
+	}
+
 	GetCapsuleComponent()->InitCapsuleSize(42.0f, 96.0f);
 
 	bUseControllerRotationPitch = false;
@@ -694,6 +709,11 @@ bool ASnowRumbleCharacter::IsGrabAttached() const
 	return PlayerGrabComponent && PlayerGrabComponent->IsGrabAttached();
 }
 
+bool ASnowRumbleCharacter::IsGrabbingPhysicsObject() const
+{
+	return PlayerGrabComponent && PlayerGrabComponent->IsGrabbingPhysicsObject();
+}
+
 bool ASnowRumbleCharacter::IsHangingFromWorldGrab() const
 {
 	return PlayerGrabComponent && PlayerGrabComponent->IsHangingFromWorldGrab();
@@ -792,11 +812,6 @@ bool ASnowRumbleCharacter::CanStartPlayerGrabReach() const
 		&& !IsHitReacting()
 		&& !IsDead()
 		&& !IsFrozen();
-}
-
-bool ASnowRumbleCharacter::ShouldPreferSnowCreationOverGrab() const
-{
-	return GetViewPitchAlpha() <= SnowCreationPreferredViewPitchAlpha;
 }
 
 bool ASnowRumbleCharacter::ShouldSuppressPvpWidgets() const
@@ -2948,7 +2963,7 @@ bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
 		OutPromptText = NSLOCTEXT(
 			"SnowRumble",
 			"InteractPromptPhoto",
-			"E - 사진찍기");
+			"F - 사진찍기");
 		OutPromptActor = PhotoActor;
 		return true;
 	}
@@ -2960,15 +2975,15 @@ bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
 				? NSLOCTEXT(
 					"SnowRumble",
 					"InteractPromptJukeboxOptOut",
-					"E - 참여 안하기")
+					"F - 참여 안하기")
 				: NSLOCTEXT(
 					"SnowRumble",
 					"InteractPromptJukeboxOptIn",
-					"E - 참여하기"))
+					"F - 참여하기"))
 			: NSLOCTEXT(
 				"SnowRumble",
 				"InteractPromptJukeboxStart",
-				"E - 노래틀기");
+				"F - 노래틀기");
 		OutPromptActor = Jukebox;
 		return true;
 	}
@@ -2978,7 +2993,7 @@ bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
 		OutPromptText = NSLOCTEXT(
 			"SnowRumble",
 			"InteractPromptBoard",
-			"E - 게시판");
+			"F - 게시판");
 		OutPromptActor = Board;
 		return true;
 	}
@@ -2989,7 +3004,7 @@ bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
 		OutPromptText = NSLOCTEXT(
 			"SnowRumble",
 			"InteractPromptReviveTeammate",
-			"E - 살리기");
+			"F - 살리기");
 		OutPromptActor = FrozenTeammate;
 		return true;
 	}
@@ -2999,7 +3014,7 @@ bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
 		OutPromptText = NSLOCTEXT(
 			"SnowRumble",
 			"InteractPromptGiftBox",
-			"E - 선물상자");
+			"F - 선물상자");
 		OutPromptActor = GiftBox;
 		return true;
 	}
@@ -3010,7 +3025,7 @@ bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
 			NSLOCTEXT(
 				"SnowRumble",
 				"InteractPromptGiftBoxItem",
-				"E - {0}"),
+				"F - {0}"),
 			Pickup->GetDisplayName());
 		OutPromptActor = Pickup;
 		return true;
@@ -3030,10 +3045,15 @@ bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
 		return false;
 	}
 
-	OutPromptText = NSLOCTEXT(
-		"SnowRumble",
-		"InteractPromptSnowball",
-		"E - 눈덩이");
+	OutPromptText = Snowball->IsFullyGrown()
+		? NSLOCTEXT(
+			"SnowRumble",
+			"InteractPromptSnowball",
+			"F - 눈덩이")
+		: NSLOCTEXT(
+			"SnowRumble",
+			"InteractPromptSmallSnowball",
+			"E - 굴리기 / F - 줍기");
 	OutPromptActor = Snowball;
 	return true;
 }
@@ -3304,6 +3324,19 @@ void ASnowRumbleCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 	{
 		EnhancedInputComponent->BindAction(ActionAction, ETriggerEvent::Started, this, &ASnowRumbleCharacter::HandleActionStarted);
 		EnhancedInputComponent->BindAction(ActionAction, ETriggerEvent::Completed, this, &ASnowRumbleCharacter::HandleActionCompleted);
+		EnhancedInputComponent->BindAction(ActionAction, ETriggerEvent::Canceled, this, &ASnowRumbleCharacter::HandleActionCompleted);
+	}
+	if (RollAction)
+	{
+		EnhancedInputComponent->BindAction(RollAction, ETriggerEvent::Started, this, &ASnowRumbleCharacter::HandleRollStarted);
+		EnhancedInputComponent->BindAction(RollAction, ETriggerEvent::Completed, this, &ASnowRumbleCharacter::HandleRollCompleted);
+		EnhancedInputComponent->BindAction(RollAction, ETriggerEvent::Canceled, this, &ASnowRumbleCharacter::HandleRollCompleted);
+	}
+	if (SnowCreationAction)
+	{
+		EnhancedInputComponent->BindAction(SnowCreationAction, ETriggerEvent::Started, this, &ASnowRumbleCharacter::HandleSnowCreationStarted);
+		EnhancedInputComponent->BindAction(SnowCreationAction, ETriggerEvent::Completed, this, &ASnowRumbleCharacter::HandleSnowCreationCompleted);
+		EnhancedInputComponent->BindAction(SnowCreationAction, ETriggerEvent::Canceled, this, &ASnowRumbleCharacter::HandleSnowCreationCompleted);
 	}
 	if (DropEquipmentAction)
 	{
@@ -3319,6 +3352,32 @@ void ASnowRumbleCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 		EnhancedInputComponent->BindAction(KeyGuideAction, ETriggerEvent::Started, this, &ASnowRumbleCharacter::HandleKeyGuideStarted);
 		EnhancedInputComponent->BindAction(KeyGuideAction, ETriggerEvent::Completed, this, &ASnowRumbleCharacter::HandleKeyGuideCompleted);
 		EnhancedInputComponent->BindAction(KeyGuideAction, ETriggerEvent::Canceled, this, &ASnowRumbleCharacter::HandleKeyGuideCompleted);
+	}
+	if (!RollAction)
+	{
+		PlayerInputComponent->BindKey(
+			EKeys::E,
+			IE_Pressed,
+			this,
+			&ASnowRumbleCharacter::HandleRollStarted);
+		PlayerInputComponent->BindKey(
+			EKeys::E,
+			IE_Released,
+			this,
+			&ASnowRumbleCharacter::HandleRollCompleted);
+	}
+	if (!SnowCreationAction)
+	{
+		PlayerInputComponent->BindKey(
+			EKeys::Q,
+			IE_Pressed,
+			this,
+			&ASnowRumbleCharacter::HandleSnowCreationStarted);
+		PlayerInputComponent->BindKey(
+			EKeys::Q,
+			IE_Released,
+			this,
+			&ASnowRumbleCharacter::HandleSnowCreationCompleted);
 	}
 	PlayerInputComponent->BindKey(
 		EKeys::P,
@@ -3351,14 +3410,14 @@ void ASnowRumbleCharacter::Move(const FInputActionValue& Value)
 		return;
 	}
 
-	if (bIsInteractHeld
-		&& !bUsedInteractForRolling
+	if (bIsRollHeld
+		&& !bUsedRollForMovement
 		&& !IsHangingFromWorldGrab()
 		&& !IsGrabbedByCharacter()
 		&& !MovementVector.IsNearlyZero()
 		&& SnowballEquipmentComponent)
 	{
-		bUsedInteractForRolling = true;
+		bUsedRollForMovement = true;
 		SnowballEquipmentComponent->StartRollingSnowball();
 	}
 
@@ -3571,7 +3630,6 @@ void ASnowRumbleCharacter::HandleInteractStarted()
 	if (CanPerformGameplayAction())
 	{
 		bIsInteractHeld = true;
-		bUsedInteractForRolling = false;
 		const ASnowRumbleCharacter* OutlinedTeammate = OutlineComponent
 			? Cast<ASnowRumbleCharacter>(OutlineComponent->GetOutlinedActor())
 			: nullptr;
@@ -3598,11 +3656,7 @@ void ASnowRumbleCharacter::HandleInteractCompleted()
 
 	if (SnowballEquipmentComponent)
 	{
-		if (bUsedInteractForRolling)
-		{
-			SnowballEquipmentComponent->StopRollingSnowball();
-		}
-		else if (FocusedLobbyBoard)
+		if (FocusedLobbyBoard)
 		{
 			ClearLobbyBoardFocus();
 		}
@@ -3697,46 +3751,28 @@ void ASnowRumbleCharacter::HandleAimCompleted()
 
 void ASnowRumbleCharacter::HandleActionStarted()
 {
-	const bool bCanAct = CanPerformGameplayAction();
-	USnowballCreationComponent* ActiveCreationComponent =
-		SnowballCreationComponent
-			? SnowballCreationComponent.Get()
-			: FindComponentByClass<USnowballCreationComponent>();
-
-	if (!bCanAct)
+	if (!CanPerformGameplayAction())
 	{
 		return;
 	}
 
+	// 비조준 좌클릭은 Grab, 우클릭 조준 중 좌클릭은 기존 눈덩이 투척 충전이다.
 	if (!IsAiming()
 		&& (!SnowballEquipmentComponent
 			|| !SnowballEquipmentComponent->HasHeldSnowball()))
 	{
-		if (!ShouldPreferSnowCreationOverGrab() && PlayerGrabComponent)
+		if (PlayerGrabComponent)
 		{
 			PlayerGrabComponent->StartGrabReach();
 			OnActionInput(true);
-			return;
 		}
+		return;
 	}
 
-	// Animation Blueprint용 IsHoldingSnowball()은 획득 연출 동안 의도적으로
-	// 지연되므로 입력 기능 분기에 사용하지 않는다. 두 요청을 모두 전달하고
-	// 서버의 실제 장비 상태가 제작 또는 충전 중 하나만 승인한다.
 	if (SnowballEquipmentComponent)
 	{
 		SnowballEquipmentComponent->StartCharging();
 	}
-
-	if (ActiveCreationComponent)
-	{
-		if (!SnowballCreationComponent)
-		{
-			SnowballCreationComponent = ActiveCreationComponent;
-		}
-		ActiveCreationComponent->StartCreatingSnowball();
-	}
-
 	OnActionInput(true);
 }
 
@@ -3767,11 +3803,58 @@ void ASnowRumbleCharacter::HandleActionCompleted()
 		SnowballEquipmentComponent->ReleaseChargedSnowball();
 	}
 
-	if (SnowballCreationComponent)
+	OnActionInput(false);
+}
+
+void ASnowRumbleCharacter::HandleRollStarted()
+{
+	if (!CanPerformGameplayAction() || !SnowballEquipmentComponent)
 	{
-		SnowballCreationComponent->CancelCreatingSnowball();
+		return;
 	}
 
+	bIsRollHeld = true;
+	bUsedRollForMovement = false;
+	OnInteractInput(true);
+}
+
+void ASnowRumbleCharacter::HandleRollCompleted()
+{
+	if (SnowballEquipmentComponent && bUsedRollForMovement)
+	{
+		SnowballEquipmentComponent->StopRollingSnowball();
+	}
+
+	bIsRollHeld = false;
+	bUsedRollForMovement = false;
+	OnInteractInput(false);
+}
+
+void ASnowRumbleCharacter::HandleSnowCreationStarted()
+{
+	USnowballCreationComponent* ActiveCreationComponent =
+		SnowballCreationComponent
+			? SnowballCreationComponent.Get()
+			: FindComponentByClass<USnowballCreationComponent>();
+	if (!CanPerformGameplayAction() || !ActiveCreationComponent)
+	{
+		return;
+	}
+
+	ActiveCreationComponent->StartCreatingSnowball();
+	OnActionInput(true);
+}
+
+void ASnowRumbleCharacter::HandleSnowCreationCompleted()
+{
+	USnowballCreationComponent* ActiveCreationComponent =
+		SnowballCreationComponent
+			? SnowballCreationComponent.Get()
+			: FindComponentByClass<USnowballCreationComponent>();
+	if (ActiveCreationComponent)
+	{
+		ActiveCreationComponent->CancelCreatingSnowball();
+	}
 	OnActionInput(false);
 }
 
@@ -4023,13 +4106,16 @@ void ASnowRumbleCharacter::ApplyInputMappingContext()
 				const FKey SavedKey = UserSettingsSubsystem->GetKeyBinding(
 					BindingId,
 					DefaultKey);
+				const bool bIsDropEquipmentBinding =
+					BindingId == TEXT("DropEquipment");
 				const int32 MappingCount = OriginalMappings.Num();
 				for (int32 MappingIndex = 0;
 					MappingIndex < MappingCount;
 					++MappingIndex)
 				{
 					if (OriginalMappings[MappingIndex].Action != Action
-						|| OriginalMappings[MappingIndex].Key != DefaultKey)
+						|| (!bIsDropEquipmentBinding
+							&& OriginalMappings[MappingIndex].Key != DefaultKey))
 					{
 						continue;
 					}
@@ -4046,10 +4132,12 @@ void ASnowRumbleCharacter::ApplyInputMappingContext()
 			ApplySavedKey(MoveAction, EKeys::D, TEXT("MoveRight"));
 			ApplySavedKey(JumpAction, EKeys::SpaceBar, TEXT("Jump"));
 			ApplySavedKey(SprintAction, EKeys::LeftShift, TEXT("Sprint"));
-			ApplySavedKey(InteractAction, EKeys::E, TEXT("Interact"));
+			ApplySavedKey(InteractAction, EKeys::F, TEXT("Interact"));
 			ApplySavedKey(AimAction, EKeys::RightMouseButton, TEXT("Aim"));
 			ApplySavedKey(ActionAction, EKeys::LeftMouseButton, TEXT("Action"));
-			ApplySavedKey(DropEquipmentAction, EKeys::Q, TEXT("DropEquipment"));
+			ApplySavedKey(RollAction, EKeys::E, TEXT("RollSnowball"));
+			ApplySavedKey(SnowCreationAction, EKeys::Q, TEXT("CreateSnowball"));
+			ApplySavedKey(DropEquipmentAction, EKeys::Enter, TEXT("DropEquipment"));
 			ApplySavedKey(EmoteAction, EKeys::Tab, TEXT("Emote"));
 			ApplySavedKey(KeyGuideAction, EKeys::T, TEXT("KeyGuide"));
 			ApplySavedKey(
