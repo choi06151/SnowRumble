@@ -4,9 +4,9 @@
 
 #include "../Game/SnowRumbleGameState_C.h"
 #include "../Player/SnowRumbleCharacter.h"
+#include "../Player/SnowRumbleCharacterMovementComponent_C.h"
 #include "Components/SceneComponent.h"
 #include "EngineUtils.h"
-#include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/GameStateBase.h"
 #include "Net/UnrealNetwork.h"
@@ -40,7 +40,7 @@ void AIceGlacierWindGustActor::Tick(float DeltaSeconds)
 	}
 	else
 	{
-		ApplyWindDriftToLocalPlayer(DeltaSeconds);
+		RefreshLocalEnvironmentalDrift();
 	}
 }
 
@@ -49,27 +49,27 @@ void AIceGlacierWindGustActor::GetLifetimeReplicatedProps(
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME(AIceGlacierWindGustActor, CurrentWindDirection);
-	DOREPLIFETIME(AIceGlacierWindGustActor, CurrentGustStartServerTime);
-	DOREPLIFETIME(AIceGlacierWindGustActor, CurrentStateEndServerTime);
-	DOREPLIFETIME(AIceGlacierWindGustActor, CurrentWindState);
+	DOREPLIFETIME(AIceGlacierWindGustActor, WindReplicatedState);
 }
 
 EIceGlacierWindGustState
 AIceGlacierWindGustActor::GetCurrentWindState() const
 {
-	return CurrentWindState;
+	return WindReplicatedState.CurrentWindState;
 }
 
 FVector AIceGlacierWindGustActor::GetCurrentWindDirection() const
 {
-	return CurrentWindDirection;
+	return WindReplicatedState.CurrentWindDirection;
 }
 
-void AIceGlacierWindGustActor::OnRep_CurrentWindState()
+void AIceGlacierWindGustActor::OnRep_WindReplicatedState()
 {
-	NotifyWindStateChanged(LastNotifiedWindState, CurrentWindState);
-	LastNotifiedWindState = CurrentWindState;
+	NotifyWindStateChanged(
+		LastNotifiedWindState,
+		WindReplicatedState.CurrentWindState);
+	LastNotifiedWindState = WindReplicatedState.CurrentWindState;
+	RefreshLocalEnvironmentalDrift();
 }
 
 void AIceGlacierWindGustActor::UpdateServerWind(float DeltaSeconds)
@@ -86,7 +86,7 @@ void AIceGlacierWindGustActor::UpdateServerWind(float DeltaSeconds)
 	}
 
 	const float CurrentServerTime = GetServerWorldTimeSeconds();
-	switch (CurrentWindState)
+	switch (WindReplicatedState.CurrentWindState)
 	{
 	case EIceGlacierWindGustState::Idle:
 		if (CurrentServerTime >= NextWindStartServerTime)
@@ -95,19 +95,19 @@ void AIceGlacierWindGustActor::UpdateServerWind(float DeltaSeconds)
 		}
 		break;
 	case EIceGlacierWindGustState::Warning:
-		if (CurrentServerTime >= CurrentStateEndServerTime)
+		if (CurrentServerTime >= WindReplicatedState.CurrentStateEndServerTime)
 		{
 			StartWindGust();
 		}
 		break;
 	case EIceGlacierWindGustState::Gust:
-		if (CurrentServerTime >= CurrentStateEndServerTime)
+		if (CurrentServerTime >= WindReplicatedState.CurrentStateEndServerTime)
 		{
 			EndWindGust();
 		}
 		else
 		{
-			ApplyWindDriftToPlayers(DeltaSeconds);
+			ApplyEnvironmentalDriftToServerCharacters();
 		}
 		break;
 	default:
@@ -154,49 +154,63 @@ void AIceGlacierWindGustActor::ScheduleNextWind()
 
 void AIceGlacierWindGustActor::StartWindWarning()
 {
-	CurrentWindDirection = ChooseRandomWindDirection();
-	CurrentWindState = EIceGlacierWindGustState::Warning;
-	CurrentStateEndServerTime =
+	WindReplicatedState.CurrentWindDirection = ChooseRandomWindDirection();
+	WindReplicatedState.CurrentWindState = EIceGlacierWindGustState::Warning;
+	WindReplicatedState.CurrentGustStartServerTime = 0.0f;
+	WindReplicatedState.CurrentStateEndServerTime =
 		GetServerWorldTimeSeconds() + FMath::Max(0.0f, WarningDurationSeconds);
+	++WindReplicatedState.WindGeneration;
 	bWindScheduleStarted = false;
 
-	NotifyWindStateChanged(LastNotifiedWindState, CurrentWindState);
-	LastNotifiedWindState = CurrentWindState;
+	NotifyWindStateChanged(
+		LastNotifiedWindState,
+		WindReplicatedState.CurrentWindState);
+	LastNotifiedWindState = WindReplicatedState.CurrentWindState;
 	ForceNetUpdate();
 
 	UE_LOG(
 		LogTemp,
 		Log,
 		TEXT("[IceWind] Warning Direction=%s"),
-		*CurrentWindDirection.ToCompactString());
+		*WindReplicatedState.CurrentWindDirection.ToCompactString());
 }
 
 void AIceGlacierWindGustActor::StartWindGust()
 {
-	CurrentWindState = EIceGlacierWindGustState::Gust;
-	CurrentGustStartServerTime = GetServerWorldTimeSeconds();
-	CurrentStateEndServerTime =
-		CurrentGustStartServerTime + FMath::Max(0.0f, WindDurationSeconds);
+	WindReplicatedState.CurrentWindState = EIceGlacierWindGustState::Gust;
+	WindReplicatedState.CurrentGustStartServerTime = GetServerWorldTimeSeconds();
+	WindReplicatedState.CurrentStateEndServerTime =
+		WindReplicatedState.CurrentGustStartServerTime
+		+ FMath::Max(0.0f, WindDurationSeconds);
 
-	NotifyWindStateChanged(LastNotifiedWindState, CurrentWindState);
-	LastNotifiedWindState = CurrentWindState;
+	NotifyWindStateChanged(
+		LastNotifiedWindState,
+		WindReplicatedState.CurrentWindState);
+	LastNotifiedWindState = WindReplicatedState.CurrentWindState;
+	ApplyEnvironmentalDriftToServerCharacters();
 	ForceNetUpdate();
 
 	UE_LOG(
 		LogTemp,
 		Log,
 		TEXT("[IceWind] GustStart Direction=%s GroundDrift=%.2f FallingDrift=%.2f"),
-		*CurrentWindDirection.ToCompactString(),
+		*WindReplicatedState.CurrentWindDirection.ToCompactString(),
 		GroundWindMaxDriftSpeed,
 		FallingWindMaxDriftSpeed);
 }
 
 void AIceGlacierWindGustActor::EndWindGust()
 {
-	CurrentWindState = EIceGlacierWindGustState::Idle;
+	const int32 EndingWindGeneration = WindReplicatedState.WindGeneration;
+	WindReplicatedState.CurrentWindState = EIceGlacierWindGustState::Idle;
+	WindReplicatedState.CurrentGustStartServerTime = 0.0f;
+	WindReplicatedState.CurrentStateEndServerTime = 0.0f;
 
-	NotifyWindStateChanged(LastNotifiedWindState, CurrentWindState);
-	LastNotifiedWindState = CurrentWindState;
+	NotifyWindStateChanged(
+		LastNotifiedWindState,
+		WindReplicatedState.CurrentWindState);
+	LastNotifiedWindState = WindReplicatedState.CurrentWindState;
+	ClearEnvironmentalDriftFromServerCharacters(EndingWindGeneration);
 	ForceNetUpdate();
 
 	UE_LOG(LogTemp, Log, TEXT("[IceWind] GustEnd"));
@@ -208,18 +222,23 @@ void AIceGlacierWindGustActor::ResetWindForInactiveMatch()
 {
 	bWindScheduleStarted = false;
 	NextWindStartServerTime = 0.0f;
-	CurrentGustStartServerTime = 0.0f;
-	CurrentStateEndServerTime = 0.0f;
+	WindReplicatedState.CurrentGustStartServerTime = 0.0f;
+	WindReplicatedState.CurrentStateEndServerTime = 0.0f;
 
-	if (CurrentWindState == EIceGlacierWindGustState::Idle)
+	if (WindReplicatedState.CurrentWindState == EIceGlacierWindGustState::Idle)
 	{
 		return;
 	}
 
-	const EIceGlacierWindGustState PreviousState = CurrentWindState;
-	CurrentWindState = EIceGlacierWindGustState::Idle;
-	NotifyWindStateChanged(PreviousState, CurrentWindState);
-	LastNotifiedWindState = CurrentWindState;
+	const int32 EndingWindGeneration = WindReplicatedState.WindGeneration;
+	const EIceGlacierWindGustState PreviousState =
+		WindReplicatedState.CurrentWindState;
+	WindReplicatedState.CurrentWindState = EIceGlacierWindGustState::Idle;
+	NotifyWindStateChanged(
+		PreviousState,
+		WindReplicatedState.CurrentWindState);
+	LastNotifiedWindState = WindReplicatedState.CurrentWindState;
+	ClearEnvironmentalDriftFromServerCharacters(EndingWindGeneration);
 	ForceNetUpdate();
 
 	if (PreviousState == EIceGlacierWindGustState::Gust)
@@ -257,54 +276,72 @@ FVector AIceGlacierWindGustActor::NormalizeWindDirection(
 	return Direction.GetSafeNormal();
 }
 
-void AIceGlacierWindGustActor::ApplyWindDriftToPlayers(float DeltaSeconds)
+FEnvironmentalDriftState_C AIceGlacierWindGustActor::BuildEnvironmentalDriftState()
+	const
+{
+	FEnvironmentalDriftState_C DriftState;
+	DriftState.bActive =
+		WindReplicatedState.CurrentWindState == EIceGlacierWindGustState::Gust;
+	DriftState.Direction = NormalizeWindDirection(
+		WindReplicatedState.CurrentWindDirection);
+	DriftState.Acceleration = WindAcceleration;
+	DriftState.GroundMaxDriftSpeed = GroundWindMaxDriftSpeed;
+	DriftState.FallingMaxDriftSpeed = FallingWindMaxDriftSpeed;
+	DriftState.StartServerTime =
+		WindReplicatedState.CurrentGustStartServerTime;
+	DriftState.EndServerTime = WindReplicatedState.CurrentStateEndServerTime;
+	DriftState.RampUpSeconds = WindRampUpSeconds;
+	DriftState.RampDownSeconds = WindRampDownSeconds;
+	DriftState.SourceGeneration = WindReplicatedState.WindGeneration;
+	return DriftState;
+}
+
+void AIceGlacierWindGustActor::ApplyEnvironmentalDriftToServerCharacters() const
 {
 	UWorld* World = GetWorld();
-	const FVector WindDirection = NormalizeWindDirection(CurrentWindDirection);
-	if (!World
-		|| DeltaSeconds <= KINDA_SMALL_NUMBER
-		|| WindAcceleration <= 0.0f
-		|| WindDirection.IsNearlyZero())
+	if (!World)
 	{
 		return;
 	}
 
-	const float StrengthAlpha = CalculateCurrentWindStrengthAlpha();
-	if (StrengthAlpha <= KINDA_SMALL_NUMBER)
+	const FEnvironmentalDriftState_C DriftState = BuildEnvironmentalDriftState();
+	for (TActorIterator<ASnowRumbleCharacter> It(World); It; ++It)
+	{
+		ASnowRumbleCharacter* Character = *It;
+		if (ShouldAffectCharacter(Character))
+		{
+			ApplyEnvironmentalDriftToCharacter(Character, DriftState);
+		}
+		else
+		{
+			ClearEnvironmentalDriftFromCharacter(
+				Character,
+				DriftState.SourceGeneration);
+		}
+	}
+}
+
+void AIceGlacierWindGustActor::ClearEnvironmentalDriftFromServerCharacters(
+	int32 WindGeneration) const
+{
+	UWorld* World = GetWorld();
+	if (!World)
 	{
 		return;
 	}
 
 	for (TActorIterator<ASnowRumbleCharacter> It(World); It; ++It)
 	{
-		ApplyWindDriftToCharacter(
-			*It,
-			DeltaSeconds,
-			WindDirection,
-			StrengthAlpha);
+		ClearEnvironmentalDriftFromCharacter(*It, WindGeneration);
 	}
 }
 
-void AIceGlacierWindGustActor::ApplyWindDriftToLocalPlayer(float DeltaSeconds)
+void AIceGlacierWindGustActor::RefreshLocalEnvironmentalDrift() const
 {
-	UWorld* World = GetWorld();
-	const FVector WindDirection = NormalizeWindDirection(CurrentWindDirection);
-	if (!World
-		|| DeltaSeconds <= KINDA_SMALL_NUMBER
-		|| WindAcceleration <= 0.0f
-		|| WindDirection.IsNearlyZero())
-	{
-		return;
-	}
-
-	const float StrengthAlpha = CalculateCurrentWindStrengthAlpha();
-	if (StrengthAlpha <= KINDA_SMALL_NUMBER)
-	{
-		return;
-	}
-
-	const APlayerController* LocalPlayerController =
-		World->GetFirstPlayerController();
+	const UWorld* World = GetWorld();
+	const APlayerController* LocalPlayerController = World
+		? World->GetFirstPlayerController()
+		: nullptr;
 	ASnowRumbleCharacter* LocalCharacter =
 		LocalPlayerController
 			? Cast<ASnowRumbleCharacter>(LocalPlayerController->GetPawn())
@@ -314,105 +351,77 @@ void AIceGlacierWindGustActor::ApplyWindDriftToLocalPlayer(float DeltaSeconds)
 		return;
 	}
 
-	ApplyWindDriftToCharacter(
-		LocalCharacter,
-		DeltaSeconds,
-		WindDirection,
-		StrengthAlpha);
+	const FEnvironmentalDriftState_C DriftState = BuildEnvironmentalDriftState();
+	if (DriftState.bActive && ShouldAffectCharacter(LocalCharacter))
+	{
+		ApplyEnvironmentalDriftToCharacter(LocalCharacter, DriftState);
+	}
+	else
+	{
+		ClearEnvironmentalDriftFromCharacter(
+			LocalCharacter,
+			DriftState.SourceGeneration);
+	}
 }
 
-void AIceGlacierWindGustActor::ApplyWindDriftToCharacter(
+void AIceGlacierWindGustActor::ApplyEnvironmentalDriftToCharacter(
 	ASnowRumbleCharacter* Character,
-	float DeltaSeconds,
-	const FVector& WindDirection,
-	float StrengthAlpha)
+	const FEnvironmentalDriftState_C& DriftState) const
 {
-	if (!ShouldAffectCharacter(Character))
+	USnowRumbleCharacterMovementComponent_C* MovementComponent =
+		Character
+			? Cast<USnowRumbleCharacterMovementComponent_C>(
+				Character->GetCharacterMovement())
+			: nullptr;
+	if (MovementComponent)
 	{
-		return;
+		MovementComponent->SetEnvironmentalDrift(DriftState);
 	}
-
-	UCharacterMovementComponent* MovementComponent =
-		Character->GetCharacterMovement();
-	if (!MovementComponent)
-	{
-		return;
-	}
-
-	const float MaxWindDriftSpeed =
-		GetMaxWindDriftSpeedForMovementMode(*MovementComponent);
-	if (MaxWindDriftSpeed <= 0.0f)
-	{
-		return;
-	}
-
-	const float TargetWindDriftSpeed = MaxWindDriftSpeed * StrengthAlpha;
-	const FVector CurrentVelocity = MovementComponent->Velocity;
-	const FVector CurrentHorizontalVelocity(
-		CurrentVelocity.X,
-		CurrentVelocity.Y,
-		0.0f);
-	const float CurrentSpeedAlongWind = FVector::DotProduct(
-		CurrentHorizontalVelocity,
-		WindDirection);
-	const float MissingWindDriftSpeed =
-		TargetWindDriftSpeed - CurrentSpeedAlongWind;
-	if (MissingWindDriftSpeed <= KINDA_SMALL_NUMBER)
-	{
-		return;
-	}
-
-	const float WindDriftSpeedToAdd = FMath::Min(
-		WindAcceleration * DeltaSeconds,
-		MissingWindDriftSpeed);
-	FVector NewVelocity =
-		CurrentVelocity + WindDirection * WindDriftSpeedToAdd;
-	NewVelocity.Z = CurrentVelocity.Z;
-	MovementComponent->Velocity = NewVelocity;
 }
 
-float AIceGlacierWindGustActor::GetMaxWindDriftSpeedForMovementMode(
-	const UCharacterMovementComponent& MovementComponent) const
+void AIceGlacierWindGustActor::ClearEnvironmentalDriftFromCharacter(
+	ASnowRumbleCharacter* Character,
+	int32 WindGeneration) const
 {
-	if (MovementComponent.IsMovingOnGround())
+	USnowRumbleCharacterMovementComponent_C* MovementComponent =
+		Character
+			? Cast<USnowRumbleCharacterMovementComponent_C>(
+				Character->GetCharacterMovement())
+			: nullptr;
+	if (MovementComponent)
 	{
-		return GroundWindMaxDriftSpeed;
+		MovementComponent->ClearEnvironmentalDrift(WindGeneration);
 	}
-
-	if (MovementComponent.IsFalling())
-	{
-		return FallingWindMaxDriftSpeed;
-	}
-
-	return 0.0f;
 }
 
 float AIceGlacierWindGustActor::CalculateCurrentWindStrengthAlpha() const
 {
-	if (CurrentWindState != EIceGlacierWindGustState::Gust)
+	if (WindReplicatedState.CurrentWindState != EIceGlacierWindGustState::Gust)
 	{
 		return 0.0f;
 	}
 
-	if (CurrentGustStartServerTime <= 0.0f
-		|| CurrentStateEndServerTime <= CurrentGustStartServerTime)
+	if (WindReplicatedState.CurrentGustStartServerTime <= 0.0f
+		|| WindReplicatedState.CurrentStateEndServerTime
+			<= WindReplicatedState.CurrentGustStartServerTime)
 	{
 		return 0.0f;
 	}
 
 	const float CurrentServerTime = GetServerWorldTimeSeconds();
-	if (CurrentServerTime < CurrentGustStartServerTime
-		|| CurrentServerTime >= CurrentStateEndServerTime)
+	if (CurrentServerTime < WindReplicatedState.CurrentGustStartServerTime
+		|| CurrentServerTime
+			>= WindReplicatedState.CurrentStateEndServerTime)
 	{
 		return 0.0f;
 	}
 
 	const float GustElapsedSeconds = FMath::Max(
 		0.0f,
-		CurrentServerTime - CurrentGustStartServerTime);
+		CurrentServerTime - WindReplicatedState.CurrentGustStartServerTime);
 	const float GustRemainingSeconds = FMath::Max(
 		0.0f,
-		CurrentStateEndServerTime - CurrentServerTime);
+		WindReplicatedState.CurrentStateEndServerTime - CurrentServerTime);
 
 	float RampUpStrength = 1.0f;
 	if (WindRampUpSeconds > KINDA_SMALL_NUMBER)
@@ -459,11 +468,13 @@ void AIceGlacierWindGustActor::NotifyWindStateChanged(
 
 	if (NewState == EIceGlacierWindGustState::Warning)
 	{
-		OnWindWarningStarted(CurrentWindDirection);
+		OnWindWarningStarted(WindReplicatedState.CurrentWindDirection);
 	}
 	else if (NewState == EIceGlacierWindGustState::Gust)
 	{
-		OnWindGustStarted(CurrentWindDirection, GroundWindMaxDriftSpeed);
+		OnWindGustStarted(
+			WindReplicatedState.CurrentWindDirection,
+			GroundWindMaxDriftSpeed);
 	}
 	else if (PreviousState == EIceGlacierWindGustState::Gust)
 	{
