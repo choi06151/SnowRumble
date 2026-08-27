@@ -12,6 +12,11 @@
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 
+namespace
+{
+constexpr float SnowballHitSlowWalkSpeedMultiplier = 0.2f;
+}
+
 ASnowmanModeSnowmanCharacter::ASnowmanModeSnowmanCharacter()
 {
 	static ConstructorHelpers::FObjectFinder<UInputMappingContext>
@@ -63,6 +68,16 @@ void ASnowmanModeSnowmanCharacter::BeginPlay()
 	Super::BeginPlay();
 
 	SetSnowmanWalkSpeedFromMode(SnowmanWalkSpeed);
+}
+
+void ASnowmanModeSnowmanCharacter::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	if (IsSnowballHitStunned() && CanPerformGameplayAction())
+	{
+		ApplySnowballHitStunMovementState();
+	}
 }
 
 void ASnowmanModeSnowmanCharacter::SetSnowmanWalkSpeedFromMode(
@@ -120,7 +135,7 @@ void ASnowmanModeSnowmanCharacter::ApplySnowballHitStunFromServer()
 		return;
 	}
 
-	// 연속 피격은 같은 타이머 핸들을 초기화한 뒤 다시 10초를 시작한다.
+	// 연속 피격은 같은 타이머 핸들을 초기화한 뒤 다시 Slow 시간을 시작한다.
 	World->GetTimerManager().ClearTimer(SnowballHitStunTimerHandle);
 	bSnowballHitStunned = true;
 	SnowballHitStunEndServerTime =
@@ -160,10 +175,13 @@ void ASnowmanModeSnowmanCharacter::ApplySnowballHitStunMovementState()
 	{
 		if (bSnowballHitStunned)
 		{
-			MovementComponent->StopMovementImmediately();
-			MovementComponent->DisableMovement();
-			MovementComponent->MaxWalkSpeed = 0.0f;
-			StopJumping();
+			MovementComponent->MaxWalkSpeed =
+				SnowmanWalkSpeed * SnowballHitSlowWalkSpeedMultiplier;
+			if (CanPerformGameplayAction()
+				&& MovementComponent->MovementMode == MOVE_None)
+			{
+				MovementComponent->SetMovementMode(MOVE_Walking);
+			}
 			return;
 		}
 
