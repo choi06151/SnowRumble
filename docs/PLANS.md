@@ -123,7 +123,10 @@
 - 2026-08-27: C-34 물리 물건 Grab 회귀를 보강했다. 캐릭터 손 bone에 직접 물리 Constraint를 걸지 않고 숨김 PhysicsOnly 앵커에 물건을 연결해 손 늘어남을 막는다.
 - 2026-08-27: C-34 물리 물건 Grab 동작을 고정 이동 기준으로 변경했다. 잡힌 동안 물건은 손 위치에 직접 고정되고, 상대 플레이어 밀침은 별도 서버 overlap으로 처리한다.
 - 2026-08-27: C-34 Grab 물건 자식 기믹 확장을 추가했다. `AGrabbablePhysicsObject`의 Grab 훅과 `ATambourineGrabbableObject` 위치 기반 찰랑 사운드 슬롯을 제공한다.
-- 2026-08-27: C-34 Grab 물건의 눈덩이 피격과 플레이어 밀침을 공통 상호작용 횟수로 집계하고, 기본 5회 도달 시 지정 Niagara VFX를 재생한 뒤 액터를 제거하는 파괴 슬롯을 추가했다.
+- 2026-08-27: C-34 Grab 물건의 눈덩이 피격과 플레이어 밀침을 공통 상호작용 횟수로 집계하고, 기본 1회 도달 시 지정 Niagara VFX를 재생한 뒤 액터를 제거하는 파괴 슬롯을 추가했다.
+- 2026-08-27: C-34 태그 기반 StaticMesh 치환 계약을 추가했다. 맵에 `AGrabbableStaticMeshBootstrapActor`를 배치하고 Actor 또는 StaticMeshComponent에 `grabbable`/`grabable` 태그를 달면 서버가 `AGrabbablePhysicsObject`를 스폰하고 원본 Static Mesh는 각 로컬에서 숨김·충돌 해제한다.
+- 2026-08-27: C-34 `AGrabbablePhysicsObject` 테스트 기본값을 파괴 1회, 플레이어 밀침 힘 3000으로 조정했다.
+- 2026-08-27: C-34 태그 치환 물건의 밀침 힘, 파괴 횟수, 파괴 Niagara 이펙트를 `AGrabbableStaticMeshBootstrapActor`에서 지정할 수 있게 했다.
 - 2026-08-27: C-28 얼음 플레이어 Grab을 상대팀에도 허용하고, 상대팀 얼음 운반 중인 Grabber의 이동속도를 `OpposingFrozenCarryWalkSpeed`로 제한하는 계약을 추가했다.
 - 2026-08-27: C-35 피격 데미지 텍스트 표시 계약을 추가했다. 서버가 실제 적용 피해량을 확정한 뒤 모든 클라이언트에 `OnDamageTextRequested`를 호출한다.
 - 2026-08-27: C-35 일반/헤드샷 데미지 텍스트 WBP 슬롯을 분리했다. `UDamageTextWidget` 기반 WBP의 `DamageText` TextBlock은 C++가 자동으로 피해량을 입력한다.
