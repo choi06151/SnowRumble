@@ -2,8 +2,85 @@
 
 #include "SnowmanModeGameState_K.h"
 
+#include "Blueprint/WidgetTree.h"
+#include "Components/Border.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
+#include "Components/TextBlock.h"
+#include "GameFramework/PlayerController.h"
 #include "SnowRumblePlayerState.h"
 #include "Net/UnrealNetwork.h"
+
+void USnowmanModeResultWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+
+	if (ResultText)
+	{
+		ResultText->SetText(CurrentResultText);
+		return;
+	}
+
+	if (!WidgetTree)
+	{
+		return;
+	}
+
+	UCanvasPanel* RootCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(
+		UCanvasPanel::StaticClass(),
+		TEXT("SnowmanModeResultRoot"));
+	UBorder* ResultBorder = WidgetTree->ConstructWidget<UBorder>(
+		UBorder::StaticClass(),
+		TEXT("SnowmanModeResultBorder"));
+	ResultText = WidgetTree->ConstructWidget<UTextBlock>(
+		UTextBlock::StaticClass(),
+		TEXT("ResultText"));
+	if (!RootCanvas || !ResultBorder || !ResultText)
+	{
+		return;
+	}
+
+	ResultBorder->SetPadding(FMargin(32.0f));
+	ResultBorder->SetBrushColor(FLinearColor(0.02f, 0.02f, 0.02f, 0.78f));
+	ResultText->SetJustification(ETextJustify::Center);
+	ResultText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+	FSlateFontInfo ResultFont = ResultText->GetFont();
+	ResultFont.Size = 36;
+	ResultText->SetFont(ResultFont);
+	ResultText->SetText(CurrentResultText);
+	ResultBorder->SetContent(ResultText);
+
+	UCanvasPanelSlot* BorderSlot = RootCanvas->AddChildToCanvas(ResultBorder);
+	if (BorderSlot)
+	{
+		BorderSlot->SetAnchors(FAnchors(0.5f, 0.5f));
+		BorderSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+		BorderSlot->SetAutoSize(true);
+		BorderSlot->SetPosition(FVector2D::ZeroVector);
+	}
+	WidgetTree->RootWidget = RootCanvas;
+}
+
+void USnowmanModeResultWidget::SetResultText(const FText& InResultText)
+{
+	CurrentResultText = InResultText;
+	if (ResultText)
+	{
+		ResultText->SetText(InResultText);
+	}
+}
+
+ASnowmanModeGameState::ASnowmanModeGameState()
+{
+	ResultWidgetClass = USnowmanModeResultWidget::StaticClass();
+}
+
+void ASnowmanModeGameState::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	RemoveSnowmanModeResultWidget();
+
+	Super::EndPlay(EndPlayReason);
+}
 
 void ASnowmanModeGameState::StartSnowmanModeCountdownFromServer(
 	float CountdownSeconds)
@@ -32,6 +109,9 @@ void ASnowmanModeGameState::StartSnowmanModeTimerFromServer(
 	SnowmanModeTimeLimitSeconds = FMath::Max(0.0f, InTimeLimitSeconds);
 	SnowmanModeStartServerTime = GetServerWorldTimeSeconds();
 	bSnowmanModeTimerActive = true;
+	bSnowmanModeEnded = false;
+	SnowmanModeResult = ESnowmanModeResult::None;
+	RemoveSnowmanModeResultWidget();
 	ForceNetUpdate();
 }
 
@@ -119,11 +199,81 @@ void ASnowmanModeGameState::CompleteInfectionFromServer(
 	SetSnowmanPlayerFromServer(PlayerState);
 }
 
+bool ASnowmanModeGameState::CancelControllerlessPendingFromServer(
+	ASnowRumblePlayerState* PlayerState)
+{
+	if (!HasAuthority() || !PlayerState)
+	{
+		return false;
+	}
+
+	const int32 EntryIndex = FindSnowmanModePlayerEntryIndex(PlayerState);
+	if (EntryIndex == INDEX_NONE
+		|| SnowmanModePlayerEntries[EntryIndex].Role
+			!= ESnowmanModePlayerRole::InfectionPending)
+	{
+		return false;
+	}
+
+	SnowmanModePlayerEntries[EntryIndex].Role = ESnowmanModePlayerRole::Normal;
+	SnowmanModePlayerEntries[EntryIndex].InfectionCompleteServerTime = 0.0f;
+	ForceNetUpdate();
+	return true;
+}
+
+void ASnowmanModeGameState::EndSnowmanModeFromServer(
+	ESnowmanModeResult Result)
+{
+	if (!HasAuthority()
+		|| bSnowmanModeEnded
+		|| Result == ESnowmanModeResult::None)
+	{
+		return;
+	}
+
+	bSnowmanModeEnded = true;
+	SnowmanModeResult = Result;
+	bSnowmanModeTimerActive = false;
+	bSnowmanModeCountdownActive = false;
+	ShowSnowmanModeResultWidget();
+	ForceNetUpdate();
+}
+
 bool ASnowmanModeGameState::IsSnowmanModeInputLocked() const
 {
-	return !bSnowmanModeTimerActive
+	return bSnowmanModeEnded
+		|| (!bSnowmanModeTimerActive
 		&& (!bSnowmanModeCountdownActive
-			|| GetSecondsUntilSnowmanModeStart() > 0.0f);
+			|| GetSecondsUntilSnowmanModeStart() > 0.0f));
+}
+
+bool ASnowmanModeGameState::IsSnowmanModeEnded() const
+{
+	return bSnowmanModeEnded;
+}
+
+ESnowmanModeResult ASnowmanModeGameState::GetSnowmanModeResult() const
+{
+	return SnowmanModeResult;
+}
+
+FText ASnowmanModeGameState::GetSnowmanModeResultText() const
+{
+	switch (SnowmanModeResult)
+	{
+	case ESnowmanModeResult::SnowmanVictory:
+		return NSLOCTEXT(
+			"SnowRumble",
+			"SnowmanModeSnowmanVictory",
+			"눈사람 승리! 모두 눈사람이 되었습니다");
+	case ESnowmanModeResult::SurvivorVictory:
+		return NSLOCTEXT(
+			"SnowRumble",
+			"SnowmanModeSurvivorVictory",
+			"생존자 승리! 제한시간을 버텼습니다");
+	default:
+		return FText::GetEmpty();
+	}
 }
 
 bool ASnowmanModeGameState::ShouldShowSnowmanModeStartCountdown() const
@@ -254,6 +404,20 @@ void ASnowmanModeGameState::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ASnowmanModeGameState, SnowmanModeStartServerTime);
 	DOREPLIFETIME(ASnowmanModeGameState, SnowmanModeTimeLimitSeconds);
 	DOREPLIFETIME(ASnowmanModeGameState, SnowmanModePlayerEntries);
+	DOREPLIFETIME(ASnowmanModeGameState, bSnowmanModeEnded);
+	DOREPLIFETIME(ASnowmanModeGameState, SnowmanModeResult);
+}
+
+void ASnowmanModeGameState::OnRep_SnowmanModeEnded()
+{
+	if (bSnowmanModeEnded)
+	{
+		ShowSnowmanModeResultWidget();
+	}
+	else
+	{
+		RemoveSnowmanModeResultWidget();
+	}
 }
 
 int32 ASnowmanModeGameState::FindSnowmanModePlayerEntryIndex(
@@ -310,6 +474,53 @@ int32 ASnowmanModeGameState::FindSnowmanModePlayerEntryIndex(
 	}
 
 	return INDEX_NONE;
+}
+
+void ASnowmanModeGameState::ShowSnowmanModeResultWidget()
+{
+	if (!bSnowmanModeEnded
+		|| SnowmanModeResult == ESnowmanModeResult::None
+		|| !ResultWidgetClass
+		|| GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+
+	APlayerController* LocalPlayerController = GetWorld()
+		? GetWorld()->GetFirstPlayerController()
+		: nullptr;
+	if (!LocalPlayerController || !LocalPlayerController->IsLocalController())
+	{
+		return;
+	}
+
+	if (!SnowmanModeResultWidget)
+	{
+		SnowmanModeResultWidget =
+			CreateWidget<USnowmanModeResultWidget>(
+				LocalPlayerController,
+				ResultWidgetClass);
+	}
+
+	if (!SnowmanModeResultWidget)
+	{
+		return;
+	}
+
+	SnowmanModeResultWidget->SetResultText(GetSnowmanModeResultText());
+	if (!SnowmanModeResultWidget->IsInViewport())
+	{
+		SnowmanModeResultWidget->AddToViewport(100);
+	}
+}
+
+void ASnowmanModeGameState::RemoveSnowmanModeResultWidget()
+{
+	if (SnowmanModeResultWidget)
+	{
+		SnowmanModeResultWidget->RemoveFromParent();
+		SnowmanModeResultWidget = nullptr;
+	}
 }
 
 float ASnowmanModeGameState::GetSecondsUntilSnowmanModeStart() const

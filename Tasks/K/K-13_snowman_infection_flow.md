@@ -13,8 +13,8 @@
 
 - [x] 서버가 참가자 중 무작위 한 명을 시작 눈사람으로 배정한다.
 - [x] 눈사람은 일반 플레이어보다 빠른 이동 속도를 사용한다.
-- [x] 눈사람과 일반 플레이어가 부딪히면 일반 플레이어가 감염 대기 상태가 된다.
-- [x] 감염 대기 시간이 지나면 일반 플레이어가 눈사람으로 전환된다.
+- [x] 눈사람과 일반 플레이어가 부딪히면 일반 플레이어가 유예 시간 없이 즉시 눈사람으로 전환된다.
+- [x] 이전 감염 대기 기반 전환 경로는 `UpdateSnowmanInfectionFlow()`에서 사용하지 않는다.
 - [x] 일반 플레이어가 던진 눈덩이가 눈사람에게 적용될 피격 결과는 K-13 범위 밖으로 보류하고 공용 눈 전투 계약 인계 요청으로 남긴다.
 
 ## 작업 배정
@@ -30,7 +30,7 @@
 ## 공용 계약과 인계
 
 - 제공받을 계약: 기본 인간 플레이어 이동·상태, C-09 눈덩이 피격 결과 또는 후속 공용 전투 계약
-- 제공할 계약: 눈사람 여부, 감염 대기 여부, 감염 남은 시간, 눈사람 전용 Pawn 전환 결과
+- 제공할 계약: 눈사람 여부, 눈사람 전용 Pawn 즉시 전환 결과. 감염 대기 여부와 남은 시간 조회 API는 기존 Blueprint 호환용으로 남아 있으나 현재 접촉 감염 흐름에서는 사용하지 않는다.
 - 인계 대상: K-14, C 통합 검토, S UI·모델 표현
 
 ## 범위 밖
@@ -46,7 +46,7 @@
 
 ## 결정 필요
 
-- 접촉 후 감염 확정까지 걸리는 시간: 10초
+- 접촉 후 감염 확정까지 걸리는 시간: 즉시 전환
 - 눈사람 속도 배율: 일반 플레이어의 1.25배
 - 눈덩이에 맞은 눈사람의 효과: K-13에서는 보류하고 C-09 및 공용 눈 전투 계약 이후 연결한다.
 - 치료제 사용 여부와 해제 가능한 감염 단계: K-13에서는 구현하지 않는다.
@@ -72,6 +72,7 @@
 - 2026-08-14: 결과 확인 중 감염 완료 후 `BP_SnowmanCharacter_K`로 전환될 때 캐릭터가 땅에 박혀 움직이지 못하는 경우를 반영했다. 전환 스폰 위치는 기존 인간 Pawn의 발 위치와 바닥 trace를 기준으로 새 눈사람 Capsule half height만큼 올리고, Spawn Collision Handling은 `AdjustIfPossibleButAlwaysSpawn`으로 보정한다.
 - 2026-08-14: 사용자가 K-13 결과 확인을 완료했다. 테스트 횟수는 많지 않지만 감염 완료 후 `BP_SnowmanCharacter_K`가 땅에 박혀 생성되는 문제는 해결된 것으로 보인다고 확인했다. 실행 중 `BP_SnowmanCharacter_K`의 `CharacterMesh0` material slot 0 경고가 관찰됐지만, 감염·전환·이동을 막는 오류는 아니며 표현/머티리얼 정리는 후속 자산 다듬기 항목으로 남긴다.
 - 2026-08-14: `master`에 K 브랜치를 병합한 뒤 UE unity build에서 `SnowmanModeGameMode_K.cpp`와 `SnowRumbleGameMode.cpp`의 익명 namespace helper `MakeRandomHorizontalOffset` 이름이 충돌해 컴파일이 실패하는 문제를 수정했다. K 소유 파일의 helper를 `MakeSnowmanModeRandomHorizontalOffset`으로 변경했으며, `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-26: 기획 변경에 따라 `ASnowmanModeGameMode::UpdateSnowmanInfectionFlow()`의 감염 Pending 완료 처리와 지연 전환 경로를 제거했다. 눈사람과 일반 플레이어가 접촉하면 서버가 컨트롤러, PlayerState, 캐릭터, CapsuleComponent, 역할, 전환 중 상태를 검사한 뒤 즉시 `BP_SnowmanCharacter_K`로 전환하고 GameState 역할을 Snowman으로 확정한다.
 
 ## 수동 작업 (구현 후 구체화)
 
@@ -79,7 +80,7 @@
 - `BP_SnowmanCharacter_K`에 눈사람 메시, 머티리얼, 강시형 이동 애니메이션, 필요한 VFX를 연결한다.
 - `Content/Game/BP_SnowmanModeGameMode_K`에서 `Snowman Character Class`를 `BP_SnowmanCharacter_K`로 지정한다.
 - `BP_SnowmanCharacter_K`는 이동, 시야 회전, 점프 입력만 사용한다. 눈덩이 제작, 줍기, 조준, 투척, 상호작용, 스프린트 입력은 C++ 부모 클래스에서 바인딩하지 않는다.
-- 감염 대기 중인 인간 캐릭터 표현은 기존 인간 BP에서 `ASnowmanModeGameState::IsSnowmanModePlayerInfectionPending`와 `GetSnowmanModeInfectionRemainingSeconds`를 읽어 별도 UI/VFX로 연결할 수 있다.
+- 현재 접촉 감염은 Pending UI/VFX를 사용하지 않는다. 기존 `ASnowmanModeGameState::IsSnowmanModePlayerInfectionPending`와 `GetSnowmanModeInfectionRemainingSeconds`는 Blueprint 호환용으로만 남긴다.
 - 실제 점프 기반 이동은 K-13에서는 구현하지 않는다. 강시형 이동은 우선 눈사람 전용 BP/AnimBP에서 애니메이션으로 표현하고, 실제 입력/Movement 변경은 C 공용 플레이어 계약 검토 후 별도 Task로 분리한다.
 
 ## 완료 조건
@@ -88,7 +89,7 @@
 
 - [x] 랜덤 눈사람 배정 서버 권한 코드 확인
 - [x] 눈사람 이동 속도 보정 코드 확인
-- [x] 접촉 감염과 눈사람 전용 Pawn 전환 코드 확인
+- [x] 접촉 즉시 눈사람 전용 Pawn 전환 코드 확인
 - [x] 눈덩이 피격 계약 보류와 통합 요청 기록 확인
 - [x] 역할·소유권·담당자 이니셜 규칙 위반 없음
 - [x] 공용 계약과 캡슐화 규칙 위반 없음
@@ -101,8 +102,8 @@
 - [x] 여러 번 재시작해도 매번 정확히 1명이 `BP_SnowmanCharacter_K`로 배정되는지 확인한다.
 - [x] 눈사람 플레이어가 일반 플레이어보다 빠른 속도로 이동하는지 확인한다.
 - [x] 눈사람 플레이어가 눈덩이 제작, 줍기, 조준, 투척, 상호작용, 스프린트를 사용할 수 없는지 확인한다.
-- [x] 눈사람이 일반 플레이어와 접촉하면 일반 플레이어가 감염 대기 상태가 되는지 확인한다.
+- [ ] 눈사람이 일반 플레이어와 접촉하면 감염 대기 없이 즉시 `BP_SnowmanCharacter_K`로 전환되는지 확인한다.
 - [x] 눈사람이 일반 플레이어와 붙어서 움직일 때 Z축 차이나 캡슐 위치 때문에 감염이 누락되지 않는지 확인한다.
-- [x] 감염 대기 후 10초 뒤 해당 플레이어가 `BP_SnowmanCharacter_K`로 전환되는지 확인한다.
+- [ ] 접촉 직후 해당 플레이어가 서버와 클라이언트 양쪽에서 `BP_SnowmanCharacter_K`로 보이는지 확인한다.
 - [x] 감염 완료 후 `BP_SnowmanCharacter_K`가 평지와 경사에서 땅에 박히지 않고 즉시 이동 가능한지 확인한다.
 - [x] 클라이언트에서도 눈사람/감염 대기 상태가 동일하게 보이는지 확인한다.
