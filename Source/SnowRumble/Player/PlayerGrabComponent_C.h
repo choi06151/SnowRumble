@@ -8,6 +8,7 @@
 
 class ASnowRumbleCharacter;
 class AGrabbablePhysicsObject;
+class ASnowballItem;
 class UPhysicsConstraintComponent;
 class UPrimitiveComponent;
 class USphereComponent;
@@ -61,6 +62,10 @@ public:
 	/** 현재 손이 캐릭터나 월드 지형에 붙은 상태인지 확인한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
 	bool IsGrabAttached() const;
+
+	/** 현재 Grabable 물건을 잡고 있는지 확인한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	bool IsGrabbingPhysicsObject() const;
 
 	/** 현재 손이 벽이나 월드 오브젝트에 붙어 매달린 상태인지 확인한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
@@ -124,6 +129,7 @@ protected:
 		USkeletalMeshComponent*& OutMesh,
 		AGrabbablePhysicsObject*& OutPhysicsObject,
 		UPrimitiveComponent*& OutPhysicsComponent,
+		ASnowballItem*& OutSnowball,
 		FName& OutBoneName,
 		FVector& OutAttachedWorldLocation,
 		ESnowRumbleGrabAttachmentType& OutAttachmentType,
