@@ -1901,14 +1901,9 @@ void UOptionsWidget::RefreshLanguageComboBoxTextColor()
 	if (!bHasDefaultLanguageComboBoxForegroundColor)
 	{
 		DefaultLanguageComboBoxForegroundColor =
+			LanguageComboBox->GetForegroundColor();
 		bHasDefaultLanguageComboBoxForegroundColor = true;
 	}
-
-	const bool bShouldBeWhite =
-		LanguageComboBox->IsHovered() || LanguageComboBox->IsOpen();
-		bShouldBeWhite
-			? FSlateColor(FLinearColor::White)
-			: DefaultLanguageComboBoxForegroundColor);
 }
 
 void UOptionsWidget::RefreshMicrophoneModeButtonSelection()
