@@ -3,6 +3,8 @@
 #include "TimerManager.h"
 #include "Engine/World.h"
 #include "SnowmanModeGameMode_K.h"
+#include "SnowRumbleMatchSubsystem_C.h"
+#include "Engine/GameInstance.h"
 
 #include "../Audio/SnowRumbleAudioHelpers.h"
 #include "../Player/SnowRumbleCharacter.h"
@@ -243,10 +245,38 @@ void ASnowmanModeGameMode::InitGame(
 	Super::InitGame(MapName, Options, ErrorMessage);
 
 	const FString ExpectedPlayersOption =
-		UGameplayStatics::ParseOption(Options, TEXT("ExpectedPlayers"));
+	   UGameplayStatics::ParseOption(Options, TEXT("ExpectedPlayers"));
 	ExpectedPlayerCount = ExpectedPlayersOption.IsEmpty()
-		? 0
-		: FMath::Max(0, FCString::Atoi(*ExpectedPlayersOption));
+	   ? 0
+	   : FMath::Max(0, FCString::Atoi(*ExpectedPlayersOption));
+    
+	const FString RoundsOption = UGameplayStatics::ParseOption(Options, TEXT("Rounds"));
+	if (!RoundsOption.IsEmpty())
+	{
+		TotalMatchRounds = FMath::Max(1, FCString::Atoi(*RoundsOption));
+	}
+
+	// ★ [핵심 추가] URL 옵션에서 현재 라운드 번호를 읽어와서 저장합니다!
+	const FString CurrentRoundOption = UGameplayStatics::ParseOption(Options, TEXT("CurrentRound"));
+	if (!CurrentRoundOption.IsEmpty())
+	{
+		CurrentRoundIndex = FMath::Max(1, FCString::Atoi(*CurrentRoundOption));
+	}
+	else
+	{
+		CurrentRoundIndex = 1; // 옵션이 없으면 첫 라운드(1)로 설정
+	}
+
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleMatchSubsystem* MatchSubsystem =
+		   GameInstance->GetSubsystem<USnowRumbleMatchSubsystem>())
+		{
+			// 서브시스템에 저장된 라운드 정보를 가져오는 함수가 있다면 여기서 할당합니다.
+			// 예: TotalMatchRounds = MatchSubsystem->GetTotalRounds();
+		}
+	}
+    
 	bLoadingScreensDismissed = false;
 	bSnowmanTimerStarted = false;
 	bSnowmanRolesInitialized = false;
@@ -257,7 +287,7 @@ void ASnowmanModeGameMode::InitGame(
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(
-			SnowmanRoleInitializationRetryTimerHandle);
+		   SnowmanRoleInitializationRetryTimerHandle);
 		World->GetTimerManager().ClearTimer(InfectionScanTimerHandle);
 		World->GetTimerManager().ClearTimer(SnowmanModeTimeLimitTimerHandle);
 		World->GetTimerManager().ClearTimer(SnowmanModeLobbyReturnTimerHandle);
@@ -741,6 +771,9 @@ void ASnowmanModeGameMode::EndSnowmanMode(ESnowmanModeResult Result)
 	ApplySnowmanModeStartInputLock(true);
 	World->GetTimerManager().ClearTimer(InfectionScanTimerHandle);
 	World->GetTimerManager().ClearTimer(SnowmanModeTimeLimitTimerHandle);
+	
+	
+	
 	if (SnowmanModeResultLobbyReturnDelaySeconds <= 0.0f)
 	{
 		TravelToPodiumAfterSnowmanModeEnd();
@@ -764,6 +797,16 @@ void ASnowmanModeGameMode::TravelToPodiumAfterSnowmanModeEnd()
 		|| !SnowmanGameState->IsSnowmanModeEnded())
 	{
 		return;
+	}
+	
+	if (CurrentRoundIndex < TotalMatchRounds)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			// 다음 라운드 번호(CurrentRoundIndex + 1)를 URL에 담아서 다시 눈사람 모드 시작
+			World->ServerTravel(BuildNextRoundTravelUrl(), true);
+			return;
+		}
 	}
 
 	if (PodiumTravelUrl.IsEmpty())
@@ -873,6 +916,41 @@ FString ASnowmanModeGameMode::BuildWinnerPlayerIdsOption(
 	}
 
 	return FString::Join(WinnerPlayerIds, TEXT(","));
+}
+
+FString ASnowmanModeGameMode::BuildNextRoundTravelUrl()
+{
+	// 현재 지도(레벨) 경로 가져오기
+	FString TravelUrl = UGameplayStatics::GetCurrentLevelName(GetWorld(), true);
+	EnsureSnowmanModeTravelOption(TravelUrl, TEXT("?listen"));
+
+	// 현재 게임모드 경로 유지
+	if (UClass* CurrentGameModeClass = GetClass())
+	{
+		EnsureSnowmanModeTravelOptionValue(
+		   TravelUrl,
+		   TEXT("game"),
+		   CurrentGameModeClass->GetPathName());
+	}
+
+	// 플레이어 수 유지
+	EnsureSnowmanModeTravelOptionValue(
+	   TravelUrl,
+	   TEXT("ExpectedPlayers"),
+	   FString::FromInt(ExpectedPlayerCount > 0 ? ExpectedPlayerCount : GetNumPlayers()));
+
+	// 총 라운드 수 유지 및 현재 라운드 번호 증가 시켜서 전달!
+	EnsureSnowmanModeTravelOptionValue(
+	   TravelUrl,
+	   TEXT("Rounds"),
+	   FString::FromInt(TotalMatchRounds));
+
+	EnsureSnowmanModeTravelOptionValue(
+	   TravelUrl,
+	   TEXT("CurrentRound"),
+	   FString::FromInt(CurrentRoundIndex + 1));
+
+	return TravelUrl;
 }
 
 bool ASnowmanModeGameMode::ConvertPlayerToSnowmanPawn(ASnowRumblePlayerState* PlayerState)

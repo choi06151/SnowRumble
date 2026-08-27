@@ -108,9 +108,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Result")
 	TSubclassOf<ASnowRumbleLobbyGameMode> LobbyReturnGameModeClass;
 
+	FString BuildNextRoundTravelUrl();
 private:
 	/** 대기방에서 전달받은 이번 모드 예상 접속 인원 수다. */
 	int32 ExpectedPlayerCount = 0;
+	int32 TotalMatchRounds = 1; // 총 설정된 판 수 (1, 3, 5 등)
+	int32 CurrentRoundIndex = 1; // 현재 진행 중인 라운드 번호
 
 	bool bLoadingScreensDismissed = false;
 	bool bSnowmanTimerStarted = false;
