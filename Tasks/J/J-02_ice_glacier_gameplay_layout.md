@@ -6,6 +6,8 @@
 
 경기 진행 시간에 따라 빙하 지형을 단계적으로 축소하기 위해 `SnowRumbleIceGlacierCollapseActor_J`를 사용한다. 현재 구현은 Fracture, Geometry Collection, Chaos 물리를 쓰지 않고, C++ Actor가 지정된 빙판 조각 Actor의 Transform을 직접 제어하는 방식이다.
 
+IceGlacier 전용 랜덤 강풍 Wind Gust 기믹은 레벨에 `IceGlacierWindGustActor_J`가 배치된 경우에만 작동한다. 서버가 일정 간격마다 전역 바람 방향을 랜덤 선택하고, Warning 이후 Gust 동안 모든 플레이어에게 같은 World Direction의 바람 압박을 제공한다.
+
 ## 상태 전이 기준
 - 시작 가능: J-01, C-04, C-05, C-07, C-14, K-02, K-08 완료
 - 완료 가능: 빙판 붕괴·스폰·아이템 배치의 호스트·클라이언트 결과 확인
@@ -15,6 +17,8 @@
 - [ ] 기본 눈덩이, 선물상자 Spawn Point와 기본 모닥불 후보를 배치한다.
 - [ ] 빙판 조각 붕괴 단계와 Warning 경고가 공간 변화와 일치하게 한다.
 - [ ] 빙판 조각 하강과 Falling Runtime Actor Carry를 맵 전용 Actor·Component·Blueprint로 구현한다.
+- [ ] IceGlacier 전용 Wind Gust Actor를 배치해 랜덤 전역 바람 방향, Warning, Gust, Ramp Up/Down 흐름을 제공한다.
+- [ ] Wind Gust 이동 처리는 공용 CharacterMovement Environmental Drift 계약을 통해 멀티플레이 prediction 흐름과 일치하게 한다.
 - [ ] 위험 지역의 균열·물결·경고 색상과 안전 복귀 동선을 제공한다.
 - [ ] 주요 판정을 Level Blueprint에 중복 구현하지 않는다.
 
@@ -54,6 +58,10 @@
 - 2026-08-26: Warning 중 로컬 플레이어 Camera Shake를 추가하고, 현재 밟고 있는 Warning Piece의 `WarningAlpha`와 실행 중 Camera Shake `ShakeScale`을 동기화하도록 C++ 구현을 보강했다. 기본 Start/Stop과 WarningAlpha 강도 증가 PIE 확인까지 완료했다.
 - 2026-08-26: Warning 빙판 진동은 `InitialTransform` 기준 절대 계산과 `WarningAlpha^2` 강도 증가 방식으로 PIE 정상 동작을 확인했다.
 - 2026-08-26: Falling 진입 순간 빙판 위 runtime gameplay Actor를 `LineTraceMultiByChannel`로 감지하고, Falling 동안 Piece 하강 Delta만큼 함께 이동시키는 Carry 구조를 C++에 추가했다. C4800, C4458 컴파일 오류 보정은 완료했으며, 보정 후 재빌드와 PIE 검증은 아직 확인 필요 상태다.
+- 2026-08-27: `Source/SnowRumble/Map/IceGlacierWindGustActor_J.h`, `Source/SnowRumble/Map/IceGlacierWindGustActor_J.cpp`에 IceGlacier 전용 랜덤 Wind Gust Actor 구조를 추가했다. 상태 흐름은 `Idle -> Random Interval -> Warning -> Gust -> Idle`이며, Wind Actor가 배치된 레벨에서만 바람이 작동한다.
+- 2026-08-27: 초기 Wind 이동 방식은 `AddForce`와 `CharacterMovement->Velocity` 직접 수정 방식으로 검토했으나, 지상 friction/braking 체감 차이와 Host/Client server correction jitter가 남아 최종 구조에서는 공용 CharacterMovement Environmental Drift simulation으로 이동 처리를 통합했다.
+- 2026-08-28: Wind Actor는 Warning/Gust 일정, 랜덤 World Direction, Blueprint 연출 이벤트, replicated state provider 역할만 담당하고, 플레이어 Velocity 직접 수정 코드는 제거했다.
+- 2026-08-28: Wind State, Direction, GustStart, StateEnd, Generation을 `FIceGlacierWindReplicatedState_J`로 묶어 같은 Gust generation의 상태값이 클라이언트에서 섞일 위험을 줄였다.
 
 ## 현재 C++ 구현 기록
 
@@ -164,6 +172,61 @@ FinalScale = WarningCameraShakeScale * CameraShakeStrength
 - 같은 TargetActor 위에 있더라도 `ActiveWarningCameraShakeInstance`가 invalid이면 현재 Warning 상태 기준으로 다시 시작할 수 있게 처리한다.
 - 기본 Camera Shake Start/Stop과 WarningAlpha에 따른 강도 증가는 PIE에서 동작 확인을 완료했다.
 
+### IceGlacierWindGustActor_J
+
+- 목적: IceGlacier 레벨에서 일정 간격으로 전역 강풍을 발생시켜 플레이어 이동에 환경 압박을 더한다.
+- 구현 파일은 `Source/SnowRumble/Map/IceGlacierWindGustActor_J.h`, `Source/SnowRumble/Map/IceGlacierWindGustActor_J.cpp`다.
+- 레벨 전용 Wind Actor가 존재할 때만 바람이 동작한다.
+- Snowman Mode 등 바람이 필요 없는 레벨에서는 `IceGlacierWindGustActor_J`를 배치하지 않으면 Wind가 작동하지 않는다.
+- 상태 흐름은 `Idle -> Random Interval -> Warning -> Gust -> Idle`이다.
+- 서버가 `WindDirections` 중 하나의 World Direction을 랜덤 선택한다.
+- 한 번의 Gust 동안 모든 플레이어는 같은 전역 바람 방향의 영향을 받는다.
+- 주요 설정값은 `MinWindIntervalSeconds`, `MaxWindIntervalSeconds`, `WarningDurationSeconds`, `WindDurationSeconds`, `WindRampUpSeconds`, `WindRampDownSeconds`, `WindAcceleration`, `GroundWindMaxDriftSpeed`, `FallingWindMaxDriftSpeed`, `WindDirections`다.
+- Blueprint 이벤트 `OnWindWarningStarted(Direction)`, `OnWindGustStarted(...)`, `OnWindGustEnded()`를 유지해 Niagara, VFX, SFX 연동이 가능하도록 했다.
+- Current Wind Direction을 사용하면 모든 플레이어가 같은 방향의 눈보라를 맞는 것처럼 연출할 수 있다.
+- [확인 필요] Wind VFX, SnowStorm, Warning 연출, SFX의 최종 표현 튜닝은 별도 확인 대상으로 둔다.
+
+### Wind 이동 방식 변경 이력
+
+- 초기 구현에서는 Wind Actor가 `AddForce` 또는 `CharacterMovement->Velocity` 직접 수정 방식으로 플레이어를 밀었다.
+- `AddForce` 방식은 지상 CharacterMovement의 friction/braking 영향 때문에 지상과 공중의 바람 체감 차이가 크게 발생했다.
+- Velocity 직접 보정 방식은 Host/Client 멀티플레이에서 Client 캐릭터가 끊기듯 움직이는 server correction / prediction 문제가 발생했다.
+- Owning Client에 같은 Drift를 직접 적용하고 Gust timestamp를 복제하는 actor-only 보강도 시도했으나, 실제 PIE에서 큰 개선이 없었다.
+- 최종 구조에서는 Wind Actor가 Character Velocity를 직접 수정하지 않는다.
+
+### Environmental Drift / CharacterMovement 연동
+
+- 멀티플레이 jitter를 줄이기 위해 Wind 이동 처리를 공용 CharacterMovement simulation 내부로 통합했다.
+- 신규 공용 파일은 `Source/SnowRumble/Player/SnowRumbleCharacterMovementComponent_C.h`, `Source/SnowRumble/Player/SnowRumbleCharacterMovementComponent_C.cpp`다.
+- `ASnowRumbleCharacter`는 `USnowRumbleCharacterMovementComponent_C`를 기본 `CharacterMovementComponent`로 사용한다.
+- 공용 MovementComponent에는 IceGlacier 전용 이름을 넣지 않고 범용 Environmental Drift 계약을 구현했다.
+- 주요 API는 `SetEnvironmentalDrift(...)`, `ClearEnvironmentalDrift(...)`다.
+- 현재 단계에서는 동시에 활성 Environmental Drift source 1개만 지원한다.
+- Drift는 수평 XY에만 적용하고 Z Velocity는 유지한다.
+- Walking / NavWalking은 `GroundWindMaxDriftSpeed`, Falling은 `FallingWindMaxDriftSpeed`를 사용한다.
+- 기존 WASD, Sprint, Aim, Jump 흐름은 유지한다.
+- 전체 Velocity clamp는 하지 않는다.
+- 바람 방향으로 이미 빠르게 이동 중인 플레이어의 속도를 강제로 낮추지 않는다.
+- `Super::CalcVelocity(...)` 이후 현재 바람 방향 속도가 목표 Drift보다 부족할 때만 `WindAcceleration` 기반으로 점진 보충한다.
+- Ramp Up / Ramp Down은 서버 timestamp 기준으로 계산한다.
+- 기존 ease-in 성격의 Ramp Up / Ramp Down 의미는 유지한다.
+
+### Wind Multiplayer Prediction
+
+- Environmental Drift는 CharacterMovement prediction 흐름에 포함된다.
+- `FSavedMove_Character` 파생, `FNetworkPredictionData_Client_Character` 파생, SavedMove snapshot, `CanCombineWith`, `PrepMoveFor` 구조를 추가했다.
+- Server는 authoritative Environmental Drift 상태로 CharacterMovement simulation 안에서 Drift를 계산한다.
+- Owning Client는 복제된 Wind state를 자기 CharacterMovement에 설정하고 SavedMove / prediction에서 동일 Drift 상태를 재현한다.
+- Simulated Proxy에는 Wind Actor가 별도 Velocity를 직접 적용하지 않고 기존 CharacterMovement replication / smoothing을 사용한다.
+- Listen Server Host에서는 서버 authoritative 경로만 적용되며 로컬 prediction 경로와 이중 적용되지 않도록 정리했다.
+
+### Wind Replication
+
+- 기존에 따로 복제하던 Wind State, Direction, timestamp를 `FIceGlacierWindReplicatedState_J` 구조로 묶었다.
+- 구조체는 `State`, `Direction`, `GustStart`, `StateEnd`, `Generation`을 포함한다.
+- 같은 Wind generation의 상태와 방향, 시간이 함께 관리되어 서로 다른 Gust의 값이 잠깐 섞여 사용될 위험을 줄인다.
+- StrengthAlpha는 매 Tick 복제하지 않고 서버 timestamp와 replicated timing을 기준으로 계산한다.
+
 ### 멀티플레이
 
 - 기존 서버 권한 구조를 유지한다.
@@ -177,6 +240,9 @@ FinalScale = WarningCameraShakeScale * CameraShakeStrength
 - Falling Runtime Actor Carry는 실제 gameplay Actor Transform을 변경하므로 `HasAuthority()`인 서버에서만 Carry 대상 탐색과 이동을 수행한다.
 - 클라이언트는 Carry Actor 위치를 독립 계산하지 않고 기존 Actor movement replication 결과를 받는다.
 - Carry는 서버 권한 기반 gameplay Actor Carry, 클라이언트 독립 Transform 계산 없음, 기존 Actor movement replication 활용 구조로 정리한다.
+- Wind Gust는 서버가 authoritative schedule과 Wind direction을 정하고, 각 CharacterMovement의 Environmental Drift 상태를 통해 이동 계산에 반영한다.
+- Owning Client는 자기 CharacterMovement prediction에서 같은 Environmental Drift state를 재현한다.
+- Simulated Proxy는 Wind Actor가 직접 Velocity를 수정하지 않고 기존 CharacterMovement replication / smoothing 결과를 받는다.
 - 공용 GameMode, Character, Health 로직은 수정하지 않는다.
 - [확인 필요] 클라이언트는 Phase 복제가 도착하기 전 잠깐 이전 Phase 상태를 볼 수 있다.
 
@@ -203,6 +269,20 @@ FinalScale = WarningCameraShakeScale * CameraShakeStrength
 - `WarningCameraShakeClass`: Warning 중 로컬 플레이어에게 재생할 Camera Shake Blueprint Class다. 실제 Asset은 Editor에서 수동 지정한다.
 - `WarningCameraShakeScale`: C++이 WarningAlpha 기반 강도와 곱해 최종 Camera Shake Scale을 만들 때 사용하는 기본 배율이다.
 - Camera Shake Blueprint의 Amplitude, Frequency, Duration 숫자 값은 현재 Editor 튜닝 항목이며 이 문서에서 확정 사양으로 기록하지 않는다.
+
+### IceGlacier Wind Gust
+
+- `MinWindIntervalSeconds`: 다음 Wind Warning까지 기다리는 랜덤 간격의 최소값이다.
+- `MaxWindIntervalSeconds`: 다음 Wind Warning까지 기다리는 랜덤 간격의 최대값이다.
+- `WarningDurationSeconds`: Gust 시작 전에 Warning 연출을 보여주는 시간이다.
+- `WindDurationSeconds`: 실제 Gust가 유지되는 시간이다.
+- `WindRampUpSeconds`: Gust 시작 후 Wind Strength가 증가하는 시간이다.
+- `WindRampDownSeconds`: Gust 종료 전 Wind Strength가 감소하는 시간이다.
+- `WindAcceleration`: 현재 Drift 속도가 목표 Drift보다 부족할 때 보충되는 가속도 값이다.
+- `GroundWindMaxDriftSpeed`: Walking / NavWalking 상태의 최대 Drift 목표 속도다.
+- `FallingWindMaxDriftSpeed`: Falling 상태의 최대 Drift 목표 속도다.
+- `WindDirections`: 서버가 Gust마다 하나를 선택하는 World Direction 후보 목록이다.
+- Wind Actor가 배치되지 않은 레벨에서는 Wind Gust가 동작하지 않는다.
 
 ## 현재 구현 상태
 
@@ -242,10 +322,30 @@ FinalScale = WarningCameraShakeScale * CameraShakeStrength
 - C4458 `RootComponent` 지역 변수 이름 가림 보정
 - 공용 GameMode, Character, Health 수정 없음
 - Camera Shake용 서버 RPC, Multicast 추가 없음
+- IceGlacier Wind Gust Actor C++ 구조
+- Wind `Idle -> Random Interval -> Warning -> Gust -> Idle` 상태 흐름
+- 서버 랜덤 World Direction 선택
+- 한 Gust 동안 모든 플레이어에 동일 Wind Direction 적용
+- Wind Warning / Gust / End Blueprint 이벤트 유지
+- `FIceGlacierWindReplicatedState_J` 기반 Wind State / Direction / Timing / Generation 복제 구조
+- Wind Actor의 Character Velocity 직접 수정 코드 제거
+- 공용 `USnowRumbleCharacterMovementComponent_C` Environmental Drift 계약
+- `SetEnvironmentalDrift(...)`, `ClearEnvironmentalDrift(...)` API
+- CharacterMovement `CalcVelocity` 이후 XY Drift 보충 방식
+- Z Velocity 유지
+- Ground / Falling MaxDriftSpeed 분리
+- SavedMove / prediction용 Environmental Drift snapshot 구조
+- Simulated Proxy에 Wind Velocity 직접 적용하지 않는 구조
+- C++ Build 성공
+- `git diff --check` 통과
+- IceGlacier Wind Gust 발생 확인
+- 랜덤 World Direction 적용 확인
+- Ramp Up / Ramp Down 동작 확인
+- 지상 플레이어 Drift 동작 확인
+- Host/Client PIE에서 기존 Wind jitter가 크게 개선되고 부드럽게 밀리는 것 사용자 확인
 
 ### 확인 필요
 
-- [확인 필요] Carry 컴파일 오류 보정 후 최종 Build 성공
 - [확인 필요] UHT 검증 완료
 - [확인 필요] PIE에서 GiftBox Carry 확인
 - [확인 필요] PIE에서 GiftBoxItemPickup Carry 확인
@@ -259,14 +359,26 @@ FinalScale = WarningCameraShakeScale * CameraShakeStrength
 - [확인 필요] 실제 빙판 흔들림 수치 최종 확정
 - [확인 필요] 실제 StartDelay 최종 확정
 - [확인 필요] Camera Shake Blueprint의 Amplitude, Frequency, Duration 최종 튜닝
+- [확인 필요] 여러 실제 Client 환경에서 Wind 추가 네트워크 검증
+- [확인 필요] Wind simulated proxy 장시간 안정성
+- [확인 필요] Wind 중 Sprint 전환 시 correction 여부
+- [확인 필요] Jump/Falling Wind 세기 최종 튜닝
+- [확인 필요] `WindAcceleration`, `GroundWindMaxDriftSpeed`, `FallingWindMaxDriftSpeed` 최종 밸런스
+- [확인 필요] Wind VFX / SnowStorm 표현 최종 연동
+- [확인 필요] Wind Warning 연출 / SFX
+- [확인 필요] Snowman Mode 등 Wind Actor 미배치 레벨에서 비활성 확인
+- [확인 필요] 전체 IceGlacier 플레이 흐름에서 Wind가 다른 기믹과 충돌하지 않는지 확인
 
 ### 정적 검토 메모
 
 - 변경 C++ 파일: `Source/SnowRumble/Map/SnowRumbleIceGlacierCollapseActor_J.h`, `Source/SnowRumble/Map/SnowRumbleIceGlacierCollapseActor_J.cpp`
+- Wind 변경 C++ 파일: `Source/SnowRumble/Map/IceGlacierWindGustActor_J.h`, `Source/SnowRumble/Map/IceGlacierWindGustActor_J.cpp`
+- Wind CharacterMovement 통합 파일: `Source/SnowRumble/Player/SnowRumbleCharacter.h`, `Source/SnowRumble/Player/SnowRumbleCharacter.cpp`, `Source/SnowRumble/Player/SnowRumbleCharacterMovementComponent_C.h`, `Source/SnowRumble/Player/SnowRumbleCharacterMovementComponent_C.cpp`
 - Warning 빙판 진동, Warning Camera Shake 기본 동작과 WarningAlpha 강도 연동은 C++ 구현과 PIE 동작 확인을 완료했다.
 - Falling Runtime Actor Carry는 C++ 구현과 C4800/C4458 컴파일 오류 보정까지 완료했다.
-- Carry 보정 후 Build, UHT, PIE 검증은 아직 완료하지 않았다.
-- 공용 파일 수정 없음
+- Carry 보정 후 Build는 완료했으며, Carry 대상별 PIE 검증은 아직 확인 필요 상태다.
+- Collapse/Carry 구현 자체는 공용 GameMode, Character, Health 로직을 수정하지 않았다.
+- Wind jitter 개선을 위해 C 담당자 승인 하에 공용 CharacterMovement 파일이 추가·변경되었다.
 - `.umap`은 이번 C++ 구현 작업에서 수정하지 않음
 
 ## 수동 작업
@@ -278,13 +390,18 @@ FinalScale = WarningCameraShakeScale * CameraShakeStrength
 5. `WarningCameraShakeClass`에 Camera Shake Blueprint Asset을 지정한다.
 6. `WarningCameraShakeScale`과 Camera Shake Blueprint의 Amplitude, Frequency, Duration은 PIE 확인 후에도 연출 튜닝 값으로 관리한다.
 7. [확인 필요] Group 1은 240~300초, Group 2는 300~360초 안에서 Warning과 Falling이 끝나도록 조각별 시간을 조정한다.
+8. Wind가 필요한 IceGlacier 레벨에는 `IceGlacierWindGustActor_J`를 배치하고, Wind가 필요 없는 Snowman Mode 등에는 배치하지 않는다.
+9. [확인 필요] `WindDirections`, `WindAcceleration`, `GroundWindMaxDriftSpeed`, `FallingWindMaxDriftSpeed`, Ramp Up/Down 시간을 최종 밸런스에 맞게 조정한다.
+10. [확인 필요] Wind Warning / Gust VFX, SnowStorm 방향 표현, SFX를 Blueprint 이벤트와 Current Wind Direction에 맞게 연결한다.
 
 ## 완료 조건
 ### 에이전트 확인
 - [ ] 게임플레이 배치 완료
 - [ ] Level Blueprint 중복 판정 없음
 - [ ] C·K·S 인계 완료
-- [ ] [확인 필요] `SnowRumbleIceGlacierCollapseActor_J` Carry 보정 후 빌드와 UHT 검증 완료
+- [x] C++ Build 성공
+- [x] `git diff --check` 통과
+- [ ] [확인 필요] UHT 검증 완료
 ### 결과 확인
 - [ ] [확인 필요] PIE에서 Group 1 조각이 240~300초 구간에 순차적으로 Warning/Falling/Done 처리된다.
 - [ ] [확인 필요] PIE에서 Group 2 조각이 300~360초 구간에 순차적으로 Warning/Falling/Done 처리된다.
@@ -303,3 +420,14 @@ FinalScale = WarningCameraShakeScale * CameraShakeStrength
 - [ ] [확인 필요] Host / Client에서 Camera Shake가 각자 로컬 화면에만 적용된다.
 - [ ] [확인 필요] Host / Client에서 Carry 대상 Actor 위치가 기존 movement replication으로 반영된다.
 - [ ] [확인 필요] Final Core가 붕괴 대상에서 제외되어 유지된다.
+- [x] PIE에서 IceGlacier Wind Gust 발생을 확인했다.
+- [x] PIE에서 Wind Gust 랜덤 World Direction 적용을 확인했다.
+- [x] PIE에서 Wind Ramp Up / Ramp Down 동작을 확인했다.
+- [x] PIE에서 지상 플레이어가 Wind Drift로 밀리는 동작을 확인했다.
+- [x] Host/Client PIE에서 기존 Wind jitter가 크게 개선되고 Owning Client가 부드럽게 밀리는 것을 사용자 확인했다.
+- [ ] [확인 필요] 여러 실제 Client 환경에서 Wind 네트워크 안정성을 추가 확인한다.
+- [ ] [확인 필요] Wind simulated proxy 장시간 안정성을 확인한다.
+- [ ] [확인 필요] Wind 중 Sprint 전환 correction 여부를 확인한다.
+- [ ] [확인 필요] Jump/Falling Wind 세기를 최종 튜닝한다.
+- [ ] [확인 필요] Wind Actor 미배치 레벨에서 Wind 비활성을 확인한다.
+- [ ] [확인 필요] Wind VFX / SnowStorm / Warning SFX 최종 연동을 확인한다.
