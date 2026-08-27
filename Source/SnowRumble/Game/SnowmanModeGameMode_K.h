@@ -14,6 +14,7 @@ class ASnowRumbleLobbyGameMode;
 class ASnowRumblePlayerState;
 class ASnowmanModeSnowmanCharacter;
 class ASnowballItem;
+class UTimedDropAnnouncementWidget;
 enum class ESnowmanModeResult : uint8;
 enum class ESnowRumbleTeam : uint8;
 class USoundBase;
@@ -77,6 +78,14 @@ protected:
 	/** 낙하 이벤트에 사용할 큰 눈덩이 Blueprint 클래스다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Falling Snowball")
 	TSubclassOf<ASnowballItem> FallingSnowballClass;
+
+	/** 큰 눈덩이 낙하 시작 시 표시할 PvP와 동일한 알림 WBP다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Falling Snowball")
+	TSubclassOf<UTimedDropAnnouncementWidget> FallingSnowballAnnouncementWidgetClass;
+
+	/** 큰 눈덩이 낙하 알림 WBP가 화면에 유지되는 시간이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Falling Snowball", meta = (ClampMin = "0.1"))
+	float FallingSnowballAnnouncementDisplayDurationSeconds = 3.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Falling Snowball")
 	FSoftClassPath DefaultFallingSnowballClassPath =
@@ -205,6 +214,7 @@ private:
 	void ScheduleFallingSnowballEvent(float DelaySeconds);
 	void SpawnFallingSnowballEvent();
 	void SpawnNextFallingSnowball();
+	void BroadcastFallingSnowballAnnouncement() const;
 
 	/** 접속자를 초기화하고 시작 눈사람을 무작위로 선택한다. */
 	void InitializeSnowmanRoles();
