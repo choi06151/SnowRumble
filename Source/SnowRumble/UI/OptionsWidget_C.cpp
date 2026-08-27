@@ -11,6 +11,7 @@
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
 #include "Components/WidgetSwitcher.h"
+#include "Blueprint/WidgetTree.h"
 #include "CustomizationPlayerController_C.h"
 #include "LobbyPlayerController.h"
 #include "../Player/SnowRumbleCharacter.h"
@@ -92,6 +93,15 @@ void UOptionsWidget::NativeConstruct()
 	InitializeSensitivitySetting();
 	InitializeAudioSettings();
 	InitializeMicrophoneSettings();
+	if (LanguageComboBox && !LanguageComboBox->OnGenerateWidgetEvent.IsBound())
+	{
+		DefaultLanguageComboBoxForegroundColor =
+			LanguageComboBox->GetForegroundColor();
+		bHasDefaultLanguageComboBoxForegroundColor = true;
+		LanguageComboBox->OnGenerateWidgetEvent.BindDynamic(
+			this,
+			&UOptionsWidget::HandleLanguageComboBoxGenerateWidget);
+	}
 	InitializeLanguageSetting();
 	RefreshMicrophoneDeviceList();
 	InitializeDefaultKeyBindingRows();
@@ -1904,6 +1914,40 @@ void UOptionsWidget::RefreshLanguageComboBoxTextColor()
 			LanguageComboBox->GetForegroundColor();
 		bHasDefaultLanguageComboBoxForegroundColor = true;
 	}
+
+	const bool bShouldBeWhite =
+		LanguageComboBox->IsHovered() || LanguageComboBox->IsOpen();
+	for (UTextBlock* TextBlock : LanguageComboBoxTextBlocks)
+	{
+		if (TextBlock)
+		{
+			TextBlock->SetColorAndOpacity(
+				bShouldBeWhite
+					? FSlateColor(FLinearColor::White)
+					: DefaultLanguageComboBoxForegroundColor);
+		}
+	}
+}
+
+UWidget* UOptionsWidget::HandleLanguageComboBoxGenerateWidget(FString Item)
+{
+	if (!WidgetTree)
+	{
+		return nullptr;
+	}
+
+	UTextBlock* TextBlock = WidgetTree->ConstructWidget<UTextBlock>(
+		UTextBlock::StaticClass());
+	if (!TextBlock)
+	{
+		return nullptr;
+	}
+
+	TextBlock->SetText(FText::FromString(Item));
+	TextBlock->SetFont(LanguageComboBox->GetFont());
+	TextBlock->SetColorAndOpacity(DefaultLanguageComboBoxForegroundColor);
+	LanguageComboBoxTextBlocks.AddUnique(TextBlock);
+	return TextBlock;
 }
 
 void UOptionsWidget::RefreshMicrophoneModeButtonSelection()

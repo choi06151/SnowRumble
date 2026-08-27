@@ -59,6 +59,11 @@ void AJukeboxActor::BeginPlay()
 	}
 }
 
+bool AJukeboxActor::IsJukeboxMeshComponent(const UPrimitiveComponent* Component) const
+{
+	return Component && Component == JukeboxMeshComponent;
+}
+
 void AJukeboxActor::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
