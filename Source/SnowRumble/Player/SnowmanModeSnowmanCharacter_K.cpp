@@ -14,7 +14,7 @@
 
 namespace
 {
-constexpr float SnowballHitSlowWalkSpeedMultiplier = 0.2f;
+constexpr float SnowballHitSlowWalkSpeedMultiplier = 0.3f;
 }
 
 ASnowmanModeSnowmanCharacter::ASnowmanModeSnowmanCharacter()
