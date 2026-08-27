@@ -1143,11 +1143,15 @@ void UCustomizationWidget::ApplyPaletteButtonColors()
 	ApplyPaletteButtonColor(GreenBrushColorButton, FLinearColor::Green);
 	ApplyPaletteButtonColor(BlueBrushColorButton, FLinearColor::Blue);
 	ApplyPaletteButtonColor(IndigoBrushColorButton, FLinearColor(0.25f, 0.0f, 0.55f, 1.0f));
-	ApplyPaletteButtonColor(PurpleBrushColorButton, FLinearColor(0.55f, 0.0f, 1.0f, 1.0f));
+	ApplyPaletteButtonColor(
+		PurpleBrushColorButton,
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("BC7AFF"))));
 	ApplyPaletteButtonColor(BlackBrushColorButton, FLinearColor::Black);
 	ApplyPaletteButtonColor(WhiteBrushColorButton, FLinearColor::White);
 	ApplyPaletteButtonColor(LightRedBrushColorButton, FLinearColor(1.0f, 0.52f, 0.46f, 1.0f));
-	ApplyPaletteButtonColor(DarkRedBrushColorButton, FLinearColor(0.78f, 0.02f, 0.02f, 1.0f));
+	ApplyPaletteButtonColor(
+		DarkRedBrushColorButton,
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("FF674C"))));
 	ApplyPaletteButtonColor(SoftRedBrushColorButton, FLinearColor(1.0f, 0.28f, 0.20f, 1.0f));
 	ApplyPaletteButtonColor(LightOrangeBrushColorButton, FLinearColor(1.0f, 0.76f, 0.42f, 1.0f));
 	ApplyPaletteButtonColor(DarkOrangeBrushColorButton, FLinearColor(0.82f, 0.22f, 0.01f, 1.0f));

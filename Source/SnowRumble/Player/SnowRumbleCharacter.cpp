@@ -19,10 +19,12 @@
 #include "../Item/GiftItemEffectComponent_C.h"
 #include "PlayerGrabComponent_C.h"
 #include "../Snowball/SnowballCreationComponent.h"
+#include "../Snowball/SnowballDamageTypes.h"
 #include "../Snowball/SnowballEquipmentComponent.h"
 #include "../Snowball/SnowballItem.h"
 #include "../UI/EmoteRadialMenuWidget.h"
 #include "../UI/CustomizationPlayerController_C.h"
+#include "../UI/DamageTextWidget_C.h"
 #include "../UI/InteractionPromptWidget_C.h"
 #include "../UI/KeyGuideWidget_C.h"
 #include "../UI/MainHUDWidget.h"
@@ -50,6 +52,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "Engine/Canvas.h"
 #include "Engine/CanvasRenderTarget2D.h"
+#include "Engine/DamageEvents.h"
 #include "EngineUtils.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -283,6 +286,7 @@ ASnowRumbleCharacter::ASnowRumbleCharacter()
 void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	UpdateIceGlacierMovementSurface();
 	EnsureOverheadTimedActionWidget();
 
 	if (USkeletalMeshComponent* CharacterMesh = GetMesh())
@@ -443,7 +447,11 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 			OutlinedActor = FindClosestPhotoInteractionCandidate();
 			if (!OutlinedActor)
 			{
-				OutlinedActor = FindClosestJukeboxCandidate();
+				AJukeboxActor* Jukebox = FindClosestJukeboxCandidate();
+				if (Jukebox && !Jukebox->IsPlaying())
+				{
+					OutlinedActor = Jukebox;
+				}
 			}
 			if (!OutlinedActor)
 			{
@@ -1513,7 +1521,20 @@ float ASnowRumbleCharacter::TakeDamage(
 		const FVector DamageCauserLocation = DamageCauser
 			? DamageCauser->GetActorLocation()
 			: GetActorLocation();
+		const UClass* DamageTypeClass = DamageEvent.DamageTypeClass
+			? DamageEvent.DamageTypeClass.Get()
+			: UDamageType::StaticClass();
+		const bool bHeadshotDamage =
+			DamageTypeClass
+			&& DamageTypeClass->IsChildOf(
+				USnowballHeadshotDamageType::StaticClass());
 		ClientRequestLocalDamageFeedback(AppliedDamage, DamageCauserLocation);
+		MulticastRequestDamageText(
+			AppliedDamage,
+			GetActorLocation() + DamageTextWorldOffset,
+			bHeadshotDamage
+				? ESnowRumbleDamageTextType::Headshot
+				: ESnowRumbleDamageTextType::Normal);
 		MulticastPlayDamageSound(GetActorLocation());
 	}
 
@@ -1532,6 +1553,17 @@ void ASnowRumbleCharacter::OnConstruction(const FTransform& Transform)
 void ASnowRumbleCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (const UWorld* World = GetWorld())
+	{
+		bIsIceGlacierMap = World->GetMapName().Contains(TEXT("L_IceGlacier_J"));
+	}
+	if (UCharacterMovementComponent* MovementComponent = GetCharacterMovement())
+	{
+		DefaultGroundFriction = MovementComponent->GroundFriction;
+		DefaultBrakingDecelerationWalking =
+			MovementComponent->BrakingDecelerationWalking;
+	}
 
 	if (GetMesh())
 	{
@@ -2923,10 +2955,20 @@ bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
 
 	if (AJukeboxActor* Jukebox = FindClosestJukeboxCandidate())
 	{
-		OutPromptText = NSLOCTEXT(
-			"SnowRumble",
-			"InteractPromptJukebox",
-			"E - 노래틀기");
+		OutPromptText = Jukebox->IsPlaying()
+			? (Jukebox->IsCharacterParticipating(this)
+				? NSLOCTEXT(
+					"SnowRumble",
+					"InteractPromptJukeboxOptOut",
+					"E - 참여 안하기")
+				: NSLOCTEXT(
+					"SnowRumble",
+					"InteractPromptJukeboxOptIn",
+					"E - 참여하기"))
+			: NSLOCTEXT(
+				"SnowRumble",
+				"InteractPromptJukeboxStart",
+				"E - 노래틀기");
 		OutPromptActor = Jukebox;
 		return true;
 	}
@@ -3291,8 +3333,7 @@ void ASnowRumbleCharacter::Move(const FInputActionValue& Value)
 
 	if (!Controller
 		|| (!CanPerformGameplayAction()
-			&& !IsHangingFromWorldGrab()
-			&& !IsGrabbedByCharacter()))
+			&& !IsHangingFromWorldGrab()))
 	{
 		return;
 	}
@@ -3583,11 +3624,8 @@ void ASnowRumbleCharacter::HandleInteractCompleted()
 			}
 			else
 			{
-				AJukeboxActor* OutlinedJukebox = OutlineComponent
-					? Cast<AJukeboxActor>(OutlineComponent->GetOutlinedActor())
-					: nullptr;
-				if (OutlinedJukebox
-					&& OutlinedJukebox == FindClosestJukeboxCandidate())
+				AJukeboxActor* Jukebox = FindClosestJukeboxCandidate();
+				if (Jukebox)
 				{
 					TryInteractWithJukebox();
 				}
@@ -5216,6 +5254,7 @@ bool ASnowRumbleCharacter::CanPerformGameplayAction() const
 		&& !bIsInteractingWithItem
 		&& !bIsEmoteRadialMenuOpen
 		&& !bIsKeyGuideWidgetOpen
+		&& !IsGrabbedByCharacter()
 		&& !bTiebreakerSpectator
 		&& !IsHangingFromWorldGrab()
 		&& !IsPvpMatchInputLocked()
@@ -5829,6 +5868,71 @@ void ASnowRumbleCharacter::MulticastPlayDamageSound_Implementation(
 		DamageSoundAttenuation);
 }
 
+void ASnowRumbleCharacter::MulticastRequestDamageText_Implementation(
+	float AppliedDamage,
+	FVector_NetQuantize DamageTextWorldLocation,
+	ESnowRumbleDamageTextType DamageTextType)
+{
+	if (AppliedDamage <= 0.0f)
+	{
+		return;
+	}
+
+	TSubclassOf<UDamageTextWidget> WidgetClass = DamageTextWidgetClass;
+	if (DamageTextType == ESnowRumbleDamageTextType::Headshot
+		&& HeadshotDamageTextWidgetClass)
+	{
+		WidgetClass = HeadshotDamageTextWidgetClass;
+	}
+	if (WidgetClass)
+	{
+		UWidgetComponent* DamageTextComponent =
+			NewObject<UWidgetComponent>(this);
+		if (DamageTextComponent)
+		{
+			DamageTextComponent->SetWidgetClass(WidgetClass);
+			DamageTextComponent->SetWidgetSpace(EWidgetSpace::Screen);
+			DamageTextComponent->SetDrawAtDesiredSize(false);
+			DamageTextComponent->SetDrawSize(DamageTextWidgetDrawSize);
+			DamageTextComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			DamageTextComponent->RegisterComponent();
+			DamageTextComponent->SetWorldLocation(DamageTextWorldLocation);
+			DamageTextComponent->InitWidget();
+			if (UDamageTextWidget* DamageTextWidget =
+				Cast<UDamageTextWidget>(DamageTextComponent->GetUserWidgetObject()))
+			{
+				DamageTextWidget->InitializeDamageText(
+					AppliedDamage,
+					DamageTextType);
+			}
+
+			if (UWorld* World = GetWorld())
+			{
+				FTimerHandle DestroyTimerHandle;
+				TWeakObjectPtr<UWidgetComponent> WeakDamageTextComponent =
+					DamageTextComponent;
+				World->GetTimerManager().SetTimer(
+					DestroyTimerHandle,
+					[WeakDamageTextComponent]()
+					{
+						if (UWidgetComponent* Component =
+							WeakDamageTextComponent.Get())
+						{
+							Component->DestroyComponent();
+						}
+					},
+					FMath::Max(0.01f, DamageTextWidgetLifeSeconds),
+					false);
+			}
+		}
+	}
+
+	OnDamageTextRequested(
+		AppliedDamage,
+		DamageTextWorldLocation,
+		DamageTextType);
+}
+
 FVector ASnowRumbleCharacter::CalculateLocalDamageCameraShakeOffset() const
 {
 	const UWorld* World = GetWorld();
@@ -6003,9 +6107,12 @@ void ASnowRumbleCharacter::ApplyMovementSpeed()
 				? 0.0f
 				: HealthComponent && HealthComponent->IsDead()
 				? 0.0f
-				: bIsPickingUpItem
+			: bIsPickingUpItem
 					|| bIsInteractingWithItem
 				? 0.0f
+				: PlayerGrabComponent
+					&& PlayerGrabComponent->IsCarryingOpposingFrozenCharacter()
+				? OpposingFrozenCarryWalkSpeed
 				: SnowballEquipmentComponent
 					&& SnowballEquipmentComponent->IsRollingSnowball()
 					? SnowballEquipmentComponent->GetRollingWalkSpeed()
@@ -6019,6 +6126,49 @@ void ASnowRumbleCharacter::ApplyMovementSpeed()
 					: WalkSpeed)
 			* ItemMovementSpeedMultiplier;
 	}
+}
+
+void ASnowRumbleCharacter::UpdateIceGlacierMovementSurface()
+{
+	UCharacterMovementComponent* MovementComponent = GetCharacterMovement();
+	if (!MovementComponent)
+	{
+		return;
+	}
+
+	bool bShouldApplySlipperyMovement = false;
+	if (bEnableIceGlacierSlipperyMovement && bIsIceGlacierMap
+		&& MovementComponent->IsMovingOnGround()
+		&& MovementComponent->CurrentFloor.HitResult.GetActor())
+	{
+		const AActor* FloorActor =
+			MovementComponent->CurrentFloor.HitResult.GetActor();
+		bShouldApplySlipperyMovement =
+			!FloorActor->ActorHasTag(SnowFootstepSurfaceTag);
+	}
+
+	if (bSlipperyMovementApplied == bShouldApplySlipperyMovement)
+	{
+		return;
+	}
+
+	if (bShouldApplySlipperyMovement)
+	{
+		MovementComponent->GroundFriction = FMath::Max(
+			0.0f,
+			SlipperyGroundFriction);
+		MovementComponent->BrakingDecelerationWalking = FMath::Max(
+			0.0f,
+			SlipperyBrakingDecelerationWalking);
+	}
+	else
+	{
+		MovementComponent->GroundFriction = DefaultGroundFriction;
+		MovementComponent->BrakingDecelerationWalking =
+			DefaultBrakingDecelerationWalking;
+	}
+
+	bSlipperyMovementApplied = bShouldApplySlipperyMovement;
 }
 
 void ASnowRumbleCharacter::ServerSetSprinting_Implementation(bool bNewSprinting)

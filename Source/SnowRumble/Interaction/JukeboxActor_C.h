@@ -35,6 +35,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Jukebox")
 	bool IsPlaying() const;
 
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Jukebox")
+	bool IsCharacterParticipating(const ASnowRumbleCharacter* Character) const;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -108,6 +111,10 @@ private:
 
 	UPROPERTY(VisibleInstanceOnly, ReplicatedUsing = OnRep_IsPlaying, Category = "SnowRumble|Jukebox")
 	bool bIsPlaying = false;
+
+	/** 재생 중 참여를 해제한 캐릭터 목록이다. 목록에 없는 캐릭터는 기본 참여 상태다. */
+	UPROPERTY(VisibleInstanceOnly, Replicated, Category = "SnowRumble|Jukebox")
+	TArray<TObjectPtr<ASnowRumbleCharacter>> OptedOutCharacters;
 
 	FTimerHandle JumpTimerHandle;
 	FTimerHandle PlaybackTimerHandle;
