@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "../UI/DamageTextWidget_C.h"
 #include "../Interaction/LobbyInteractionBoard_C.h"
 #include "../Item/GiftItemTypes_C.h"
 #include "../Game/SnowRumblePlayerState.h"
@@ -376,6 +377,13 @@ public:
 	void OnLocalDamageFeedbackRequested(
 		float AppliedDamage,
 		FVector DamageCauserLocation);
+
+	/** 모든 화면에서 피격자 위치에 데미지 숫자 표현을 띄운다. */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Damage")
+	void OnDamageTextRequested(
+		float AppliedDamage,
+		FVector DamageTextWorldLocation,
+		ESnowRumbleDamageTextType DamageTextType);
 
 	/** 머리 위 이름표 WBP가 표시할 닉네임을 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Identity")
@@ -822,6 +830,13 @@ protected:
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastPlayDamageSound(FVector_NetQuantize DamageLocation);
 
+	/** 서버가 확정한 피해 숫자 표현을 모든 화면에 전달한다. */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastRequestDamageText(
+		float AppliedDamage,
+		FVector_NetQuantize DamageTextWorldLocation,
+		ESnowRumbleDamageTextType DamageTextType);
+
 	/** 서버가 소유 클라이언트의 이모션 선택을 검사하고 확정한다. */
 	UFUNCTION(Server, Reliable)
 	void ServerRequestPlayEmote(int32 EmoteIndex);
@@ -940,6 +955,21 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage Feedback", meta = (ClampMin = "0.0"))
 	float DamageFeedbackCameraShakeFrequency = 34.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage Feedback")
+	FVector DamageTextWorldOffset = FVector(0.0f, 0.0f, 110.0f);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage Feedback|Text")
+	TSubclassOf<UDamageTextWidget> DamageTextWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage Feedback|Text")
+	TSubclassOf<UDamageTextWidget> HeadshotDamageTextWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage Feedback|Text")
+	FVector2D DamageTextWidgetDrawSize = FVector2D(160.0f, 80.0f);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage Feedback|Text", meta = (ClampMin = "0.01"))
+	float DamageTextWidgetLifeSeconds = 0.85f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage", meta = (ClampMin = "0.0"))
 	float PostDamageInvulnerabilitySeconds = 1.0f;
@@ -1339,6 +1369,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Movement", meta = (ClampMin = "0.0"))
 	float AimWalkSpeed = 300.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Movement|Grab", meta = (ClampMin = "0.0"))
+	float OpposingFrozenCarryWalkSpeed = 100.0f;
 
 	/** L_IceGlacier_J에서 SnowSurface가 아닌 바닥에 미끄러짐을 적용할지 정한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Movement|Ice")

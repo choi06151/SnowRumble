@@ -10,6 +10,8 @@
 ## 현재 집중 Task
 
 - [C-18](C-18_steam_session_integration.md) Steam 세션 최종 통합
+- [C-34](C-34_grabbable_physics_object_foundation.md) Grab 물리 상호작용 물건 베이스 (사용자 승인, 진행중)
+- [C-35](C-35_damage_text_feedback_contract.md) 피격 데미지 텍스트 표시 계약 (진행중)
 
 ## 개발 스타일
 
@@ -55,12 +57,35 @@
 | 30 | [C-29](C-29_travel_url_and_loading_stability.md) | 전환 URL과 PvP 로딩 안정화 | C-04, C-05, C-17 | 진행중 |
 | 31 | [C-31](C-31_pvp_loading_ready_and_pso.md) | PvP 로딩 Ready 핸드셰이크와 PSO 안정화 | C-29 | 진행중 |
 | 32 | [C-32](C-32_jukebox_interaction.md) | 주크박스 상호작용 | C-15, C-22, C-30 | 진행중 |
+| 33 | [C-35](C-35_damage_text_feedback_contract.md) | 피격 데미지 텍스트 표시 계약 | C-09 | 진행중 |
 
 ## 통합 변경 요청
 
 - 없음
 
 ## 계획 변경 기록
+
+- 2026-08-27: 사용자 승인으로 C-34를 추가했다. 기존 C-28 Grab과 C-09 눈덩이 충돌을 확장해 여러 물건 Blueprint가 재사용할 물리 Actor 베이스를 제공한다.
+- 2026-08-27: C-34 C++ 베이스 Actor, Grab 연결, 플레이어 밀침과 눈덩이 파괴 충돌을 구현했다. 기본 실행 확인 모드가 수동 실행 확인이므로 Unreal 빌드와 멀티플레이 결과 확인은 사용자 확인으로 남겼다.
+- 2026-08-27: C-34 Grab trace에 `ECC_PhysicsBody`를 추가해 물리 시뮬레이션 물건이 Grab 후보에서 누락되는 오류를 수정했다.
+- 2026-08-27: C-34 물리 물건 Grab 중에는 게이지가 항상 최대 상태이고 자동 해제되지 않도록 조정했다.
+- 2026-08-27: C-34 물리 물건 Grab Constraint에 선형 위치 드라이브를 추가해 손을 따라오는 힘을 강화했다.
+- 2026-08-27: C-34 물리 물건 Grab Constraint의 Swing/Twist 회전을 잠가 나풀거림을 제거했다.
+- 2026-08-27: C-34 Grab 중인 플레이어와 물리 물건의 충돌을 개별 차단하고 놓을 때 원복하도록 조정했다.
+- 2026-08-27: C-34 물리 접촉까지 차단하도록 플레이어 Capsule과 물건 사이에 자유도 제한 없는 collision-only Constraint를 추가했다.
+- 2026-08-27: C-34 물리 물건 Constraint가 캐릭터 손 bone을 직접 당겨 팔이 늘어나는 회귀를 수정했다. 손 위치를 따라가는 숨김 PhysicsOnly 앵커를 만들고 물건은 앵커에 연결한다.
+- 2026-08-27: C-34 물리 물건 Grab 기준점을 캐릭터 상대 목표 위치로 고정하고, 회전 중 벌어짐을 줄이는 전용 slack·속도 보정을 추가했다.
+- 2026-08-27: C-34 물리 물건 Grab 중 플레이어 Pawn이 카메라 Yaw를 따라 회전하고, 해제 시 이전 회전 모드로 복원되도록 조정했다.
+- 2026-08-27: C-34 물리 물건 Grab 방식을 고정 이동으로 변경했다. 잡힌 동안 물건 시뮬레이션은 잠시 끄고 손 위치에 직접 고정하며, 상대 플레이어 밀침은 서버 overlap으로 별도 처리한다.
+- 2026-08-27: C-34 물리 물건 Grab 시작 시 손 목표점으로 순간 이동하지 않고, 잡힌 순간의 캐릭터 상대 Transform을 유지하며 따라오도록 조정했다.
+- 2026-08-27: C-34 잡힌 물리 물건의 상대 플레이어 밀침 판정을 Sphere radius 대신 실제 PrimitiveComponent collision shape overlap으로 변경했다.
+- 2026-08-27: C-34 눈덩이가 Grab 물리 물건에 맞으면 반사되지 않고 충돌 이펙트 후 부서지도록 변경했다.
+- 2026-08-27: C-34 Grab 물건 자식 기믹 확장을 위해 Grab 시작·해제·Tick 훅을 추가하고, `ATambourineGrabbableObject`가 잡힌 상태에서 플레이어 이동 시 위치 기반 찰랑 사운드를 멀티캐스트 재생하도록 추가했다.
+- 2026-08-27: C-34 Grab 물건의 눈덩이 피격과 플레이어 밀침을 공통 상호작용 카운터로 합산하고, 5회 도달 시 지정 Niagara VFX 재생 후 액터를 제거하도록 확장했다.
+- 2026-08-27: C-28 얼음 Grab 제한을 확장했다. 상대팀의 얼은 플레이어도 Grab할 수 있고, 상대팀 운반 중인 Grabber는 `OpposingFrozenCarryWalkSpeed`로 매우 느리게 이동한다.
+- 2026-08-27: C-35를 추가했다. `ASnowRumbleCharacter::TakeDamage()`에서 실제 적용 피해량이 0보다 클 때 모든 클라이언트에 `OnDamageTextRequested` 이벤트를 전달한다.
+- 2026-08-27: C-35에 `UDamageTextWidget` 부모와 일반/헤드샷 WBP 슬롯을 추가했다. 일반 피해는 `DamageTextWidgetClass`, 향후 헤드샷은 `HeadshotDamageTextWidgetClass`를 사용한다.
+- 2026-08-27: C-35 직접 투척 눈덩이 헤드샷 판정을 추가했다. `HeadshotBoneNames`에 맞은 bone이 들어오면 `HeadshotDamageMultiplier`와 `HeadshotDamageTextWidgetClass` 타입을 적용한다.
 
 - 2026-08-07: 새 GDD와 4인 구조를 기준으로 최초 대기열 작성.
 - 2026-08-07: Task 분할 재검토에 따라 C-07을 기본 효과 계약으로 축소하고, 핫팩 부활은 C-13, 팀 스폰·시작 연출은 C-14로 분리.

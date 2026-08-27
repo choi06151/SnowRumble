@@ -19,10 +19,12 @@
 #include "../Item/GiftItemEffectComponent_C.h"
 #include "PlayerGrabComponent_C.h"
 #include "../Snowball/SnowballCreationComponent.h"
+#include "../Snowball/SnowballDamageTypes.h"
 #include "../Snowball/SnowballEquipmentComponent.h"
 #include "../Snowball/SnowballItem.h"
 #include "../UI/EmoteRadialMenuWidget.h"
 #include "../UI/CustomizationPlayerController_C.h"
+#include "../UI/DamageTextWidget_C.h"
 #include "../UI/InteractionPromptWidget_C.h"
 #include "../UI/KeyGuideWidget_C.h"
 #include "../UI/MainHUDWidget.h"
@@ -50,6 +52,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "Engine/Canvas.h"
 #include "Engine/CanvasRenderTarget2D.h"
+#include "Engine/DamageEvents.h"
 #include "EngineUtils.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -1518,7 +1521,20 @@ float ASnowRumbleCharacter::TakeDamage(
 		const FVector DamageCauserLocation = DamageCauser
 			? DamageCauser->GetActorLocation()
 			: GetActorLocation();
+		const UClass* DamageTypeClass = DamageEvent.DamageTypeClass
+			? DamageEvent.DamageTypeClass.Get()
+			: UDamageType::StaticClass();
+		const bool bHeadshotDamage =
+			DamageTypeClass
+			&& DamageTypeClass->IsChildOf(
+				USnowballHeadshotDamageType::StaticClass());
 		ClientRequestLocalDamageFeedback(AppliedDamage, DamageCauserLocation);
+		MulticastRequestDamageText(
+			AppliedDamage,
+			GetActorLocation() + DamageTextWorldOffset,
+			bHeadshotDamage
+				? ESnowRumbleDamageTextType::Headshot
+				: ESnowRumbleDamageTextType::Normal);
 		MulticastPlayDamageSound(GetActorLocation());
 	}
 
@@ -5852,6 +5868,71 @@ void ASnowRumbleCharacter::MulticastPlayDamageSound_Implementation(
 		DamageSoundAttenuation);
 }
 
+void ASnowRumbleCharacter::MulticastRequestDamageText_Implementation(
+	float AppliedDamage,
+	FVector_NetQuantize DamageTextWorldLocation,
+	ESnowRumbleDamageTextType DamageTextType)
+{
+	if (AppliedDamage <= 0.0f)
+	{
+		return;
+	}
+
+	TSubclassOf<UDamageTextWidget> WidgetClass = DamageTextWidgetClass;
+	if (DamageTextType == ESnowRumbleDamageTextType::Headshot
+		&& HeadshotDamageTextWidgetClass)
+	{
+		WidgetClass = HeadshotDamageTextWidgetClass;
+	}
+	if (WidgetClass)
+	{
+		UWidgetComponent* DamageTextComponent =
+			NewObject<UWidgetComponent>(this);
+		if (DamageTextComponent)
+		{
+			DamageTextComponent->SetWidgetClass(WidgetClass);
+			DamageTextComponent->SetWidgetSpace(EWidgetSpace::Screen);
+			DamageTextComponent->SetDrawAtDesiredSize(false);
+			DamageTextComponent->SetDrawSize(DamageTextWidgetDrawSize);
+			DamageTextComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			DamageTextComponent->RegisterComponent();
+			DamageTextComponent->SetWorldLocation(DamageTextWorldLocation);
+			DamageTextComponent->InitWidget();
+			if (UDamageTextWidget* DamageTextWidget =
+				Cast<UDamageTextWidget>(DamageTextComponent->GetUserWidgetObject()))
+			{
+				DamageTextWidget->InitializeDamageText(
+					AppliedDamage,
+					DamageTextType);
+			}
+
+			if (UWorld* World = GetWorld())
+			{
+				FTimerHandle DestroyTimerHandle;
+				TWeakObjectPtr<UWidgetComponent> WeakDamageTextComponent =
+					DamageTextComponent;
+				World->GetTimerManager().SetTimer(
+					DestroyTimerHandle,
+					[WeakDamageTextComponent]()
+					{
+						if (UWidgetComponent* Component =
+							WeakDamageTextComponent.Get())
+						{
+							Component->DestroyComponent();
+						}
+					},
+					FMath::Max(0.01f, DamageTextWidgetLifeSeconds),
+					false);
+			}
+		}
+	}
+
+	OnDamageTextRequested(
+		AppliedDamage,
+		DamageTextWorldLocation,
+		DamageTextType);
+}
+
 FVector ASnowRumbleCharacter::CalculateLocalDamageCameraShakeOffset() const
 {
 	const UWorld* World = GetWorld();
@@ -6026,9 +6107,12 @@ void ASnowRumbleCharacter::ApplyMovementSpeed()
 				? 0.0f
 				: HealthComponent && HealthComponent->IsDead()
 				? 0.0f
-				: bIsPickingUpItem
+			: bIsPickingUpItem
 					|| bIsInteractingWithItem
 				? 0.0f
+				: PlayerGrabComponent
+					&& PlayerGrabComponent->IsCarryingOpposingFrozenCharacter()
+				? OpposingFrozenCarryWalkSpeed
 				: SnowballEquipmentComponent
 					&& SnowballEquipmentComponent->IsRollingSnowball()
 					? SnowballEquipmentComponent->GetRollingWalkSpeed()
