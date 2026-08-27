@@ -993,32 +993,17 @@ void UPlayerGrabComponent::UpdateGrabbedCharacterTether(float DeltaTime)
 	const float Distance = ToDesired.Size();
 	if (Distance <= GrabTetherSlackDistance)
 	{
-		FVector TargetVelocity = TargetMovement->Velocity;
-		TargetVelocity.Z =
-			FMath::Min(TargetMovement->Velocity.Z, 0.0f)
-			* GrabTetherVelocityDamping;
-		TargetMovement->Velocity = FMath::VInterpTo(
-			TargetMovement->Velocity,
-			TargetVelocity,
-			DeltaTime,
-			FMath::Max(0.0f, GrabbedCharacterTetherVelocityInterpSpeed));
+		TargetMovement->StopMovementImmediately();
 		return;
 	}
 
-	const FVector PullDirection = ToDesired / Distance;
-	const float PullSpeed = FMath::Clamp(
-		(Distance - GrabTetherSlackDistance) * GrabTetherPullStrength,
-		0.0f,
-		GrabTetherMaxPullSpeed);
-	const FVector CorrectionVelocity = PullDirection * PullSpeed;
-	const FVector TargetVelocity = (
-		TargetMovement->Velocity * GrabbedCharacterInputVelocityRetention
-		+ CorrectionVelocity).GetClampedToMaxSize(GrabTetherMaxPullSpeed);
-	TargetMovement->Velocity = FMath::VInterpTo(
-		TargetMovement->Velocity,
-		TargetVelocity,
+	const FVector SmoothedTargetLocation = FMath::VInterpTo(
+		CurrentTargetLocation,
+		DesiredTargetLocation,
 		DeltaTime,
-		FMath::Max(0.0f, GrabbedCharacterTetherVelocityInterpSpeed));
+		FMath::Max(0.0f, GrabbedCharacterLocationInterpSpeed));
+	TargetCharacter->SetActorLocation(SmoothedTargetLocation, true);
+	TargetMovement->StopMovementImmediately();
 	TargetCharacter->ForceNetUpdate();
 	Character->ForceNetUpdate();
 }

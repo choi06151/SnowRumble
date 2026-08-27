@@ -2,6 +2,7 @@
 
 #include "SnowmanModeGameMode_K.h"
 #include "../Snowball/SnowballItem.h"
+#include "../UI/TimedDropAnnouncementWidget.h"
 #include "NavigationSystem.h"
 #include "TimerManager.h"
 #include "Engine/World.h"
@@ -26,6 +27,7 @@
 #include "SnowRumbleLobbyGameMode.h"
 #include "SnowRumblePlayerState.h"
 #include "Sound/SoundBase.h"
+#include "UObject/ConstructorHelpers.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSnowmanMode, Log, All);
 
@@ -229,6 +231,15 @@ ASnowmanModeGameMode::ASnowmanModeGameMode()
 	DefaultPawnClass = ASnowRumbleCharacter::StaticClass();
 	SnowmanCharacterClass = ASnowmanModeSnowmanCharacter::StaticClass();
 	LobbyReturnGameModeClass = ASnowRumbleLobbyGameMode::StaticClass();
+
+	static ConstructorHelpers::FClassFinder<UTimedDropAnnouncementWidget>
+		DefaultFallingSnowballAnnouncementWidget(
+			TEXT("/Game/WBP/WBP_FallingSnowAlarm"));
+	if (DefaultFallingSnowballAnnouncementWidget.Succeeded())
+	{
+		FallingSnowballAnnouncementWidgetClass =
+			DefaultFallingSnowballAnnouncementWidget.Class;
+	}
 	bUseSeamlessTravel = true;
 
 #if WITH_EDITOR
@@ -729,6 +740,7 @@ void ASnowmanModeGameMode::SpawnFallingSnowballEvent()
 		return;
 	}
 
+	BroadcastFallingSnowballAnnouncement();
 	GetWorldTimerManager().ClearTimer(FallingSnowballSpawnTimerHandle);
 	RemainingFallingSnowballs = FallingSnowballCount;
 	SpawnNextFallingSnowball();
@@ -815,6 +827,28 @@ void ASnowmanModeGameMode::SpawnNextFallingSnowball()
 			&ASnowmanModeGameMode::SpawnNextFallingSnowball,
 			FMath::Max(0.0f, FallingSnowballSpawnIntervalSeconds),
 			false);
+	}
+}
+
+void ASnowmanModeGameMode::BroadcastFallingSnowballAnnouncement() const
+{
+	UWorld* World = GetWorld();
+	if (!World || !FallingSnowballAnnouncementWidgetClass)
+	{
+		return;
+	}
+
+	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
+		It;
+		++It)
+	{
+		if (ASnowRumblePlayerController* PlayerController =
+			Cast<ASnowRumblePlayerController>(It->Get()))
+		{
+			PlayerController->ClientShowTimedDropAnnouncement(
+				FallingSnowballAnnouncementWidgetClass,
+				FallingSnowballAnnouncementDisplayDurationSeconds);
+		}
 	}
 }
 
