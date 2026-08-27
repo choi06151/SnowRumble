@@ -82,6 +82,9 @@
 - 2026-08-27: C-34 눈덩이가 Grab 물리 물건에 맞으면 반사되지 않고 충돌 이펙트 후 부서지도록 변경했다.
 - 2026-08-27: C-34 Grab 물건 자식 기믹 확장을 위해 Grab 시작·해제·Tick 훅을 추가하고, `ATambourineGrabbableObject`가 잡힌 상태에서 플레이어 이동 시 위치 기반 찰랑 사운드를 멀티캐스트 재생하도록 추가했다.
 - 2026-08-27: C-34 Grab 물건의 눈덩이 피격과 플레이어 밀침을 공통 상호작용 카운터로 합산하고, 5회 도달 시 지정 Niagara VFX 재생 후 액터를 제거하도록 확장했다.
+- 2026-08-27: C-34 태그 기반 StaticMesh 런타임 치환을 추가했다. 맵에 `AGrabbableStaticMeshBootstrapActor`를 배치하고 Actor 또는 StaticMeshComponent에 `grabbable`/`grabable` 태그를 달면 서버가 `AGrabbablePhysicsObject`를 스폰하고 원본 Static Mesh는 각 로컬에서 숨김·충돌 해제한다.
+- 2026-08-27: C-34 테스트 기본값을 조정했다. `AGrabbablePhysicsObject`의 기본 상호작용 파괴 횟수는 1회, 기본 플레이어 밀침 힘은 3000으로 변경했다.
+- 2026-08-27: C-34 태그 치환 물건의 밀침 힘, 파괴 횟수, 파괴 Niagara 이펙트를 `AGrabbableStaticMeshBootstrapActor`에서 지정해 스폰 직후 주입하도록 확장했다.
 - 2026-08-27: 사용자 요청으로 입력을 좌클릭 Grab, `Q` 눈 만들기, `E` 눈덩이 굴리기, `F` 일반 상호작용으로 분리했다. 바닥 눈덩이는 Grab trace 적중 시 기존 손 위치에 장착하며, 제작·굴리기 InputAction 슬롯과 옵션 재설정 항목을 추가했다.
 - 2026-08-27: C-28 얼음 Grab 제한을 확장했다. 상대팀의 얼은 플레이어도 Grab할 수 있고, 상대팀 운반 중인 Grabber는 `OpposingFrozenCarryWalkSpeed`로 매우 느리게 이동한다.
 - 2026-08-27: C-35를 추가했다. `ASnowRumbleCharacter::TakeDamage()`에서 실제 적용 피해량이 0보다 클 때 모든 클라이언트에 `OnDamageTextRequested` 이벤트를 전달한다.

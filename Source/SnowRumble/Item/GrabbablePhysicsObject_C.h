@@ -38,6 +38,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab|Interaction")
 	int32 GetInteractionCount() const;
 
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Grab|Interaction")
+	void ConfigureInteractionSettings(
+		float NewPlayerPushStrength,
+		int32 NewInteractionsToBreak,
+		UNiagaraSystem* NewInteractionBreakEffect);
+
 	virtual void HandleGrabbedByCharacter(ACharacter* Grabber);
 	virtual void HandleReleasedByCharacter(ACharacter* Grabber);
 	virtual void TickGrabbedByCharacter(
@@ -64,13 +70,13 @@ protected:
 	TObjectPtr<UStaticMeshComponent> PhysicsComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Physics", meta = (ClampMin = "0.0"))
-	float PlayerPushStrength = 700.0f;
+	float PlayerPushStrength = 3000.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Physics")
 	bool bCanBeGrabbed = true;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Interaction", meta = (ClampMin = "1"))
-	int32 InteractionsToBreak = 5;
+	int32 InteractionsToBreak = 1;
 
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Interaction")
 	int32 InteractionCount = 0;

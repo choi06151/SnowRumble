@@ -38,6 +38,16 @@ int32 AGrabbablePhysicsObject::GetInteractionCount() const
 	return InteractionCount;
 }
 
+void AGrabbablePhysicsObject::ConfigureInteractionSettings(
+	float NewPlayerPushStrength,
+	int32 NewInteractionsToBreak,
+	UNiagaraSystem* NewInteractionBreakEffect)
+{
+	PlayerPushStrength = FMath::Max(NewPlayerPushStrength, 0.0f);
+	InteractionsToBreak = FMath::Max(NewInteractionsToBreak, 1);
+	InteractionBreakEffect = NewInteractionBreakEffect;
+}
+
 void AGrabbablePhysicsObject::RegisterInteraction()
 {
 	if (!HasAuthority() || IsActorBeingDestroyed())
