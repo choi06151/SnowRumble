@@ -25,7 +25,7 @@ public:
 protected:
 	virtual void NativeConstruct() override;
 
-	/** WBP에 같은 이름으로 배치하면 `E - 게시판` 같은 안내 문구를 자동 표시한다. */
+	/** WBP에 같은 이름으로 배치하면 `F - 게시판` 같은 안내 문구를 자동 표시한다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Interaction")
 	TObjectPtr<UTextBlock> PromptText;
 };
