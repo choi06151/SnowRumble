@@ -1152,12 +1152,14 @@ void UCustomizationWidget::ApplyPaletteButtonColors()
 		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("00A6D7"))));
 	ApplyPaletteButtonColor(
 		IndigoBrushColorButton,
-		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("3AA7FF"))));
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("BC7AFF"))));
 	ApplyPaletteButtonColor(
 		PurpleBrushColorButton,
 		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("FD8BFF"))));
 	ApplyPaletteButtonColor(BlackBrushColorButton, FLinearColor::Black);
-	ApplyPaletteButtonColor(WhiteBrushColorButton, FLinearColor::White);
+	ApplyPaletteButtonColor(
+		WhiteBrushColorButton,
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("E664E9"))));
 	ApplyPaletteButtonColor(LightRedBrushColorButton, FLinearColor(1.0f, 0.52f, 0.46f, 1.0f));
 	ApplyPaletteButtonColor(
 		DarkRedBrushColorButton,
@@ -1197,12 +1199,16 @@ void UCustomizationWidget::ApplyPaletteButtonColors()
 	ApplyPaletteButtonColor(
 		CyanBrushColorButton,
 		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("FEADFF"))));
-	ApplyPaletteButtonColor(BrownBrushColorButton, FLinearColor(0.42f, 0.18f, 0.05f, 1.0f));
+	ApplyPaletteButtonColor(
+		BrownBrushColorButton,
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("AAAAAA"))));
 	ApplyPaletteButtonColor(DarkGrayBrushColorButton, FLinearColor(0.18f, 0.18f, 0.18f, 1.0f));
-	ApplyPaletteButtonColor(GrayBrushColorButton, FLinearColor(0.50f, 0.50f, 0.50f, 1.0f));
+	ApplyPaletteButtonColor(
+		GrayBrushColorButton,
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("E2E2E2"))));
 	ApplyPaletteButtonColor(
 		LightGrayBrushColorButton,
-		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("E664E9"))));
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("FD8BFF"))));
 }
 
 void UCustomizationWidget::ApplyPaletteButtonColor(
