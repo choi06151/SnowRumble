@@ -133,6 +133,16 @@ private:
 	/** Gust 중인 서버가 플레이어 캐릭터에 제한된 수평 드리프트 속도를 적용한다. */
 	void ApplyWindDriftToPlayers(float DeltaSeconds);
 
+	/** 소유 클라이언트가 자기 로컬 캐릭터에만 예측용 드리프트를 적용한다. */
+	void ApplyWindDriftToLocalPlayer(float DeltaSeconds);
+
+	/** 서버와 소유 클라이언트가 공유하는 단일 캐릭터 드리프트 계산이다. */
+	void ApplyWindDriftToCharacter(
+		ASnowRumbleCharacter* Character,
+		float DeltaSeconds,
+		const FVector& WindDirection,
+		float StrengthAlpha);
+
 	/** 현재 이동 모드에 맞는 최대 바람 드리프트 속도를 반환한다. */
 	float GetMaxWindDriftSpeedForMovementMode(
 		const UCharacterMovementComponent& MovementComponent) const;
@@ -159,7 +169,12 @@ private:
 		EIceGlacierWindGustState::Idle;
 
 	float NextWindStartServerTime = 0.0f;
+
+	UPROPERTY(Replicated)
 	float CurrentGustStartServerTime = 0.0f;
+
+	UPROPERTY(Replicated)
 	float CurrentStateEndServerTime = 0.0f;
+
 	bool bWindScheduleStarted = false;
 };
