@@ -11,7 +11,7 @@ class UAnimationAsset;
 class UAudioComponent;
 class UMainMenuWidget;
 class UOptionsWidget;
-class UKeyGuideWidget;
+class UMainMenuKeyGuideWidget;
 class UUserWidget;
 class ASnowRumbleCharacter;
 class USoundBase;
@@ -50,6 +50,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Key Guide")
 	void ToggleKeyGuideWidget();
 
+	/** 메인 메뉴 전용 조작법 WBP를 제거하고 메인 메뉴 입력으로 돌아간다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Key Guide")
+	void CloseKeyGuideWidget();
+
 	/** 현재 재생 중인 배경음악의 볼륨 프리뷰를 갱신한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Audio")
 	void SetBackgroundMusicPreviewVolume(float MasterVolume, float BgmVolume);
@@ -75,9 +79,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Cursor")
 	TSubclassOf<UUserWidget> DefaultMouseCursorWidgetClass;
 
-	/** 메인 메뉴에서 로컬로 표시할 기존 조작법 WBP 클래스다. */
+	/** 메인 메뉴에서 로컬로 표시할 전용 조작법 WBP 클래스다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Key Guide")
-	TSubclassOf<UKeyGuideWidget> KeyGuideWidgetClass;
+	TSubclassOf<UMainMenuKeyGuideWidget> KeyGuideWidgetClass;
 
 	/** 메인메뉴에 배치한 캐릭터에 적용할 단일 포즈/애니메이션 에셋이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Main Menu|Preview")
@@ -124,8 +128,11 @@ private:
 	/** 현재 재생 중인 메인메뉴 배경음악을 중지한다. */
 	void StopBackgroundMusic();
 
-	/** 조작법 WBP 인스턴스가 없으면 생성한다. */
+	/** 메인 메뉴 전용 조작법 WBP 인스턴스가 없으면 생성한다. */
 	void EnsureKeyGuideWidget();
+
+	/** 세션 종료 후 메인 메뉴 월드에 남은 원격 캐릭터를 제거한다. */
+	void RemoveStaleNetworkCharacters();
 
 	UPROPERTY(Transient)
 	TObjectPtr<UMainMenuWidget> MainMenuWidget;
@@ -137,7 +144,7 @@ private:
 	TObjectPtr<UUserWidget> DefaultMouseCursorWidget;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UKeyGuideWidget> KeyGuideWidget;
+	TObjectPtr<UMainMenuKeyGuideWidget> KeyGuideWidget;
 
 	bool bKeyGuideWidgetVisible = false;
 

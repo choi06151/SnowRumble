@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "UObject/SoftObjectPath.h"
 #include "PodiumPlayerController.generated.h"
 
 class UPodiumWinnerWidget;
@@ -29,7 +30,7 @@ public:
 	void ClientUpdatePodiumReturnSubtitle(const FText& Subtitle);
 
 	UFUNCTION(Client, Reliable, Category = "SnowRumble|Audio")
-	void ClientPlayBackgroundMusic(USoundBase* NewBackgroundMusicSound);
+	void ClientPlayBackgroundMusic(const FSoftObjectPath& BackgroundMusicPath);
 
 	UFUNCTION(Client, Reliable, Category = "SnowRumble|Audio")
 	void ClientStopBackgroundMusic();

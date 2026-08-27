@@ -152,6 +152,10 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|View")
 	float ViewYawAlpha = 0.0f;
 
+	/** Control Rig에 전달할 시점 yaw alpha의 보간 속도다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation|View", meta = (ClampMin = "0.0"))
+	float ViewYawAlphaInterpSpeed = 8.0f;
+
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|State")
 	ESnowballCarryState SnowballCarryState = ESnowballCarryState::Normal;
 
@@ -185,7 +189,7 @@ public:
 		ESnowRumbleFullBodyAnimState::None;
 
 protected:
-	void RefreshFromOwnerCharacter();
+	void RefreshFromOwnerCharacter(float DeltaSeconds = 0.0f);
 	void RefreshDerivedAnimationStates();
 	void ResetAnimationState();
 

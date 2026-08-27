@@ -109,7 +109,13 @@ void APodiumGameMode::HandleStartingNewPlayer_Implementation(
 void APodiumGameMode::BroadcastBackgroundMusic() const
 {
 	UWorld* World = GetWorld();
-	if (!World)
+	if (!World || !BackgroundMusicSound)
+	{
+		return;
+	}
+
+	const FSoftObjectPath BackgroundMusicPath(BackgroundMusicSound);
+	if (!BackgroundMusicPath.IsValid())
 	{
 		return;
 	}
@@ -121,7 +127,7 @@ void APodiumGameMode::BroadcastBackgroundMusic() const
 		if (APodiumPlayerController* PodiumController =
 			Cast<APodiumPlayerController>(It->Get()))
 		{
-			PodiumController->ClientPlayBackgroundMusic(BackgroundMusicSound);
+			PodiumController->ClientPlayBackgroundMusic(BackgroundMusicPath);
 		}
 	}
 }

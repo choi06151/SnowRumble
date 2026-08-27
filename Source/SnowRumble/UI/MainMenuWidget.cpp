@@ -303,13 +303,12 @@ void UMainMenuWidget::HandleCancelRoomCodeJoinClicked()
 
 void UMainMenuWidget::BindMenuButtons()
 {
-	// 메인메뉴의 주요 4개 버튼만 텍스트 호버 색상 처리를 적용한다.
+	// 메인메뉴의 주요 버튼에 텍스트 호버 색상 처리를 적용한다.
 	BindTargetButtonTextColor(HostButton);
 	BindTargetButtonTextColor(QuickJoinButton);
 	BindTargetButtonTextColor(FindButton);
 	BindTargetButtonTextColor(CustomizationButton);
 	BindTargetButtonTextColor(QuitGameButton);
-	BindTargetButtonTextColor(KeyGuideButton);
 
 	if (HostButton)
 	{
@@ -389,7 +388,6 @@ void UMainMenuWidget::UnbindMenuButtons()
 	UnbindTargetButtonTextColor(FindButton);
 	UnbindTargetButtonTextColor(CustomizationButton);
 	UnbindTargetButtonTextColor(QuitGameButton);
-	UnbindTargetButtonTextColor(KeyGuideButton);
 
 	if (HostButton)
 	{

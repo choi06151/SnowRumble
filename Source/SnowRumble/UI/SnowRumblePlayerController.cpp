@@ -255,6 +255,7 @@ void ASnowRumblePlayerController::PlayerTick(float DeltaTime)
 		UpdatePvpIntroCamera(DeltaTime);
 		TrySchedulePvpReadyHandshake();
 		TryNotifyPvpReady();
+		ApplyVoiceMuteMenuInputState();
 	}
 }
 
@@ -423,6 +424,12 @@ void ASnowRumblePlayerController::RestoreGameOnlyInput()
 		return;
 	}
 
+	if (IsVoiceMuteMenuOpen())
+	{
+		ApplyVoiceMuteMenuInputState(true);
+		return;
+	}
+
 	SetShowMouseCursor(false);
 	SetInputMode(FInputModeGameOnly());
 }
@@ -467,7 +474,13 @@ bool ASnowRumblePlayerController::IsChatInputOpen() const
 
 bool ASnowRumblePlayerController::IsGameplayUiInputOpen() const
 {
-	return IsChatInputOpen();
+	return IsChatInputOpen()
+		|| IsVoiceMuteMenuOpen();
+}
+
+bool ASnowRumblePlayerController::IsVoiceMuteMenuOpen() const
+{
+	return VoiceMuteMenuWidget && VoiceMuteMenuWidget->IsInViewport();
 }
 
 bool ASnowRumblePlayerController::IsMicrophoneInputActive() const
@@ -520,6 +533,7 @@ void ASnowRumblePlayerController::RequestVoiceTargetMute()
 {
 	ToggleVoiceMuteMenu();
 	OnVoiceTargetMuteRequested();
+	ApplyVoiceMuteMenuInputState(true);
 }
 
 void ASnowRumblePlayerController::HideVoiceMuteMenu()
@@ -531,12 +545,45 @@ void ASnowRumblePlayerController::HideVoiceMuteMenu()
 
 	VoiceMuteMenuWidget->RemoveFromParent();
 	VoiceMuteMenuWidget = nullptr;
+	bVoiceMuteMenuInputStateApplied = false;
 
 	ResetIgnoreMoveInput();
 	ResetIgnoreLookInput();
 	SetShowMouseCursor(false);
 	FInputModeGameOnly InputMode;
 	SetInputMode(InputMode);
+}
+
+void ASnowRumblePlayerController::ApplyVoiceMuteMenuInputState(bool bForce)
+{
+	if (!IsLocalController()
+		|| !VoiceMuteMenuWidget
+		|| !VoiceMuteMenuWidget->IsInViewport())
+	{
+		bVoiceMuteMenuInputStateApplied = false;
+		return;
+	}
+
+	if (bVoiceMuteMenuInputStateApplied && !bForce)
+	{
+		return;
+	}
+
+	ResetIgnoreMoveInput();
+	ResetIgnoreLookInput();
+	SetIgnoreMoveInput(true);
+	SetIgnoreLookInput(true);
+	SetShowMouseCursor(true);
+	bEnableClickEvents = true;
+	bEnableMouseOverEvents = true;
+	ApplyDefaultMouseCursorWidget();
+
+	FInputModeUIOnly InputMode;
+	InputMode.SetWidgetToFocus(VoiceMuteMenuWidget->TakeWidget());
+	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	SetInputMode(InputMode);
+	VoiceMuteMenuWidget->SetKeyboardFocus();
+	bVoiceMuteMenuInputStateApplied = true;
 }
 
 void ASnowRumblePlayerController::ToggleManualVoiceMute(
@@ -815,6 +862,8 @@ void ASnowRumblePlayerController::ClientPlayPvpTeamIntroShot_Implementation(
 		return;
 	}
 
+	SetPvpIntroWidgetsHidden(true);
+
 	const FText TeamDisplayText = GetPvpIntroTeamDisplayText(Team);
 	OnPvpTeamIntroShot(Team, TeamDisplayText, ShotDurationSeconds);
 	ClientShowPersonalTextAlarm_Implementation(TeamDisplayText);
@@ -841,8 +890,6 @@ void ASnowRumblePlayerController::ClientPlayPvpTeamIntroShot_Implementation(
 	{
 		return;
 	}
-
-	SetPvpIntroWidgetsHidden(true);
 
 	GetWorldTimerManager().ClearTimer(PvpIntroCameraDestroyTimerHandle);
 
@@ -1352,17 +1399,7 @@ void ASnowRumblePlayerController::ShowVoiceMuteMenu()
 		VoiceMuteMenuWidget->AddToViewport(80);
 	}
 	VoiceMuteMenuWidget->RefreshPlayerList();
-
-	ResetIgnoreMoveInput();
-	ResetIgnoreLookInput();
-	SetIgnoreMoveInput(true);
-	SetIgnoreLookInput(true);
-	SetShowMouseCursor(true);
-	ApplyDefaultMouseCursorWidget();
-	FInputModeUIOnly InputMode;
-	InputMode.SetWidgetToFocus(VoiceMuteMenuWidget->TakeWidget());
-	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-	SetInputMode(InputMode);
+	ApplyVoiceMuteMenuInputState(true);
 }
 
 void ASnowRumblePlayerController::ShowVoiceChannelFeedback(
