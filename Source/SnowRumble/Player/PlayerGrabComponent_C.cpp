@@ -4,6 +4,8 @@
 
 #include "../Audio/SnowRumbleAudioHelpers.h"
 #include "../Item/GrabbablePhysicsObject_C.h"
+#include "../Snowball/SnowballEquipmentComponent.h"
+#include "../Snowball/SnowballItem.h"
 #include "SnowRumbleCharacter.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "Components/PrimitiveComponent.h"
@@ -91,6 +93,7 @@ void UPlayerGrabComponent::TickComponent(
 	USkeletalMeshComponent* TargetMesh = nullptr;
 	AGrabbablePhysicsObject* TargetPhysicsObject = nullptr;
 	UPrimitiveComponent* TargetPhysicsComponent = nullptr;
+	ASnowballItem* TargetSnowball = nullptr;
 	FName TargetBoneName = NAME_None;
 	FVector AttachedWorldLocation = FVector::ZeroVector;
 	ESnowRumbleGrabAttachmentType AttachmentType =
@@ -105,17 +108,32 @@ void UPlayerGrabComponent::TickComponent(
 	{
 		return;
 	}
+	ASnowRumbleCharacter* Character = GetOwnerCharacter();
+	if (!Character)
+	{
+		return;
+	}
 	if (FindGrabCandidate(
 		TargetCharacter,
 		TargetMesh,
 		TargetPhysicsObject,
 		TargetPhysicsComponent,
+		TargetSnowball,
 		TargetBoneName,
 		AttachedWorldLocation,
 		AttachmentType,
 		bAllowWorldAttachment))
 	{
-		if (AttachmentType == ESnowRumbleGrabAttachmentType::Character)
+		if (TargetSnowball)
+		{
+			USnowballEquipmentComponent* Equipment =
+				Character->FindComponentByClass<USnowballEquipmentComponent>();
+			if (Equipment && Equipment->EquipSnowballFromGrab(TargetSnowball))
+			{
+				ServerStopGrabReach_Implementation();
+			}
+		}
+		else if (AttachmentType == ESnowRumbleGrabAttachmentType::Character)
 		{
 			AttachGrabConstraint(
 				TargetCharacter,
@@ -170,6 +188,7 @@ void UPlayerGrabComponent::StartGrabReach()
 	}
 
 	bIsGrabReaching = true;
+	ApplyGrabReachRotationMode();
 	if (const UWorld* World = GetWorld())
 	{
 		GrabReachStartedTimeSeconds = World->GetTimeSeconds();
@@ -202,6 +221,7 @@ void UPlayerGrabComponent::StopGrabReach()
 	GrabReachStartedServerTime = 0.0f;
 	OnRep_IsGrabReaching();
 	ClearGrabConstraint();
+	ClearGrabReachRotationMode();
 
 	if (Character->HasAuthority())
 	{
@@ -246,6 +266,11 @@ bool UPlayerGrabComponent::IsCarryingOpposingFrozenCharacter() const
 bool UPlayerGrabComponent::IsGrabAttached() const
 {
 	return GrabAttachmentType != ESnowRumbleGrabAttachmentType::None;
+}
+
+bool UPlayerGrabComponent::IsGrabbingPhysicsObject() const
+{
+	return GrabAttachmentType == ESnowRumbleGrabAttachmentType::PhysicsObject;
 }
 
 bool UPlayerGrabComponent::IsHangingFromWorldGrab() const
@@ -331,6 +356,7 @@ void UPlayerGrabComponent::ServerStartGrabReach_Implementation()
 	}
 
 	bIsGrabReaching = true;
+	ApplyGrabReachRotationMode();
 	if (const UWorld* World = GetWorld())
 	{
 		GrabReachStartedTimeSeconds = World->GetTimeSeconds();
@@ -353,6 +379,7 @@ void UPlayerGrabComponent::ServerStopGrabReach_Implementation()
 	GrabReachStartedServerTime = 0.0f;
 	OnRep_IsGrabReaching();
 	ClearGrabConstraint();
+	ClearGrabReachRotationMode();
 	if (AActor* Owner = GetOwner())
 	{
 		Owner->ForceNetUpdate();
@@ -364,6 +391,7 @@ void UPlayerGrabComponent::OnRep_IsGrabReaching()
 	if (!bIsGrabReaching)
 	{
 		ClearGrabConstraint();
+		ClearGrabReachRotationMode();
 	}
 }
 
@@ -414,6 +442,7 @@ bool UPlayerGrabComponent::FindGrabCandidate(
 	USkeletalMeshComponent*& OutMesh,
 	AGrabbablePhysicsObject*& OutPhysicsObject,
 	UPrimitiveComponent*& OutPhysicsComponent,
+	ASnowballItem*& OutSnowball,
 	FName& OutBoneName,
 	FVector& OutAttachedWorldLocation,
 	ESnowRumbleGrabAttachmentType& OutAttachmentType,
@@ -423,6 +452,7 @@ bool UPlayerGrabComponent::FindGrabCandidate(
 	OutMesh = nullptr;
 	OutPhysicsObject = nullptr;
 	OutPhysicsComponent = nullptr;
+	OutSnowball = nullptr;
 	OutBoneName = NAME_None;
 	OutAttachedWorldLocation = FVector::ZeroVector;
 	OutAttachmentType = ESnowRumbleGrabAttachmentType::None;
@@ -434,75 +464,87 @@ bool UPlayerGrabComponent::FindGrabCandidate(
 		return false;
 	}
 
-	const FVector TargetLocation = BuildHandGrabTargetLocation(ActiveGrabHand);
-	const FVector Forward = Character->GetActorForwardVector();
-	const FVector TraceStart =
-		TargetLocation - Forward * GrabTraceBacktrackDistance;
-	const FVector TraceEnd =
-		TargetLocation + Forward * GrabTraceForwardDistance;
-
+	// Trace independently from each hand's actual grab bone/socket. The first
+	// valid hit across both traces becomes the grab candidate.
+	const USkeletalMeshComponent* CharacterMesh = Character->GetMesh();
+	const FVector Forward = CharacterMesh
+		// This character mesh is authored with its visual forward on local +Y.
+		? CharacterMesh->GetRightVector().GetSafeNormal()
+		: Character->GetActorForwardVector().GetSafeNormal();
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(PlayerGrabTrace), false);
 	QueryParams.AddIgnoredActor(Character);
 
-	TArray<FHitResult> Hits;
 	FCollisionObjectQueryParams ObjectQueryParams;
 	ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
 	ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldStatic);
 	ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldDynamic);
 	ObjectQueryParams.AddObjectTypesToQuery(ECC_PhysicsBody);
 
-	const bool bHit = World->SweepMultiByObjectType(
-		Hits,
-		TraceStart,
-		TraceEnd,
-		FQuat::Identity,
-		ObjectQueryParams,
-		FCollisionShape::MakeSphere(GrabTraceRadius),
-		QueryParams);
-	if (bDrawGrabTraceDebug)
+	struct FGrabTraceHit
 	{
-		const FColor TraceColor = bHit ? FColor::Green : FColor::Red;
-		DrawDebugLine(
-			World,
+		FHitResult Hit;
+		float TraceProgress = 0.0f;
+	};
+
+	TArray<FGrabTraceHit> TraceHits;
+	const ESnowRumbleGrabHand TraceHands[] = {
+		ESnowRumbleGrabHand::Right,
+		ESnowRumbleGrabHand::Left};
+	for (const ESnowRumbleGrabHand Hand : TraceHands)
+	{
+		const FVector TraceOrigin = BuildHandGrabAnchorLocation(Hand);
+		const FVector TraceStart =
+			TraceOrigin - Forward * GrabTraceBacktrackDistance;
+		const FVector TraceEnd =
+			TraceOrigin + Forward * GrabTraceForwardDistance;
+		TArray<FHitResult> Hits;
+		const bool bHit = World->SweepMultiByObjectType(
+			Hits,
 			TraceStart,
 			TraceEnd,
-			TraceColor,
-			false,
-			GrabTraceDebugDrawSeconds,
-			0,
-			1.5f);
-		DrawDebugSphere(
-			World,
-			TargetLocation,
-			GrabTraceRadius,
-			12,
-			TraceColor,
-			false,
-			GrabTraceDebugDrawSeconds);
-		DrawDebugSphere(
-			World,
-			TraceStart,
-			GrabTraceRadius,
-			12,
-			FColor::Cyan,
-			false,
-			GrabTraceDebugDrawSeconds);
-		DrawDebugSphere(
-			World,
-			TraceEnd,
-			GrabTraceRadius,
-			12,
-			FColor::Yellow,
-			false,
-			GrabTraceDebugDrawSeconds);
-	}
-	if (!bHit)
-	{
-		return false;
+			FQuat::Identity,
+			ObjectQueryParams,
+			FCollisionShape::MakeSphere(GrabTraceRadius),
+			QueryParams);
+
+		if (bDrawGrabTraceDebug)
+		{
+			const FColor TraceColor = bHit ? FColor::Green : FColor::Red;
+			DrawDebugLine(
+				World,
+				TraceStart,
+				TraceEnd,
+				TraceColor,
+				false,
+				GrabTraceDebugDrawSeconds,
+				0,
+				1.5f);
+			DrawDebugSphere(
+				World,
+				TraceOrigin,
+				GrabTraceRadius,
+				12,
+				TraceColor,
+				false,
+				GrabTraceDebugDrawSeconds);
+		}
+
+		for (const FHitResult& Hit : Hits)
+		{
+			FGrabTraceHit& TraceHit = TraceHits.AddDefaulted_GetRef();
+			TraceHit.Hit = Hit;
+			TraceHit.TraceProgress = Hit.Time;
+		}
 	}
 
-	for (const FHitResult& Hit : Hits)
+	TraceHits.Sort([](const FGrabTraceHit& A, const FGrabTraceHit& B)
 	{
+		return A.TraceProgress < B.TraceProgress;
+	});
+
+	for (const FGrabTraceHit& TraceHit : TraceHits)
+	{
+		const FHitResult& Hit = TraceHit.Hit;
 		if (bDrawGrabTraceDebug)
 		{
 			const FVector HitPoint =
@@ -526,6 +568,12 @@ bool UPlayerGrabComponent::FindGrabCandidate(
 
 		AGrabbablePhysicsObject* PhysicsObject =
 			Cast<AGrabbablePhysicsObject>(Hit.GetActor());
+		ASnowballItem* Snowball = Cast<ASnowballItem>(Hit.GetActor());
+		if (Snowball && Snowball->CanBePickedUp())
+		{
+			OutSnowball = Snowball;
+			return true;
+		}
 		UPrimitiveComponent* PhysicsComponent = PhysicsObject
 			? PhysicsObject->GetPhysicsComponent()
 			: nullptr;
@@ -724,6 +772,7 @@ void UPlayerGrabComponent::AttachPhysicsObject(
 	GrabbedPhysicsRelativeTransform =
 		TargetComponent->GetComponentTransform().GetRelativeTransform(
 			Character->GetActorTransform());
+	GrabbedPhysicsGrabViewPitchDegrees = Character->GetViewPitchDegrees();
 	if (const UWorld* World = GetWorld())
 	{
 		const AGameStateBase* GameState = World->GetGameState();
@@ -852,6 +901,7 @@ void UPlayerGrabComponent::ClearGrabConstraint()
 		bGrabbedPhysicsGravityEnabled = true;
 		LastGrabbedPhysicsLocation = FVector::ZeroVector;
 		GrabbedPhysicsRelativeTransform = FTransform::Identity;
+		GrabbedPhysicsGrabViewPitchDegrees = 0.0f;
 		GrabbedTargetBoneName = NAME_None;
 		GrabAttachmentType = ESnowRumbleGrabAttachmentType::None;
 		GrabAttachedWorldLocation = FVector::ZeroVector;
@@ -1025,8 +1075,17 @@ void UPlayerGrabComponent::UpdatePhysicsObjectGrabTether(float DeltaTime)
 	}
 	ApplyPhysicsObjectRotationMode();
 
+	FTransform CharacterGrabTransform = Character->GetActorTransform();
+	const float PitchDeltaDegrees = FRotator::NormalizeAxis(
+		Character->GetViewPitchDegrees()
+		- GrabbedPhysicsGrabViewPitchDegrees);
+	const FQuat LocalPitchRotation = FQuat(
+		FVector::RightVector,
+		FMath::DegreesToRadians(-PitchDeltaDegrees));
+	CharacterGrabTransform.SetRotation(
+		CharacterGrabTransform.GetRotation() * LocalPitchRotation);
 	const FTransform DesiredWorldTransform =
-		GrabbedPhysicsRelativeTransform * Character->GetActorTransform();
+		GrabbedPhysicsRelativeTransform * CharacterGrabTransform;
 	GrabAttachedWorldLocation = DesiredWorldTransform.GetLocation();
 	if (GrabPhysicsAnchorComponent)
 	{
@@ -1153,10 +1212,17 @@ FVector UPlayerGrabComponent::BuildHandGrabTargetLocation(
 		+ FVector::UpVector * Character->GetGrabReachOriginHeight();
 	const float SideSign =
 		Hand == ESnowRumbleGrabHand::Right ? 1.0f : -1.0f;
+	const USkeletalMeshComponent* CharacterMesh = Character->GetMesh();
+	const FVector CharacterForward = CharacterMesh
+		? CharacterMesh->GetRightVector().GetSafeNormal()
+		: Character->GetActorForwardVector().GetSafeNormal();
+	const FVector CharacterRight = CharacterMesh
+		? (-CharacterMesh->GetForwardVector()).GetSafeNormal()
+		: Character->GetActorRightVector().GetSafeNormal();
 	return Origin
-		+ Character->GetActorForwardVector() * GrabReachForwardDistance
+		+ CharacterForward * GrabReachForwardDistance
 		+ FVector::UpVector * GrabReachUpOffset
-		+ Character->GetActorRightVector() * GrabReachSideOffset * SideSign;
+		+ CharacterRight * GrabReachSideOffset * SideSign;
 }
 
 FVector UPlayerGrabComponent::BuildHandGrabAnchorLocation(
@@ -1185,6 +1251,58 @@ FVector UPlayerGrabComponent::BuildHandGrabAnchorLocation(
 	}
 
 	return BuildHandGrabTargetLocation(Hand);
+}
+
+void UPlayerGrabComponent::ApplyGrabReachRotationMode()
+{
+	ASnowRumbleCharacter* Character = GetOwnerCharacter();
+	if (!Character || (!Character->HasAuthority() && !Character->IsLocallyControlled()))
+	{
+		return;
+	}
+
+	UCharacterMovementComponent* MovementComponent =
+		Character->GetCharacterMovement();
+	if (!bHasGrabReachRotationOverride)
+	{
+		bUseControllerRotationYawBeforeGrabReach =
+			Character->bUseControllerRotationYaw;
+		bOrientRotationToMovementBeforeGrabReach = MovementComponent
+			? MovementComponent->bOrientRotationToMovement
+			: true;
+		bHasGrabReachRotationOverride = true;
+	}
+
+	Character->bUseControllerRotationYaw = true;
+	if (MovementComponent)
+	{
+		MovementComponent->bOrientRotationToMovement = false;
+	}
+}
+
+void UPlayerGrabComponent::ClearGrabReachRotationMode()
+{
+	if (!bHasGrabReachRotationOverride)
+	{
+		return;
+	}
+
+	if (ASnowRumbleCharacter* Character = GetOwnerCharacter())
+	{
+		if (Character->HasAuthority() || Character->IsLocallyControlled())
+		{
+			Character->bUseControllerRotationYaw =
+				bUseControllerRotationYawBeforeGrabReach;
+			if (UCharacterMovementComponent* MovementComponent =
+				Character->GetCharacterMovement())
+			{
+				MovementComponent->bOrientRotationToMovement =
+					bOrientRotationToMovementBeforeGrabReach;
+			}
+		}
+	}
+
+	bHasGrabReachRotationOverride = false;
 }
 
 ASnowRumbleCharacter* UPlayerGrabComponent::GetOwnerCharacter() const

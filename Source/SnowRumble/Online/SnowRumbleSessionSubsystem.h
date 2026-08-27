@@ -87,15 +87,15 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
-	/** 최대 인원으로 광고되는 NULL LAN Listen Server 세션을 생성한다. */
+	/** 최대 인원으로 광고되는 현재 OnlineSubsystem 세션을 생성한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Session")
 	void HostLanSession(int32 MaxPlayers = 8, const FString& RoomName = FString());
 
-	/** 현재 LAN에서 참가 가능한 NULL 세션을 검색한다. */
+	/** 현재 OnlineSubsystem에서 참가 가능한 세션을 검색한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Session")
 	void FindLanSessions();
 
-	/** 빈자리가 있는 첫 번째 LAN 세션을 찾아 자동 참가한다. */
+	/** 빈자리가 있는 첫 번째 세션을 찾아 자동 참가한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Session")
 	void QuickJoinLanSession();
 
@@ -103,7 +103,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Session")
 	void JoinLanSession(int32 ResultIndex);
 
-	/** 방 코드와 일치하는 LAN 세션 참가를 요청한다. */
+	/** 방 코드와 일치하는 세션 참가를 요청한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Session")
 	void JoinLanSessionByRoomCode(const FString& RoomCode);
 
@@ -126,6 +126,10 @@ public:
 	/** 현재 호스트 또는 참가 요청이 들고 있는 방 코드를 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Session")
 	FString GetCurrentRoomCode() const;
+
+	/** 로비 호스트가 선택한 모드를 현재 온라인 세션 광고 정보에 반영한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Session")
+	void UpdateAdvertisedGameMode(const FString& GameModeName);
 
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Session")
 	ESnowRumbleSessionOperation GetCurrentOperation() const;
@@ -150,10 +154,13 @@ private:
 	/** 현재 OnlineSubsystem이 Steam인지 확인한다. */
 	bool IsSteamSubsystem() const;
 
-	/** Listen Server NetDriver가 준비된 뒤 실제 LAN 세션을 생성한다. */
+	/** 현재 OnlineSubsystem을 사용자 표시용 이름으로 반환한다. */
+	const TCHAR* GetSessionBackendName() const;
+
+	/** Listen Server NetDriver가 준비된 뒤 실제 온라인 세션을 생성한다. */
 	void CreateLanSession(int32 MaxPlayers);
 
-	/** 요청 목적에 맞는 LAN 세션 검색을 시작한다. */
+	/** 요청 목적에 맞는 세션 검색을 시작한다. */
 	void BeginFindLanSessions(
 		ESnowRumbleSessionOperation Operation,
 		const FString& Message);
@@ -163,7 +170,7 @@ private:
 		int32 ResultIndex,
 		ESnowRumbleSessionOperation Operation);
 
-	/** Host 맵 로드 완료 시 열린 포트를 사용해 LAN 세션 생성을 계속한다. */
+	/** Host 맵 로드 완료 시 열린 포트를 사용해 온라인 세션 생성을 계속한다. */
 	void HandlePostLoadMap(UWorld* LoadedWorld);
 
 	/** 현재 호스트 맵을 세션 검색 광고에 반영해 메인메뉴 참가 대상을 제한한다. */

@@ -49,10 +49,10 @@
 
 ## 세션 개발 정책
 
-- 현재 MVP 구현과 빠른 로컬 검증은 `OnlineSubsystem NULL` 기반 LAN 세션으로 계속 진행한다.
-- Steam 출시는 최종 목표로 유지하며 Steam 세션 통합은 C-18에서 별도 최종 Task로 처리한다.
+- 현재 패키지/Standalone 기본 세션은 `OnlineSubsystemSteam` 기반 Steam 세션으로 진행한다.
+- Steam 초기화가 불가능한 로컬 개발 환경은 기존 NULL/LAN fallback을 유지하되, 최종 확인 기준은 Steam 빌드다.
 - 앞으로 메인메뉴, 로비, PvP, ESC 메뉴, 친구 초대 UI는 `USnowRumbleSessionSubsystem` 등 공개 세션 계약만 호출하고 LAN/Steam 구현 세부사항에 직접 의존하지 않는다.
-- 친구 부르기 버튼은 현재 Blueprint 이벤트와 UI 계약만 유지하고, 실제 Steam Overlay 초대 연결은 C-18에서 처리한다.
+- 친구 부르기 버튼은 Steam Overlay 초대 연결을 C-18에서 처리한다.
 - 새 기능이 세션 생성·검색·참가·초대·퇴장·복귀에 영향을 주면 C-18 Steam 전환 영향 여부를 함께 기록한다.
 
 ## 통합 관문
@@ -92,7 +92,7 @@
 | C-17 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 카운트다운 WBP 표시 배치: 사용자/S 인계 | `Tasks/C/C-17_pvp_start_countdown.md`, `Tasks/C/PLAN_C.md`, `Tasks/C/ROLE_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Game/SnowRumbleGameState_C.*`, `Source/SnowRumble/Game/SnowRumbleGameMode.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/UI/MainHUDWidget.*` | 진행중 |
 | C-29 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 맵별 WorldSettings 정리: 사용자/S/J 인계 | `Tasks/C/C-29_travel_url_and_loading_stability.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Game/SnowRumbleLobbyGameMode.*`, `Source/SnowRumble/Game/SnowRumbleGameMode.*`, `Source/SnowRumble/Game/PodiumGameMode.*`, `Source/SnowRumble/UI/LoadingScreenSubsystem.*`, `Source/SnowRumble/SnowRumble.Build.cs` | 진행중 |
 | C-30 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 맵별 배경음악 자산 지정: 사용자/S 인계 | `Tasks/C/C-30_audio_feedback_and_voice_mix.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Audio/SnowRumbleAudioHelpers.*`, `Source/SnowRumble/Audio/SnowRumbleBackgroundMusicSubsystem_C.*`, `Source/SnowRumble/Game/SnowRumbleGameMode.*`, `Source/SnowRumble/Game/SnowRumbleLobbyGameMode.*`, `Source/SnowRumble/Game/SnowmanModeGameMode_K.*`, `Source/SnowRumble/Game/SnowRumbleMainMenuGameMode.*`, `Source/SnowRumble/Game/SnowRumbleCustomizationGameMode_C.*`, `Source/SnowRumble/Game/PodiumGameMode.*`, `Source/SnowRumble/Game/PodiumPlayerController.*`, `Source/SnowRumble/UI/MainMenuPlayerController.*`, `Source/SnowRumble/UI/CustomizationPlayerController_C.*`, `Source/SnowRumble/UI/SnowRumblePlayerController.*` | 진행중 |
-| C-18 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), Steam App ID·테스트 계정·빌드 환경: 사용자 확인 | `Tasks/C/C-18_steam_session_integration.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Config/DefaultEngine.ini`, `Source/SnowRumble/Online/SnowRumbleSessionSubsystem.*`, `Source/SnowRumble/UI/LobbyEscapeMenuWidget.*`, `Source/SnowRumble/UI/MainMenuWidget.*`, `Source/SnowRumble/UI/LobbyPlayerController.*` | 예정 |
+| C-18 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), Steam App ID·테스트 계정·빌드 환경: 사용자 확인 | `Tasks/C/C-18_steam_session_integration.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Config/DefaultEngine.ini`, `Source/SnowRumble/Online/SnowRumbleSessionSubsystem.*`, `Source/SnowRumble/UI/LobbyEscapeMenuWidget.*`, `Source/SnowRumble/UI/MainMenuWidget.*`, `Source/SnowRumble/UI/LobbyPlayerController.*` | 진행중 |
 | C-19 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 채팅 WBP 배치·스타일: 사용자/S 인계 | `Tasks/C/C-19_text_chat.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/UI/ChatWidget_C.*`, `Source/SnowRumble/UI/SnowRumblePlayerController.*`, `Source/SnowRumble/UI/LobbyPlayerController.*` | 진행중 |
 | C-20 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 로비/HUD 로그 WBP 배치·스타일: 사용자/S 인계 | `Tasks/C/C-20_event_log_ui.md`, `Tasks/C/ROLE_C.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/UI/SnowRumblePlayerController.*`, `Source/SnowRumble/UI/LobbyWidget.*`, `Source/SnowRumble/UI/MainHUDWidget.*`, `Source/SnowRumble/Game/SnowRumblePlayerState.*`, `Source/SnowRumble/Game/SnowRumbleGameMode.*` | 진행중 |
 | C-21 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 옵션 WBP 배치·스타일: 사용자/S 인계 | `Tasks/C/C-21_options_menu.md`, `Tasks/C/ROLE_C.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/UI/OptionsWidget_C.*`, `Source/SnowRumble/UI/OptionsKeyBindingRowWidget_C.*`, `Source/SnowRumble/UI/MainMenuWidget.*`, `Source/SnowRumble/UI/MainMenuPlayerController.*`, `Source/SnowRumble/UI/LobbyEscapeMenuWidget.*`, `Source/SnowRumble/UI/LobbyPlayerController.*`, `Source/SnowRumble/UI/SnowRumblePlayerController.*`, `Source/SnowRumble/Player/SnowRumbleUserSettingsSubsystem_C.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*` | 진행중 |
@@ -119,14 +119,23 @@
 ## 최근 통합 로그
 
 - 2026-08-27: C-34 물리 상호작용 물건 계약을 추가했다. `AGrabbablePhysicsObject`를 기반으로 여러 물건 Blueprint가 서버 복제 물리, Grab 연결, 플레이어 밀침과 눈덩이 파괴 동작을 재사용할 수 있게 했다.
+- 2026-08-27: C-09/C-28 입력을 좌클릭 Grab, `Q` 눈 만들기, `E` 눈덩이 굴리기, `F` 일반 상호작용으로 분리했다. Grab trace가 바닥 눈덩이를 만나면 기존 손 위치에 장착하고, 새 제작·굴리기 InputAction 슬롯과 옵션 키 재설정 항목을 추가했다.
 - 2026-08-27: C-34 물리 물건 Grab 회귀를 보강했다. 캐릭터 손 bone에 직접 물리 Constraint를 걸지 않고 숨김 PhysicsOnly 앵커에 물건을 연결해 손 늘어남을 막는다.
 - 2026-08-27: C-34 물리 물건 Grab 동작을 고정 이동 기준으로 변경했다. 잡힌 동안 물건은 손 위치에 직접 고정되고, 상대 플레이어 밀침은 별도 서버 overlap으로 처리한다.
 - 2026-08-27: C-34 Grab 물건 자식 기믹 확장을 추가했다. `AGrabbablePhysicsObject`의 Grab 훅과 `ATambourineGrabbableObject` 위치 기반 찰랑 사운드 슬롯을 제공한다.
-- 2026-08-27: C-34 Grab 물건의 눈덩이 피격과 플레이어 밀침을 공통 상호작용 횟수로 집계하고, 기본 5회 도달 시 지정 Niagara VFX를 재생한 뒤 액터를 제거하는 파괴 슬롯을 추가했다.
+- 2026-08-27: C-34 Grab 물건의 눈덩이 피격과 플레이어 밀침을 공통 상호작용 횟수로 집계하고, 기본 1회 도달 시 지정 Niagara VFX를 재생한 뒤 액터를 제거하는 파괴 슬롯을 추가했다.
+- 2026-08-27: C-34 태그 기반 StaticMesh 치환 계약을 추가했다. 맵에 `AGrabbableStaticMeshBootstrapActor`를 배치하고 Actor 또는 StaticMeshComponent에 `grabbable`/`grabable` 태그를 달면 서버가 `AGrabbablePhysicsObject`를 스폰하고 원본 Static Mesh는 각 로컬에서 숨김·충돌 해제한다.
+- 2026-08-27: C-34 `AGrabbablePhysicsObject` 테스트 기본값을 파괴 1회, 플레이어 밀침 힘 3000으로 조정했다.
+- 2026-08-27: C-34 태그 치환 물건의 밀침 힘, 파괴 횟수, 파괴 Niagara 이펙트를 `AGrabbableStaticMeshBootstrapActor`에서 지정할 수 있게 했다.
+- 2026-08-27: C-34 QA에서 호스트에만 보이던 태그 치환 물건을 수정했다. `AGrabbablePhysicsObject`가 변환 Static Mesh와 Material을 복제하고 클라이언트 `OnRep`에서 적용한다.
+- 2026-08-27: C-18 Steam 연결 전제에 맞춰 로비 선택 모드를 세션 광고에 반영하고, 경기 중 수락된 Steam 초대가 기존 세션을 정리하지 않도록 보강했다.
+- 2026-08-27: C-04/C-18 연계로 `BP_LobbyGameMode`에 눈사람 전용 `SnowmanLevelCandidates` 맵 슬롯을 추가하고, 눈사람 모드가 해당 배열에서 랜덤 맵을 선택하도록 분리했다.
+- 2026-08-27: C-04/C-29 연계로 `ASnowRumblePlayerController`에 눈사람 전용 로딩 WBP 슬롯을 추가하고, 로비 서버가 선택한 모드에 따라 클라이언트 로딩 화면을 분기하도록 연결했다.
 - 2026-08-27: C-28 얼음 플레이어 Grab을 상대팀에도 허용하고, 상대팀 얼음 운반 중인 Grabber의 이동속도를 `OpposingFrozenCarryWalkSpeed`로 제한하는 계약을 추가했다.
 - 2026-08-27: C-35 피격 데미지 텍스트 표시 계약을 추가했다. 서버가 실제 적용 피해량을 확정한 뒤 모든 클라이언트에 `OnDamageTextRequested`를 호출한다.
 - 2026-08-27: C-35 일반/헤드샷 데미지 텍스트 WBP 슬롯을 분리했다. `UDamageTextWidget` 기반 WBP의 `DamageText` TextBlock은 C++가 자동으로 피해량을 입력한다.
 - 2026-08-27: C-35 직접 투척 눈덩이 헤드샷 판정을 추가했다. 머리 bone 충돌 시 피해 배율과 헤드샷 데미지 텍스트 타입을 적용한다.
+- 2026-08-27: 사용자 결정으로 세션 개발 정책을 LAN 기준에서 Steam 기준으로 전환했다. `DefaultPlatformService=Steam`을 기본으로 사용하고 NULL/LAN은 Steam 초기화 불가 환경의 fallback으로만 유지한다.
 
 - 2026-08-24: C-09 공중 작은 눈덩이 투척 보정을 추가했다. 서버 release 시점에 공중이면 기존 `ThrowSmallSnowballInAir` 모션과 맞춰 피해 1.5배와 속도 기본 1.2배를 적용한다.
 - 2026-08-24: C-30 효과음 공간화 범위를 눈덩이 충돌음과 캐릭터 피격음으로 한정했다. UI 상호작용음은 해당 플레이어 로컬 2D 재생으로 유지하고, `ASnowballItem::ImpactSoundAttenuation`과 `ASnowRumbleCharacter::DamageSoundAttenuation`으로 attenuation 연결 지점을 추가했다.
@@ -183,3 +192,4 @@
 - 2026-08-22: C-24/C-09 눈덩이 Notify 투척 조준을 보강함. 입력 release 때 저장한 방향이 아니라 `UAnimNotify_SnowballThrowRelease` 시점의 로컬 카메라 위치·방향을 서버 RPC로 보내 최종 trace와 투척 방향을 다시 계산하게 했다.
 - 2026-08-22: C-30 맵별 배경음악 시작 지점을 추가함. 메인메뉴와 커스터마이징은 로컬 PlayerController가 직접 재생하고, 로비·PvP·눈사람 모드·포디움은 GameMode가 각 클라이언트 컨트롤러에 배경음악 재생 RPC를 보낸다.
 - 2026-08-22: PvP 전환 중 배경음악이 끊기는 문제를 `USnowRumbleBackgroundMusicSubsystem`으로 보정함. 컨트롤러 EndPlay 중지 호출을 제거하고, travel 중에는 같은 오디오 컴포넌트를 유지한 채 맵별 음악만 교체한다.
+- 2026-08-27: 작은 눈덩이 안내를 `E - 굴리기 / F - 줍기`로 분리하고, 장비·눈덩이 내려놓기 기본 입력을 `Enter`로 변경했다.

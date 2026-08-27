@@ -15,6 +15,7 @@
 - [x] 기존 Grab 후보 탐색·Constraint에 물리 Actor 연결 추가
 - [x] 눈덩이 충돌 시 물리 Actor 파괴 처리 추가
 - [x] Grab 물건 자식 기믹 확장 훅과 탬버린 사운드 기믹 베이스 추가
+- [x] 맵에 직접 배치된 StaticMeshActor 또는 StaticMeshComponent를 태그 기반으로 `AGrabbablePhysicsObject`로 런타임 치환하는 Bootstrap Actor 추가
 - [x] 멀티플레이 수동 확인 절차와 Blueprint 연결 정보 기록
 
 ## 작업 배정
@@ -23,13 +24,13 @@
 - 기능 소유자: 최재원(C)
 - 계약 소유자: 최재원(C)
 - 자산 수정자: 없음(후속 Blueprint는 별도 배정)
-- 생성·변경 후보: `Source/SnowRumble/Item/GrabbablePhysicsObject_C.*`, `Source/SnowRumble/Item/TambourineGrabbableObject_C.*`, 기존 Grab·Snowball 코드
+- 생성·변경 후보: `Source/SnowRumble/Item/GrabbablePhysicsObject_C.*`, `Source/SnowRumble/Item/TambourineGrabbableObject_C.*`, `Source/SnowRumble/Item/GrabbableStaticMeshBootstrapActor_C.*`, 기존 Grab·Snowball 코드
 - 공유 확인 대상: S의 물건 Blueprint 제작, C-28 Grab, C-09 Snowball
 - 병합 순서: C-34 구현 후 물건 Blueprint 연결
 
 ## 공용 계약과 인계
 
-- 제공할 계약: `AGrabbablePhysicsObject`의 Root Primitive, 힘 조정값, Grab 가능 상태, Grab 중 확장 훅, `ATambourineGrabbableObject` 사운드 슬롯
+- 제공할 계약: `AGrabbablePhysicsObject`의 Root Primitive, 힘 조정값, Grab 가능 상태, Grab 중 확장 훅, `ATambourineGrabbableObject` 사운드 슬롯, `AGrabbableStaticMeshBootstrapActor`의 태그 기반 StaticMeshActor/StaticMeshComponent 런타임 치환
 - 인계 대상: 후속 물건 Blueprint 제작 담당자
 
 ## 범위 밖
@@ -47,6 +48,12 @@
 
 ## 변경 기록
 
+- 2026-08-27: QA에서 호스트에만 태그 치환 Mesh가 보이는 문제를 수정했다. 변환 물건의 Static Mesh와 Material을 `AGrabbablePhysicsObject` 복제 상태로 전달하고 각 클라이언트의 `OnRep`에서 `PhysicsComponent`에 적용한다.
+
+- 2026-08-27: Grab 물체의 카메라 Pitch 추종 방향이 상하 반대로 적용되던 문제를 수정했다. 물리 상대 회전에 적용하는 Pitch Delta 부호를 반전해 카메라를 올리면 물체도 위로, 내리면 아래로 이동하도록 보정했다.
+
+- 2026-08-27: 잡히지 않은 물리 물체의 일반 충돌이 플레이어를 밀치지 않도록 Grab 상태 검사를 추가했다. Grab 중 별도 overlap 기반 플레이어 밀침은 유지한다.
+- 2026-08-27: 물리 물건을 잡은 뒤 플레이어가 바라보는 Pitch 변화도 물건의 상대 위치·회전에 반영하도록 확장했다. 잡기 시작 시점의 Pitch를 기준으로 변화량만 적용해 Grab 순간의 물건 방향은 유지한다.
 - 2026-08-27: 사용자의 물리 상호작용 물건 베이스 요청으로 신규 Task를 추가했다.
 - 2026-08-27: 물리 시뮬레이션 Blueprint가 `PhysicsBody` Object Type을 사용할 때 Grab trace에서 누락되던 오류를 수정했다.
 - 2026-08-27: 물리 물건을 잡는 동안 Grab 게이지가 줄거나 자동 해제되지 않도록 예외 처리했다.
@@ -62,14 +69,22 @@
 - 2026-08-27: 잡힌 물리 물건의 상대 플레이어 밀침 판정을 Sphere 범위가 아니라 실제 PrimitiveComponent collision shape overlap으로 변경했다.
 - 2026-08-27: 눈덩이가 Grab 물리 물건에 맞으면 반사되지 않고 충돌 이펙트 후 부서지도록 변경했다.
 - 2026-08-27: `AGrabbablePhysicsObject`에 Grab 시작·해제·Tick 확장 훅을 추가하고, `ATambourineGrabbableObject`가 잡힌 상태에서 플레이어 이동 시 위치 기반 찰랑 사운드를 멀티캐스트로 재생하도록 추가했다.
+- 2026-08-27: `AGrabbableStaticMeshBootstrapActor`를 추가했다. 맵에 배치된 `AStaticMeshActor`, Blueprint Actor 내부 `UStaticMeshComponent`, 또는 Actor 자체에 `grabbable`/`grabable` 태그가 있으면 런타임에 서버가 같은 Transform·Mesh·Material의 `AGrabbablePhysicsObject`를 스폰하고, 각 로컬 인스턴스는 원본 Static Mesh를 숨기고 충돌을 끈다. 기존 `UPlayerGrabComponent`의 물리 물건 Grab 경로를 그대로 재사용한다.
+- 2026-08-27: `AGrabbablePhysicsObject` 기본값을 빠른 테스트용으로 조정했다. 기본 `InteractionsToBreak`는 1회, 기본 `PlayerPushStrength`는 3000으로 설정한다.
+- 2026-08-27: 태그 기반 치환 물건의 테스트 수치, 파괴 이펙트와 공통 파괴음을 `AGrabbableStaticMeshBootstrapActor`에서 지정할 수 있게 했다. `ConvertedPlayerPushStrength`, `ConvertedInteractionsToBreak`, `ConvertedInteractionBreakEffect`, `ConvertedInteractionBreakSound`, `ConvertedInteractionBreakSoundAttenuation` 값을 스폰 직후 `AGrabbablePhysicsObject::ConfigureInteractionSettings()`로 주입한다.
 
 ## 수동 작업
 
 - 물건 Blueprint가 `AGrabbablePhysicsObject`를 부모로 상속한다.
 - 탬버린 Blueprint는 `ATambourineGrabbableObject`를 부모로 상속한다.
 - Root Primitive 또는 `PhysicsComponent`에 Static Mesh를 연결하고 Simulate Physics와 충돌을 활성화한다.
-- 물건별 `PlayerPushStrength`를 조정한다.
+- 물건별 `PlayerPushStrength`를 조정한다. 기본값은 3000이다.
+- 물건별 `InteractionsToBreak`를 조정한다. 기본값은 1회다.
 - 탬버린 Blueprint에서 `JingleSound`, 필요 시 `JingleSoundAttenuation`, 이동 속도·거리·쿨다운 값을 조정한다.
+- 맵에 직접 배치한 StaticMeshActor 또는 Blueprint Actor 내부 StaticMeshComponent를 물리 Grab 물건으로 쓰려면, 해당 맵에 `AGrabbableStaticMeshBootstrapActor` 또는 그 Blueprint 자식을 하나 배치한다.
+- 변환할 Actor 또는 StaticMeshComponent의 태그에 `grabbable`을 추가한다. 기존 오타 호환용으로 `grabable`도 기본 인식한다.
+- 치환 대상의 실제 물리 동작은 `GrabbableObjectClass`에 지정한 클래스 기본값을 따른다. 특수 기믹이 필요하면 `AGrabbablePhysicsObject` 자식 Blueprint를 만들고 Bootstrap Actor의 `GrabbableObjectClass`에 지정한다.
+- 태그로 변환되는 물건의 밀침 힘은 Bootstrap Actor의 `ConvertedPlayerPushStrength`, 파괴 횟수는 `ConvertedInteractionsToBreak`, 터질 때 Niagara는 `ConvertedInteractionBreakEffect`, 공통 파괴음은 `ConvertedInteractionBreakSound`와 `ConvertedInteractionBreakSoundAttenuation`에 지정한다.
 
 ## 완료 조건
 
@@ -86,3 +101,5 @@
 - [ ] 물건 충돌로 플레이어가 밀려난다.
 - [ ] 작은 눈과 큰 눈이 물건에 맞으면 충돌 이펙트 후 부서진다.
 - [ ] 탬버린을 잡고 이동하면 모든 클라이언트에서 위치 기반 찰랑 소리가 들린다.
+- [ ] `AGrabbableStaticMeshBootstrapActor`가 배치된 맵에서 `grabbable` 태그를 가진 StaticMeshActor 또는 StaticMeshComponent 원본은 숨겨지고, 같은 위치의 복제 물리 물건을 호스트와 클라이언트가 Grab할 수 있다.
+- [ ] 태그 치환 물건이 파괴될 때 Bootstrap Actor의 `ConvertedInteractionBreakEffect`에 지정한 Niagara가 모든 클라이언트에서 재생된다.
