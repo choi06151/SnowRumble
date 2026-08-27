@@ -9,7 +9,7 @@
 
 class UPodiumWinnerWidget;
 class USoundBase;
-enum class ESnowRumbleTeam : uint8; 
+enum class ESnowRumbleTeam : uint8;
 
 UCLASS()
 class SNOWRUMBLE_API APodiumPlayerController : public APlayerController
