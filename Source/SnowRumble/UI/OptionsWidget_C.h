@@ -454,6 +454,15 @@ private:
 	/** 현재 선택된 옵션 카테고리 버튼의 눌림 표시를 갱신한다. */
 	void RefreshCategoryButtonSelection();
 
+	/** 카테고리 버튼 내부 텍스트의 호버·프레스·선택 색상을 갱신한다. */
+	void RefreshCategoryButtonTextColors();
+
+	/** 버튼 내부 텍스트 하나의 현재 상호작용 상태 색상을 갱신한다. */
+	void RefreshButtonTextColor(UButton* Button, bool bSelected);
+
+	/** 언어 콤보박스 텍스트의 호버·열림 상태 색상을 갱신한다. */
+	void RefreshLanguageComboBoxTextColor();
+
 	/** 현재 선택된 마이크 방식 버튼의 눌림 표시를 갱신한다. */
 	void RefreshMicrophoneModeButtonSelection();
 
@@ -527,5 +536,11 @@ private:
 	FDelegateHandle TextRevisionChangedHandle;
 
 	TMap<UButton*, FButtonStyle> DefaultButtonStyles;
+
+	TMap<UTextBlock*, FSlateColor> DefaultButtonTextColors;
+
+	FSlateColor DefaultLanguageComboBoxForegroundColor;
+
+	bool bHasDefaultLanguageComboBoxForegroundColor = false;
 
 };

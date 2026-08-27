@@ -124,6 +124,35 @@ bool USnowballEquipmentComponent::EquipCreatedSnowballFromServer(
 	return true;
 }
 
+bool USnowballEquipmentComponent::EquipSnowballFromGrab(
+	ASnowballItem* GrabbedSnowball)
+{
+	ASnowRumbleCharacter* Character = Cast<ASnowRumbleCharacter>(GetOwner());
+	if (!Character
+		|| !Character->HasAuthority()
+		|| Character->IsFrozen()
+		|| Character->IsPickingUpItem()
+		|| HasHeldSnowball()
+		|| !GrabbedSnowball
+		|| !GrabbedSnowball->CanBePickedUp())
+	{
+		return false;
+	}
+
+	if (!GrabbedSnowball->TrySetHeldBy(
+		Character,
+		Character->GetSnowballHoldPointForSnowball(GrabbedSnowball)))
+	{
+		return false;
+	}
+
+	HeldSnowball = GrabbedSnowball;
+	Character->NotifySnowballPickupSucceeded(IsHoldingLargeSnowball());
+	OnRep_HeldSnowball();
+	Character->ForceNetUpdate();
+	return true;
+}
+
 bool USnowballEquipmentComponent::IsHoldingLargeSnowball() const
 {
 	return HeldSnowball

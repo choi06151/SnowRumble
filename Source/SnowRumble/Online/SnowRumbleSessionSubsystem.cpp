@@ -290,9 +290,9 @@ void USnowRumbleSessionSubsystem::CreateLanSession(int32 MaxPlayers)
 	SetOperationState(
 		ESnowRumbleSessionOperation::Host,
 		ESnowRumbleSessionState::InProgress,
-		bUseSteam
-			? TEXT("Steam 세션을 생성하고 있습니다.")
-			: TEXT("LAN 세션을 생성하고 있습니다."));
+		FString::Printf(
+			TEXT("%s 세션을 생성하고 있습니다."),
+			GetSessionBackendName()));
 
 	if (!SessionInterface->CreateSession(
 		0,
@@ -303,7 +303,9 @@ void USnowRumbleSessionSubsystem::CreateLanSession(int32 MaxPlayers)
 		SetOperationState(
 			ESnowRumbleSessionOperation::Host,
 			ESnowRumbleSessionState::Failed,
-			TEXT("LAN 세션 생성 요청을 시작하지 못했습니다."));
+			FString::Printf(
+				TEXT("%s 세션 생성 요청을 시작하지 못했습니다."),
+				GetSessionBackendName()));
 	}
 }
 
@@ -378,10 +380,16 @@ void USnowRumbleSessionSubsystem::UpdateAdvertisedSessionMap(UWorld* LoadedWorld
 
 void USnowRumbleSessionSubsystem::FindLanSessions()
 {
-	UE_LOG(LogSnowRumbleSession, Log, TEXT("Find LAN sessions requested."));
+	UE_LOG(
+		LogSnowRumbleSession,
+		Log,
+		TEXT("Find %s sessions requested."),
+		GetSessionBackendName());
 	BeginFindLanSessions(
 		ESnowRumbleSessionOperation::Search,
-		TEXT("LAN 세션을 검색하고 있습니다."));
+		FString::Printf(
+			TEXT("%s 세션을 검색하고 있습니다."),
+			GetSessionBackendName()));
 }
 
 void USnowRumbleSessionSubsystem::QuickJoinLanSession()
@@ -389,7 +397,9 @@ void USnowRumbleSessionSubsystem::QuickJoinLanSession()
 	UE_LOG(LogSnowRumbleSession, Log, TEXT("Quick join requested."));
 	BeginFindLanSessions(
 		ESnowRumbleSessionOperation::QuickJoin,
-		TEXT("참가 가능한 LAN 세션을 찾고 있습니다."));
+		FString::Printf(
+			TEXT("참가 가능한 %s 세션을 찾고 있습니다."),
+			GetSessionBackendName()));
 }
 
 void USnowRumbleSessionSubsystem::JoinLanSessionByRoomCode(
@@ -413,7 +423,9 @@ void USnowRumbleSessionSubsystem::JoinLanSessionByRoomCode(
 
 	BeginFindLanSessions(
 		ESnowRumbleSessionOperation::JoinByCode,
-		TEXT("방 코드와 일치하는 LAN 세션을 찾고 있습니다."));
+		FString::Printf(
+			TEXT("방 코드와 일치하는 %s 세션을 찾고 있습니다."),
+			GetSessionBackendName()));
 }
 
 void USnowRumbleSessionSubsystem::LeaveLanSession()
@@ -437,7 +449,8 @@ void USnowRumbleSessionSubsystem::LeaveLanSession()
 		UE_LOG(
 			LogSnowRumbleSession,
 			Log,
-			TEXT("Leaving LAN session. SessionName=%s"),
+			TEXT("Leaving %s session. SessionName=%s"),
+			GetSessionBackendName(),
 			*LocalSessionName.ToString());
 		SessionInterface->DestroySession(LocalSessionName);
 	}
@@ -445,7 +458,9 @@ void USnowRumbleSessionSubsystem::LeaveLanSession()
 	SetOperationState(
 		ESnowRumbleSessionOperation::None,
 		ESnowRumbleSessionState::Idle,
-		TEXT("LAN 세션을 정리했습니다."));
+		FString::Printf(
+			TEXT("%s 세션을 정리했습니다."),
+			GetSessionBackendName()));
 	OnSessionSearchCompleted.Broadcast(SearchResults);
 }
 
@@ -523,7 +538,9 @@ void USnowRumbleSessionSubsystem::BeginFindLanSessions(
 		SetOperationState(
 			Operation,
 			ESnowRumbleSessionState::Failed,
-			TEXT("LAN 세션 검색 요청을 시작하지 못했습니다."));
+			FString::Printf(
+				TEXT("%s 세션 검색 요청을 시작하지 못했습니다."),
+				GetSessionBackendName()));
 	}
 }
 
@@ -591,7 +608,9 @@ void USnowRumbleSessionSubsystem::JoinSearchResult(
 		SetOperationState(
 			Operation,
 			ESnowRumbleSessionState::Failed,
-			TEXT("이전 LAN 세션 상태를 정리했습니다. 다시 참가해 주세요."));
+			FString::Printf(
+				TEXT("이전 %s 세션 상태를 정리했습니다. 다시 참가해 주세요."),
+				GetSessionBackendName()));
 		return;
 	}
 
@@ -633,9 +652,9 @@ void USnowRumbleSessionSubsystem::JoinSearchResult(
 	SetOperationState(
 		Operation,
 		ESnowRumbleSessionState::InProgress,
-		IsSteamSubsystem()
-			? TEXT("Steam 세션에 참가하고 있습니다.")
-			: TEXT("LAN 세션에 참가하고 있습니다."));
+		FString::Printf(
+			TEXT("%s 세션에 참가하고 있습니다."),
+			GetSessionBackendName()));
 
 	if (!SessionInterface->JoinSession(
 		0,
@@ -647,7 +666,9 @@ void USnowRumbleSessionSubsystem::JoinSearchResult(
 		SetOperationState(
 			Operation,
 			ESnowRumbleSessionState::Failed,
-			TEXT("LAN 세션 참가 요청을 시작하지 못했습니다."));
+			FString::Printf(
+				TEXT("%s 세션 참가 요청을 시작하지 못했습니다."),
+				GetSessionBackendName()));
 	}
 }
 
@@ -673,6 +694,40 @@ FString USnowRumbleSessionSubsystem::GetCurrentRoomCode() const
 	return CurrentRoomCode;
 }
 
+void USnowRumbleSessionSubsystem::UpdateAdvertisedGameMode(
+	const FString& GameModeName)
+{
+	if (!GetWorld()
+		|| GetWorld()->GetNetMode() != NM_ListenServer
+		|| GameModeName.IsEmpty())
+	{
+		return;
+	}
+
+	IOnlineSessionPtr SessionInterface = GetSessionInterface();
+	FNamedOnlineSession* NamedSession = SessionInterface.IsValid()
+		? SessionInterface->GetNamedSession(LocalSessionName)
+		: nullptr;
+	if (!NamedSession)
+	{
+		return;
+	}
+
+	FOnlineSessionSettings UpdatedSettings = NamedSession->SessionSettings;
+	UpdatedSettings.Set(
+		SnowRumbleSession::GameModeSettingKey,
+		GameModeName,
+		EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
+
+	UE_LOG(
+		LogSnowRumbleSession,
+		Log,
+		TEXT("Updating advertised session game mode. Backend=%s Mode=%s"),
+		IsSteamSubsystem() ? TEXT("Steam") : TEXT("LAN"),
+		*GameModeName);
+	SessionInterface->UpdateSession(LocalSessionName, UpdatedSettings, true);
+}
+
 ESnowRumbleSessionOperation
 USnowRumbleSessionSubsystem::GetCurrentOperation() const
 {
@@ -696,6 +751,11 @@ bool USnowRumbleSessionSubsystem::IsSteamSubsystem() const
 	IOnlineSubsystem* OnlineSubsystem = Online::GetSubsystem(GetWorld());
 	return OnlineSubsystem
 		&& OnlineSubsystem->GetSubsystemName() == FName(TEXT("STEAM"));
+}
+
+const TCHAR* USnowRumbleSessionSubsystem::GetSessionBackendName() const
+{
+	return IsSteamSubsystem() ? TEXT("Steam") : TEXT("LAN");
 }
 
 bool USnowRumbleSessionSubsystem::ShowSessionInviteUI()
@@ -752,6 +812,18 @@ void USnowRumbleSessionSubsystem::HandleSessionUserInviteAccepted(
 		return;
 	}
 
+	const FString CurrentMapName = SnowRumbleSession::GetSessionMapName(GetWorld());
+	if (!SnowRumbleSession::IsLobbyMapName(CurrentMapName))
+	{
+		UE_LOG(
+			LogSnowRumbleSession,
+			Log,
+			TEXT("Ignoring Steam invite outside lobby. Map=%s"),
+			*CurrentMapName);
+		SetPendingMainMenuAlarmMessage(TEXT("게임이 이미 시작되어 Steam 초대를 받을 수 없습니다."));
+		return;
+	}
+
 	if (IsOperationInProgress())
 	{
 		SetPendingMainMenuAlarmMessage(TEXT("다른 세션 요청이 진행 중입니다."));
@@ -797,7 +869,9 @@ void USnowRumbleSessionSubsystem::HandleCreateSessionComplete(
 		SetOperationState(
 			ESnowRumbleSessionOperation::Host,
 			ESnowRumbleSessionState::Failed,
-			TEXT("LAN 세션 생성에 실패했습니다."));
+			FString::Printf(
+				TEXT("%s 세션 생성에 실패했습니다."),
+				GetSessionBackendName()));
 		return;
 	}
 
@@ -809,7 +883,9 @@ void USnowRumbleSessionSubsystem::HandleCreateSessionComplete(
 	SetOperationState(
 		ESnowRumbleSessionOperation::Host,
 		ESnowRumbleSessionState::Succeeded,
-		TEXT("LAN 세션을 생성했습니다."));
+		FString::Printf(
+			TEXT("%s 세션을 생성했습니다."),
+			GetSessionBackendName()));
 }
 
 void USnowRumbleSessionSubsystem::HandleFindSessionsComplete(bool bWasSuccessful)
@@ -824,14 +900,17 @@ void USnowRumbleSessionSubsystem::HandleFindSessionsComplete(bool bWasSuccessful
 		SetOperationState(
 			CurrentOperation,
 			ESnowRumbleSessionState::Failed,
-			TEXT("LAN 세션 검색에 실패했습니다."));
+			FString::Printf(
+				TEXT("%s 세션 검색에 실패했습니다."),
+				GetSessionBackendName()));
 		return;
 	}
 
 	UE_LOG(
 		LogSnowRumbleSession,
 		Log,
-		TEXT("LAN search completed. RawResults=%d"),
+		TEXT("%s search completed. RawResults=%d"),
+		GetSessionBackendName(),
 		ActiveSessionSearch->SearchResults.Num());
 
 	for (int32 Index = 0; Index < ActiveSessionSearch->SearchResults.Num(); ++Index)
@@ -894,7 +973,9 @@ void USnowRumbleSessionSubsystem::HandleFindSessionsComplete(bool bWasSuccessful
 		SetOperationState(
 			ESnowRumbleSessionOperation::QuickJoin,
 			ESnowRumbleSessionState::Failed,
-			TEXT("참가 가능한 LAN 세션이 없습니다."));
+			FString::Printf(
+				TEXT("참가 가능한 %s 세션이 없습니다."),
+				GetSessionBackendName()));
 		SetPendingMainMenuAlarmMessage(TEXT("방이 존재하지 않습니다."));
 		return;
 	}
@@ -934,7 +1015,9 @@ void USnowRumbleSessionSubsystem::HandleFindSessionsComplete(bool bWasSuccessful
 		SetOperationState(
 			ESnowRumbleSessionOperation::JoinByCode,
 			ESnowRumbleSessionState::Failed,
-			TEXT("입력한 방 코드와 일치하는 LAN 세션이 없습니다."));
+			FString::Printf(
+				TEXT("입력한 방 코드와 일치하는 %s 세션이 없습니다."),
+				GetSessionBackendName()));
 		SetPendingMainMenuAlarmMessage(TEXT("방이 존재하지 않습니다."));
 		return;
 	}
@@ -943,8 +1026,12 @@ void USnowRumbleSessionSubsystem::HandleFindSessionsComplete(bool bWasSuccessful
 		ESnowRumbleSessionOperation::Search,
 		ESnowRumbleSessionState::Succeeded,
 		SearchResults.IsEmpty()
-			? TEXT("검색된 LAN 세션이 없습니다.")
-			: TEXT("LAN 세션 검색을 완료했습니다."));
+			? FString::Printf(
+				TEXT("검색된 %s 세션이 없습니다."),
+				GetSessionBackendName())
+			: FString::Printf(
+				TEXT("%s 세션 검색을 완료했습니다."),
+				GetSessionBackendName()));
 }
 
 void USnowRumbleSessionSubsystem::HandleJoinSessionComplete(
@@ -967,19 +1054,29 @@ void USnowRumbleSessionSubsystem::HandleJoinSessionComplete(
 		switch (Result)
 		{
 		case EOnJoinSessionCompleteResult::SessionIsFull:
-			FailureMessage = TEXT("LAN 세션의 참가 인원이 가득 찼습니다.");
+			FailureMessage = FString::Printf(
+				TEXT("%s 세션의 참가 인원이 가득 찼습니다."),
+				GetSessionBackendName());
 			break;
 		case EOnJoinSessionCompleteResult::SessionDoesNotExist:
-			FailureMessage = TEXT("선택한 LAN 세션이 더 이상 존재하지 않습니다.");
+			FailureMessage = FString::Printf(
+				TEXT("선택한 %s 세션이 더 이상 존재하지 않습니다."),
+				GetSessionBackendName());
 			break;
 		case EOnJoinSessionCompleteResult::CouldNotRetrieveAddress:
-			FailureMessage = TEXT("LAN 세션의 연결 주소를 가져오지 못했습니다.");
+			FailureMessage = FString::Printf(
+				TEXT("%s 세션의 연결 주소를 가져오지 못했습니다."),
+				GetSessionBackendName());
 			break;
 		case EOnJoinSessionCompleteResult::AlreadyInSession:
-			FailureMessage = TEXT("이미 같은 이름의 LAN 세션에 참가해 있습니다.");
+			FailureMessage = FString::Printf(
+				TEXT("이미 같은 이름의 %s 세션에 참가해 있습니다."),
+				GetSessionBackendName());
 			break;
 		default:
-			FailureMessage = TEXT("LAN 세션 참가에 실패했습니다.");
+			FailureMessage = FString::Printf(
+				TEXT("%s 세션 참가에 실패했습니다."),
+				GetSessionBackendName());
 			break;
 		}
 
@@ -1019,7 +1116,9 @@ void USnowRumbleSessionSubsystem::HandleJoinSessionComplete(
 	SetOperationState(
 		JoinOperation,
 		ESnowRumbleSessionState::Succeeded,
-		TEXT("LAN 세션 참가에 성공했습니다."));
+		FString::Printf(
+			TEXT("%s 세션 참가에 성공했습니다."),
+			GetSessionBackendName()));
 	bWasInOnlineSession = true;
 	PlayerController->ClientTravel(ConnectString, TRAVEL_Absolute);
 }
@@ -1223,7 +1322,8 @@ void USnowRumbleSessionSubsystem::DestroyLocalSessionIfPresent(
 	UE_LOG(
 		LogSnowRumbleSession,
 		Log,
-		TEXT("Destroying local LAN session. Reason=%s SessionName=%s"),
+		TEXT("Destroying local %s session. Reason=%s SessionName=%s"),
+		GetSessionBackendName(),
 		Reason ? Reason : TEXT("unknown"),
 		*LocalSessionName.ToString());
 	SessionInterface->DestroySession(LocalSessionName);

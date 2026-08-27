@@ -200,6 +200,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
 	bool IsGrabAttached() const;
 
+	/** Grabable 물건을 잡고 있는 동안에는 Grab 게이지를 표시하지 않도록 확인한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	bool IsGrabbingPhysicsObject() const;
+
 	/** Animation Blueprint와 Control Rig에서 벽이나 월드 오브젝트에 매달린 상태인지 확인한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
 	bool IsHangingFromWorldGrab() const;
@@ -250,9 +254,6 @@ public:
 
 	/** 잡기 컴포넌트가 서버와 로컬에서 잡기 reach를 시작할 수 있는지 확인한다. */
 	bool CanStartPlayerGrabReach() const;
-
-	/** 빈손 좌클릭에서 잡기 대신 눈 제작을 우선할 만큼 아래를 보는지 확인한다. */
-	bool ShouldPreferSnowCreationOverGrab() const;
 
 	/** 서버가 이 캐릭터를 잡힌 상태로 만들고 이동을 잠근다. */
 	void ApplyGrabbedByCharacter(ASnowRumbleCharacter* GrabbingCharacter);
@@ -453,6 +454,9 @@ public:
 	/** PvP 팀 소개 연출 중 로컬 플레이어 화면의 WBP를 숨기거나 복원한다. */
 	void SetPvpIntroWidgetsHidden(bool bShouldHide);
 
+	/** 로컬 눈 VFX의 바람 방향 파라미터를 갱신한다. */
+	void SetLocalSnowEffectWindDirection(const FVector& WindDirection);
+
 protected:
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void BeginPlay() override;
@@ -505,6 +509,12 @@ protected:
 	/** 상호작용 입력 해제 상태를 Blueprint에 전달한다. */
 	void HandleInteractCompleted();
 
+	/** 눈덩이 굴리기 입력이 시작되면 굴리기를 요청한다. */
+	void HandleRollStarted();
+
+	/** 눈덩이 굴리기 입력이 끝나면 굴리기를 종료한다. */
+	void HandleRollCompleted();
+
 	/** 조준 입력 누름 상태를 Blueprint에 전달한다. */
 	void HandleAimStarted();
 
@@ -516,6 +526,12 @@ protected:
 
 	/** 상황별 행동 입력 해제 상태를 Blueprint에 전달한다. */
 	void HandleActionCompleted();
+
+	/** 눈 만들기 입력이 시작되면 현재 발판 기준 제작을 요청한다. */
+	void HandleSnowCreationStarted();
+
+	/** 눈 만들기 입력이 끝나면 제작을 취소한다. */
+	void HandleSnowCreationCompleted();
 
 	/** 장비 내려놓기 입력을 Blueprint에 전달한다. */
 	void HandleDropEquipment();
@@ -555,6 +571,9 @@ protected:
 
 	/** 에디터와 런타임에서 이름표 컴포넌트 위치와 클래스를 현재 설정값으로 맞춘다. */
 	void RefreshOverheadNameplateComponentSettings();
+
+	/** 포디움 맵에서 캐릭터 메쉬만 크게 보이도록 표시 스케일을 적용한다. */
+	void ApplyPodiumMeshScale();
 
 	/** 월드 공간 이름표가 로컬 카메라를 향하도록 회전시킨다. */
 	void RefreshOverheadNameplateFacing();
@@ -1344,6 +1363,14 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
 	TObjectPtr<UInputAction> ActionAction;
 
+	/** 눈덩이 굴리기 입력 슬롯이다. 기본 키는 E다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
+	TObjectPtr<UInputAction> RollAction;
+
+	/** 눈 만들기 입력 슬롯이다. 기본 키는 Q다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
+	TObjectPtr<UInputAction> SnowCreationAction;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
 	TObjectPtr<UInputAction> DropEquipmentAction;
 
@@ -1465,6 +1492,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling", meta = (ClampMin = "-200.0", ClampMax = "200.0"))
 	float RollingPlayerMeshGroundZOffset = 0.0f;
 
+	/** 포디움 맵에서 캐릭터 메쉬에만 적용할 표시 배율이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Podium", meta = (ClampMin = "0.01"))
+	float PodiumMeshScaleMultiplier = 1.35f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera", meta = (ClampMin = "5.0", ClampMax = "170.0"))
 	float AimFieldOfView = 75.0f;
 
@@ -1548,6 +1579,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera", meta = (ClampMin = "0.0"))
 	float PostThrowCameraHoldSeconds = 1.0f;
 
+	/** 로컬 눈 VFX에 전달할 바람 방향 Niagara Vector 파라미터 이름이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|VFX")
+	FName LocalSnowEffectWindDirectionParameterName = TEXT("Direction");
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera")
 	float CameraPivotHeight = 65.0f;
 
@@ -1627,6 +1662,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI")
 	TSubclassOf<UMainHUDWidget> MainHUDWidgetClass;
 
+	/** 눈사람 모드에서 로컬 플레이어 화면에 생성할 HUD 위젯 클래스다. UMainHUDWidget을 부모로 사용한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI")
+	TSubclassOf<UMainHUDWidget> SnowmanModeHUDWidgetClass;
+
 	/** 로컬 플레이어가 소유한 메인 HUD 위젯 인스턴스다. */
 	UPROPERTY(Transient)
 	TObjectPtr<UMainHUDWidget> MainHUDWidget;
@@ -1684,9 +1723,6 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation", meta = (ClampMin = "1.0"))
 	float ViewYawAlphaRangeDegrees = 90.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float SnowCreationPreferredViewPitchAlpha = 0.35f;
 
 	/** 로컬 플레이어가 소유한 상호작용 안내 위젯 인스턴스다. */
 	UPROPERTY(Transient)
@@ -1758,6 +1794,7 @@ public:
 	float DesiredCameraArmLength = 400.0f;
 	float CameraShoulderSide = 1.0f;
 	FVector DefaultCharacterMeshRelativeLocation = FVector::ZeroVector;
+	FVector DefaultCharacterMeshRelativeScale = FVector::OneVector;
 	FRotator PickupLockedRotation = FRotator::ZeroRotator;
 	FRotator PickupLockedControlRotation = FRotator::ZeroRotator;
 	double PostThrowAimCameraEndTime = -1.0;
@@ -1780,6 +1817,8 @@ public:
 
 	bool bIsInteractHeld = false;
 	bool bUsedInteractForRolling = false;
+	bool bIsRollHeld = false;
+	bool bUsedRollForMovement = false;
 	bool bIsRevivingTeammate = false;
 	TWeakObjectPtr<ASnowRumbleCharacter> TeammateReviveTarget;
 	FTimerHandle TeammateReviveTimerHandle;

@@ -8,6 +8,7 @@
 
 class ASnowRumbleCharacter;
 class AGrabbablePhysicsObject;
+class ASnowballItem;
 class UPhysicsConstraintComponent;
 class UPrimitiveComponent;
 class USphereComponent;
@@ -61,6 +62,10 @@ public:
 	/** 현재 손이 캐릭터나 월드 지형에 붙은 상태인지 확인한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
 	bool IsGrabAttached() const;
+
+	/** 현재 Grabable 물건을 잡고 있는지 확인한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	bool IsGrabbingPhysicsObject() const;
 
 	/** 현재 손이 벽이나 월드 오브젝트에 붙어 매달린 상태인지 확인한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
@@ -124,6 +129,7 @@ protected:
 		USkeletalMeshComponent*& OutMesh,
 		AGrabbablePhysicsObject*& OutPhysicsObject,
 		UPrimitiveComponent*& OutPhysicsComponent,
+		ASnowballItem*& OutSnowball,
 		FName& OutBoneName,
 		FVector& OutAttachedWorldLocation,
 		ESnowRumbleGrabAttachmentType& OutAttachmentType,
@@ -167,6 +173,12 @@ protected:
 
 	/** 실제 Mesh 손 bone/socket 위치를 우선 사용해 잡힌 대상을 끌 기준점을 계산한다. */
 	FVector BuildHandGrabAnchorLocation(ESnowRumbleGrabHand Hand) const;
+
+	/** 좌클릭 Grab reach 중 카메라 Yaw를 따라 캐릭터가 회전하도록 설정한다. */
+	void ApplyGrabReachRotationMode();
+
+	/** Grab reach 종료 시 기존 캐릭터 회전 설정을 복원한다. */
+	void ClearGrabReachRotationMode();
 
 	ASnowRumbleCharacter* GetOwnerCharacter() const;
 
@@ -353,8 +365,21 @@ protected:
 	UPROPERTY(Transient)
 	FTransform GrabbedPhysicsRelativeTransform = FTransform::Identity;
 
+	/** 물리 물건을 잡은 순간의 시점 Pitch다. 이후 Pitch 변화만 물건에 적용한다. */
+	UPROPERTY(Transient)
+	float GrabbedPhysicsGrabViewPitchDegrees = 0.0f;
+
 	UPROPERTY(Transient)
 	bool bHasPhysicsObjectRotationOverride = false;
+
+	UPROPERTY(Transient)
+	bool bHasGrabReachRotationOverride = false;
+
+	UPROPERTY(Transient)
+	bool bUseControllerRotationYawBeforeGrabReach = false;
+
+	UPROPERTY(Transient)
+	bool bOrientRotationToMovementBeforeGrabReach = true;
 
 	UPROPERTY(Transient)
 	bool bUseControllerRotationYawBeforePhysicsObjectGrab = false;

@@ -5,13 +5,14 @@
 #include "CoreMinimal.h"
 #include "ChatWidget_C.h"
 #include "GameFramework/PlayerController.h"
+#include "LoadingScreenWidget.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "../Player/SnowRumbleUserSettingsSubsystem_C.h"
 #include "SnowRumblePlayerController.generated.h"
 
 class UChatWidget;
 class UAudioComponent;
-class ULoadingScreenWidget;
+class UMainHUDWidget;
 class UTexture2D;
 class UUserWidget;
 class UTimedDropAnnouncementWidget;
@@ -26,6 +27,15 @@ class SNOWRUMBLE_API ASnowRumblePlayerController : public APlayerController
 	GENERATED_BODY()
 
 public:
+	/** 현재 PvP 팀 소개 연출로 로컬 UI를 숨긴 상태인지 반환한다. */
+	bool IsPvpIntroWidgetsHidden() const;
+
+	/** 로컬 인트로 시작 전 PlayerController 소유 UI와 Pawn 소유 UI를 즉시 숨긴다. */
+	void PreparePvpIntroWidgetsForLocalIntro();
+
+	/** 로컬 인트로 종료 후 PlayerController 소유 UI와 Pawn 소유 UI를 복원한다. */
+	void RestorePvpIntroWidgetsForLocalIntro();
+
 	/** 로컬 채팅 입력창을 연다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Chat")
 	void OpenChatInput(ESnowRumbleChatChannel InitialChannel);
@@ -115,7 +125,8 @@ public:
 		const FString& MapPackageName,
 		const FText& MapDisplayName,
 		const TSoftObjectPtr<UTexture2D>& MapLoadingImage,
-		const TArray<FString>& TeamPlayerNames);
+		const TArray<FString>& TeamPlayerNames,
+		bool bIsSnowmanMode);
 
 	UFUNCTION(Client, Reliable, Category = "SnowRumble|UI|Loading")
 	void ClientHideLoadingScreen();
@@ -138,6 +149,10 @@ public:
 	void ClientPlayPvpTeamIntroShot(
 		ESnowRumbleTeam Team,
 		float ShotDurationSeconds);
+
+	/** 팀 인트로 시작 직전에 로컬 HUD와 보조 위젯을 숨긴다. */
+	UFUNCTION(Client, Reliable, Category = "SnowRumble|Match Intro")
+	void ClientPreparePvpIntroWidgets();
 
 	UFUNCTION(Client, Reliable, Category = "SnowRumble|Match Intro")
 	void ClientStartPvpIntroFadeOut(float FadeOutSeconds);
@@ -162,7 +177,8 @@ protected:
 		const FString& MapPackageName,
 		const FText& MapDisplayName,
 		const TSoftObjectPtr<UTexture2D>& MapLoadingImage,
-		const TArray<FString>& TeamPlayerNames);
+		const TArray<FString>& TeamPlayerNames,
+		bool bIsSnowmanMode);
 	virtual void ClientUpdateLoadingProgress_Implementation(
 		int32 LoadedPlayers,
 		int32 ExpectedPlayers);
@@ -213,6 +229,12 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Loading")
 	TSubclassOf<ULoadingScreenWidget> LoadingScreenWidgetClass;
+
+	/** 눈사람 모드에서 사용할 로딩 화면 WBP 클래스다. 비어 있으면 PvP 로딩 WBP를 사용한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Loading")
+	TSubclassOf<ULoadingScreenWidget> SnowmanLoadingScreenWidgetClass;
+
+	bool bUseSnowmanLoadingScreen = false;
 
 	/** 로비, PvP, 추후 모드에서 공통으로 사용할 채팅 WBP 클래스다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Chat")
@@ -380,6 +402,15 @@ private:
 
 	/** 채팅 위젯 인스턴스가 없으면 생성한다. */
 	UChatWidget* EnsureChatWidget();
+
+	/** 이 PlayerController가 CreateWidget을 안전하게 호출할 수 있는 로컬 플레이어를 갖고 있는지 확인한다. */
+	bool HasAttachedLocalPlayer() const;
+
+	/** Viewport에 남아 있는 이 컨트롤러 소유 MainHUD 계열 위젯을 모두 숨긴다. */
+	void CollapseViewportMainHUDWidgets();
+
+	/** Viewport에 남아 있는 이 컨트롤러 소유 MainHUD 계열 위젯을 다시 표시한다. */
+	void RestoreViewportMainHUDWidgets();
 
 	/** PvP 팀 소개 연출 중 PlayerController 소유 WBP를 숨기거나 복원한다. */
 	void SetPvpIntroWidgetsHidden(bool bShouldHide);

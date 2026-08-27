@@ -21,6 +21,12 @@ public:
 		ESnowRumbleTeam WinningTeam,
 		const FText& SubtitleText);
 
+	/** 팀 enum이 아닌 모드 전용 우승 문구와 복귀 안내를 그대로 표시한다. */
+	UFUNCTION(BlueprintCallable, Category = "Podium")
+	void SetWinnerPresentationText(
+		const FText& WinnerText,
+		const FText& SubtitleText);
+
 	/** 현재 표시 중인 승리 팀을 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "Podium")
 	ESnowRumbleTeam GetWinningTeam() const;

@@ -441,36 +441,78 @@ FString ASnowRumbleLobbyGameMode::BuildMatchTravelUrl(
 }
 
 FString ASnowRumbleLobbyGameMode::BuildSnowmanModeTravelUrl(
-	int32 ExpectedPlayerCount)
+    int32 ExpectedPlayerCount)
 {
-	const TArray<FString> CandidateLevelPaths = GetPvPLevelCandidatePaths();
-	FString TravelUrl = CandidateLevelPaths.IsEmpty()
-		? FString()
-		: CandidateLevelPaths[
-			FMath::RandRange(0, CandidateLevelPaths.Num() - 1)];
-	if (TravelUrl.IsEmpty())
-	{
-		TravelUrl = MatchTravelUrl;
-	}
-	if (TravelUrl.IsEmpty() || !SnowmanModeGameModeClass)
-	{
-		return FString();
-	}
+    // 1. MatchSubsystem에 라운드 수와 게임 속도 설정 등록
+    if (UGameInstance* GameInstance = GetGameInstance())
+    {
+       if (USnowRumbleMatchSubsystem* MatchSubsystem =
+          GameInstance->GetSubsystem<USnowRumbleMatchSubsystem>())
+       {
+          const ASnowRumbleLobbyGameState* LobbyGameState =
+             GetGameState<ASnowRumbleLobbyGameState>();
+          TArray<FString> SnowmanLevelPaths = GetSnowmanLevelCandidatePaths();
+          if (SnowmanLevelPaths.IsEmpty() && !MatchTravelUrl.IsEmpty())
+          {
+             SnowmanLevelPaths.Add(MatchTravelUrl);
+          }
+          
+          MatchSubsystem->BeginPvPMatch(
+             LobbyGameState ? LobbyGameState->GetMatchRoundLimit() : 1,
+             LobbyGameState
+                ? LobbyGameState->GetGameSpeed()
+                : ESnowRumbleGameSpeed::Normal,
+             SnowmanLevelPaths);
+       }
+    }
 
-	PendingMatchMapPackageName = GetMapPackageNameFromTravelUrl(TravelUrl);
-	EnsureLobbyTravelOption(TravelUrl, TEXT("?listen"));
+    TArray<FString> CandidateLevelPaths = GetSnowmanLevelCandidatePaths();
+    FString TravelUrl = CandidateLevelPaths.IsEmpty()
+       ? FString()
+       : CandidateLevelPaths[
+          FMath::RandRange(0, CandidateLevelPaths.Num() - 1)];
+    if (TravelUrl.IsEmpty())
+    {
+       TravelUrl = MatchTravelUrl;
+    }
+    if (TravelUrl.IsEmpty() || !SnowmanModeGameModeClass)
+    {
+       return FString();
+    }
 
-	const FString GameModePath = SnowmanModeGameModeClass->GetPathName();
-	EnsureLobbyTravelOptionValue(TravelUrl, TEXT("game"), GameModePath);
+    PendingMatchMapPackageName = GetMapPackageNameFromTravelUrl(TravelUrl);
+    EnsureLobbyTravelOption(TravelUrl, TEXT("?listen"));
 
-	if (ExpectedPlayerCount > 0)
-	{
-		EnsureLobbyTravelOptionValue(
-			TravelUrl,
-			TEXT("ExpectedPlayers"),
-			FString::FromInt(ExpectedPlayerCount));
-	}
-	return TravelUrl;
+    const FString GameModePath = SnowmanModeGameModeClass->GetPathName();
+    EnsureLobbyTravelOptionValue(TravelUrl, TEXT("game"), GameModePath);
+
+    if (ExpectedPlayerCount > 0)
+    {
+       EnsureLobbyTravelOptionValue(
+          TravelUrl,
+          TEXT("ExpectedPlayers"),
+          FString::FromInt(ExpectedPlayerCount));
+    }
+
+    // ★ [핵심 추가] 로비에서 설정한 라운드 수(MatchRoundLimit)와 초기 라운드 번호(1)를 URL 옵션에 명시적으로 추가합니다!
+    if (UGameInstance* GameInstance = GetGameInstance())
+    {
+       if (USnowRumbleMatchSubsystem* MatchSubsystem =
+          GameInstance->GetSubsystem<USnowRumbleMatchSubsystem>())
+       {
+          // 서브시스템이나 로비 게임스테이트에서 총 라운드 가져오기
+          int32 TotalRounds = 1;
+          if (const ASnowRumbleLobbyGameState* LobbyGameState = GetGameState<ASnowRumbleLobbyGameState>())
+          {
+             TotalRounds = LobbyGameState->GetMatchRoundLimit();
+          }
+
+          EnsureLobbyTravelOptionValue(TravelUrl, TEXT("Rounds"), FString::FromInt(TotalRounds));
+          EnsureLobbyTravelOptionValue(TravelUrl, TEXT("CurrentRound"), TEXT("1")); // 첫 시작은 항상 1라운드
+       }
+    }
+
+    return TravelUrl;
 }
 
 FString ASnowRumbleLobbyGameMode::SelectPvPLevelPath() const
@@ -509,6 +551,32 @@ TArray<FString> ASnowRumbleLobbyGameMode::GetPvPLevelCandidatePaths() const
 		{
 			CandidateLevelPaths.AddUnique(LongPackageName);
 		}
+	}
+
+	return CandidateLevelPaths;
+}
+
+TArray<FString> ASnowRumbleLobbyGameMode::GetSnowmanLevelCandidatePaths() const
+{
+	TArray<FString> CandidateLevelPaths;
+	for (const TSoftObjectPtr<UWorld>& SnowmanLevelCandidate : SnowmanLevelCandidates)
+	{
+		const FSoftObjectPath LevelPath = SnowmanLevelCandidate.ToSoftObjectPath();
+		if (!LevelPath.IsValid())
+		{
+			continue;
+		}
+
+		const FString LongPackageName = LevelPath.GetLongPackageName();
+		if (!LongPackageName.IsEmpty())
+		{
+			CandidateLevelPaths.AddUnique(LongPackageName);
+		}
+	}
+
+	if (CandidateLevelPaths.IsEmpty())
+	{
+		CandidateLevelPaths = GetPvPLevelCandidatePaths();
 	}
 
 	return CandidateLevelPaths;
@@ -606,6 +674,8 @@ void ASnowRumbleLobbyGameMode::ShowMatchLoadingScreens()
 
 	const ASnowRumbleLobbyGameState* LobbyGameState =
 		GetGameState<ASnowRumbleLobbyGameState>();
+	const bool bIsSnowmanMode = LobbyGameState
+		&& LobbyGameState->GetLobbyMode() == ESnowRumbleLobbyMode::Snowman;
 	const int32 ExpectedPlayerCount = ResolveExpectedMatchPlayerCount();
 	const FSnowRumbleLoadingMapPresentation LoadingMapPresentation =
 		GetLoadingMapPresentation(PendingMatchMapPackageName);
@@ -623,7 +693,8 @@ void ASnowRumbleLobbyGameMode::ShowMatchLoadingScreens()
 				PendingMatchMapPackageName,
 				LoadingMapPresentation.DisplayName,
 				LoadingMapPresentation.LoadingImage,
-				GetTeamPlayerNamesFor(LocalPlayerState));
+				GetTeamPlayerNamesFor(LocalPlayerState),
+				bIsSnowmanMode);
 			PlayerController->ClientShowLoadingScreen();
 			PlayerController->ClientUpdateLoadingProgress(
 				0,

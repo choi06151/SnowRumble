@@ -2,6 +2,8 @@
 
 #include "SnowRumbleLobbyGameState.h"
 
+#include "../Online/SnowRumbleSessionSubsystem.h"
+#include "Engine/GameInstance.h"
 #include "Net/UnrealNetwork.h"
 #include "SnowRumblePlayerState.h"
 #include "../UI/LobbyPlayerController.h"
@@ -203,6 +205,17 @@ void ASnowRumbleLobbyGameState::SetLobbyModeFromServer(
 	}
 
 	LobbyMode = NewLobbyMode;
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleSessionSubsystem* SessionSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleSessionSubsystem>())
+		{
+			SessionSubsystem->UpdateAdvertisedGameMode(
+				LobbyMode == ESnowRumbleLobbyMode::Snowman
+					? TEXT("Snowman")
+					: TEXT("TeamPvP"));
+		}
+	}
 	BroadcastRoomSettingsChangedAlarmToClients();
 	NotifyLobbyStateChanged();
 }
