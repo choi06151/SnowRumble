@@ -38,10 +38,7 @@ void AIceGlacierWindGustActor::Tick(float DeltaSeconds)
 	{
 		UpdateServerWind(DeltaSeconds);
 	}
-	else
-	{
-		RefreshLocalEnvironmentalDrift();
-	}
+	RefreshLocalEnvironmentalDrift();
 }
 
 void AIceGlacierWindGustActor::GetLifetimeReplicatedProps(
@@ -352,6 +349,37 @@ void AIceGlacierWindGustActor::RefreshLocalEnvironmentalDrift() const
 	}
 
 	const FEnvironmentalDriftState_C DriftState = BuildEnvironmentalDriftState();
+	const float CurrentServerTime = GetServerWorldTimeSeconds();
+	const bool bWindVfxLeadActive =
+		WindReplicatedState.CurrentWindState
+			== EIceGlacierWindGustState::Warning
+		&& CurrentServerTime
+			>= WindReplicatedState.CurrentStateEndServerTime
+			- FMath::Max(0.0f, LocalSnowEffectWindLeadSeconds);
+	const bool bWindVfxDirectionActive =
+		DriftState.bActive || bWindVfxLeadActive;
+	LocalCharacter->SetLocalSnowEffectWindDirection(
+		bWindVfxDirectionActive
+			? DriftState.Direction
+			: FVector(0.0f, 0.0f, -1.0f));
+	float WindStrengthAlpha = DriftState.bActive ? 1.0f : 0.0f;
+	if (bWindVfxLeadActive)
+	{
+		const float LeadSeconds =
+			FMath::Max(0.0f, LocalSnowEffectWindLeadSeconds);
+		const float SecondsUntilGust =
+			FMath::Max(
+				0.0f,
+				WindReplicatedState.CurrentStateEndServerTime
+					- CurrentServerTime);
+		WindStrengthAlpha = LeadSeconds > KINDA_SMALL_NUMBER
+			? FMath::Clamp(1.0f - SecondsUntilGust / LeadSeconds, 0.0f, 1.0f)
+			: 1.0f;
+	}
+	LocalCharacter->SetLocalSnowEffectWindStrength(FMath::Lerp(
+		LocalSnowEffectDefaultStrength,
+		LocalSnowEffectGustStrength,
+		WindStrengthAlpha));
 	if (DriftState.bActive && ShouldAffectCharacter(LocalCharacter))
 	{
 		ApplyEnvironmentalDriftToCharacter(LocalCharacter, DriftState);

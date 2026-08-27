@@ -1009,6 +1009,19 @@ void ASnowRumbleCharacter::SetLocalSnowEffectWindDirection(
 		WindDirection.GetSafeNormal());
 }
 
+void ASnowRumbleCharacter::SetLocalSnowEffectWindStrength(
+	float WindStrength)
+{
+	if (!IsLocallyControlled() || !LocalSnowEffect)
+	{
+		return;
+	}
+
+	LocalSnowEffect->SetVariableFloat(
+		LocalSnowEffectWindStrengthParameterName,
+		FMath::Max(0.0f, WindStrength));
+}
+
 void ASnowRumbleCharacter::ApplyGrabbedByCharacter(
 	ASnowRumbleCharacter* GrabbingCharacter)
 {
@@ -1697,6 +1710,11 @@ void ASnowRumbleCharacter::OnConstruction(const FTransform& Transform)
 void ASnowRumbleCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (GEngine && FApp::IsGame())
+	{
+		GEngine->bEnableOnScreenDebugMessages = false;
+	}
 
 	if (const UWorld* World = GetWorld())
 	{
@@ -2889,6 +2907,11 @@ void ASnowRumbleCharacter::RefreshLocalSnowEffect()
 	if (bLocalSnowEffectActive == bShouldShowLocalSnow)
 	{
 		return;
+	}
+
+	if (bShouldShowLocalSnow)
+	{
+		SetLocalSnowEffectWindDirection(LocalSnowEffectDefaultDirection);
 	}
 
 	bLocalSnowEffectActive = bShouldShowLocalSnow;
