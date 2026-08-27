@@ -59,6 +59,10 @@ void ASnowRumblePlayerController::BeginPlay()
 			{
 				Widget->AddToViewport(50);
 			}
+			if (bPvpIntroWidgetsHidden)
+			{
+				Widget->SetVisibility(ESlateVisibility::Collapsed);
+			}
 		}
 		EnsureLocalVoiceTalkerReady();
 		EnsureRemoteVoiceTalkersReady();
@@ -727,6 +731,10 @@ void ASnowRumblePlayerController::ClientReceiveChatMessage_Implementation(
 		{
 			Widget->AddToViewport(50);
 		}
+		if (bPvpIntroWidgetsHidden)
+		{
+			Widget->SetVisibility(ESlateVisibility::Collapsed);
+		}
 		Widget->AddChatMessage(Channel, SenderName, Message);
 	}
 }
@@ -1256,7 +1264,6 @@ void ASnowRumblePlayerController::EnsureRemoteVoiceTalkersReady()
 		}
 	}
 
-	SetPvpIntroWidgetsHidden(false);
 }
 
 void ASnowRumblePlayerController::SetPvpIntroWidgetsHidden(bool bShouldHide)
@@ -1270,6 +1277,20 @@ void ASnowRumblePlayerController::SetPvpIntroWidgetsHidden(bool bShouldHide)
 	{
 		if (bPvpIntroWidgetsHidden)
 		{
+			if (ChatWidget)
+			{
+				ChatWidget->SetVisibility(ESlateVisibility::Collapsed);
+			}
+			if (VoiceMuteMenuWidget)
+			{
+				HideVoiceMuteMenu();
+			}
+			if (ASnowRumbleCharacter* LocalCharacter =
+				Cast<ASnowRumbleCharacter>(GetPawn()))
+			{
+				LocalCharacter->SetPvpIntroWidgetsHidden(true);
+			}
+			RestoreGameOnlyInput();
 			return;
 		}
 
@@ -1308,6 +1329,11 @@ void ASnowRumblePlayerController::SetPvpIntroWidgetsHidden(bool bShouldHide)
 	{
 		LocalCharacter->SetPvpIntroWidgetsHidden(false);
 	}
+}
+
+bool ASnowRumblePlayerController::IsPvpIntroWidgetsHidden() const
+{
+	return bPvpIntroWidgetsHidden;
 }
 
 bool ASnowRumblePlayerController::ShouldMirrorMicrophoneInputToVoiceSpeaking()

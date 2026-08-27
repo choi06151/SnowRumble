@@ -26,6 +26,9 @@ class SNOWRUMBLE_API ASnowRumblePlayerController : public APlayerController
 	GENERATED_BODY()
 
 public:
+	/** 현재 PvP 팀 소개 연출로 로컬 UI를 숨긴 상태인지 반환한다. */
+	bool IsPvpIntroWidgetsHidden() const;
+
 	/** 로컬 채팅 입력창을 연다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Chat")
 	void OpenChatInput(ESnowRumbleChatChannel InitialChannel);
