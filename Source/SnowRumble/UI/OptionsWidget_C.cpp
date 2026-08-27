@@ -1901,13 +1901,11 @@ void UOptionsWidget::RefreshLanguageComboBoxTextColor()
 	if (!bHasDefaultLanguageComboBoxForegroundColor)
 	{
 		DefaultLanguageComboBoxForegroundColor =
-			LanguageComboBox->ForegroundColor;
 		bHasDefaultLanguageComboBoxForegroundColor = true;
 	}
 
 	const bool bShouldBeWhite =
 		LanguageComboBox->IsHovered() || LanguageComboBox->IsOpen();
-	LanguageComboBox->SetForegroundColor(
 		bShouldBeWhite
 			? FSlateColor(FLinearColor::White)
 			: DefaultLanguageComboBoxForegroundColor);
