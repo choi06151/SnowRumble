@@ -12,7 +12,9 @@ class ACustomizationPlayerController;
 class UBorder;
 class UButton;
 class UImage;
+class UTextBlock;
 class USlider;
+class UWidget;
 class UWidgetSwitcher;
 
 UENUM(BlueprintType)
@@ -402,6 +404,13 @@ private:
 	void BindAccessoryItemButtons();
 	void UnbindAccessoryItemButtons();
 	void RefreshPaintBrushPreview();
+	void RefreshPaintActionButtonTextColors();
+	void CacheButtonTextColors(
+		UButton* Button,
+		TArray<UTextBlock*>& TextBlocks);
+	void CacheButtonTextColorsRecursive(
+		UWidget* Widget,
+		TArray<UTextBlock*>& TextBlocks);
 	void ApplyPaletteButtonColors();
 	void ApplyPaletteButtonColor(UButton* Button, FLinearColor Color);
 	void RefreshBrushSizeSlider();
@@ -438,4 +447,5 @@ private:
 
 	TMap<UButton*, FButtonStyle> DefaultPaletteButtonStyles;
 	TMap<UButton*, FButtonStyle> DefaultAccessoryItemButtonStyles;
+	TMap<UTextBlock*, FSlateColor> DefaultPaintActionButtonTextColors;
 };

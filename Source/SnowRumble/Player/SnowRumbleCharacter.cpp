@@ -68,6 +68,7 @@
 #include "InputCoreTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Components/MeshComponent.h"
 #include "Misc/DateTime.h"
 #include "UnrealClient.h"
 #include "Net/UnrealNetwork.h"
@@ -391,6 +392,7 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 	UpdateIceGlacierMovementSurface();
 	EnsureOverheadTimedActionWidget();
+	UpdateSmallSnowballAimMeshFade(DeltaSeconds);
 
 	if (USkeletalMeshComponent* CharacterMesh = GetMesh())
 	{
@@ -1417,7 +1419,9 @@ void ASnowRumbleCharacter::NotifyItemPickupSucceeded()
 	ForceNetUpdate();
 }
 
-void ASnowRumbleCharacter::NotifySnowballPickupSucceeded(bool bWasLargeSnowball)
+void ASnowRumbleCharacter::NotifySnowballPickupSucceeded(
+	bool bWasLargeSnowball,
+	bool bPlayPickupAnimation)
 {
 	if (!HasAuthority())
 	{
@@ -1426,6 +1430,12 @@ void ASnowRumbleCharacter::NotifySnowballPickupSucceeded(bool bWasLargeSnowball)
 
 	MulticastPlayCharacterFeedbackSound(
 		ESnowRumbleCharacterFeedbackSoundType::SnowballPickup);
+	if (!bPlayPickupAnimation)
+	{
+		ForceNetUpdate();
+		return;
+	}
+
 	bIsPickingUpItem = true;
 	OnRep_IsPickingUpItem();
 
@@ -1975,6 +1985,12 @@ void ASnowRumbleCharacter::RefreshCustomizationHatMesh()
 
 	HatMeshComponent->SetStaticMesh(HatMesh);
 	HatMeshComponent->SetVisibility(HatMesh != nullptr, true);
+	if (bSmallSnowballAimMeshFadeActive)
+	{
+		// Customization can replicate after aiming starts, so include the newly
+		// assigned hat materials in the local aim-fade cache.
+		CacheSmallSnowballAimFadeMaterials();
+	}
 }
 
 void ASnowRumbleCharacter::RefreshCustomizationGlassesMesh()
@@ -2929,7 +2945,8 @@ void ASnowRumbleCharacter::EnsureEmoteRadialMenuWidget()
 			EmoteRadialMenuWidgetClass);
 	if (EmoteRadialMenuWidget)
 	{
-		EmoteRadialMenuWidget->AddToViewport();
+		// Keep the radial menu above the HUD so its buttons receive mouse hit tests.
+		EmoteRadialMenuWidget->AddToViewport(100);
 		EmoteRadialMenuWidget->CloseEmoteMenu();
 	}
 }
@@ -4757,14 +4774,7 @@ void ASnowRumbleCharacter::HandleGrabbedByCharacterChanged(bool bNewGrabbed)
 			SnowballCreationComponent->CancelCreatingSnowball();
 		}
 		MovementComponent->StopMovementImmediately();
-		if (HealthComponent
-			&& !HealthComponent->IsDead()
-			&& !bTiebreakerSpectator
-			&& !bWaterSubmerged
-			&& MovementComponent->MovementMode == MOVE_None)
-		{
-			MovementComponent->SetMovementMode(MOVE_Walking);
-		}
+		MovementComponent->DisableMovement();
 		StopJumping();
 		ApplyMovementSpeed();
 		return;
@@ -4798,6 +4808,15 @@ void ASnowRumbleCharacter::HandleGrabbedByCharacterChanged(bool bNewGrabbed)
 
 void ASnowRumbleCharacter::HandleSnowballAimingChanged(bool bNewAiming)
 {
+	bSmallSnowballAimMeshFadeActive =
+		IsLocallyControlled()
+		&& bNewAiming
+		&& !IsHoldingLargeSnowball();
+	if (bSmallSnowballAimMeshFadeActive)
+	{
+		CacheSmallSnowballAimFadeMaterials();
+	}
+
 	if (IsLocallyControlled() && MainHUDWidget)
 	{
 		MainHUDWidget->SetAimCrosshairVisibleImmediate(
@@ -4849,6 +4868,95 @@ void ASnowRumbleCharacter::HandleSnowballAimingChanged(bool bNewAiming)
 	if (HasAuthority())
 	{
 		ForceNetUpdate();
+	}
+}
+
+void ASnowRumbleCharacter::UpdateSmallSnowballAimMeshFade(
+	float DeltaSeconds)
+{
+	if (!IsLocallyControlled())
+	{
+		return;
+	}
+
+	const float TargetFadeValue = bSmallSnowballAimMeshFadeActive
+		? FMath::Clamp(SmallSnowballAimMeshFadeTarget, 0.0f, 1.0f)
+		: 1.0f;
+	SmallSnowballAimMeshFadeValue = FMath::FInterpTo(
+		SmallSnowballAimMeshFadeValue,
+		TargetFadeValue,
+		DeltaSeconds,
+		FMath::Max(0.0f, SmallSnowballAimMeshFadeInterpSpeed));
+	ApplySmallSnowballAimMeshFade(SmallSnowballAimMeshFadeValue);
+}
+
+void ASnowRumbleCharacter::CacheSmallSnowballAimFadeMaterials()
+{
+	SmallSnowballAimFadeMaterials.Reset();
+	if (SmallSnowballAimMeshFadeParameterName.IsNone())
+	{
+		return;
+	}
+
+	TArray<UMeshComponent*> MeshComponents;
+	GetComponents(MeshComponents);
+	for (UMeshComponent* MeshComponent : MeshComponents)
+	{
+		// UWidgetComponent also derives from UMeshComponent. Keep overhead and HUD
+		// widget render materials outside the aim fade path.
+		if (!MeshComponent || Cast<UWidgetComponent>(MeshComponent))
+		{
+			continue;
+		}
+
+		for (int32 MaterialIndex = 0;
+			MaterialIndex < MeshComponent->GetNumMaterials();
+			++MaterialIndex)
+		{
+			UMaterialInstanceDynamic* DynamicMaterial =
+				Cast<UMaterialInstanceDynamic>(
+					MeshComponent->GetMaterial(MaterialIndex));
+			if (!DynamicMaterial)
+			{
+				DynamicMaterial =
+					MeshComponent->CreateAndSetMaterialInstanceDynamic(
+						MaterialIndex);
+			}
+			if (!DynamicMaterial)
+			{
+				continue;
+			}
+
+			SmallSnowballAimFadeMaterials.AddUnique(DynamicMaterial);
+			if (MeshComponent == GetMesh())
+			{
+				CustomizationMaterialInstance = DynamicMaterial;
+			}
+			else if (MeshComponent == ScarfMeshComponent
+				&& MaterialIndex == 0)
+			{
+				ScarfDynamicMaterial = DynamicMaterial;
+			}
+		}
+	}
+}
+
+void ASnowRumbleCharacter::ApplySmallSnowballAimMeshFade(float FadeValue)
+{
+	if (SmallSnowballAimMeshFadeParameterName.IsNone())
+	{
+		return;
+	}
+
+	for (UMaterialInstanceDynamic* DynamicMaterial
+		: SmallSnowballAimFadeMaterials)
+	{
+		if (DynamicMaterial)
+		{
+			DynamicMaterial->SetScalarParameterValue(
+				SmallSnowballAimMeshFadeParameterName,
+				FMath::Clamp(FadeValue, 0.0f, 1.0f));
+		}
 	}
 }
 

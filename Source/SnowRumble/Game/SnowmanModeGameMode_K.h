@@ -13,6 +13,8 @@ class ASnowRumbleCharacter;
 class ASnowRumbleLobbyGameMode;
 class ASnowRumblePlayerState;
 class ASnowmanModeSnowmanCharacter;
+class ASnowballItem;
+class UTimedDropAnnouncementWidget;
 enum class ESnowmanModeResult : uint8;
 enum class ESnowRumbleTeam : uint8;
 class USoundBase;
@@ -56,6 +58,56 @@ protected:
 	/** 눈사람 모드 제한시간이다. K-14 전까지 승패 없이 시간 상태만 제공한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman", meta = (ClampMin = "0.0"))
 	float SnowmanModeTimeLimitSeconds = 600.0f;
+
+	/** 눈사람 모드에서도 PvP와 같은 큰 눈덩이 낙하 이벤트를 사용할지 정한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Falling Snowball")
+	bool bEnableFallingSnowballEvent = true;
+
+	/** 눈사람 모드 시작 후 첫 낙하 이벤트까지 기다리는 시간이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Falling Snowball", meta = (ClampMin = "0.0"))
+	float FirstFallingSnowballDelaySeconds = 30.0f;
+
+	/** 눈사람 모드에서 낙하 이벤트가 반복되는 간격이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Falling Snowball", meta = (ClampMin = "0.1"))
+	float FallingSnowballEventIntervalSeconds = 20.0f;
+
+	/** 한 번의 눈덩이 낙하 이벤트에서 생성할 큰 눈덩이 수다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Falling Snowball", meta = (ClampMin = "0"))
+	int32 FallingSnowballCount = 10;
+
+	/** 낙하 이벤트에 사용할 큰 눈덩이 Blueprint 클래스다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Falling Snowball")
+	TSubclassOf<ASnowballItem> FallingSnowballClass;
+
+	/** 큰 눈덩이 낙하 시작 시 표시할 PvP와 동일한 알림 WBP다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Falling Snowball")
+	TSubclassOf<UTimedDropAnnouncementWidget> FallingSnowballAnnouncementWidgetClass;
+
+	/** 큰 눈덩이 낙하 알림 WBP가 화면에 유지되는 시간이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Falling Snowball", meta = (ClampMin = "0.1"))
+	float FallingSnowballAnnouncementDisplayDurationSeconds = 3.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Falling Snowball")
+	FSoftClassPath DefaultFallingSnowballClassPath =
+		FSoftClassPath(TEXT("/Game/Snowball/BP_SnowballItem.BP_SnowballItem_C"));
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Falling Snowball", meta = (ClampMin = "0.0"))
+	float FallingSnowballDamage = 50.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Falling Snowball", meta = (ClampMin = "0.0"))
+	float FallingSnowballScatterRadius = 650.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Falling Snowball", meta = (ClampMin = "0.0"))
+	float FallingSnowballHeightOffset = 1000.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Falling Snowball", meta = (ClampMin = "0.0"))
+	float FallingSnowballSpawnIntervalSeconds = 0.25f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Falling Snowball", meta = (ClampMin = "0.0"))
+	float FallingSnowballHorizontalSpeedMin = 80.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Falling Snowball", meta = (ClampMin = "0.0"))
+	float FallingSnowballHorizontalSpeedMax = 280.0f;
 
 	/** 눈사람 모드 스폰 후 실제 시작까지 기다릴 카운트다운 시간이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman", meta = (ClampMin = "0.0"))
@@ -158,6 +210,12 @@ private:
 	/** 시작 카운트다운이 끝난 뒤 눈사람 모드 제한시간을 시작한다. */
 	void StartSnowmanModeAfterCountdown();
 
+	/** 눈사람 모드에서 PvP와 동일한 큰 눈덩이 낙하 이벤트를 시작한다. */
+	void ScheduleFallingSnowballEvent(float DelaySeconds);
+	void SpawnFallingSnowballEvent();
+	void SpawnNextFallingSnowball();
+	void BroadcastFallingSnowballAnnouncement() const;
+
 	/** 접속자를 초기화하고 시작 눈사람을 무작위로 선택한다. */
 	void InitializeSnowmanRoles();
 
@@ -254,6 +312,9 @@ private:
 	FTimerHandle SnowmanIntroTimerHandle;
 	FTimerHandle SnowmanModeTimeLimitTimerHandle;
 	FTimerHandle SnowmanModeLobbyReturnTimerHandle;
+	FTimerHandle FallingSnowballEventTimerHandle;
+	FTimerHandle FallingSnowballSpawnTimerHandle;
+	int32 RemainingFallingSnowballs = 0;
 
 	double LastInfectionDebugSummaryTime = -1.0;
 
