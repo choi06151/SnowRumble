@@ -6,6 +6,8 @@
 
 class AGrabbablePhysicsObject;
 class UNiagaraSystem;
+class USoundAttenuation;
+class USoundBase;
 class UStaticMeshComponent;
 
 UCLASS(Blueprintable)
@@ -42,6 +44,12 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Grab|Bootstrap|Converted Object")
 	TObjectPtr<UNiagaraSystem> ConvertedInteractionBreakEffect;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Grab|Bootstrap|Converted Object")
+	TObjectPtr<USoundBase> ConvertedInteractionBreakSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Grab|Bootstrap|Converted Object")
+	TObjectPtr<USoundAttenuation> ConvertedInteractionBreakSoundAttenuation;
 
 	void ConvertTaggedStaticMeshes();
 	bool ShouldConvertStaticMeshComponent(const AActor* SourceActor, const UStaticMeshComponent* SourceComponent) const;

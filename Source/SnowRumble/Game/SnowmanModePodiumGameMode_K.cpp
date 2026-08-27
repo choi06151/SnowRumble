@@ -104,6 +104,8 @@ void ASnowmanModePodiumGameMode::InitGame(
        UGameplayStatics::ParseOption(Options, TEXT("SnowmanResult")));
     ParseWinnerPlayerIds(
        UGameplayStatics::ParseOption(Options, TEXT("WinnerPlayerIds")));
+    ParseWinnerPlayerNames(
+       UGameplayStatics::ParseOption(Options, TEXT("WinnerPlayerNames")));
 
     bPodiumSetupComplete = false;
     GetWorldTimerManager().ClearTimer(PodiumSetupTimerHandle);
@@ -143,21 +145,27 @@ void ASnowmanModePodiumGameMode::ScheduleSnowmanPodiumSetup()
 
 void ASnowmanModePodiumGameMode::BroadcastBackgroundMusic() const
 {
-    UWorld* World = GetWorld();
-    if (!World)
-    {
-       return;
-    }
+	UWorld* World = GetWorld();
+	if (!World || !BackgroundMusicSound)
+	{
+	   return;
+	}
+
+	const FSoftObjectPath BackgroundMusicPath(BackgroundMusicSound);
+	if (!BackgroundMusicPath.IsValid())
+	{
+	   return;
+	}
 
     for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
        It;
        ++It)
     {
-       if (ASnowmanModePodiumPlayerController* PodiumController =
-          Cast<ASnowmanModePodiumPlayerController>(It->Get()))
-       {
-          PodiumController->ClientPlayBackgroundMusic(BackgroundMusicSound);
-       }
+        if (ASnowmanModePodiumPlayerController* PodiumController =
+           Cast<ASnowmanModePodiumPlayerController>(It->Get()))
+        {
+           PodiumController->ClientPlayBackgroundMusic(BackgroundMusicPath);
+        }
     }
 }
 
@@ -228,6 +236,11 @@ void ASnowmanModePodiumGameMode::SetupSnowmanPodiumFromServer()
           {
              PodiumCharacter->PlayRandomServerDirectedEmote();
           }
+          if (ASnowmanModePodiumPlayerController* PodiumController =
+             Cast<ASnowmanModePodiumPlayerController>(PlayerController))
+          {
+             PodiumController->ClientRefreshPodiumPawnPresentation();
+          }
        }
     }
 
@@ -235,11 +248,17 @@ void ASnowmanModePodiumGameMode::SetupSnowmanPodiumFromServer()
        It;
        ++It)
     {
-       if (APlayerController* PlayerController = It->Get())
-       {
-          if (PodiumCamera)
-          {
-             PlayerController->SetViewTargetWithBlend(PodiumCamera, 0.5f);
+        if (APlayerController* PlayerController = It->Get())
+        {
+           if (ASnowmanModePodiumPlayerController* PodiumController =
+              Cast<ASnowmanModePodiumPlayerController>(PlayerController))
+           {
+              PodiumController->ClientSetSnowmanPodiumCamera();
+           }
+
+           if (PodiumCamera)
+           {
+              PlayerController->SetViewTargetWithBlend(PodiumCamera, 0.5f);
           }
        }
     }
@@ -250,43 +269,21 @@ void ASnowmanModePodiumGameMode::SetupSnowmanPodiumFromServer()
 
 void ASnowmanModePodiumGameMode::ReturnToLobbyAfterSnowmanPodium()
 {
-   if (!HasAuthority())
+   if (!HasAuthority() || LobbyReturnTravelUrl.IsEmpty())
    {
       return;
    }
 
    GetWorldTimerManager().ClearTimer(PodiumReturnCountdownTimerHandle);
 
-   // 1. 실제 로비 맵 경로 적용 (Content\Maps\L_Lobby.umap -> /Game/Maps/L_Lobby)
-   FString TargetMapPath = TEXT("/Game/Maps/L_Lobby"); 
-    
-   if (!LobbyReturnTravelUrl.IsEmpty())
-   {
-      TargetMapPath = LobbyReturnTravelUrl;
-   }
-
-   // 혹시 모를 기존 옵션 제거 (순수 맵 경로만 추출)
-   int32 OptionIndex;
-   if (TargetMapPath.FindChar('?', OptionIndex))
-   {
-      TargetMapPath = TargetMapPath.Left(OptionIndex);
-   }
-
-   // 2. 멀티플레이 트래블 URL 조립
-   FString FinalTravelUrl = TargetMapPath;
-
-   // ★ [수정 포인트]: TCHAR* 경로가 유효한지 확인하는 안전한 방식으로 변경
-   if (SnowmanPodiumLobbyGameModeTravelPath != nullptr && SnowmanPodiumLobbyGameModeTravelPath[0] != TEXT('\0'))
-   {
-      FinalTravelUrl += FString::Printf(TEXT("?game=%s"), SnowmanPodiumLobbyGameModeTravelPath);
-   }
-
-   FinalTravelUrl += TEXT("?listen");
+   FString FinalTravelUrl = LobbyReturnTravelUrl;
+   EnsureSnowmanModePodiumTravelOption(FinalTravelUrl, TEXT("?listen"));
+   EnsureSnowmanModePodiumTravelOptionValue(
+      FinalTravelUrl,
+      TEXT("game"),
+      SnowmanPodiumLobbyGameModeTravelPath);
 
    UE_LOG(LogTemp, Warning, TEXT("=== [SERVER TRAVEL] Executing ServerTravel to: %s ==="), *FinalTravelUrl);
-
-   // 3. 심리스 트래블 활성화로 클라이언트 동기화 안정성 확보
-   bUseSeamlessTravel = true;
 
    if (UWorld* World = GetWorld())
    {
@@ -426,7 +423,9 @@ ACameraActor* ASnowmanModePodiumGameMode::FindSnowmanPodiumCamera() const
        for (TActorIterator<ACameraActor> It(World); It; ++It)
        {
           ACameraActor* Camera = *It;
-          if (Camera && Camera->ActorHasTag(TEXT("Podium_Camera")))
+          if (Camera
+             && (Camera->ActorHasTag(TEXT("Podium_Camera"))
+                || Camera->GetName().Contains(TEXT("Podium_Camera"))))
           {
              return Camera;
           }
@@ -458,6 +457,26 @@ void ASnowmanModePodiumGameMode::ParseWinnerPlayerIds(
     }
 }
 
+void ASnowmanModePodiumGameMode::ParseWinnerPlayerNames(
+    const FString& WinnerPlayerNamesOption)
+{
+    WinnerPlayerNames.Reset();
+
+    TArray<FString> PlayerNameStrings;
+    WinnerPlayerNamesOption.ParseIntoArray(
+       PlayerNameStrings,
+       TEXT(","),
+       true);
+    for (FString PlayerName : PlayerNameStrings)
+    {
+       PlayerName.TrimStartAndEndInline();
+       if (!PlayerName.IsEmpty())
+       {
+          WinnerPlayerNames.Add(PlayerName);
+       }
+    }
+}
+
 bool ASnowmanModePodiumGameMode::IsWinnerPlayerState(
     const ASnowRumblePlayerState* PlayerState) const
 {
@@ -471,8 +490,17 @@ bool ASnowmanModePodiumGameMode::IsWinnerPlayerState(
        return true;
     }
 
-    return SnowmanPodiumResult == ESnowmanModeResult::SurvivorVictory
-       && WinnerPlayerIds.Contains(PlayerState->GetPlayerId());
+    if (SnowmanPodiumResult != ESnowmanModeResult::SurvivorVictory)
+    {
+       return false;
+    }
+
+    if (WinnerPlayerIds.Contains(PlayerState->GetPlayerId()))
+    {
+       return true;
+    }
+
+    return WinnerPlayerNames.Contains(PlayerState->GetLobbyPlayerName());
 }
 
 FText ASnowmanModePodiumGameMode::BuildSnowmanPodiumResultText() const

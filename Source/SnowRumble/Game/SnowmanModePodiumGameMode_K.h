@@ -63,6 +63,9 @@ private:
 	/** URL 옵션의 WinnerPlayerIds 값을 파싱한다. */
 	void ParseWinnerPlayerIds(const FString& WinnerPlayerIdsOption);
 
+	/** URL 옵션의 WinnerPlayerNames 값을 파싱한다. */
+	void ParseWinnerPlayerNames(const FString& WinnerPlayerNamesOption);
+
 	/** PlayerState가 URL로 전달된 눈사람 모드 승자 목록에 포함되는지 확인한다. */
 	bool IsWinnerPlayerState(const ASnowRumblePlayerState* PlayerState) const;
 
@@ -89,6 +92,7 @@ private:
 	bool bPodiumSetupComplete = false;
 	ESnowmanModeResult SnowmanPodiumResult = ESnowmanModeResult::None;
 	TSet<int32> WinnerPlayerIds;
+	TSet<FString> WinnerPlayerNames;
 	FTimerHandle PodiumSetupTimerHandle;
 	FTimerHandle PodiumReturnCountdownTimerHandle;
 	int32 PodiumReturnCountdownRemainingSeconds = 0;

@@ -48,6 +48,8 @@
 
 ## 변경 기록
 
+- 2026-08-27: QA에서 호스트에만 태그 치환 Mesh가 보이는 문제를 수정했다. 변환 물건의 Static Mesh와 Material을 `AGrabbablePhysicsObject` 복제 상태로 전달하고 각 클라이언트의 `OnRep`에서 `PhysicsComponent`에 적용한다.
+
 - 2026-08-27: Grab 물체의 카메라 Pitch 추종 방향이 상하 반대로 적용되던 문제를 수정했다. 물리 상대 회전에 적용하는 Pitch Delta 부호를 반전해 카메라를 올리면 물체도 위로, 내리면 아래로 이동하도록 보정했다.
 
 - 2026-08-27: 잡히지 않은 물리 물체의 일반 충돌이 플레이어를 밀치지 않도록 Grab 상태 검사를 추가했다. Grab 중 별도 overlap 기반 플레이어 밀침은 유지한다.
@@ -69,7 +71,7 @@
 - 2026-08-27: `AGrabbablePhysicsObject`에 Grab 시작·해제·Tick 확장 훅을 추가하고, `ATambourineGrabbableObject`가 잡힌 상태에서 플레이어 이동 시 위치 기반 찰랑 사운드를 멀티캐스트로 재생하도록 추가했다.
 - 2026-08-27: `AGrabbableStaticMeshBootstrapActor`를 추가했다. 맵에 배치된 `AStaticMeshActor`, Blueprint Actor 내부 `UStaticMeshComponent`, 또는 Actor 자체에 `grabbable`/`grabable` 태그가 있으면 런타임에 서버가 같은 Transform·Mesh·Material의 `AGrabbablePhysicsObject`를 스폰하고, 각 로컬 인스턴스는 원본 Static Mesh를 숨기고 충돌을 끈다. 기존 `UPlayerGrabComponent`의 물리 물건 Grab 경로를 그대로 재사용한다.
 - 2026-08-27: `AGrabbablePhysicsObject` 기본값을 빠른 테스트용으로 조정했다. 기본 `InteractionsToBreak`는 1회, 기본 `PlayerPushStrength`는 3000으로 설정한다.
-- 2026-08-27: 태그 기반 치환 물건의 테스트 수치와 파괴 이펙트를 `AGrabbableStaticMeshBootstrapActor`에서 지정할 수 있게 했다. `ConvertedPlayerPushStrength`, `ConvertedInteractionsToBreak`, `ConvertedInteractionBreakEffect` 값을 스폰 직후 `AGrabbablePhysicsObject::ConfigureInteractionSettings()`로 주입한다.
+- 2026-08-27: 태그 기반 치환 물건의 테스트 수치, 파괴 이펙트와 공통 파괴음을 `AGrabbableStaticMeshBootstrapActor`에서 지정할 수 있게 했다. `ConvertedPlayerPushStrength`, `ConvertedInteractionsToBreak`, `ConvertedInteractionBreakEffect`, `ConvertedInteractionBreakSound`, `ConvertedInteractionBreakSoundAttenuation` 값을 스폰 직후 `AGrabbablePhysicsObject::ConfigureInteractionSettings()`로 주입한다.
 
 ## 수동 작업
 
@@ -82,7 +84,7 @@
 - 맵에 직접 배치한 StaticMeshActor 또는 Blueprint Actor 내부 StaticMeshComponent를 물리 Grab 물건으로 쓰려면, 해당 맵에 `AGrabbableStaticMeshBootstrapActor` 또는 그 Blueprint 자식을 하나 배치한다.
 - 변환할 Actor 또는 StaticMeshComponent의 태그에 `grabbable`을 추가한다. 기존 오타 호환용으로 `grabable`도 기본 인식한다.
 - 치환 대상의 실제 물리 동작은 `GrabbableObjectClass`에 지정한 클래스 기본값을 따른다. 특수 기믹이 필요하면 `AGrabbablePhysicsObject` 자식 Blueprint를 만들고 Bootstrap Actor의 `GrabbableObjectClass`에 지정한다.
-- 태그로 변환되는 물건의 밀침 힘은 Bootstrap Actor의 `ConvertedPlayerPushStrength`, 파괴 횟수는 `ConvertedInteractionsToBreak`, 터질 때 Niagara는 `ConvertedInteractionBreakEffect`에 지정한다.
+- 태그로 변환되는 물건의 밀침 힘은 Bootstrap Actor의 `ConvertedPlayerPushStrength`, 파괴 횟수는 `ConvertedInteractionsToBreak`, 터질 때 Niagara는 `ConvertedInteractionBreakEffect`, 공통 파괴음은 `ConvertedInteractionBreakSound`와 `ConvertedInteractionBreakSoundAttenuation`에 지정한다.
 
 ## 완료 조건
 

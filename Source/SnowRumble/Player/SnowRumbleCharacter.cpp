@@ -899,7 +899,11 @@ bool ASnowRumbleCharacter::CanStartPlayerGrabReach() const
 
 bool ASnowRumbleCharacter::ShouldSuppressPvpWidgets() const
 {
+	const ASnowRumblePlayerController* SnowRumblePlayerController =
+		Cast<ASnowRumblePlayerController>(Controller);
 	return bPvpIntroWidgetsHidden
+		|| (SnowRumblePlayerController
+			&& SnowRumblePlayerController->IsPvpIntroWidgetsHidden())
 		|| Cast<APodiumPlayerController>(Controller) != nullptr;
 }
 
@@ -2499,7 +2503,7 @@ void ASnowRumbleCharacter::ClientFocusLobbyBoard_Implementation(
 
 	APlayerController* PlayerController =
 		Cast<APlayerController>(GetController());
-	if (!PlayerController)
+	if (!PlayerController || !PlayerController->GetLocalPlayer())
 	{
 		return;
 	}
@@ -2761,7 +2765,7 @@ void ASnowRumbleCharacter::ApplyPodiumMeshScale()
 		return;
 	}
 
-	if (!World->GetMapName().Contains(TEXT("L_Podium")))
+	if (!World->GetMapName().Contains(TEXT("Podium")))
 	{
 		return;
 	}
@@ -2887,9 +2891,15 @@ bool ASnowRumbleCharacter::ShouldShowLocalSnowEffect() const
 	}
 
 	const UWorld* World = GetWorld();
-	return World
-		&& World->GetGameState()
-		&& !World->GetGameState<ASnowRumbleLobbyGameState>();
+	if (!World || !World->GetGameState())
+	{
+		return false;
+	}
+
+	// 눈사람 모드에서는 플레이어 카메라에 붙은 눈 내림 VFX를 표시하지 않는다.
+	// 눈덩이 생성/투척 기능과는 별개의 로컬 환경 연출이다.
+	return !World->GetGameState<ASnowRumbleLobbyGameState>()
+		&& !World->GetGameState<ASnowmanModeGameState>();
 }
 
 void ASnowRumbleCharacter::EnsureEmoteRadialMenuWidget()
@@ -2903,7 +2913,7 @@ void ASnowRumbleCharacter::EnsureEmoteRadialMenuWidget()
 	}
 
 	APlayerController* PlayerController = Cast<APlayerController>(Controller);
-	if (!PlayerController)
+	if (!PlayerController || !PlayerController->GetLocalPlayer())
 	{
 		return;
 	}
@@ -2930,7 +2940,7 @@ void ASnowRumbleCharacter::EnsureKeyGuideWidget()
 	}
 
 	APlayerController* PlayerController = Cast<APlayerController>(Controller);
-	if (!PlayerController)
+	if (!PlayerController || !PlayerController->GetLocalPlayer())
 	{
 		return;
 	}
@@ -2968,17 +2978,25 @@ void ASnowRumbleCharacter::EnsureMainHUDWidget()
 	}
 
 	APlayerController* PlayerController = Cast<APlayerController>(Controller);
-	if (!PlayerController)
+	if (!PlayerController || !PlayerController->GetLocalPlayer())
 	{
 		return;
 	}
 
-	TSubclassOf<UMainHUDWidget> HudWidgetClass = MainHUDWidgetClass;
-	if (UClass* PreferredHudClass = LoadClass<UMainHUDWidget>(
-		nullptr,
-		TEXT("/Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C")))
+	const bool bIsSnowmanMode = World
+		&& World->GetGameState<ASnowmanModeGameState>();
+	TSubclassOf<UMainHUDWidget> HudWidgetClass =
+		bIsSnowmanMode && SnowmanModeHUDWidgetClass
+			? SnowmanModeHUDWidgetClass
+			: MainHUDWidgetClass;
+	if (!bIsSnowmanMode)
 	{
-		HudWidgetClass = PreferredHudClass;
+		if (UClass* PreferredHudClass = LoadClass<UMainHUDWidget>(
+			nullptr,
+			TEXT("/Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C")))
+		{
+			HudWidgetClass = PreferredHudClass;
+		}
 	}
 	if (!HudWidgetClass)
 	{
@@ -3006,7 +3024,7 @@ void ASnowRumbleCharacter::EnsureInteractionPromptWidget()
 	}
 
 	APlayerController* PlayerController = Cast<APlayerController>(Controller);
-	if (!PlayerController)
+	if (!PlayerController || !PlayerController->GetLocalPlayer())
 	{
 		return;
 	}
@@ -4538,6 +4556,11 @@ void ASnowRumbleCharacter::ApplySpectatorViewTarget()
 	{
 		if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
 		{
+			if (!PlayerController->GetLocalPlayer())
+			{
+				return;
+			}
+
 			SpectatorWidget = CreateWidget<USpectatorWidget>(
 				PlayerController,
 				SpectatorWidgetClass);

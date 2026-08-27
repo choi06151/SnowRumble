@@ -5,7 +5,6 @@
 #include "../Audio/SnowRumbleAudioHelpers.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
-#include "GameFramework/CharacterMovementComponent.h"
 #include "Sound/SoundAttenuation.h"
 #include "Sound/SoundBase.h"
 
@@ -17,17 +16,19 @@ void ATambourineGrabbableObject::HandleGrabbedByCharacter(ACharacter* Grabber)
 {
 	Super::HandleGrabbedByCharacter(Grabber);
 
-	AccumulatedHeldTravelDistance = 0.0f;
-	LastJingleTimeSeconds = GetWorld()
-		? GetWorld()->GetTimeSeconds() - JingleCooldownSeconds
-		: -1000.0f;
+	AccumulatedHeldRotationDegrees = 0.0f;
+	PreviousGrabberControlRotation = Grabber
+		? Grabber->GetControlRotation()
+		: FRotator::ZeroRotator;
+	bHasPreviousGrabberControlRotation = Grabber != nullptr;
 }
 
 void ATambourineGrabbableObject::HandleReleasedByCharacter(ACharacter* Grabber)
 {
 	Super::HandleReleasedByCharacter(Grabber);
 
-	AccumulatedHeldTravelDistance = 0.0f;
+	AccumulatedHeldRotationDegrees = 0.0f;
+	bHasPreviousGrabberControlRotation = false;
 }
 
 void ATambourineGrabbableObject::TickGrabbedByCharacter(
@@ -45,37 +46,37 @@ void ATambourineGrabbableObject::TickGrabbedByCharacter(
 		return;
 	}
 
-	const UCharacterMovementComponent* MovementComponent =
-		Grabber->GetCharacterMovement();
-	const float GrabberSpeed = MovementComponent
-		? MovementComponent->Velocity.Size2D()
-		: 0.0f;
-	if (GrabberSpeed < MinimumGrabberSpeedForJingle)
+	const FRotator CurrentGrabberControlRotation = Grabber->GetControlRotation();
+	if (!bHasPreviousGrabberControlRotation)
 	{
-		AccumulatedHeldTravelDistance = 0.0f;
+		PreviousGrabberControlRotation = CurrentGrabberControlRotation;
+		bHasPreviousGrabberControlRotation = true;
 		return;
 	}
 
-	AccumulatedHeldTravelDistance += HeldMotion.Size2D();
-	if (AccumulatedHeldTravelDistance < MinimumHeldTravelDistanceForJingle)
-	{
-		return;
-	}
+	const FRotator RotationDelta = (CurrentGrabberControlRotation
+		- PreviousGrabberControlRotation).GetNormalized();
+	PreviousGrabberControlRotation = CurrentGrabberControlRotation;
 
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return;
-	}
-
-	const float CurrentTime = World->GetTimeSeconds();
-	if (CurrentTime - LastJingleTimeSeconds < JingleCooldownSeconds)
+	const float RotationDistanceDegrees =
+		FMath::Abs(RotationDelta.Yaw)
+		+ FMath::Abs(RotationDelta.Pitch)
+		+ FMath::Abs(RotationDelta.Roll);
+	const float LookSpeedDegreesPerSecond =
+		RotationDistanceDegrees / DeltaTime;
+	if (LookSpeedDegreesPerSecond < MinimumGrabberLookSpeedForJingle)
 	{
 		return;
 	}
 
-	AccumulatedHeldTravelDistance = 0.0f;
-	LastJingleTimeSeconds = CurrentTime;
+	AccumulatedHeldRotationDegrees +=
+		RotationDistanceDegrees;
+	if (AccumulatedHeldRotationDegrees < MinimumHeldRotationDegreesForJingle)
+	{
+		return;
+	}
+
+	AccumulatedHeldRotationDegrees = 0.0f;
 	const float PitchMultiplier = FMath::FRandRange(
 		FMath::Min(MinimumJinglePitch, MaximumJinglePitch),
 		FMath::Max(MinimumJinglePitch, MaximumJinglePitch));

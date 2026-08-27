@@ -451,7 +451,7 @@ FString ASnowRumbleLobbyGameMode::BuildSnowmanModeTravelUrl(
        {
           const ASnowRumbleLobbyGameState* LobbyGameState =
              GetGameState<ASnowRumbleLobbyGameState>();
-          TArray<FString> SnowmanLevelPaths = GetPvPLevelCandidatePaths();
+          TArray<FString> SnowmanLevelPaths = GetSnowmanLevelCandidatePaths();
           if (SnowmanLevelPaths.IsEmpty() && !MatchTravelUrl.IsEmpty())
           {
              SnowmanLevelPaths.Add(MatchTravelUrl);
@@ -466,7 +466,7 @@ FString ASnowRumbleLobbyGameMode::BuildSnowmanModeTravelUrl(
        }
     }
 
-    const TArray<FString> CandidateLevelPaths = GetPvPLevelCandidatePaths();
+    TArray<FString> CandidateLevelPaths = GetSnowmanLevelCandidatePaths();
     FString TravelUrl = CandidateLevelPaths.IsEmpty()
        ? FString()
        : CandidateLevelPaths[
@@ -551,6 +551,32 @@ TArray<FString> ASnowRumbleLobbyGameMode::GetPvPLevelCandidatePaths() const
 		{
 			CandidateLevelPaths.AddUnique(LongPackageName);
 		}
+	}
+
+	return CandidateLevelPaths;
+}
+
+TArray<FString> ASnowRumbleLobbyGameMode::GetSnowmanLevelCandidatePaths() const
+{
+	TArray<FString> CandidateLevelPaths;
+	for (const TSoftObjectPtr<UWorld>& SnowmanLevelCandidate : SnowmanLevelCandidates)
+	{
+		const FSoftObjectPath LevelPath = SnowmanLevelCandidate.ToSoftObjectPath();
+		if (!LevelPath.IsValid())
+		{
+			continue;
+		}
+
+		const FString LongPackageName = LevelPath.GetLongPackageName();
+		if (!LongPackageName.IsEmpty())
+		{
+			CandidateLevelPaths.AddUnique(LongPackageName);
+		}
+	}
+
+	if (CandidateLevelPaths.IsEmpty())
+	{
+		CandidateLevelPaths = GetPvPLevelCandidatePaths();
 	}
 
 	return CandidateLevelPaths;
@@ -648,6 +674,8 @@ void ASnowRumbleLobbyGameMode::ShowMatchLoadingScreens()
 
 	const ASnowRumbleLobbyGameState* LobbyGameState =
 		GetGameState<ASnowRumbleLobbyGameState>();
+	const bool bIsSnowmanMode = LobbyGameState
+		&& LobbyGameState->GetLobbyMode() == ESnowRumbleLobbyMode::Snowman;
 	const int32 ExpectedPlayerCount = ResolveExpectedMatchPlayerCount();
 	const FSnowRumbleLoadingMapPresentation LoadingMapPresentation =
 		GetLoadingMapPresentation(PendingMatchMapPackageName);
@@ -665,7 +693,8 @@ void ASnowRumbleLobbyGameMode::ShowMatchLoadingScreens()
 				PendingMatchMapPackageName,
 				LoadingMapPresentation.DisplayName,
 				LoadingMapPresentation.LoadingImage,
-				GetTeamPlayerNamesFor(LocalPlayerState));
+				GetTeamPlayerNamesFor(LocalPlayerState),
+				bIsSnowmanMode);
 			PlayerController->ClientShowLoadingScreen();
 			PlayerController->ClientUpdateLoadingProgress(
 				0,

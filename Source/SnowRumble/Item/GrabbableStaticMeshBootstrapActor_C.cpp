@@ -126,13 +126,16 @@ void AGrabbableStaticMeshBootstrapActor::ConvertStaticMeshComponent(
 		return;
 	}
 
-	SpawnedMeshComponent->SetStaticMesh(SourceComponent->GetStaticMesh());
-
+	TArray<UMaterialInterface*> SourceMaterials;
 	const int32 MaterialCount = SourceComponent->GetNumMaterials();
+	SourceMaterials.Reserve(MaterialCount);
 	for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
 	{
-		SpawnedMeshComponent->SetMaterial(MaterialIndex, SourceComponent->GetMaterial(MaterialIndex));
+		SourceMaterials.Add(SourceComponent->GetMaterial(MaterialIndex));
 	}
+	SpawnedObject->ConfigureReplicatedVisuals(
+		SourceComponent->GetStaticMesh(),
+		SourceMaterials);
 
 	SpawnedMeshComponent->SetWorldTransform(SourceTransform, false, nullptr, ETeleportType::TeleportPhysics);
 	SpawnedMeshComponent->SetMobility(EComponentMobility::Movable);
@@ -143,7 +146,9 @@ void AGrabbableStaticMeshBootstrapActor::ConvertStaticMeshComponent(
 	SpawnedObject->ConfigureInteractionSettings(
 		ConvertedPlayerPushStrength,
 		ConvertedInteractionsToBreak,
-		ConvertedInteractionBreakEffect);
+		ConvertedInteractionBreakEffect,
+		ConvertedInteractionBreakSound,
+		ConvertedInteractionBreakSoundAttenuation);
 	SpawnedObject->SetReplicates(true);
 	SpawnedObject->SetReplicateMovement(true);
 	SpawnedObject->ForceNetUpdate();

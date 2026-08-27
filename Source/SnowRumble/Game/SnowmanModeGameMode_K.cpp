@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "SnowmanModeGameMode_K.h"
 #include "TimerManager.h"
 #include "Engine/World.h"
-#include "SnowmanModeGameMode_K.h"
 #include "SnowRumbleMatchSubsystem_C.h"
 #include "Engine/GameInstance.h"
 
@@ -280,6 +280,9 @@ void ASnowmanModeGameMode::InitGame(
 	bLoadingScreensDismissed = false;
 	bSnowmanTimerStarted = false;
 	bSnowmanRolesInitialized = false;
+	bSnowmanIntroStarted = false;
+	SnowmanIntroTeamIndex = 0;
+	SnowmanIntroTeams.Reset();
 	UsedPlayerStarts.Reset();
 	UsedSpawnLocations.Reset();
 	SpawnInfectionGraceEndTimes.Reset();
@@ -289,6 +292,7 @@ void ASnowmanModeGameMode::InitGame(
 		World->GetTimerManager().ClearTimer(
 		   SnowmanRoleInitializationRetryTimerHandle);
 		World->GetTimerManager().ClearTimer(InfectionScanTimerHandle);
+		World->GetTimerManager().ClearTimer(SnowmanIntroTimerHandle);
 		World->GetTimerManager().ClearTimer(SnowmanModeTimeLimitTimerHandle);
 		World->GetTimerManager().ClearTimer(SnowmanModeLobbyReturnTimerHandle);
 	}
@@ -451,16 +455,6 @@ void ASnowmanModeGameMode::TryDismissLoadingScreens()
 
 	bLoadingScreensDismissed = true;
 	BroadcastLoadingProgress();
-	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
-		It;
-		++It)
-	{
-		if (ASnowRumblePlayerController* PlayerController =
-			Cast<ASnowRumblePlayerController>(It->Get()))
-		{
-			PlayerController->ClientHideLoadingScreen();
-		}
-	}
 
 	if (!bSnowmanTimerStarted)
 	{
@@ -473,14 +467,174 @@ void ASnowmanModeGameMode::TryDismissLoadingScreens()
 
 void ASnowmanModeGameMode::StartSnowmanModeCountdownAfterLoading()
 {
+	if (SnowmanModeStartCountdownDelaySeconds > 0.0f)
+	{
+		FTimerHandle StartDelayTimerHandle;
+		GetWorldTimerManager().SetTimer(
+			StartDelayTimerHandle,
+			this,
+			&ASnowmanModeGameMode::StartSnowmanModeIntroAfterLoading,
+			SnowmanModeStartCountdownDelaySeconds,
+			false);
+		return;
+	}
+
+	StartSnowmanModeIntroAfterLoading();
+}
+
+void ASnowmanModeGameMode::StartSnowmanModeIntroAfterLoading()
+{
+	InitializeSnowmanRoles();
+	ApplySnowmanModeStartInputLock(SnowmanModeStartCountdownSeconds > 0.0f);
+	if (bSnowmanRolesInitialized)
+	{
+		HideLoadingScreensBeforeIntro();
+		StartSnowmanModeIntroSequence();
+	}
+}
+
+void ASnowmanModeGameMode::HideLoadingScreensBeforeIntro()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
+		It;
+		++It)
+	{
+		if (ASnowRumblePlayerController* PlayerController =
+			Cast<ASnowRumblePlayerController>(It->Get()))
+		{
+			if (PlayerController->IsLocalController())
+			{
+				PlayerController->PreparePvpIntroWidgetsForLocalIntro();
+			}
+			PlayerController->ClientPreparePvpIntroWidgets();
+			PlayerController->ClientHideLoadingScreen();
+		}
+	}
+}
+
+void ASnowmanModeGameMode::StartSnowmanModeIntroSequence()
+{
+	if (bSnowmanIntroStarted || !bSnowmanRolesInitialized)
+	{
+		return;
+	}
+
+	bSnowmanIntroStarted = true;
+	if (CurrentRoundIndex > 1 || SnowmanModeIntroTeamShotSeconds <= 0.0f)
+	{
+		FinishSnowmanModeIntroSequence();
+		return;
+	}
+
+	SnowmanIntroTeamIndex = 0;
+	GetActiveSnowmanModeTeams(SnowmanIntroTeams);
+	if (SnowmanIntroTeams.IsEmpty())
+	{
+		FinishSnowmanModeIntroSequence();
+		return;
+	}
+
+	AdvanceSnowmanModeIntroSequence();
+}
+
+void ASnowmanModeGameMode::GetActiveSnowmanModeTeams(
+	TArray<ESnowRumbleTeam>& OutTeams) const
+{
+	OutTeams.Reset();
+	TSet<ESnowRumbleTeam> PresentTeams;
+	for (ASnowRumblePlayerState* PlayerState : CollectSnowmanPlayerStates())
+	{
+		if (PlayerState && PlayerState->GetLobbyTeam() != ESnowRumbleTeam::None)
+		{
+			PresentTeams.Add(PlayerState->GetLobbyTeam());
+		}
+	}
+
+	const ESnowRumbleTeam TeamOrder[] =
+	{
+		ESnowRumbleTeam::Red,
+		ESnowRumbleTeam::Blue,
+		ESnowRumbleTeam::Sky,
+		ESnowRumbleTeam::Green,
+		ESnowRumbleTeam::Yellow,
+		ESnowRumbleTeam::Purple,
+		ESnowRumbleTeam::Pink,
+		ESnowRumbleTeam::Orange
+	};
+	for (const ESnowRumbleTeam Team : TeamOrder)
+	{
+		if (PresentTeams.Contains(Team))
+		{
+			OutTeams.Add(Team);
+		}
+	}
+}
+
+void ASnowmanModeGameMode::AdvanceSnowmanModeIntroSequence()
+{
+	UWorld* World = GetWorld();
+	if (!World || !SnowmanIntroTeams.IsValidIndex(SnowmanIntroTeamIndex))
+	{
+		FinishSnowmanModeIntroSequence();
+		return;
+	}
+
+	const ESnowRumbleTeam IntroTeam = SnowmanIntroTeams[SnowmanIntroTeamIndex];
+	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
+		It;
+		++It)
+	{
+		if (ASnowRumblePlayerController* PlayerController =
+			Cast<ASnowRumblePlayerController>(It->Get()))
+		{
+			PlayerController->ClientPlayPvpTeamIntroShot(
+				IntroTeam,
+				SnowmanModeIntroTeamShotSeconds);
+		}
+	}
+
+	++SnowmanIntroTeamIndex;
+	World->GetTimerManager().SetTimer(
+		SnowmanIntroTimerHandle,
+		this,
+		&ASnowmanModeGameMode::AdvanceSnowmanModeIntroSequence,
+		SnowmanModeIntroTeamShotSeconds,
+		false);
+}
+
+void ASnowmanModeGameMode::FinishSnowmanModeIntroSequence()
+{
+	GetWorldTimerManager().ClearTimer(SnowmanIntroTimerHandle);
+	if (UWorld* World = GetWorld())
+	{
+		for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
+			It;
+			++It)
+		{
+			if (ASnowRumblePlayerController* PlayerController =
+				Cast<ASnowRumblePlayerController>(It->Get()))
+			{
+				if (PlayerController->IsLocalController())
+				{
+					PlayerController->RestorePvpIntroWidgetsForLocalIntro();
+				}
+				PlayerController->ClientFinishPvpTeamIntro();
+			}
+		}
+	}
+
 	if (ASnowmanModeGameState* SnowmanGameState =
 		GetGameState<ASnowmanModeGameState>())
 	{
 		SnowmanGameState->StartSnowmanModeCountdownFromServer(
 			SnowmanModeStartCountdownSeconds);
 	}
-	InitializeSnowmanRoles();
-	ApplySnowmanModeStartInputLock(SnowmanModeStartCountdownSeconds > 0.0f);
 
 	UWorld* World = GetWorld();
 	if (!World)
@@ -577,6 +731,30 @@ void ASnowmanModeGameMode::InitializeSnowmanRoles()
 
 	bSnowmanRolesInitialized = true;
 	ApplySnowmanMovementSpeeds();
+	GrantSnowmanModeStartingItems();
+}
+
+void ASnowmanModeGameMode::GrantSnowmanModeStartingItems()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	for (ASnowRumblePlayerState* PlayerState : CollectSnowmanPlayerStates())
+	{
+		ASnowRumbleCharacter* Character = FindCharacterForPlayerState(PlayerState);
+		if (!Character)
+		{
+			continue;
+		}
+
+		// 선물상자에서 실제로 획득한 것과 같은 효과·복제·외형 갱신 경로를 사용한다.
+		Character->ApplyGiftBoxItemEffectFromServer(
+			ESnowRumbleGiftItemType::Boots);
+		Character->ApplyGiftBoxItemEffectFromServer(
+			ESnowRumbleGiftItemType::Gloves);
+	}
 }
 
 void ASnowmanModeGameMode::ScheduleSnowmanRoleInitializationRetry()
@@ -590,7 +768,7 @@ void ASnowmanModeGameMode::ScheduleSnowmanRoleInitializationRetry()
 	World->GetTimerManager().SetTimer(
 		SnowmanRoleInitializationRetryTimerHandle,
 		this,
-		&ASnowmanModeGameMode::InitializeSnowmanRoles,
+		&ASnowmanModeGameMode::StartSnowmanModeIntroAfterLoading,
 		0.1f,
 		false);
 }
@@ -602,31 +780,35 @@ void ASnowmanModeGameMode::UpdateSnowmanInfectionFlow()
     ASnowmanModeGameState* SnowmanGameState = GetGameState<ASnowmanModeGameState>();
     if (!SnowmanGameState || !SnowmanGameState->IsSnowmanModeTimerActive()) return;
 
-    UWorld* World = GetWorld();
-    if (!World) return;
+	UWorld* World = GetWorld();
+	if (!World) return;
 
-    TArray<ASnowRumbleCharacter*> SnowmanCharacters;
-    TArray<ASnowRumbleCharacter*> NormalCharacters;
+	TArray<ASnowRumbleCharacter*> SnowmanCharacters;
+	TArray<ASnowRumbleCharacter*> NormalCharacters;
 
-    // ★ 투명인간 버그 해결: 문제가 되던 람다를 삭제하고, 직관적으로 역할만 가져옵니다.
-    for (TActorIterator<ASnowRumbleCharacter> It(World); It; ++It)
-    {
-        ASnowRumbleCharacter* Character = *It;
-        if (!Character || Character->IsPendingKillPending()) continue;
+	// Pawn을 월드에서 역탐색하지 않고 GameState의 PlayerState 목록을 기준으로
+	// 현재 소유 Pawn을 찾는다. 클라이언트 눈사람 Pawn 교체 직후에도 역할과 Pawn
+	// 연결이 누락되어 감염 검사에서 빠지는 문제를 줄인다.
+	for (ASnowRumblePlayerState* PlayerState : CollectSnowmanPlayerStates())
+	{
+		if (!PlayerState) continue;
 
-        ASnowRumblePlayerState* PlayerState = ResolvePlayerStateForCharacter(Character);
-        if (!PlayerState) continue;
+		ASnowRumbleCharacter* Character = FindCharacterForPlayerState(PlayerState);
+		if (!Character || Character->IsPendingKillPending()
+			|| !Character->GetCapsuleComponent())
+		{
+			continue;
+		}
 
-        // 늦게 로딩된 플레이어도 누락 없이 Normal 또는 Snowman 배열에 정상 등록됩니다.
-        if (SnowmanGameState->IsSnowmanModePlayerSnowman(PlayerState))
-        {
-            if (Character->GetCapsuleComponent()) SnowmanCharacters.Add(Character);
-        }
-        else if (SnowmanGameState->GetSnowmanModePlayerRole(PlayerState) == ESnowmanModePlayerRole::Normal)
-        {
-            if (Character->GetCapsuleComponent()) NormalCharacters.Add(Character);
-        }
-    }
+		if (SnowmanGameState->IsSnowmanModePlayerSnowman(PlayerState))
+		{
+			SnowmanCharacters.Add(Character);
+		}
+		else if (SnowmanGameState->GetSnowmanModePlayerRole(PlayerState) == ESnowmanModePlayerRole::Normal)
+		{
+			NormalCharacters.Add(Character);
+		}
+	}
 
     const float ContactRadiusSquared = FMath::Square(InfectionContactRadius);
     if (ContactRadiusSquared > 0.0f)
@@ -874,6 +1056,10 @@ FString ASnowmanModeGameMode::BuildPodiumTravelUrl(
 		TravelUrl,
 		TEXT("WinnerPlayerIds"),
 		BuildWinnerPlayerIdsOption(Result));
+	EnsureSnowmanModeTravelOptionValue(
+		TravelUrl,
+		TEXT("WinnerPlayerNames"),
+		BuildWinnerPlayerNamesOption(Result));
 	if (!TravelUrl.Contains(TEXT("ExpectedPlayers="), ESearchCase::IgnoreCase))
 	{
 		EnsureSnowmanModeTravelOptionValue(
@@ -916,6 +1102,46 @@ FString ASnowmanModeGameMode::BuildWinnerPlayerIdsOption(
 	}
 
 	return FString::Join(WinnerPlayerIds, TEXT(","));
+}
+
+FString ASnowmanModeGameMode::BuildWinnerPlayerNamesOption(
+	ESnowmanModeResult Result) const
+{
+	const ASnowmanModeGameState* SnowmanGameState =
+		GetGameState<ASnowmanModeGameState>();
+	if (!SnowmanGameState)
+	{
+		return FString();
+	}
+
+	TArray<FString> WinnerPlayerNames;
+	for (ASnowRumblePlayerState* PlayerState : CollectSnowmanPlayerStates())
+	{
+		if (!PlayerState)
+		{
+			continue;
+		}
+
+		const bool bIsSnowman =
+			SnowmanGameState->IsSnowmanModePlayerSnowman(PlayerState);
+		const bool bIsWinner =
+			Result == ESnowmanModeResult::SnowmanVictory
+			|| (Result == ESnowmanModeResult::SurvivorVictory && !bIsSnowman);
+		if (!bIsWinner)
+		{
+			continue;
+		}
+
+		FString WinnerName = PlayerState->GetLobbyPlayerName();
+		WinnerName.ReplaceInline(TEXT(","), TEXT(" "));
+		WinnerName.TrimStartAndEndInline();
+		if (!WinnerName.IsEmpty())
+		{
+			WinnerPlayerNames.AddUnique(WinnerName);
+		}
+	}
+
+	return FString::Join(WinnerPlayerNames, TEXT(","));
 }
 
 FString ASnowmanModeGameMode::BuildNextRoundTravelUrl()
@@ -1057,6 +1283,7 @@ bool ASnowmanModeGameMode::ConvertPlayerToSnowmanPawn(ASnowRumblePlayerState* Pl
     // 4. 후처리
     ApplySnowmanMovementSpeed(SnowmanCharacter);
     GrantSpawnInfectionGrace(PlayerState);
+	SnowmanCharacter->PlayInfectionSoundFromServer();
 
     return FinishPawnConversion(true);
 }

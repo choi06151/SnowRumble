@@ -2,7 +2,9 @@
 
 #include "GrabbablePhysicsObject_C.h"
 
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/Character.h"
@@ -41,11 +43,55 @@ int32 AGrabbablePhysicsObject::GetInteractionCount() const
 void AGrabbablePhysicsObject::ConfigureInteractionSettings(
 	float NewPlayerPushStrength,
 	int32 NewInteractionsToBreak,
-	UNiagaraSystem* NewInteractionBreakEffect)
+	UNiagaraSystem* NewInteractionBreakEffect,
+	USoundBase* NewInteractionBreakSound,
+	USoundAttenuation* NewInteractionBreakSoundAttenuation)
 {
 	PlayerPushStrength = FMath::Max(NewPlayerPushStrength, 0.0f);
 	InteractionsToBreak = FMath::Max(NewInteractionsToBreak, 1);
 	InteractionBreakEffect = NewInteractionBreakEffect;
+	InteractionBreakSound = NewInteractionBreakSound;
+	InteractionBreakSoundAttenuation = NewInteractionBreakSoundAttenuation;
+}
+
+void AGrabbablePhysicsObject::ConfigureReplicatedVisuals(
+	UStaticMesh* NewStaticMesh,
+	const TArray<UMaterialInterface*>& NewMaterials)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	ReplicatedStaticMesh = NewStaticMesh;
+	ReplicatedMaterials.Reset(NewMaterials.Num());
+	for (UMaterialInterface* Material : NewMaterials)
+	{
+		ReplicatedMaterials.Add(Material);
+	}
+
+	ApplyReplicatedVisuals();
+	ForceNetUpdate();
+}
+
+void AGrabbablePhysicsObject::OnRep_ReplicatedStaticMesh()
+{
+	ApplyReplicatedVisuals();
+}
+
+void AGrabbablePhysicsObject::ApplyReplicatedVisuals()
+{
+	if (!IsValid(PhysicsComponent))
+	{
+		return;
+	}
+
+	PhysicsComponent->SetStaticMesh(ReplicatedStaticMesh);
+	PhysicsComponent->SetMaterial(0, nullptr);
+	for (int32 MaterialIndex = 0; MaterialIndex < ReplicatedMaterials.Num(); ++MaterialIndex)
+	{
+		PhysicsComponent->SetMaterial(MaterialIndex, ReplicatedMaterials[MaterialIndex]);
+	}
 }
 
 void AGrabbablePhysicsObject::RegisterInteraction()
@@ -70,7 +116,9 @@ void AGrabbablePhysicsObject::RegisterInteraction()
 
 	if (InteractionCount >= FMath::Max(InteractionsToBreak, 1))
 	{
-		MulticastPlayInteractionBreakEffect(GetActorLocation());
+		const FVector BreakLocation = GetActorLocation();
+		MulticastPlayInteractionBreakEffect(BreakLocation);
+		MulticastPlayInteractionBreakSound(BreakLocation);
 		OnInteractionBreak();
 		Destroy();
 	}
@@ -87,6 +135,19 @@ void AGrabbablePhysicsObject::MulticastPlayInteractionBreakEffect_Implementation
 			Location,
 			GetActorRotation());
 	}
+}
+
+void AGrabbablePhysicsObject::MulticastPlayInteractionBreakSound_Implementation(
+	FVector_NetQuantize Location)
+{
+	SnowRumbleAudio::PlaySoundAtLocation(
+		this,
+		InteractionBreakSound,
+		ESnowRumbleAudioMixChannel::Gameplay,
+		Location,
+		1.0f,
+		1.0f,
+		InteractionBreakSoundAttenuation);
 }
 
 void AGrabbablePhysicsObject::PushCharacterFromGrabMotion(
@@ -160,4 +221,6 @@ void AGrabbablePhysicsObject::GetLifetimeReplicatedProps(
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AGrabbablePhysicsObject, InteractionCount);
+	DOREPLIFETIME(AGrabbablePhysicsObject, ReplicatedStaticMesh);
+	DOREPLIFETIME(AGrabbablePhysicsObject, ReplicatedMaterials);
 }

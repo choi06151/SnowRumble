@@ -673,6 +673,40 @@ FString USnowRumbleSessionSubsystem::GetCurrentRoomCode() const
 	return CurrentRoomCode;
 }
 
+void USnowRumbleSessionSubsystem::UpdateAdvertisedGameMode(
+	const FString& GameModeName)
+{
+	if (!GetWorld()
+		|| GetWorld()->GetNetMode() != NM_ListenServer
+		|| GameModeName.IsEmpty())
+	{
+		return;
+	}
+
+	IOnlineSessionPtr SessionInterface = GetSessionInterface();
+	FNamedOnlineSession* NamedSession = SessionInterface.IsValid()
+		? SessionInterface->GetNamedSession(LocalSessionName)
+		: nullptr;
+	if (!NamedSession)
+	{
+		return;
+	}
+
+	FOnlineSessionSettings UpdatedSettings = NamedSession->SessionSettings;
+	UpdatedSettings.Set(
+		SnowRumbleSession::GameModeSettingKey,
+		GameModeName,
+		EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
+
+	UE_LOG(
+		LogSnowRumbleSession,
+		Log,
+		TEXT("Updating advertised session game mode. Backend=%s Mode=%s"),
+		IsSteamSubsystem() ? TEXT("Steam") : TEXT("LAN"),
+		*GameModeName);
+	SessionInterface->UpdateSession(LocalSessionName, UpdatedSettings, true);
+}
+
 ESnowRumbleSessionOperation
 USnowRumbleSessionSubsystem::GetCurrentOperation() const
 {
@@ -749,6 +783,18 @@ void USnowRumbleSessionSubsystem::HandleSessionUserInviteAccepted(
 	if (!IsSteamSubsystem() || !bWasSuccessful || !InviteResult.IsValid())
 	{
 		SetPendingMainMenuAlarmMessage(TEXT("Steam 초대를 처리하지 못했습니다."));
+		return;
+	}
+
+	const FString CurrentMapName = SnowRumbleSession::GetSessionMapName(GetWorld());
+	if (!SnowRumbleSession::IsLobbyMapName(CurrentMapName))
+	{
+		UE_LOG(
+			LogSnowRumbleSession,
+			Log,
+			TEXT("Ignoring Steam invite outside lobby. Map=%s"),
+			*CurrentMapName);
+		SetPendingMainMenuAlarmMessage(TEXT("게임이 이미 시작되어 Steam 초대를 받을 수 없습니다."));
 		return;
 	}
 

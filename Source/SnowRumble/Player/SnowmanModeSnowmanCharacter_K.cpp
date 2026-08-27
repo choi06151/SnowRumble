@@ -2,6 +2,7 @@
 
 #include "SnowmanModeSnowmanCharacter_K.h"
 
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "EnhancedInputComponent.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -135,6 +136,8 @@ void ASnowmanModeSnowmanCharacter::ApplySnowballHitStunFromServer()
 		return;
 	}
 
+	MulticastPlaySnowmanHitSound(GetActorLocation());
+
 	// 연속 피격은 같은 타이머 핸들을 초기화한 뒤 다시 Slow 시간을 시작한다.
 	World->GetTimerManager().ClearTimer(SnowballHitStunTimerHandle);
 	bSnowballHitStunned = true;
@@ -244,11 +247,89 @@ void ASnowmanModeSnowmanCharacter::SetupPlayerInputComponent(
 			JumpAction,
 			ETriggerEvent::Started,
 			this,
-			&ASnowmanModeSnowmanCharacter::StartJump);
+			&ASnowmanModeSnowmanCharacter::StartSnowmanJump);
 		EnhancedInputComponent->BindAction(
 			JumpAction,
 			ETriggerEvent::Completed,
 			this,
-			&ASnowmanModeSnowmanCharacter::StopJump);
+			&ASnowmanModeSnowmanCharacter::StopSnowmanJump);
 	}
+}
+
+void ASnowmanModeSnowmanCharacter::StartSnowmanJump()
+{
+	if (!CanPerformGameplayAction() || !CanJump())
+	{
+		return;
+	}
+
+	Jump();
+	if (HasAuthority())
+	{
+		MulticastPlaySnowmanJumpSound(GetActorLocation());
+	}
+	else
+	{
+		ServerRequestSnowmanJumpSound();
+	}
+}
+
+void ASnowmanModeSnowmanCharacter::StopSnowmanJump()
+{
+	StopJumping();
+}
+
+void ASnowmanModeSnowmanCharacter::ServerRequestSnowmanJumpSound_Implementation()
+{
+	if (CanPerformGameplayAction())
+	{
+		MulticastPlaySnowmanJumpSound(GetActorLocation());
+	}
+}
+
+void ASnowmanModeSnowmanCharacter::MulticastPlaySnowmanJumpSound_Implementation(
+	FVector_NetQuantize SoundLocation)
+{
+	SnowRumbleAudio::PlaySoundAtLocation(
+		this,
+		SnowmanJumpSound,
+		ESnowRumbleAudioMixChannel::Gameplay,
+		SoundLocation,
+		1.0f,
+		1.0f,
+		SnowmanJumpSoundAttenuation);
+}
+
+void ASnowmanModeSnowmanCharacter::PlayInfectionSoundFromServer()
+{
+	if (HasAuthority())
+	{
+		MulticastPlaySnowmanInfectionSound(GetActorLocation());
+	}
+}
+
+void ASnowmanModeSnowmanCharacter::MulticastPlaySnowmanInfectionSound_Implementation(
+	FVector_NetQuantize SoundLocation)
+{
+	SnowRumbleAudio::PlaySoundAtLocation(
+		this,
+		SnowmanInfectionSound,
+		ESnowRumbleAudioMixChannel::Gameplay,
+		SoundLocation,
+		1.0f,
+		1.0f,
+		SnowmanInfectionSoundAttenuation);
+}
+
+void ASnowmanModeSnowmanCharacter::MulticastPlaySnowmanHitSound_Implementation(
+	FVector_NetQuantize SoundLocation)
+{
+	SnowRumbleAudio::PlaySoundAtLocation(
+		this,
+		SnowmanHitSound,
+		ESnowRumbleAudioMixChannel::Gameplay,
+		SoundLocation,
+		1.0f,
+		1.0f,
+		SnowmanHitSoundAttenuation);
 }
