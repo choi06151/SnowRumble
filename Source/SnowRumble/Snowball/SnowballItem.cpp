@@ -72,7 +72,12 @@ void ASnowballItem::BeginPlay()
 {
 	Super::BeginPlay();
 
-	InitialActorScale = GetActorScale3D();
+	// Movement replication can apply the server's grown scale before client
+	// BeginPlay. Keep the actual spawn scale on the server as the baseline.
+	if (HasAuthority())
+	{
+		InitialActorScale = GetActorScale3D();
+	}
 	ApplyGrowthScale();
 }
 
@@ -582,7 +587,7 @@ void ASnowballItem::DestroyThrownRolling(const FHitResult& Hit)
 
 bool ASnowballItem::IsFullyGrown() const
 {
-	return GrowthProgress >= 0.999f;
+	return GrowthProgress >= FMath::Clamp(LargeSnowballGrowthThreshold, 0.0f, 1.0f);
 }
 
 float ASnowballItem::GetRollingCollisionRadius() const
@@ -630,6 +635,7 @@ void ASnowballItem::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ASnowballItem, Holder);
 	DOREPLIFETIME(ASnowballItem, Roller);
 	DOREPLIFETIME(ASnowballItem, GrowthProgress);
+	DOREPLIFETIME(ASnowballItem, InitialActorScale);
 	DOREPLIFETIME(ASnowballItem, bIsSettledOnGround);
 }
 
@@ -644,6 +650,11 @@ void ASnowballItem::OnRep_Holder()
 }
 
 void ASnowballItem::OnRep_GrowthProgress()
+{
+	ApplyGrowthScale();
+}
+
+void ASnowballItem::OnRep_InitialActorScale()
 {
 	ApplyGrowthScale();
 }

@@ -256,6 +256,12 @@ protected:
 	/** 배경음악을 현재 로컬 볼륨 설정에 맞춰 재생한다. */
 	void PlayBackgroundMusic(USoundBase* BackgroundMusicSound);
 
+	/** 플레이어 지정 음소거 메뉴가 현재 화면에 열려 있는지 반환한다. */
+	bool IsVoiceMuteMenuOpen() const;
+
+	/** 음소거 메뉴가 열려 있는 동안 커서와 UI 입력 상태를 재적용한다. */
+	void ApplyVoiceMuteMenuInputState(bool bForce = false);
+
 private:
 	/** 로컬 옵션 설정 기준으로 채팅 직접 키 바인딩을 다시 묶는다. */
 	void RebindConfiguredInputKeys();
@@ -391,6 +397,7 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UVoiceMuteMenuWidget> VoiceMuteMenuWidget;
+	bool bVoiceMuteMenuInputStateApplied = false;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UUserWidget> DefaultMouseCursorWidget;

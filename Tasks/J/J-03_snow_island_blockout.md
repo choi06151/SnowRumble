@@ -54,7 +54,8 @@
 
 - 2026-08-12 `828aff5`: `Content/Maps/L_SnowIsland_J.umap`을 J 브랜치에 최초 추가하고 눈섬 블록아웃 시작 기록을 남겼다.
 - 2026-08-13 `782dbd1`, 2026-08-14 `b1b6296`, 2026-08-15 `84ca373`: Git 기록상 `L_SnowIsland_J.umap`이 이어서 갱신되었다. `.umap` 내부 배치 세부 내용은 Editor로 열어 확인하지 않았으므로 완료 체크에는 반영하지 않는다.
-- 현재 작업 트리에는 `Content/Maps/L_SnowIsland_J.umap` 로컬 수정이 남아 있다. 이 문서 정리 작업에서는 해당 맵 파일을 수정하지 않는다.
+- 2026-08-17 `2bceb50`: `L_SnowIsland_J.umap` 추가 수정과 함께 J-01, J-03, J-04, J-06, `PLAN_J.md` 기록이 정리되었다. 이 문서 정리 작업에서는 해당 이력을 J-03의 눈섬 블록아웃 기록으로만 참조한다.
+- 2026-08-26 문서 정리 시점에는 J 브랜치가 `origin/J`와 일치하며 별도 로컬 `L_SnowIsland_J.umap` 수정은 없다.
 - Gameplay C++ 구현과 Water Damage 기록은 J-03에 섞지 않고 J-04에서 관리한다.
 
 ## 수동 작업

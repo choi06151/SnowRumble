@@ -9,6 +9,8 @@
 
 class UPrimitiveComponent;
 class USceneComponent;
+class UCameraShakeBase;
+class ACharacter;
 
 UENUM(BlueprintType)
 enum class ESnowRumbleIceGlacierCollapsePhase : uint8
@@ -70,21 +72,26 @@ struct FIceGlacierCollapseComponentCollisionState
 	ECollisionEnabled::Type CollisionEnabled = ECollisionEnabled::NoCollision;
 };
 
-struct FIceGlacierCollapseTargetState
-{
-	TWeakObjectPtr<AActor> Actor;
-	FIceGlacierCollapsePieceRuntimeSettings PieceSettings;
-	FTransform InitialTransform = FTransform::Identity;
-	TArray<FIceGlacierCollapseComponentCollisionState> CollisionStates;
-	bool bCollisionDisabledAfterSink = false;
-};
-
 enum class EIceGlacierCollapsePieceState : uint8
 {
 	Idle,
 	Warning,
 	Falling,
 	Done
+};
+
+struct FIceGlacierCollapseTargetState
+{
+	TWeakObjectPtr<AActor> Actor;
+	FIceGlacierCollapsePieceRuntimeSettings PieceSettings;
+	FTransform InitialTransform = FTransform::Identity;
+	TArray<FIceGlacierCollapseComponentCollisionState> CollisionStates;
+	TArray<TWeakObjectPtr<AActor>> CarriedActors;
+	FVector PreviousCarryPieceLocation = FVector::ZeroVector;
+	EIceGlacierCollapsePieceState PreviousPieceState =
+		EIceGlacierCollapsePieceState::Idle;
+	bool bCollisionDisabledAfterSink = false;
+	bool bCarryInitializedForFall = false;
 };
 
 UCLASS(Blueprintable)
@@ -113,6 +120,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	/** 240~300초 동안 차례로 흔들리고 침몰할 빙판 조각 목록이다. Final Core는 넣지 않는다. */
 	UPROPERTY(EditInstanceOnly, Category = "SnowRumble|Ice Glacier Collapse|Targets")
@@ -141,6 +149,14 @@ protected:
 	/** 완전히 침몰한 빙판의 Collision을 끌지 여부다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Ice Glacier Collapse|Collision")
 	bool bDisableCollisionAfterFullySunk = true;
+
+	/** Warning 중인 빙판 위의 로컬 플레이어에게만 재생할 Camera Shake Class다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Ice Glacier Collapse|Camera Shake")
+	TSubclassOf<UCameraShakeBase> WarningCameraShakeClass;
+
+	/** Warning Camera Shake 재생 배율이다. 세부 진폭과 길이는 Camera Shake Asset에서 조정한다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Ice Glacier Collapse|Camera Shake", meta = (ClampMin = "0.0"))
+	float WarningCameraShakeScale = 1.0f;
 
 private:
 	/** 복제된 서버 Phase를 클라이언트의 빙판 위치에 반영한다. */
@@ -196,13 +212,77 @@ private:
 		float WarningElapsedSeconds,
 		float WarningAlpha);
 
+	/** 저장된 시작 Transform 기준으로 Falling 중인 빙판 위치를 계산한다. */
+	FVector CalculateFallingPieceLocation(
+		const FIceGlacierCollapseTargetState& TargetState,
+		float Alpha) const;
+
 	/** 저장된 시작 Transform 기준으로 빙판의 World Z만 갱신한다. */
 	void ApplyFallingTransform(
 		FIceGlacierCollapseTargetState& TargetState,
 		float Alpha);
 
+	/** 서버에서 Falling 중인 빙판 위 Actor를 같은 Delta만큼 이동시킨다. */
+	void UpdateFallingCarryActors(
+		FIceGlacierCollapseTargetState& TargetState,
+		float FallAlpha);
+
+	/** Falling 진입 순간 해당 빙판 위에 있는 Carry 대상 Actor를 저장한다. */
+	void InitializeCarryActorsForFallingPiece(
+		FIceGlacierCollapseTargetState& TargetState,
+		const FVector& CurrentPieceLocation);
+
+	/** Falling 중 저장된 Carry 대상 Actor를 빙판 Delta만큼 이동시킨다. */
+	void MoveCarriedActorsWithFallingPiece(
+		FIceGlacierCollapseTargetState& TargetState,
+		const FVector& CurrentPieceLocation);
+
+	/** Falling 종료 또는 재초기화 시 Carry 런타임 상태를 정리한다. */
+	void ClearCarryActors(FIceGlacierCollapseTargetState& TargetState);
+
+	/** TargetActor의 현재 Primitive Bounds를 XY 사전 필터용으로 합산한다. */
+	bool CalculateTargetActorBounds(
+		const AActor* TargetActor,
+		FBox& OutBounds) const;
+
+	/** 후보 Actor가 Carry 가능한 현재 gameplay Actor인지 확인한다. */
+	bool ShouldCarryCandidateActor(const AActor* CandidateActor) const;
+
+	/** Falling 중 Carry를 계속 적용해도 되는지 확인한다. */
+	bool ShouldKeepCarryingActor(const AActor* CandidateActor) const;
+
+	/** 후보 Actor의 하단 근처에서 아래 방향 Trace를 시작할 위치를 구한다. */
+	FVector GetCarryTraceStartLocation(const AActor* CandidateActor) const;
+
+	/** 아래 방향 RayTrace로 후보 Actor가 현재 TargetActor 위에 있는지 확인한다. */
+	bool IsCandidateStandingOnTargetActorByTrace(
+		const AActor* CandidateActor,
+		const AActor* TargetActor) const;
+
 	/** 저장된 시작 Transform으로 빙판 위치와 회전을 되돌린다. */
 	void ApplyInitialTransform(FIceGlacierCollapseTargetState& TargetState);
+
+	/** 로컬 플레이어가 Warning 중인 빙판 위에 있는지 확인하고 Camera Shake 상태를 갱신한다. */
+	void UpdateLocalWarningCameraShake(float RoundElapsedSeconds);
+
+	/** WarningAlpha를 Camera Shake에 적용할 최종 Scale로 변환한다. */
+	float CalculateWarningCameraShakeScale(float WarningAlpha) const;
+
+	/** 로컬 플레이어가 현재 밟고 있는 Warning Piece의 TargetActor와 진행도를 찾는다. */
+	AActor* FindWarningPieceUnderLocalPlayer(
+		float RoundElapsedSeconds,
+		float& OutWarningAlpha) const;
+
+	/** 로컬 Character의 MovementBase Owner가 지정 TargetActor인지 확인한다. */
+	bool IsLocalCharacterStandingOnTargetActor(
+		const ACharacter* Character,
+		const AActor* TargetActor) const;
+
+	/** 로컬 플레이어 Camera Shake를 한 번 시작한다. */
+	void StartLocalWarningCameraShake(AActor* TargetActor, float WarningAlpha);
+
+	/** 실행 중인 로컬 플레이어 Camera Shake를 정지하고 상태를 초기화한다. */
+	void StopLocalWarningCameraShake();
 
 	/** 완전히 침몰한 빙판의 Collision을 비활성화한다. */
 	void DisableTargetCollision(FIceGlacierCollapseTargetState& TargetState);
@@ -222,4 +302,7 @@ private:
 	UPROPERTY(ReplicatedUsing = OnRep_CollapsePhase)
 	ESnowRumbleIceGlacierCollapsePhase CurrentCollapsePhase =
 		ESnowRumbleIceGlacierCollapsePhase::Stable;
+
+	TWeakObjectPtr<AActor> ActiveWarningCameraShakeTargetActor;
+	TWeakObjectPtr<UCameraShakeBase> ActiveWarningCameraShakeInstance;
 };

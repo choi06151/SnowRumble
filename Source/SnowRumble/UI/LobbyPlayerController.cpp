@@ -174,6 +174,12 @@ void ALobbyPlayerController::EnableLobbyGameInput()
 		return;
 	}
 
+	if (IsVoiceMuteMenuOpen())
+	{
+		ApplyVoiceMuteMenuInputState(true);
+		return;
+	}
+
 	bShowMouseCursor = false;
 	SetInputMode(FInputModeGameOnly());
 }

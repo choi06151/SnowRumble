@@ -122,6 +122,10 @@ protected:
 	UFUNCTION()
 	void OnRep_GrowthProgress();
 
+	/** 서버가 확정한 눈덩이 초기 스케일을 클라이언트에 적용한다. */
+	UFUNCTION()
+	void OnRep_InitialActorScale();
+
 	/** 복제된 지면 고정 상태에 맞춰 바닥 물리를 갱신한다. */
 	UFUNCTION()
 	void OnRep_IsSettledOnGround();
@@ -253,6 +257,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Growth", meta = (ClampMin = "1.0"))
 	float DistanceForMaximumGrowth = 1000.0f;
 
+	/** 이 성장도 이상이면 큰 눈덩이로 취급한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Growth", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float LargeSnowballGrowthThreshold = 2.0f / 3.0f;
+
 	/** 큰 눈덩이가 투척 후 이 거리만큼 굴러가면 완전히 작아진다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Large", meta = (ClampMin = "1.0"))
 	float DistanceForThrownLargeSnowballToDissolve = 1400.0f;
@@ -309,6 +317,7 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_IsSettledOnGround, Category = "SnowRumble|Snowball")
 	bool bIsSettledOnGround = true;
 
+	UPROPERTY(VisibleInstanceOnly, ReplicatedUsing = OnRep_InitialActorScale, Category = "SnowRumble|Snowball|Growth")
 	FVector InitialActorScale = FVector::OneVector;
 	FVector LastRollingLocation = FVector::ZeroVector;
 	float AccumulatedRollingDistance = 0.0f;

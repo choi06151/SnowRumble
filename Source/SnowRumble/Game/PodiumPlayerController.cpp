@@ -106,10 +106,6 @@ void APodiumPlayerController::BeginPlay()
 		}
 	}
 
-	if (IsLocalController())
-	{
-		PlayBackgroundMusic(BackgroundMusicSound);
-	}
 }
 
 void APodiumPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -171,14 +167,24 @@ void APodiumPlayerController::ClientUpdatePodiumReturnSubtitle_Implementation(
 }
 
 void APodiumPlayerController::ClientPlayBackgroundMusic_Implementation(
-	USoundBase* NewBackgroundMusicSound)
+	const FSoftObjectPath& BackgroundMusicPath)
 {
 	if (!IsLocalController())
 	{
 		return;
 	}
 
-	PlayBackgroundMusic(NewBackgroundMusicSound);
+	if (!BackgroundMusicPath.IsValid())
+	{
+		return;
+	}
+
+	USoundBase* LoadedBackgroundMusic =
+		Cast<USoundBase>(BackgroundMusicPath.TryLoad());
+	if (LoadedBackgroundMusic)
+	{
+		PlayBackgroundMusic(LoadedBackgroundMusic);
+	}
 }
 
 void APodiumPlayerController::ClientStopBackgroundMusic_Implementation()
