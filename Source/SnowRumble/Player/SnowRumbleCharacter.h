@@ -199,6 +199,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
 	bool IsGrabAttached() const;
 
+	/** Grabable 물건을 잡고 있는 동안에는 Grab 게이지를 표시하지 않도록 확인한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	bool IsGrabbingPhysicsObject() const;
+
 	/** Animation Blueprint와 Control Rig에서 벽이나 월드 오브젝트에 매달린 상태인지 확인한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
 	bool IsHangingFromWorldGrab() const;
@@ -249,9 +253,6 @@ public:
 
 	/** 잡기 컴포넌트가 서버와 로컬에서 잡기 reach를 시작할 수 있는지 확인한다. */
 	bool CanStartPlayerGrabReach() const;
-
-	/** 빈손 좌클릭에서 잡기 대신 눈 제작을 우선할 만큼 아래를 보는지 확인한다. */
-	bool ShouldPreferSnowCreationOverGrab() const;
 
 	/** 서버가 이 캐릭터를 잡힌 상태로 만들고 이동을 잠근다. */
 	void ApplyGrabbedByCharacter(ASnowRumbleCharacter* GrabbingCharacter);
@@ -504,6 +505,12 @@ protected:
 	/** 상호작용 입력 해제 상태를 Blueprint에 전달한다. */
 	void HandleInteractCompleted();
 
+	/** 눈덩이 굴리기 입력이 시작되면 굴리기를 요청한다. */
+	void HandleRollStarted();
+
+	/** 눈덩이 굴리기 입력이 끝나면 굴리기를 종료한다. */
+	void HandleRollCompleted();
+
 	/** 조준 입력 누름 상태를 Blueprint에 전달한다. */
 	void HandleAimStarted();
 
@@ -515,6 +522,12 @@ protected:
 
 	/** 상황별 행동 입력 해제 상태를 Blueprint에 전달한다. */
 	void HandleActionCompleted();
+
+	/** 눈 만들기 입력이 시작되면 현재 발판 기준 제작을 요청한다. */
+	void HandleSnowCreationStarted();
+
+	/** 눈 만들기 입력이 끝나면 제작을 취소한다. */
+	void HandleSnowCreationCompleted();
 
 	/** 장비 내려놓기 입력을 Blueprint에 전달한다. */
 	void HandleDropEquipment();
@@ -1343,6 +1356,14 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
 	TObjectPtr<UInputAction> ActionAction;
 
+	/** 눈덩이 굴리기 입력 슬롯이다. 기본 키는 E다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
+	TObjectPtr<UInputAction> RollAction;
+
+	/** 눈 만들기 입력 슬롯이다. 기본 키는 Q다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
+	TObjectPtr<UInputAction> SnowCreationAction;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
 	TObjectPtr<UInputAction> DropEquipmentAction;
 
@@ -1684,9 +1705,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation", meta = (ClampMin = "1.0"))
 	float ViewYawAlphaRangeDegrees = 90.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float SnowCreationPreferredViewPitchAlpha = 0.35f;
-
 	/** 로컬 플레이어가 소유한 상호작용 안내 위젯 인스턴스다. */
 	UPROPERTY(Transient)
 	TObjectPtr<UInteractionPromptWidget> InteractionPromptWidget;
@@ -1779,6 +1797,8 @@ public:
 
 	bool bIsInteractHeld = false;
 	bool bUsedInteractForRolling = false;
+	bool bIsRollHeld = false;
+	bool bUsedRollForMovement = false;
 	bool bIsRevivingTeammate = false;
 	TWeakObjectPtr<ASnowRumbleCharacter> TeammateReviveTarget;
 	FTimerHandle TeammateReviveTimerHandle;
