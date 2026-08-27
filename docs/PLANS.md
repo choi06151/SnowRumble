@@ -119,6 +119,7 @@
 ## 최근 통합 로그
 
 - 2026-08-27: C-34 물리 상호작용 물건 계약을 추가했다. `AGrabbablePhysicsObject`를 기반으로 여러 물건 Blueprint가 서버 복제 물리, Grab 연결, 플레이어 밀침과 눈덩이 파괴 동작을 재사용할 수 있게 했다.
+- 2026-08-27: C-09/C-28 입력을 좌클릭 Grab, `Q` 눈 만들기, `E` 눈덩이 굴리기, `F` 일반 상호작용으로 분리했다. Grab trace가 바닥 눈덩이를 만나면 기존 손 위치에 장착하고, 새 제작·굴리기 InputAction 슬롯과 옵션 키 재설정 항목을 추가했다.
 - 2026-08-27: C-34 물리 물건 Grab 회귀를 보강했다. 캐릭터 손 bone에 직접 물리 Constraint를 걸지 않고 숨김 PhysicsOnly 앵커에 물건을 연결해 손 늘어남을 막는다.
 - 2026-08-27: C-34 물리 물건 Grab 동작을 고정 이동 기준으로 변경했다. 잡힌 동안 물건은 손 위치에 직접 고정되고, 상대 플레이어 밀침은 별도 서버 overlap으로 처리한다.
 - 2026-08-27: C-34 Grab 물건 자식 기믹 확장을 추가했다. `AGrabbablePhysicsObject`의 Grab 훅과 `ATambourineGrabbableObject` 위치 기반 찰랑 사운드 슬롯을 제공한다.
@@ -183,3 +184,4 @@
 - 2026-08-22: C-24/C-09 눈덩이 Notify 투척 조준을 보강함. 입력 release 때 저장한 방향이 아니라 `UAnimNotify_SnowballThrowRelease` 시점의 로컬 카메라 위치·방향을 서버 RPC로 보내 최종 trace와 투척 방향을 다시 계산하게 했다.
 - 2026-08-22: C-30 맵별 배경음악 시작 지점을 추가함. 메인메뉴와 커스터마이징은 로컬 PlayerController가 직접 재생하고, 로비·PvP·눈사람 모드·포디움은 GameMode가 각 클라이언트 컨트롤러에 배경음악 재생 RPC를 보낸다.
 - 2026-08-22: PvP 전환 중 배경음악이 끊기는 문제를 `USnowRumbleBackgroundMusicSubsystem`으로 보정함. 컨트롤러 EndPlay 중지 호출을 제거하고, travel 중에는 같은 오디오 컴포넌트를 유지한 채 맵별 음악만 교체한다.
+- 2026-08-27: 작은 눈덩이 안내를 `E - 굴리기 / F - 줍기`로 분리하고, 장비·눈덩이 내려놓기 기본 입력을 `Enter`로 변경했다.

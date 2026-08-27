@@ -1000,7 +1000,7 @@ void UOptionsWidget::InitializeDefaultKeyBindingRows()
 	KeyBindingRows.Add(MakeKeyBindingRow(
 		TEXT("Interact"),
 		NSLOCTEXT("SnowRumble", "KeyBindingInteract", "상호작용"),
-		EKeys::E));
+		EKeys::F));
 	KeyBindingRows.Add(MakeKeyBindingRow(
 		TEXT("Aim"),
 		NSLOCTEXT("SnowRumble", "KeyBindingAim", "조준"),
@@ -1010,9 +1010,17 @@ void UOptionsWidget::InitializeDefaultKeyBindingRows()
 		NSLOCTEXT("SnowRumble", "KeyBindingAction", "행동"),
 		EKeys::LeftMouseButton));
 	KeyBindingRows.Add(MakeKeyBindingRow(
+		TEXT("RollSnowball"),
+		NSLOCTEXT("SnowRumble", "KeyBindingRollSnowball", "눈덩이 굴리기"),
+		EKeys::E));
+	KeyBindingRows.Add(MakeKeyBindingRow(
+		TEXT("CreateSnowball"),
+		NSLOCTEXT("SnowRumble", "KeyBindingCreateSnowball", "눈 만들기"),
+		EKeys::Q));
+	KeyBindingRows.Add(MakeKeyBindingRow(
 		TEXT("DropEquipment"),
 		NSLOCTEXT("SnowRumble", "KeyBindingDropEquipment", "장비 내려놓기"),
-		EKeys::Q));
+		EKeys::Enter));
 	KeyBindingRows.Add(MakeKeyBindingRow(
 		TEXT("Emote"),
 		NSLOCTEXT("SnowRumble", "KeyBindingEmote", "이모션"),
@@ -1878,7 +1886,31 @@ void UOptionsWidget::RefreshCategoryButtonTextColors()
 	RefreshButtonTextColor(
 		MicrophoneAlwaysOnButton,
 		PendingMicrophoneMode == ESnowRumbleMicrophoneMode::AlwaysOn);
+	RefreshButtonTextColor(ApplyButton, false);
 	RefreshButtonTextColor(ResetButton, false);
+	RefreshLanguageComboBoxTextColor();
+}
+
+void UOptionsWidget::RefreshLanguageComboBoxTextColor()
+{
+	if (!LanguageComboBox)
+	{
+		return;
+	}
+
+	if (!bHasDefaultLanguageComboBoxForegroundColor)
+	{
+		DefaultLanguageComboBoxForegroundColor =
+			LanguageComboBox->ForegroundColor;
+		bHasDefaultLanguageComboBoxForegroundColor = true;
+	}
+
+	const bool bShouldBeWhite =
+		LanguageComboBox->IsHovered() || LanguageComboBox->IsOpen();
+	LanguageComboBox->SetForegroundColor(
+		bShouldBeWhite
+			? FSlateColor(FLinearColor::White)
+			: DefaultLanguageComboBoxForegroundColor);
 }
 
 void UOptionsWidget::RefreshMicrophoneModeButtonSelection()

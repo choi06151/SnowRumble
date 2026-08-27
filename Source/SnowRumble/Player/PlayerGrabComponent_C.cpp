@@ -4,6 +4,8 @@
 
 #include "../Audio/SnowRumbleAudioHelpers.h"
 #include "../Item/GrabbablePhysicsObject_C.h"
+#include "../Snowball/SnowballEquipmentComponent.h"
+#include "../Snowball/SnowballItem.h"
 #include "SnowRumbleCharacter.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "Components/PrimitiveComponent.h"
@@ -91,6 +93,7 @@ void UPlayerGrabComponent::TickComponent(
 	USkeletalMeshComponent* TargetMesh = nullptr;
 	AGrabbablePhysicsObject* TargetPhysicsObject = nullptr;
 	UPrimitiveComponent* TargetPhysicsComponent = nullptr;
+	ASnowballItem* TargetSnowball = nullptr;
 	FName TargetBoneName = NAME_None;
 	FVector AttachedWorldLocation = FVector::ZeroVector;
 	ESnowRumbleGrabAttachmentType AttachmentType =
@@ -105,17 +108,32 @@ void UPlayerGrabComponent::TickComponent(
 	{
 		return;
 	}
+	ASnowRumbleCharacter* Character = GetOwnerCharacter();
+	if (!Character)
+	{
+		return;
+	}
 	if (FindGrabCandidate(
 		TargetCharacter,
 		TargetMesh,
 		TargetPhysicsObject,
 		TargetPhysicsComponent,
+		TargetSnowball,
 		TargetBoneName,
 		AttachedWorldLocation,
 		AttachmentType,
 		bAllowWorldAttachment))
 	{
-		if (AttachmentType == ESnowRumbleGrabAttachmentType::Character)
+		if (TargetSnowball)
+		{
+			USnowballEquipmentComponent* Equipment =
+				Character->FindComponentByClass<USnowballEquipmentComponent>();
+			if (Equipment && Equipment->EquipSnowballFromGrab(TargetSnowball))
+			{
+				ServerStopGrabReach_Implementation();
+			}
+		}
+		else if (AttachmentType == ESnowRumbleGrabAttachmentType::Character)
 		{
 			AttachGrabConstraint(
 				TargetCharacter,
@@ -248,6 +266,11 @@ bool UPlayerGrabComponent::IsCarryingOpposingFrozenCharacter() const
 bool UPlayerGrabComponent::IsGrabAttached() const
 {
 	return GrabAttachmentType != ESnowRumbleGrabAttachmentType::None;
+}
+
+bool UPlayerGrabComponent::IsGrabbingPhysicsObject() const
+{
+	return GrabAttachmentType == ESnowRumbleGrabAttachmentType::PhysicsObject;
 }
 
 bool UPlayerGrabComponent::IsHangingFromWorldGrab() const
@@ -419,6 +442,7 @@ bool UPlayerGrabComponent::FindGrabCandidate(
 	USkeletalMeshComponent*& OutMesh,
 	AGrabbablePhysicsObject*& OutPhysicsObject,
 	UPrimitiveComponent*& OutPhysicsComponent,
+	ASnowballItem*& OutSnowball,
 	FName& OutBoneName,
 	FVector& OutAttachedWorldLocation,
 	ESnowRumbleGrabAttachmentType& OutAttachmentType,
@@ -428,6 +452,7 @@ bool UPlayerGrabComponent::FindGrabCandidate(
 	OutMesh = nullptr;
 	OutPhysicsObject = nullptr;
 	OutPhysicsComponent = nullptr;
+	OutSnowball = nullptr;
 	OutBoneName = NAME_None;
 	OutAttachedWorldLocation = FVector::ZeroVector;
 	OutAttachmentType = ESnowRumbleGrabAttachmentType::None;
@@ -543,6 +568,12 @@ bool UPlayerGrabComponent::FindGrabCandidate(
 
 		AGrabbablePhysicsObject* PhysicsObject =
 			Cast<AGrabbablePhysicsObject>(Hit.GetActor());
+		ASnowballItem* Snowball = Cast<ASnowballItem>(Hit.GetActor());
+		if (Snowball && Snowball->CanBePickedUp())
+		{
+			OutSnowball = Snowball;
+			return true;
+		}
 		UPrimitiveComponent* PhysicsComponent = PhysicsObject
 			? PhysicsObject->GetPhysicsComponent()
 			: nullptr;

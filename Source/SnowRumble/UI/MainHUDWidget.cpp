@@ -223,7 +223,8 @@ void UMainHUDWidget::RefreshCombatHudPresentation()
 		LocalCharacter->IsChargingSnowball();
 	const bool bShouldShowGrabTimeBar =
 		!bShouldShowChargeBar
-		&& LocalCharacter->IsGrabAttached();
+		&& LocalCharacter->IsGrabAttached()
+		&& !LocalCharacter->IsGrabbingPhysicsObject();
 	if (AimChargeProgressBar)
 	{
 		AimChargeProgressBar->SetVisibility(
