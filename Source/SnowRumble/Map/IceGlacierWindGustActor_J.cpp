@@ -7,6 +7,7 @@
 #include "Components/SceneComponent.h"
 #include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/PlayerController.h"
 #include "GameFramework/GameStateBase.h"
 #include "Net/UnrealNetwork.h"
 
@@ -37,6 +38,10 @@ void AIceGlacierWindGustActor::Tick(float DeltaSeconds)
 	{
 		UpdateServerWind(DeltaSeconds);
 	}
+	else
+	{
+		ApplyWindDriftToLocalPlayer(DeltaSeconds);
+	}
 }
 
 void AIceGlacierWindGustActor::GetLifetimeReplicatedProps(
@@ -45,6 +50,8 @@ void AIceGlacierWindGustActor::GetLifetimeReplicatedProps(
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(AIceGlacierWindGustActor, CurrentWindDirection);
+	DOREPLIFETIME(AIceGlacierWindGustActor, CurrentGustStartServerTime);
+	DOREPLIFETIME(AIceGlacierWindGustActor, CurrentStateEndServerTime);
 	DOREPLIFETIME(AIceGlacierWindGustActor, CurrentWindState);
 }
 
@@ -270,50 +277,98 @@ void AIceGlacierWindGustActor::ApplyWindDriftToPlayers(float DeltaSeconds)
 
 	for (TActorIterator<ASnowRumbleCharacter> It(World); It; ++It)
 	{
-		ASnowRumbleCharacter* Character = *It;
-		if (!ShouldAffectCharacter(Character))
-		{
-			continue;
-		}
-
-		UCharacterMovementComponent* MovementComponent =
-			Character->GetCharacterMovement();
-		if (!MovementComponent)
-		{
-			continue;
-		}
-
-		const float MaxWindDriftSpeed =
-			GetMaxWindDriftSpeedForMovementMode(*MovementComponent);
-		if (MaxWindDriftSpeed <= 0.0f)
-		{
-			continue;
-		}
-
-		const float TargetWindDriftSpeed = MaxWindDriftSpeed * StrengthAlpha;
-		const FVector CurrentVelocity = MovementComponent->Velocity;
-		const FVector CurrentHorizontalVelocity(
-			CurrentVelocity.X,
-			CurrentVelocity.Y,
-			0.0f);
-		const float CurrentSpeedAlongWind = FVector::DotProduct(
-			CurrentHorizontalVelocity,
-			WindDirection);
-		const float MissingWindDriftSpeed =
-			TargetWindDriftSpeed - CurrentSpeedAlongWind;
-		if (MissingWindDriftSpeed <= KINDA_SMALL_NUMBER)
-		{
-			continue;
-		}
-
-		const float WindDriftSpeedToAdd = FMath::Min(
-			WindAcceleration * DeltaSeconds,
-			MissingWindDriftSpeed);
-		FVector NewVelocity =
-			CurrentVelocity + WindDirection * WindDriftSpeedToAdd;
-		NewVelocity.Z = CurrentVelocity.Z;
-		MovementComponent->Velocity = NewVelocity;
+		ApplyWindDriftToCharacter(
+			*It,
+			DeltaSeconds,
+			WindDirection,
+			StrengthAlpha);
 	}
+}
+
+void AIceGlacierWindGustActor::ApplyWindDriftToLocalPlayer(float DeltaSeconds)
+{
+	UWorld* World = GetWorld();
+	const FVector WindDirection = NormalizeWindDirection(CurrentWindDirection);
+	if (!World
+		|| DeltaSeconds <= KINDA_SMALL_NUMBER
+		|| WindAcceleration <= 0.0f
+		|| WindDirection.IsNearlyZero())
+	{
+		return;
+	}
+
+	const float StrengthAlpha = CalculateCurrentWindStrengthAlpha();
+	if (StrengthAlpha <= KINDA_SMALL_NUMBER)
+	{
+		return;
+	}
+
+	const APlayerController* LocalPlayerController =
+		World->GetFirstPlayerController();
+	ASnowRumbleCharacter* LocalCharacter =
+		LocalPlayerController
+			? Cast<ASnowRumbleCharacter>(LocalPlayerController->GetPawn())
+			: nullptr;
+	if (!LocalCharacter || !LocalCharacter->IsLocallyControlled())
+	{
+		return;
+	}
+
+	ApplyWindDriftToCharacter(
+		LocalCharacter,
+		DeltaSeconds,
+		WindDirection,
+		StrengthAlpha);
+}
+
+void AIceGlacierWindGustActor::ApplyWindDriftToCharacter(
+	ASnowRumbleCharacter* Character,
+	float DeltaSeconds,
+	const FVector& WindDirection,
+	float StrengthAlpha)
+{
+	if (!ShouldAffectCharacter(Character))
+	{
+		return;
+	}
+
+	UCharacterMovementComponent* MovementComponent =
+		Character->GetCharacterMovement();
+	if (!MovementComponent)
+	{
+		return;
+	}
+
+	const float MaxWindDriftSpeed =
+		GetMaxWindDriftSpeedForMovementMode(*MovementComponent);
+	if (MaxWindDriftSpeed <= 0.0f)
+	{
+		return;
+	}
+
+	const float TargetWindDriftSpeed = MaxWindDriftSpeed * StrengthAlpha;
+	const FVector CurrentVelocity = MovementComponent->Velocity;
+	const FVector CurrentHorizontalVelocity(
+		CurrentVelocity.X,
+		CurrentVelocity.Y,
+		0.0f);
+	const float CurrentSpeedAlongWind = FVector::DotProduct(
+		CurrentHorizontalVelocity,
+		WindDirection);
+	const float MissingWindDriftSpeed =
+		TargetWindDriftSpeed - CurrentSpeedAlongWind;
+	if (MissingWindDriftSpeed <= KINDA_SMALL_NUMBER)
+	{
+		return;
+	}
+
+	const float WindDriftSpeedToAdd = FMath::Min(
+		WindAcceleration * DeltaSeconds,
+		MissingWindDriftSpeed);
+	FVector NewVelocity =
+		CurrentVelocity + WindDirection * WindDriftSpeedToAdd;
+	NewVelocity.Z = CurrentVelocity.Z;
+	MovementComponent->Velocity = NewVelocity;
 }
 
 float AIceGlacierWindGustActor::GetMaxWindDriftSpeedForMovementMode(
@@ -339,7 +394,19 @@ float AIceGlacierWindGustActor::CalculateCurrentWindStrengthAlpha() const
 		return 0.0f;
 	}
 
+	if (CurrentGustStartServerTime <= 0.0f
+		|| CurrentStateEndServerTime <= CurrentGustStartServerTime)
+	{
+		return 0.0f;
+	}
+
 	const float CurrentServerTime = GetServerWorldTimeSeconds();
+	if (CurrentServerTime < CurrentGustStartServerTime
+		|| CurrentServerTime >= CurrentStateEndServerTime)
+	{
+		return 0.0f;
+	}
+
 	const float GustElapsedSeconds = FMath::Max(
 		0.0f,
 		CurrentServerTime - CurrentGustStartServerTime);
