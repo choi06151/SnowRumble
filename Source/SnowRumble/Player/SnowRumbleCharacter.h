@@ -460,6 +460,9 @@ public:
 	/** 로컬 눈 VFX의 바람 방향 파라미터를 갱신한다. */
 	void SetLocalSnowEffectWindDirection(const FVector& WindDirection);
 
+	/** 로컬 눈 VFX의 바람 세기 파라미터를 갱신한다. */
+	void SetLocalSnowEffectWindStrength(float WindStrength);
+
 protected:
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void BeginPlay() override;
@@ -1594,6 +1597,14 @@ public:
 	/** 로컬 눈 VFX에 전달할 바람 방향 Niagara Vector 파라미터 이름이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|VFX")
 	FName LocalSnowEffectWindDirectionParameterName = TEXT("Direction");
+
+	/** 바람이 없을 때 로컬 눈 VFX가 사용할 기본 낙하 방향이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|VFX")
+	FVector LocalSnowEffectDefaultDirection = FVector(0.0f, 0.0f, -1.0f);
+
+	/** 로컬 눈 VFX에 전달할 바람 세기 Niagara Float 파라미터 이름이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|VFX")
+	FName LocalSnowEffectWindStrengthParameterName = TEXT("Strength");
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera")
 	float CameraPivotHeight = 65.0f;

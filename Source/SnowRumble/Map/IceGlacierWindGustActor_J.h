@@ -109,6 +109,18 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Ice Glacier Wind|Drift", meta = (ClampMin = "0.0"))
 	float FallingWindMaxDriftSpeed = 110.0f;
 
+	/** 평소 로컬 눈 VFX에 전달할 바람 세기다. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SnowRumble|Ice Glacier Wind|VFX", meta = (ClampMin = "0.0"))
+	float LocalSnowEffectDefaultStrength = 500.0f;
+
+	/** 강풍 중 로컬 눈 VFX에 전달할 최대 바람 세기다. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SnowRumble|Ice Glacier Wind|VFX", meta = (ClampMin = "0.0"))
+	float LocalSnowEffectGustStrength = 1200.0f;
+
+	/** 실제 강풍 시작 전에 로컬 눈 VFX 방향을 미리 전달할 시간이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SnowRumble|Ice Glacier Wind|VFX", meta = (ClampMin = "0.0"))
+	float LocalSnowEffectWindLeadSeconds = 0.2f;
+
 	/** 서버가 이 목록 중 하나를 골라 수평 방향으로 정규화한 뒤 사용한다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Ice Glacier Wind|Force")
 	TArray<FVector> WindDirections;
