@@ -7,6 +7,7 @@
 #include "SnowballItem.generated.h"
 
 class ASnowRumbleCharacter;
+class AGrabbablePhysicsObject;
 class UAudioComponent;
 class UPrimitiveComponent;
 class UProjectileMovementComponent;
@@ -155,6 +156,12 @@ protected:
 	/** 서버에서 처음 확인한 투척 충돌의 피해, 이펙트와 제거를 처리한다. */
 	void HandleThrownImpact(AActor* OtherActor, const FHitResult& Hit);
 
+	/** 직접 투척 눈덩이가 머리 판정 bone에 맞았는지 확인한다. */
+	bool IsHeadshotHit(const FHitResult& Hit) const;
+
+	/** 물리 상호작용 물건에 맞은 눈덩이를 서버에서 부순다. */
+	bool TryBreakOnGrabbableObject(AActor* OtherActor, const FHitResult& Hit);
+
 	/** 큰 눈덩이가 바닥이나 플레이어에 닿은 뒤 물리 굴리기로 전환한다. */
 	void StartThrownRolling();
 
@@ -229,6 +236,12 @@ protected:
 	/** 눈덩이 성장에 따라 적용할 최대 피해 배율이다. 성장 0에서는 1배로 시작한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact|Growth", meta = (ClampMin = "1.0"))
 	float MaximumGrowthDamageMultiplier = 3.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact|Headshot", meta = (ClampMin = "1.0"))
+	float HeadshotDamageMultiplier = 1.5f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact|Headshot")
+	TArray<FName> HeadshotBoneNames;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact", meta = (ClampMin = "0.0"))
 	float SmallSnowballMinimumKnockback = 300.0f;

@@ -44,6 +44,8 @@
 | I-17 Steam 세션 전환 | C-18 | C-02, S-02, 사용자 | LAN fallback을 유지하면서 Steam 세션·Overlay 친구 초대·초대 수락·세션 정리 통합 | 진행중 |
 | I-18 캐릭터 모델·ABP | C-24 | S-01, S-05, S-08, 사용자 | 새 캐릭터 모델용 ABP 부모, 애니메이션 슬롯 이름, 캐릭터 상태 변수 | 진행중 |
 | I-19 눈사람 모드 | K-12~K-14 | C-04, C-05, C-09, S/J 맵 담당, 사용자 | 기존 PvP 맵 재사용, 환경 축소 비활성, 10분 제한시간, 랜덤 눈사람 시작, 감염·전환·승패 결과 | 예정 |
+| I-20 Grab 물리 물건 | C-34 | S·후속 물건 Blueprint, C-09 | 물리 물건 부모 Actor, Grab 연결, 플레이어 밀침, 작은·큰 눈 파괴 충돌 | 진행중 |
+| I-21 데미지 텍스트 표시 | C-35 | S·후속 HUD/캐릭터 Blueprint | `UDamageTextWidget`, 일반/헤드샷 WBP 슬롯, 직접 투척 눈덩이 `HeadshotBoneNames` 판정 제공 | 진행중 |
 
 ## 세션 개발 정책
 
@@ -115,6 +117,16 @@
 - `대체`: 다른 Task나 계약으로 범위를 옮긴 상태
 
 ## 최근 통합 로그
+
+- 2026-08-27: C-34 물리 상호작용 물건 계약을 추가했다. `AGrabbablePhysicsObject`를 기반으로 여러 물건 Blueprint가 서버 복제 물리, Grab 연결, 플레이어 밀침과 눈덩이 파괴 동작을 재사용할 수 있게 했다.
+- 2026-08-27: C-34 물리 물건 Grab 회귀를 보강했다. 캐릭터 손 bone에 직접 물리 Constraint를 걸지 않고 숨김 PhysicsOnly 앵커에 물건을 연결해 손 늘어남을 막는다.
+- 2026-08-27: C-34 물리 물건 Grab 동작을 고정 이동 기준으로 변경했다. 잡힌 동안 물건은 손 위치에 직접 고정되고, 상대 플레이어 밀침은 별도 서버 overlap으로 처리한다.
+- 2026-08-27: C-34 Grab 물건 자식 기믹 확장을 추가했다. `AGrabbablePhysicsObject`의 Grab 훅과 `ATambourineGrabbableObject` 위치 기반 찰랑 사운드 슬롯을 제공한다.
+- 2026-08-27: C-34 Grab 물건의 눈덩이 피격과 플레이어 밀침을 공통 상호작용 횟수로 집계하고, 기본 5회 도달 시 지정 Niagara VFX를 재생한 뒤 액터를 제거하는 파괴 슬롯을 추가했다.
+- 2026-08-27: C-28 얼음 플레이어 Grab을 상대팀에도 허용하고, 상대팀 얼음 운반 중인 Grabber의 이동속도를 `OpposingFrozenCarryWalkSpeed`로 제한하는 계약을 추가했다.
+- 2026-08-27: C-35 피격 데미지 텍스트 표시 계약을 추가했다. 서버가 실제 적용 피해량을 확정한 뒤 모든 클라이언트에 `OnDamageTextRequested`를 호출한다.
+- 2026-08-27: C-35 일반/헤드샷 데미지 텍스트 WBP 슬롯을 분리했다. `UDamageTextWidget` 기반 WBP의 `DamageText` TextBlock은 C++가 자동으로 피해량을 입력한다.
+- 2026-08-27: C-35 직접 투척 눈덩이 헤드샷 판정을 추가했다. 머리 bone 충돌 시 피해 배율과 헤드샷 데미지 텍스트 타입을 적용한다.
 
 - 2026-08-24: C-09 공중 작은 눈덩이 투척 보정을 추가했다. 서버 release 시점에 공중이면 기존 `ThrowSmallSnowballInAir` 모션과 맞춰 피해 1.5배와 속도 기본 1.2배를 적용한다.
 - 2026-08-24: C-30 효과음 공간화 범위를 눈덩이 충돌음과 캐릭터 피격음으로 한정했다. UI 상호작용음은 해당 플레이어 로컬 2D 재생으로 유지하고, `ASnowballItem::ImpactSoundAttenuation`과 `ASnowRumbleCharacter::DamageSoundAttenuation`으로 attenuation 연결 지점을 추가했다.
