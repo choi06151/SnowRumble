@@ -92,9 +92,13 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Debug")
 	bool bLogSnowmanInfectionDebug = true;
 
-	/** 눈사람 모드 결과를 보여준 뒤 로비로 복귀하기까지 기다릴 시간이다. */
+	/** 눈사람 모드 결과를 보여준 뒤 포디움으로 이동하기까지 기다릴 시간이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Result", meta = (ClampMin = "0.0"))
 	float SnowmanModeResultLobbyReturnDelaySeconds = 5.0f;
+
+	/** 눈사람 모드 종료 후 이동할 전용 포디움 맵 travel URL이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Result")
+	FString PodiumTravelUrl = TEXT("/Game/Maps/L_Podium_Snowman_K?listen");
 
 	/** 눈사람 모드 종료 후 복귀할 로비 맵 travel URL이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Result")
@@ -142,11 +146,20 @@ private:
 	/** 서버에서 눈사람 모드 결과를 확정하고 후속 흐름을 예약한다. */
 	void EndSnowmanMode(ESnowmanModeResult Result);
 
-	/** 결과 표시 시간이 지난 뒤 로비로 복귀한다. */
+	/** 결과 표시 시간이 지난 뒤 전용 포디움으로 이동한다. */
+	void TravelToPodiumAfterSnowmanModeEnd();
+
+	/** 포디움 이동이 불가능하면 로비로 복귀한다. */
 	void ReturnToLobbyAfterSnowmanModeEnd();
 
 	/** 로비 복귀용 travel URL을 절대 이동 기준으로 안전하게 구성한다. */
 	FString BuildLobbyReturnTravelUrl() const;
+
+	/** 포디움 travel URL에 결과와 승자 정보를 붙인다. */
+	FString BuildPodiumTravelUrl(ESnowmanModeResult Result);
+
+	/** 포디움에서 배치할 승자 PlayerId 목록을 URL 옵션 값으로 만든다. */
+	FString BuildWinnerPlayerIdsOption(ESnowmanModeResult Result) const;
 
 	/** 지정 플레이어를 눈사람 전용 Pawn으로 교체한다. */
 	bool ConvertPlayerToSnowmanPawn(ASnowRumblePlayerState* PlayerState);

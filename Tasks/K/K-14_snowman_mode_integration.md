@@ -25,6 +25,8 @@
 - [x] 눈사람 모드 종료 후 포디움 결과 override 없이 결과 표시 시간 뒤 로비로 복귀한다.
 - [x] 눈사람 Pawn 전환 중 컨트롤러 링크가 비는 시간을 줄이고, 스폰/전환 직후 접촉 감염 면역 시간을 적용한다.
 - [x] 눈사람과 일반 플레이어 접촉 시 감염 Pending 없이 즉시 눈사람 Pawn으로 전환되도록 감염 흐름을 갱신한다.
+- [x] 눈사람 모드 전용 포디움에서 기존 PvP 빨강/파랑 우승 UI를 차단하고, 결과 제목을 `눈사람팀 우승` 또는 `사람팀 우승`으로 표시한다.
+- [x] 눈사람팀 승리 포디움은 모든 플레이어를 배치하고, 사람팀 승리 포디움은 생존자 PlayerId 목록에 포함된 플레이어만 배치한다.
 
 ## 작업 배정
 
@@ -74,10 +76,12 @@
 - 2026-08-26: 사용자 요청에 따라 `ASnowmanModeGameMode::UpdateSnowmanInfectionFlow()`를 즉시 감염 전환 기준으로 수정했다. 아이템 생성이나 감염 Pending 처리는 함수에서 사용하지 않고, 서버가 접촉 판정 후 중복 전환·이미 눈사람·컨트롤러 없음·Pawn 교체 중·CapsuleComponent 없음 상태를 건너뛴 뒤 `ConvertPlayerToSnowmanPawn()`과 `SetSnowmanPlayerFromServer()`를 순서대로 실행한다.
 - 2026-08-26: 사용자 요청에 따라 눈사람 모드 눈덩이 피격 기절을 10초로 확정했다. `ASnowmanModeSnowmanCharacter::ApplySnowballHitStunFromServer()`는 서버에서 기존 `SnowballHitStunTimerHandle`을 지운 뒤 새 타이머를 설정하고, `ApplySnowballHitStunMovementState()`는 기절 중 `StopMovementImmediately()`, `DisableMovement()`, `StopJumping()`으로 이동과 점프를 막는다. 기절 해제 시 다른 행동 잠금이 없으면 `MOVE_Walking`으로 복구한다.
 - 2026-08-26: 눈사람 기절 UI 연동용 조회 함수를 추가했다. `IsSnowballHitStunned()`는 현재 기절 여부를 반환하고, `GetSnowballHitStunSecondsRemaining()`은 복제된 `SnowballHitStunEndServerTime`과 `GameState` 서버 시각 기준으로 남은 초를 계산해 반환한다.
+- 2026-08-27: 사용자 요청에 따라 눈사람 모드 전용 포디움 결과 문구와 배치 필터를 수정했다. `ASnowmanModePodiumPlayerController`는 부모 PvP `PodiumWinnerWidgetClass`를 비워 빨강/파랑 우승 UI를 만들지 않고, `/Game/WBP/WBP_PodiumWinnerWidget_Snowman_K`를 기본 결과 WBP로 생성해 `눈사람팀 우승`/`사람팀 우승` 문구를 직접 표시한다. 눈사람팀 승리는 모든 접속 플레이어를, 사람팀 승리는 전달된 생존자 PlayerId만 포디움에 배치한다.
 
 ## 수동 작업
 
 - 별도 에디터 자산 수정은 없다.
+- `WBP_PodiumWinnerWidget_Snowman_K`는 `UPodiumWinnerWidget` 기반이어야 하며, `WinningTeamText`와 `SubtitleText` 텍스트 위젯 이름을 유지해야 C++가 `눈사람팀 우승`/`사람팀 우승`과 로비 복귀 카운트다운을 자동 반영한다.
 - 기절 표시 WBP를 만들거나 연결할 때 눈사람 Pawn을 `ASnowmanModeSnowmanCharacter`로 캐스팅한 뒤 `IsSnowballHitStunned()`가 true이면 `GetSnowballHitStunSecondsRemaining()` 값을 반올림 또는 올림 처리해 `기절 중! 남은 시간: X초` 형식으로 표시한다.
 - `BP_SnowmanModeGameMode_K` 같은 눈사람 모드 GameMode Blueprint가 있다면 `LobbyReturnTravelUrl`이 `/Game/Maps/L_Lobby?listen` 또는 로비 맵 경로를 가리키는지 확인한다. `LobbyReturnGameModeClass`는 기본값 `SnowRumbleLobbyGameMode`를 그대로 사용한다.
 - `BP_SnowmanModeGameMode_K`에 이전 `PodiumTravelUrl` 노출값이 보이면 컴파일/저장으로 제거된 C++ 프로퍼티를 정리한다.
@@ -95,6 +99,8 @@
 - [x] 눈사람 접촉 즉시 전환 코드 경로 확인
 - [x] 눈사람 눈덩이 피격 10초 기절과 연속 피격 타이머 리셋 코드 경로 확인
 - [x] 눈사람 기절 상태와 남은 시간 BlueprintPure 조회 함수 확인
+- [x] 눈사람 모드 전용 포디움에서 PvP 빨강/파랑 우승 UI가 생성되지 않는 코드 경로 확인
+- [x] 눈사람팀 승리 시 모든 플레이어, 사람팀 승리 시 생존자만 포디움에 배치되는 코드 경로 확인
 - [x] 초기 역할 Snowman 스폰 클래스 분기 코드 경로 확인
 - [x] PvP PlayerStart 랜덤 스폰 보정 로직의 눈사람 모드 적용 경로 확인
 - [x] 컨트롤러 소실 Pending 상태 해제와 반복 로그 방지 코드 경로 확인
@@ -121,3 +127,5 @@
 - 눈사람 모드 HUD에서 로컬/다른 플레이어 체력바가 보이지 않고, 머리 위 닉네임은 `WBP_OverheadNamePlate`로 표시되는지 확인한다.
 - Normal에서 `BP_SnowmanCharacter_K`로 전환될 때 컨트롤러 소유, 카메라, HUD/위젯 바인딩이 끊기지 않는지 확인한다.
 - 게임 시작 직후와 눈사람 전환 직후 약 3초 동안 가까운 충돌이나 낙하 접촉만으로 즉시 전환되지 않고, 면역 시간이 지난 뒤 접촉하면 Pending 없이 바로 눈사람으로 전환되는지 확인한다.
+- 눈사람팀 승리로 전용 포디움에 진입했을 때 `눈사람팀 우승`이 보이고, 빨강/파랑 우승 문구가 보이지 않으며, 모든 플레이어 캐릭터가 포디움에 배치되는지 확인한다.
+- 사람팀 승리로 전용 포디움에 진입했을 때 `사람팀 우승`이 보이고, 빨강/파랑 우승 문구가 보이지 않으며, 감염되지 않고 살아남은 플레이어 캐릭터만 포디움에 배치되는지 확인한다.
