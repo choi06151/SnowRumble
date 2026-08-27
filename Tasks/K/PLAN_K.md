@@ -78,3 +78,4 @@
 - 2026-08-26: 사용자 요청에 따라 눈사람 접촉 감염을 Pending 없이 즉시 전환 기준으로 바꿨다. `ASnowmanModeGameMode::UpdateSnowmanInfectionFlow()`는 아이템 생성·지연 감염 처리 없이 서버에서 역할, 컨트롤러, Pawn, CapsuleComponent, 전환 중 상태를 검사하고 `BP_SnowmanCharacter_K` 전환과 Snowman 역할 복제를 바로 확정한다.
 - 2026-08-26: 사용자 요청에 따라 눈사람 모드 눈덩이 피격 기절을 10초로 확정하고 연속 피격 예외 처리를 보강했다. `ASnowmanModeSnowmanCharacter`는 피격 때 기존 스턴 타이머를 지운 뒤 새 10초 타이머를 걸며, 스턴 중 `DisableMovement()`와 `StopJumping()`으로 이동과 점프를 막는다.
 - 2026-08-26: 눈사람 기절 UI 연동을 위해 `ASnowmanModeSnowmanCharacter::IsSnowballHitStunned()`와 `GetSnowballHitStunSecondsRemaining()` BlueprintPure 조회 함수를 추가했다. 남은 시간은 복제된 `SnowballHitStunEndServerTime`과 서버 시각 기준으로 계산한다.
+- 2026-08-27: 사용자 요청에 따라 눈사람 모드 전용 포디움 결과를 보정했다. K 전용 포디움 컨트롤러가 부모 PvP 우승 UI를 생성하지 않게 하고 `/Game/WBP/WBP_PodiumWinnerWidget_Snowman_K`를 기본 결과 WBP로 사용하게 했으며, 결과 문구를 `눈사람팀 우승`/`사람팀 우승`으로 변경했다. 눈사람팀 승리는 모든 플레이어, 사람팀 승리는 생존자만 배치하도록 수정했다.

@@ -68,6 +68,26 @@ void UPodiumWinnerWidget::SetWinnerPresentation(
 	OnWinnerPresentationUpdated();
 }
 
+void UPodiumWinnerWidget::SetWinnerPresentationText(
+	const FText& WinnerText,
+	const FText& Subtitle)
+{
+	CachedWinningTeam = ESnowRumbleTeam::None;
+	CachedWinningTeamText = WinnerText;
+	CachedSubtitleText = Subtitle;
+
+	if (WinningTeamText)
+	{
+		WinningTeamText->SetText(CachedWinningTeamText);
+	}
+	if (SubtitleText)
+	{
+		SubtitleText->SetText(CachedSubtitleText);
+	}
+
+	OnWinnerPresentationUpdated();
+}
+
 void UPodiumWinnerWidget::SetSubtitleText(const FText& NewSubtitleText)
 {
 	CachedSubtitleText = NewSubtitleText;

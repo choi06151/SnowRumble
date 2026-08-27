@@ -26,6 +26,9 @@ DEFINE_LOG_CATEGORY_STATIC(LogSnowmanMode, Log, All);
 
 namespace
 {
+constexpr const TCHAR* SnowmanModePodiumGameModeTravelPath =
+	TEXT("/Game/Game/BP_SnowRumblePodium_Snowman_GameMode_K.BP_SnowRumblePodium_Snowman_GameMode_K_C");
+
 FVector MakeSnowmanModeRandomHorizontalOffset(float Radius)
 {
 	if (Radius <= 0.0f)
@@ -53,6 +56,48 @@ const TCHAR* LexToString(ESnowmanModePlayerRole Role)
 		return TEXT("Snowman");
 	default:
 		return TEXT("Unknown");
+	}
+}
+
+const TCHAR* LexToString(ESnowmanModeResult Result)
+{
+	switch (Result)
+	{
+	case ESnowmanModeResult::SnowmanVictory:
+		return TEXT("SnowmanVictory");
+	case ESnowmanModeResult::SurvivorVictory:
+		return TEXT("SurvivorVictory");
+	case ESnowmanModeResult::None:
+	default:
+		return TEXT("None");
+	}
+}
+
+void EnsureSnowmanModeTravelOption(FString& TravelUrl, const TCHAR* Option)
+{
+	if (!TravelUrl.Contains(Option, ESearchCase::IgnoreCase))
+	{
+		TravelUrl += Option;
+	}
+}
+
+void EnsureSnowmanModeTravelOptionValue(
+	FString& TravelUrl,
+	const TCHAR* OptionName,
+	const FString& OptionValue)
+{
+	if (OptionValue.IsEmpty())
+	{
+		return;
+	}
+
+	const FString OptionPrefix = FString::Printf(TEXT("%s="), OptionName);
+	if (!TravelUrl.Contains(OptionPrefix, ESearchCase::IgnoreCase))
+	{
+		TravelUrl += FString::Printf(
+			TEXT("?%s=%s"),
+			OptionName,
+			*OptionValue);
 	}
 }
 
@@ -698,16 +743,41 @@ void ASnowmanModeGameMode::EndSnowmanMode(ESnowmanModeResult Result)
 	World->GetTimerManager().ClearTimer(SnowmanModeTimeLimitTimerHandle);
 	if (SnowmanModeResultLobbyReturnDelaySeconds <= 0.0f)
 	{
-		ReturnToLobbyAfterSnowmanModeEnd();
+		TravelToPodiumAfterSnowmanModeEnd();
 		return;
 	}
 
 	World->GetTimerManager().SetTimer(
 		SnowmanModeLobbyReturnTimerHandle,
 		this,
-		&ASnowmanModeGameMode::ReturnToLobbyAfterSnowmanModeEnd,
+		&ASnowmanModeGameMode::TravelToPodiumAfterSnowmanModeEnd,
 		SnowmanModeResultLobbyReturnDelaySeconds,
 		false);
+}
+
+void ASnowmanModeGameMode::TravelToPodiumAfterSnowmanModeEnd()
+{
+	const ASnowmanModeGameState* SnowmanGameState =
+		GetGameState<ASnowmanModeGameState>();
+	if (!HasAuthority()
+		|| !SnowmanGameState
+		|| !SnowmanGameState->IsSnowmanModeEnded())
+	{
+		return;
+	}
+
+	if (PodiumTravelUrl.IsEmpty())
+	{
+		ReturnToLobbyAfterSnowmanModeEnd();
+		return;
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		World->ServerTravel(
+			BuildPodiumTravelUrl(SnowmanGameState->GetSnowmanModeResult()),
+			true);
+	}
 }
 
 void ASnowmanModeGameMode::ReturnToLobbyAfterSnowmanModeEnd()
@@ -731,22 +801,78 @@ void ASnowmanModeGameMode::ReturnToLobbyAfterSnowmanModeEnd()
 FString ASnowmanModeGameMode::BuildLobbyReturnTravelUrl() const
 {
 	FString TravelUrl = LobbyReturnTravelUrl;
-	if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
-	{
-		TravelUrl += TEXT("?listen");
-	}
-
-	if (LobbyReturnGameModeClass
-		&& !TravelUrl.Contains(TEXT("?game="), ESearchCase::IgnoreCase))
+	EnsureSnowmanModeTravelOption(TravelUrl, TEXT("?listen"));
+	if (LobbyReturnGameModeClass)
 	{
 		const FString GameModePath = LobbyReturnGameModeClass->GetPathName();
-		if (!GameModePath.IsEmpty())
-		{
-			TravelUrl += FString::Printf(TEXT("?game=%s"), *GameModePath);
-		}
+		EnsureSnowmanModeTravelOptionValue(
+			TravelUrl,
+			TEXT("game"),
+			GameModePath);
 	}
 
 	return TravelUrl;
+}
+
+FString ASnowmanModeGameMode::BuildPodiumTravelUrl(
+	ESnowmanModeResult Result)
+{
+	FString TravelUrl = PodiumTravelUrl;
+	EnsureSnowmanModeTravelOption(TravelUrl, TEXT("?listen"));
+	EnsureSnowmanModeTravelOptionValue(
+		TravelUrl,
+		TEXT("game"),
+		SnowmanModePodiumGameModeTravelPath);
+	EnsureSnowmanModeTravelOptionValue(
+		TravelUrl,
+		TEXT("SnowmanResult"),
+		LexToString(Result));
+	EnsureSnowmanModeTravelOptionValue(
+		TravelUrl,
+		TEXT("WinnerPlayerIds"),
+		BuildWinnerPlayerIdsOption(Result));
+	if (!TravelUrl.Contains(TEXT("ExpectedPlayers="), ESearchCase::IgnoreCase))
+	{
+		EnsureSnowmanModeTravelOptionValue(
+			TravelUrl,
+			TEXT("ExpectedPlayers"),
+			FString::FromInt(
+				ExpectedPlayerCount > 0 ? ExpectedPlayerCount : GetNumPlayers()));
+	}
+
+	return TravelUrl;
+}
+
+FString ASnowmanModeGameMode::BuildWinnerPlayerIdsOption(
+	ESnowmanModeResult Result) const
+{
+	const ASnowmanModeGameState* SnowmanGameState =
+		GetGameState<ASnowmanModeGameState>();
+	if (!SnowmanGameState)
+	{
+		return FString();
+	}
+
+	TArray<FString> WinnerPlayerIds;
+	for (ASnowRumblePlayerState* PlayerState : CollectSnowmanPlayerStates())
+	{
+		if (!PlayerState)
+		{
+			continue;
+		}
+
+		const bool bIsSnowman =
+			SnowmanGameState->IsSnowmanModePlayerSnowman(PlayerState);
+		const bool bIsWinner =
+			Result == ESnowmanModeResult::SnowmanVictory
+			|| (Result == ESnowmanModeResult::SurvivorVictory && !bIsSnowman);
+		if (bIsWinner && PlayerState->GetPlayerId() != INDEX_NONE)
+		{
+			WinnerPlayerIds.Add(FString::FromInt(PlayerState->GetPlayerId()));
+		}
+	}
+
+	return FString::Join(WinnerPlayerIds, TEXT(","));
 }
 
 bool ASnowmanModeGameMode::ConvertPlayerToSnowmanPawn(ASnowRumblePlayerState* PlayerState)
