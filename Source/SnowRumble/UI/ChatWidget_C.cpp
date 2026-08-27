@@ -12,6 +12,23 @@
 
 namespace
 {
+constexpr int32 SnowRumbleChatMessageFontSize = 28;
+
+void ApplySnowRumbleChatMessageFont(FSlateFontInfo& FontInfo)
+{
+	static const TCHAR* ChatMessageFontPath =
+		TEXT("/Game/Font/온글잎_박다현체_Font.온글잎_박다현체_Font");
+
+	if (UObject* FontObject = StaticLoadObject(
+		UObject::StaticClass(),
+		nullptr,
+		ChatMessageFontPath))
+	{
+		FontInfo.FontObject = FontObject;
+	}
+	FontInfo.Size = SnowRumbleChatMessageFontSize;
+}
+
 FText GetChatChannelText(ESnowRumbleChatChannel Channel)
 {
 	switch (Channel)
@@ -23,6 +40,12 @@ FText GetChatChannelText(ESnowRumbleChatChannel Channel)
 		return NSLOCTEXT("SnowRumble", "ChatChannelAll", "전체");
 	}
 }
+}
+
+UChatWidget::UChatWidget(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	ApplySnowRumbleChatMessageFont(ChatMessageFont);
 }
 
 void UChatWidget::SetChatPlayerController(
@@ -49,6 +72,7 @@ void UChatWidget::NativeConstruct()
 		OriginalChatLogBorderBrushColor = ChatLogBorder->GetBrushColor();
 	}
 
+	ApplySnowRumbleChatMessageFont(ChatMessageFont);
 	ApplyConfiguredFonts();
 	RefreshChatLogChrome();
 	RefreshChannelText();
