@@ -974,6 +974,8 @@ void ASnowRumblePlayerController::ClientFinishPvpTeamIntro_Implementation()
 		return;
 	}
 
+	SetPvpIntroWidgetsHidden(false);
+
 	if (APawn* ControlledPawn = GetPawn())
 	{
 		SetViewTargetWithBlend(

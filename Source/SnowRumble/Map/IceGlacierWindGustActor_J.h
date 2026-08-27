@@ -133,6 +133,19 @@ private:
 	/** Gust 중인 서버가 플레이어 캐릭터에 제한된 수평 드리프트 속도를 적용한다. */
 	void ApplyWindDriftToPlayers(float DeltaSeconds);
 
+	/** 비권한 클라이언트가 로컬 캐릭터에 같은 바람 드리프트를 예측 적용한다. */
+	void ApplyPredictedWindDriftToLocalPlayer(float DeltaSeconds) const;
+
+	/** 캐릭터 하나에 바람 드리프트 속도를 적용한다. */
+	void ApplyWindDriftToCharacter(
+		ASnowRumbleCharacter& Character,
+		float DeltaSeconds,
+		const FVector& WindDirection,
+		float StrengthAlpha) const;
+
+	/** 복제된 강풍 상태를 로컬 플레이어 눈 VFX 방향 파라미터에 반영한다. */
+	void UpdateLocalSnowVfxWindDirection() const;
+
 	/** 현재 이동 모드에 맞는 최대 바람 드리프트 속도를 반환한다. */
 	float GetMaxWindDriftSpeedForMovementMode(
 		const UCharacterMovementComponent& MovementComponent) const;
