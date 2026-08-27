@@ -1886,7 +1886,31 @@ void UOptionsWidget::RefreshCategoryButtonTextColors()
 	RefreshButtonTextColor(
 		MicrophoneAlwaysOnButton,
 		PendingMicrophoneMode == ESnowRumbleMicrophoneMode::AlwaysOn);
+	RefreshButtonTextColor(ApplyButton, false);
 	RefreshButtonTextColor(ResetButton, false);
+	RefreshLanguageComboBoxTextColor();
+}
+
+void UOptionsWidget::RefreshLanguageComboBoxTextColor()
+{
+	if (!LanguageComboBox)
+	{
+		return;
+	}
+
+	if (!bHasDefaultLanguageComboBoxForegroundColor)
+	{
+		DefaultLanguageComboBoxForegroundColor =
+			LanguageComboBox->ForegroundColor;
+		bHasDefaultLanguageComboBoxForegroundColor = true;
+	}
+
+	const bool bShouldBeWhite =
+		LanguageComboBox->IsHovered() || LanguageComboBox->IsOpen();
+	LanguageComboBox->SetForegroundColor(
+		bShouldBeWhite
+			? FSlateColor(FLinearColor::White)
+			: DefaultLanguageComboBoxForegroundColor);
 }
 
 void UOptionsWidget::RefreshMicrophoneModeButtonSelection()

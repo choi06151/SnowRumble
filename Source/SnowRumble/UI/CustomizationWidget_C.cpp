@@ -1155,7 +1155,7 @@ void UCustomizationWidget::ApplyPaletteButtonColors()
 		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("BC7AFF"))));
 	ApplyPaletteButtonColor(
 		PurpleBrushColorButton,
-		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("FD8BFF"))));
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("3AA7FF"))));
 	ApplyPaletteButtonColor(BlackBrushColorButton, FLinearColor::Black);
 	ApplyPaletteButtonColor(
 		WhiteBrushColorButton,
