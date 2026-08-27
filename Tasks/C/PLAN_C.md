@@ -10,6 +10,8 @@
 ## 현재 집중 Task
 
 - [C-18](C-18_steam_session_integration.md) Steam 세션 최종 통합
+- [C-34](C-34_grabbable_physics_object_foundation.md) Grab 물리 상호작용 물건 베이스 (사용자 승인, 진행중)
+- [C-35](C-35_damage_text_feedback_contract.md) 피격 데미지 텍스트 표시 계약 (진행중)
 
 ## 개발 스타일
 
@@ -55,12 +57,35 @@
 | 30 | [C-29](C-29_travel_url_and_loading_stability.md) | 전환 URL과 PvP 로딩 안정화 | C-04, C-05, C-17 | 진행중 |
 | 31 | [C-31](C-31_pvp_loading_ready_and_pso.md) | PvP 로딩 Ready 핸드셰이크와 PSO 안정화 | C-29 | 진행중 |
 | 32 | [C-32](C-32_jukebox_interaction.md) | 주크박스 상호작용 | C-15, C-22, C-30 | 진행중 |
+| 33 | [C-35](C-35_damage_text_feedback_contract.md) | 피격 데미지 텍스트 표시 계약 | C-09 | 진행중 |
 
 ## 통합 변경 요청
 
 - 없음
 
 ## 계획 변경 기록
+
+- 2026-08-27: 사용자 승인으로 C-34를 추가했다. 기존 C-28 Grab과 C-09 눈덩이 충돌을 확장해 여러 물건 Blueprint가 재사용할 물리 Actor 베이스를 제공한다.
+- 2026-08-27: C-34 C++ 베이스 Actor, Grab 연결, 플레이어 밀침과 눈덩이 파괴 충돌을 구현했다. 기본 실행 확인 모드가 수동 실행 확인이므로 Unreal 빌드와 멀티플레이 결과 확인은 사용자 확인으로 남겼다.
+- 2026-08-27: C-34 Grab trace에 `ECC_PhysicsBody`를 추가해 물리 시뮬레이션 물건이 Grab 후보에서 누락되는 오류를 수정했다.
+- 2026-08-27: C-34 물리 물건 Grab 중에는 게이지가 항상 최대 상태이고 자동 해제되지 않도록 조정했다.
+- 2026-08-27: C-34 물리 물건 Grab Constraint에 선형 위치 드라이브를 추가해 손을 따라오는 힘을 강화했다.
+- 2026-08-27: C-34 물리 물건 Grab Constraint의 Swing/Twist 회전을 잠가 나풀거림을 제거했다.
+- 2026-08-27: C-34 Grab 중인 플레이어와 물리 물건의 충돌을 개별 차단하고 놓을 때 원복하도록 조정했다.
+- 2026-08-27: C-34 물리 접촉까지 차단하도록 플레이어 Capsule과 물건 사이에 자유도 제한 없는 collision-only Constraint를 추가했다.
+- 2026-08-27: C-34 물리 물건 Constraint가 캐릭터 손 bone을 직접 당겨 팔이 늘어나는 회귀를 수정했다. 손 위치를 따라가는 숨김 PhysicsOnly 앵커를 만들고 물건은 앵커에 연결한다.
+- 2026-08-27: C-34 물리 물건 Grab 기준점을 캐릭터 상대 목표 위치로 고정하고, 회전 중 벌어짐을 줄이는 전용 slack·속도 보정을 추가했다.
+- 2026-08-27: C-34 물리 물건 Grab 중 플레이어 Pawn이 카메라 Yaw를 따라 회전하고, 해제 시 이전 회전 모드로 복원되도록 조정했다.
+- 2026-08-27: C-34 물리 물건 Grab 방식을 고정 이동으로 변경했다. 잡힌 동안 물건 시뮬레이션은 잠시 끄고 손 위치에 직접 고정하며, 상대 플레이어 밀침은 서버 overlap으로 별도 처리한다.
+- 2026-08-27: C-34 물리 물건 Grab 시작 시 손 목표점으로 순간 이동하지 않고, 잡힌 순간의 캐릭터 상대 Transform을 유지하며 따라오도록 조정했다.
+- 2026-08-27: C-34 잡힌 물리 물건의 상대 플레이어 밀침 판정을 Sphere radius 대신 실제 PrimitiveComponent collision shape overlap으로 변경했다.
+- 2026-08-27: C-34 눈덩이가 Grab 물리 물건에 맞으면 반사되지 않고 충돌 이펙트 후 부서지도록 변경했다.
+- 2026-08-27: C-34 Grab 물건 자식 기믹 확장을 위해 Grab 시작·해제·Tick 훅을 추가하고, `ATambourineGrabbableObject`가 잡힌 상태에서 플레이어 이동 시 위치 기반 찰랑 사운드를 멀티캐스트 재생하도록 추가했다.
+- 2026-08-27: C-34 Grab 물건의 눈덩이 피격과 플레이어 밀침을 공통 상호작용 카운터로 합산하고, 5회 도달 시 지정 Niagara VFX 재생 후 액터를 제거하도록 확장했다.
+- 2026-08-27: C-28 얼음 Grab 제한을 확장했다. 상대팀의 얼은 플레이어도 Grab할 수 있고, 상대팀 운반 중인 Grabber는 `OpposingFrozenCarryWalkSpeed`로 매우 느리게 이동한다.
+- 2026-08-27: C-35를 추가했다. `ASnowRumbleCharacter::TakeDamage()`에서 실제 적용 피해량이 0보다 클 때 모든 클라이언트에 `OnDamageTextRequested` 이벤트를 전달한다.
+- 2026-08-27: C-35에 `UDamageTextWidget` 부모와 일반/헤드샷 WBP 슬롯을 추가했다. 일반 피해는 `DamageTextWidgetClass`, 향후 헤드샷은 `HeadshotDamageTextWidgetClass`를 사용한다.
+- 2026-08-27: C-35 직접 투척 눈덩이 헤드샷 판정을 추가했다. `HeadshotBoneNames`에 맞은 bone이 들어오면 `HeadshotDamageMultiplier`와 `HeadshotDamageTextWidgetClass` 타입을 적용한다.
 
 - 2026-08-07: 새 GDD와 4인 구조를 기준으로 최초 대기열 작성.
 - 2026-08-07: Task 분할 재검토에 따라 C-07을 기본 효과 계약으로 축소하고, 핫팩 부활은 C-13, 팀 스폰·시작 연출은 C-14로 분리.
@@ -87,6 +112,8 @@
 - 2026-08-26: C-02 메인 메뉴에 `QuitGameButton` 계약을 추가했다. `AMainMenuPlayerController::QuitGame()`이 로컬 게임을 완전히 종료하고, 버튼 내부 텍스트는 기존 주요 버튼과 같은 hover/pressed 남색 처리를 사용한다.
 - 2026-08-26: C-02 메인 메뉴에 `KeyGuideButton` 계약을 추가했다. `BP_MainMenuPlayerController.KeyGuideWidgetClass`에 기존 `WBP_KeyGuideWidget`을 지정하면 로비에서 사용하는 조작법 WBP를 메인 메뉴에서도 표시·숨김한다.
 - 2026-08-26: C-02 메인 메뉴 닉네임을 최대 7글자로 제한했다. 초과 입력은 욕설 입력과 같은 저장 거부·기존 닉네임 복원 흐름을 사용하고 `닉네임이 너무 길어서 사용할 수 없습니다.` 알람을 표시한다.
+- 2026-08-27: C-30 M 음소거 메뉴를 연 뒤 모드별 Blueprint가 입력 모드를 덮어써도 커서 표시, 이동/시점 차단, UIOnly 및 키보드 포커스를 재적용하도록 보강했다.
+- 2026-08-27: C-30 로비 M 음소거 메뉴 클릭 회귀를 보강했다. UIOnly와 키보드 포커스는 열림·입력 복구 충돌 시 강제 적용하고, Tick에서는 미적용 상태만 보정해 버튼 클릭 이벤트가 끊기지 않게 했다.
 - 2026-08-26: C-06 관전 카메라 끊김을 완화했다. 캐릭터 네트워크 갱신 빈도를 높이고 관전 카메라 RPC를 초당 60회까지 허용하며, 수신 카메라 위치·회전·FOV를 로컬 프레임마다 보간한다.
 - 2026-08-26: C-06 관전 위젯의 기존 `CurrentViewTargetIdText` 표시값을 PlayerId 대신 대상 플레이어 닉네임으로 변경했다. WBP 바인딩 이름과 기존 ID 조회 함수는 호환성을 위해 유지한다.
 - 2026-08-25: C-06 얼음·사망 관전을 구현했다. `ASnowRumbleCharacter`가 자기 캐릭터를 포함한 참여 캐릭터 전체를 PlayerId 순으로 후보화하고, 얼음·사망 상태에서 A/D로 로컬 카메라 시점을 순환한다. `USpectatorWidget`과 `CurrentViewTargetIdText` 바인딩으로 현재 관전 대상 ID를 표시하며, 플레이어 Blueprint의 `SpectatorWidgetClass` 연결은 수동 작업으로 인계한다.
@@ -95,8 +122,11 @@
 - 2026-08-25: C-31 Ready 핸드셰이크와 45초 전체 매치 취소·로비 복귀, PSO Precaching 및 Material Shader Code 공유 설정을 구현하고 `SnowRumbleEditor Win64 Development` 빌드를 성공했다. 실제 4인 PIE와 PSO Cache 수집은 사용자 확인으로 남겼다.
 - 2026-08-26: 사용자가 주크박스 상호작용을 요청해 C-32를 추가했다. 기존 E 상호작용과 outline에 `E - 노래틀기`를 연결하고, 서버 확정 Sound duration 동안 Box Collision 내부 캐릭터를 반복 점프시키는 범위를 진행한다.
 - 2026-08-26: C-32 후속 요청을 반영했다. 상호작용 안내 위치를 액터 전체 Bounds가 아닌 RootComponent 기준으로 바꾸고, 인스턴스에서 지정하는 Spotlight 배열을 재생 중 랜덤 순환하는 멀티캐스트 연출을 추가했다.
+- 2026-08-27: C-32 후속 요청을 반영했다. 재생 중 범위 진입 캐릭터는 기본 참여·점프 상태로 두고 `E`로 참여를 해제하거나 다시 참여할 수 있게 했다. 참여 상태에 따라 `E - 참여 안하기`와 `E - 참여하기`를 표시하고 주크박스 outline은 제거했다.
 - 2026-08-26: C-09 후속 요청을 반영했다. 완전히 성장한 큰 눈덩이가 바닥·플레이어 충돌 후 물리 굴리기로 전환되고, 이동 거리로 작아지며, 플레이어에는 피해·진행 방향 넉백을 주고 벽 충돌 또는 완전 소멸 시 제거되도록 구현을 진행한다.
 - 2026-08-26: C-02 후속 요청을 반영했다. 로컬 저장·메인 메뉴 검증의 닉네임 최대 길이를 7글자에서 10글자로 변경했다.
+- 2026-08-27: C-02 후속 요청을 반영했다. 메인 메뉴 전용 키가이드 부모 `UMainMenuKeyGuideWidget`과 `CloseButton` 닫기 흐름을 추가하고, 인게임 공용 키가이드와 분리했다.
+- 2026-08-27: C-28/C-24 후속 요청을 반영했다. `USnowRumbleCharacterAnimInstance::ViewYawAlpha`에 `ViewYawAlphaInterpSpeed` 기반 보간을 추가해 좌우 카메라 급전환 시 Control Rig 상체 보정이 튀지 않게 했다.
 - 2026-08-24: C-06/C-28 얼음·Grab 연동을 추가했다. 서버는 얼은 대상의 같은 팀 Grab만 허용하고, 얼음 행동 제한을 유지한 채 tether 운반을 지원하며 사망 시 자동 해제한다.
 - 2026-08-24: C-09 눈덩이 투척 충돌에 같은 팀 피해·넉백 무시를 추가했다. 서버가 눈덩이 Owner와 피격 캐릭터의 `LobbyTeam`을 비교하고, 같은 팀이면 충돌 연출만 유지한다.
 - 2026-08-24: C-09 눈덩이 피해가 `GrowthProgress`에 따라 1배에서 기본 최대 3배까지 증가하도록 `MaximumGrowthDamageMultiplier`를 추가했다. 기존 차지 피해 배율은 유지한다.
@@ -369,3 +399,10 @@
 - 2026-08-24: C-30 UI 사운드를 hover/click 슬롯으로 분리했다. `ButtonHoverSound`와 `ButtonClickSound`를 각각의 이벤트에 사용한다.
 - 2026-08-24: C-30 눈 제작·굴리기·잡기·놓기·점프·큰 눈덩이 폭발 사운드 슬롯과 서버 확정 이벤트 연결을 추가했다.
 - 2026-08-24: C-26 발걸음 AnimNotify에 `FootstepSound`와 `FootstepSoundAttenuation`을 연결해 눈 표면 발 위치에서 공간음향으로 재생한다.
+- 2026-08-27: C-28 후속 요청을 반영했다. 캐릭터에게 잡힌 대상은 `CanPerformGameplayAction()`과 `Move()`에서 입력을 차단하고, 월드 그랩 이동 예외는 유지했다.
+- 2026-08-27: C-17 후속 요청을 반영했다. PvP 팀 인트로 RPC 진입 즉시 `SetPvpIntroWidgetsHidden(true)`를 호출해 MainHUD와 보조 위젯이 첫 프레임부터 숨겨지도록 보강했다.
+- 2026-08-27: C-30 후속 요청을 반영했다. 포디움 컨트롤러가 자체 음악 슬롯으로 기존 BGM을 중단하지 않도록 제거하고, `APodiumGameMode`의 클라이언트 브로드캐스트를 단일 재생 경로로 유지했다.
+- 2026-08-27: C-30 추가 오류 대응을 반영했다. 포디움 BGM을 서버 `USoundBase*` RPC 전달 대신 `FSoftObjectPath`로 전달하고, 각 클라이언트가 로컬 로드 후 1회 재생하도록 변경했다.
+- 2026-08-27: C-29 서버 종료·호스트 이탈 후 메인 메뉴에 남는 원격 기본 외형 캐릭터를 정리했다. 메인 메뉴 진입 시 로컬 프리뷰 Pawn을 제외한 잔류 캐릭터를 제거한다.
+- 2026-08-27: C-09의 CDO 스케일 기준이 작은 눈을 크게 만드는 회귀를 수정했다. 서버가 눈덩이 생성 시점의 초기 스케일을 복제하고 클라이언트가 이를 성장 기준으로 사용한다.
+- 2026-08-27: C-33 진동벨 부모 액터를 추가했다. 눈덩이 피격을 서버에서 확정하고, 모든 클라이언트에서 `PlaySoundAtLocation`과 Static Mesh 좌우 흔들림을 재생한다.

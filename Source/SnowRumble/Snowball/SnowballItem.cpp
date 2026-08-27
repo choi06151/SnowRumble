@@ -2,9 +2,11 @@
 
 #include "SnowballItem.h"
 
+#include "../Item/GrabbablePhysicsObject_C.h"
 #include "../Audio/SnowRumbleAudioHelpers.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "../Player/SnowRumbleCharacter.h"
+#include "SnowballDamageTypes.h"
 #include "Components/AudioComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/SphereComponent.h"
@@ -66,13 +68,23 @@ ASnowballItem::ASnowballItem()
 		this,
 		&ASnowballItem::HandleProjectileStopped);
 	ProjectileMovement->Deactivate();
+
+	HeadshotBoneNames.Add(TEXT("head"));
+	HeadshotBoneNames.Add(TEXT("Head"));
+	HeadshotBoneNames.Add(TEXT("neck_01"));
+	HeadshotBoneNames.Add(TEXT("Neck"));
 }
 
 void ASnowballItem::BeginPlay()
 {
 	Super::BeginPlay();
 
-	InitialActorScale = GetActorScale3D();
+	// Movement replication can apply the server's grown scale before client
+	// BeginPlay. Keep the actual spawn scale on the server as the baseline.
+	if (HasAuthority())
+	{
+		InitialActorScale = GetActorScale3D();
+	}
 	ApplyGrowthScale();
 }
 
@@ -582,7 +594,7 @@ void ASnowballItem::DestroyThrownRolling(const FHitResult& Hit)
 
 bool ASnowballItem::IsFullyGrown() const
 {
-	return GrowthProgress >= 0.999f;
+	return GrowthProgress >= FMath::Clamp(LargeSnowballGrowthThreshold, 0.0f, 1.0f);
 }
 
 float ASnowballItem::GetRollingCollisionRadius() const
@@ -630,6 +642,7 @@ void ASnowballItem::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ASnowballItem, Holder);
 	DOREPLIFETIME(ASnowballItem, Roller);
 	DOREPLIFETIME(ASnowballItem, GrowthProgress);
+	DOREPLIFETIME(ASnowballItem, InitialActorScale);
 	DOREPLIFETIME(ASnowballItem, bIsSettledOnGround);
 }
 
@@ -644,6 +657,11 @@ void ASnowballItem::OnRep_Holder()
 }
 
 void ASnowballItem::OnRep_GrowthProgress()
+{
+	ApplyGrowthScale();
+}
+
+void ASnowballItem::OnRep_InitialActorScale()
 {
 	ApplyGrowthScale();
 }
@@ -871,6 +889,11 @@ void ASnowballItem::HandleCollision(
 		return;
 	}
 
+	if (TryBreakOnGrabbableObject(OtherActor, Hit))
+	{
+		return;
+	}
+
 	HandleThrownImpact(OtherActor, Hit);
 }
 
@@ -888,8 +911,71 @@ void ASnowballItem::HandleProjectileStopped(const FHitResult& Hit)
 	{
 		return;
 	}
+	if (Cast<AGrabbablePhysicsObject>(HitActor))
+	{
+		TryBreakOnGrabbableObject(HitActor, Hit);
+		return;
+	}
 
 	HandleThrownImpact(HitActor, Hit);
+}
+
+bool ASnowballItem::TryBreakOnGrabbableObject(
+	AActor* OtherActor,
+	const FHitResult& Hit)
+{
+	if (!HasAuthority() || ItemState != ESnowballItemState::Thrown || !OtherActor)
+	{
+		return false;
+	}
+
+	AGrabbablePhysicsObject* PhysicsObject = Cast<AGrabbablePhysicsObject>(OtherActor);
+	if (!PhysicsObject || !PhysicsObject->CanBeGrabbed())
+	{
+		return false;
+	}
+
+	PhysicsObject->RegisterInteraction();
+	bHasProcessedThrownImpact = true;
+	const FVector HitImpactPoint(Hit.ImpactPoint);
+	const FVector ImpactPoint =
+		HitImpactPoint.IsNearlyZero()
+			? GetActorLocation()
+			: HitImpactPoint;
+	const FVector HitImpactNormal(Hit.ImpactNormal);
+	const FVector ImpactNormal =
+		HitImpactNormal.IsNearlyZero()
+			? FVector::UpVector
+			: HitImpactNormal.GetSafeNormal();
+	MulticastPlayImpactEffect(ImpactPoint, ImpactNormal);
+	Destroy();
+	return true;
+}
+
+bool ASnowballItem::IsHeadshotHit(const FHitResult& Hit) const
+{
+	if (Hit.BoneName.IsNone())
+	{
+		return false;
+	}
+
+	const FString HitBoneName = Hit.BoneName.ToString();
+	for (const FName& HeadshotBoneName : HeadshotBoneNames)
+	{
+		if (HeadshotBoneName.IsNone())
+		{
+			continue;
+		}
+
+		const FString ConfiguredName = HeadshotBoneName.ToString();
+		if (HitBoneName.Equals(ConfiguredName, ESearchCase::IgnoreCase)
+			|| HitBoneName.Contains(ConfiguredName, ESearchCase::IgnoreCase))
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void ASnowballItem::HandleThrownImpact(
@@ -982,17 +1068,31 @@ void ASnowballItem::HandleThrownImpact(
 				1.0f,
 				FMath::Max(1.0f, MaximumGrowthDamageMultiplier),
 				FMath::Clamp(GrowthProgress, 0.0f, 1.0f));
+			const bool bHeadshot =
+				HitCharacter
+				&& !bIsThrownRolling
+				&& !bIsFallingSnowball
+				&& IsHeadshotHit(Hit);
 			const float FinalDamage = bIsFallingSnowball
 				? FallingSnowballDamage
 				: ChargedDamage
 				* GrowthDamageMultiplier
-				* CurrentThrowDamageMultiplier;
-			UGameplayStatics::ApplyDamage(
+				* CurrentThrowDamageMultiplier
+				* (bHeadshot
+					? FMath::Max(1.0f, HeadshotDamageMultiplier)
+					: 1.0f);
+			UGameplayStatics::ApplyPointDamage(
 				OtherActor,
 				FinalDamage,
+				ProjectileMovement
+					? ProjectileMovement->Velocity.GetSafeNormal()
+					: GetActorForwardVector(),
+				Hit,
 				GetInstigatorController(),
 				this,
-				UDamageType::StaticClass());
+				bHeadshot
+					? USnowballHeadshotDamageType::StaticClass()
+					: UDamageType::StaticClass());
 
 			if (HitCharacter)
 			{

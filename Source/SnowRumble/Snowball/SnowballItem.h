@@ -7,6 +7,7 @@
 #include "SnowballItem.generated.h"
 
 class ASnowRumbleCharacter;
+class AGrabbablePhysicsObject;
 class UAudioComponent;
 class UPrimitiveComponent;
 class UProjectileMovementComponent;
@@ -122,6 +123,10 @@ protected:
 	UFUNCTION()
 	void OnRep_GrowthProgress();
 
+	/** 서버가 확정한 눈덩이 초기 스케일을 클라이언트에 적용한다. */
+	UFUNCTION()
+	void OnRep_InitialActorScale();
+
 	/** 복제된 지면 고정 상태에 맞춰 바닥 물리를 갱신한다. */
 	UFUNCTION()
 	void OnRep_IsSettledOnGround();
@@ -150,6 +155,12 @@ protected:
 
 	/** 서버에서 처음 확인한 투척 충돌의 피해, 이펙트와 제거를 처리한다. */
 	void HandleThrownImpact(AActor* OtherActor, const FHitResult& Hit);
+
+	/** 직접 투척 눈덩이가 머리 판정 bone에 맞았는지 확인한다. */
+	bool IsHeadshotHit(const FHitResult& Hit) const;
+
+	/** 물리 상호작용 물건에 맞은 눈덩이를 서버에서 부순다. */
+	bool TryBreakOnGrabbableObject(AActor* OtherActor, const FHitResult& Hit);
 
 	/** 큰 눈덩이가 바닥이나 플레이어에 닿은 뒤 물리 굴리기로 전환한다. */
 	void StartThrownRolling();
@@ -226,6 +237,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact|Growth", meta = (ClampMin = "1.0"))
 	float MaximumGrowthDamageMultiplier = 3.0f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact|Headshot", meta = (ClampMin = "1.0"))
+	float HeadshotDamageMultiplier = 1.5f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact|Headshot")
+	TArray<FName> HeadshotBoneNames;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact", meta = (ClampMin = "0.0"))
 	float SmallSnowballMinimumKnockback = 300.0f;
 
@@ -252,6 +269,10 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Growth", meta = (ClampMin = "1.0"))
 	float DistanceForMaximumGrowth = 1000.0f;
+
+	/** 이 성장도 이상이면 큰 눈덩이로 취급한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Growth", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float LargeSnowballGrowthThreshold = 2.0f / 3.0f;
 
 	/** 큰 눈덩이가 투척 후 이 거리만큼 굴러가면 완전히 작아진다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Large", meta = (ClampMin = "1.0"))
@@ -309,6 +330,7 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_IsSettledOnGround, Category = "SnowRumble|Snowball")
 	bool bIsSettledOnGround = true;
 
+	UPROPERTY(VisibleInstanceOnly, ReplicatedUsing = OnRep_InitialActorScale, Category = "SnowRumble|Snowball|Growth")
 	FVector InitialActorScale = FVector::OneVector;
 	FVector LastRollingLocation = FVector::ZeroVector;
 	float AccumulatedRollingDistance = 0.0f;

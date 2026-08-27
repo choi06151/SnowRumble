@@ -4,11 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "UObject/SoftObjectPath.h"
 #include "PodiumPlayerController.generated.h"
 
 class UPodiumWinnerWidget;
 class USoundBase;
-enum class ESnowRumbleTeam : uint8;
+enum class ESnowRumbleTeam : uint8; 
 
 UCLASS()
 class SNOWRUMBLE_API APodiumPlayerController : public APlayerController
@@ -29,7 +30,7 @@ public:
 	void ClientUpdatePodiumReturnSubtitle(const FText& Subtitle);
 
 	UFUNCTION(Client, Reliable, Category = "SnowRumble|Audio")
-	void ClientPlayBackgroundMusic(USoundBase* NewBackgroundMusicSound);
+	void ClientPlayBackgroundMusic(const FSoftObjectPath& BackgroundMusicPath);
 
 	UFUNCTION(Client, Reliable, Category = "SnowRumble|Audio")
 	void ClientStopBackgroundMusic();

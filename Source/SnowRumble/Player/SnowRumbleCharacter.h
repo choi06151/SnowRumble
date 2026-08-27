@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "../UI/DamageTextWidget_C.h"
 #include "../Interaction/LobbyInteractionBoard_C.h"
 #include "../Item/GiftItemTypes_C.h"
 #include "../Game/SnowRumblePlayerState.h"
@@ -377,6 +378,13 @@ public:
 		float AppliedDamage,
 		FVector DamageCauserLocation);
 
+	/** 모든 화면에서 피격자 위치에 데미지 숫자 표현을 띄운다. */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Damage")
+	void OnDamageTextRequested(
+		float AppliedDamage,
+		FVector DamageTextWorldLocation,
+		ESnowRumbleDamageTextType DamageTextType);
+
 	/** 머리 위 이름표 WBP가 표시할 닉네임을 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Identity")
 	FString GetOverheadPlayerName() const;
@@ -749,6 +757,9 @@ protected:
 	/** 스프린트 상태에 맞는 최대 이동속도를 CharacterMovement에 적용한다. */
 	void ApplyMovementSpeed();
 
+	/** 빙하 맵의 현재 바닥에 맞춰 이동 마찰을 적용한다. */
+	void UpdateIceGlacierMovementSurface();
+
 	/** 유효한 이모션 인덱스인지 확인한다. */
 	bool IsValidEmoteIndex(int32 EmoteIndex) const;
 
@@ -818,6 +829,13 @@ protected:
 	/** 서버가 확정한 피격음을 모든 화면에서 피격자 위치 기준으로 재생한다. */
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastPlayDamageSound(FVector_NetQuantize DamageLocation);
+
+	/** 서버가 확정한 피해 숫자 표현을 모든 화면에 전달한다. */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastRequestDamageText(
+		float AppliedDamage,
+		FVector_NetQuantize DamageTextWorldLocation,
+		ESnowRumbleDamageTextType DamageTextType);
 
 	/** 서버가 소유 클라이언트의 이모션 선택을 검사하고 확정한다. */
 	UFUNCTION(Server, Reliable)
@@ -937,6 +955,21 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage Feedback", meta = (ClampMin = "0.0"))
 	float DamageFeedbackCameraShakeFrequency = 34.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage Feedback")
+	FVector DamageTextWorldOffset = FVector(0.0f, 0.0f, 110.0f);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage Feedback|Text")
+	TSubclassOf<UDamageTextWidget> DamageTextWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage Feedback|Text")
+	TSubclassOf<UDamageTextWidget> HeadshotDamageTextWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage Feedback|Text")
+	FVector2D DamageTextWidgetDrawSize = FVector2D(160.0f, 80.0f);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage Feedback|Text", meta = (ClampMin = "0.01"))
+	float DamageTextWidgetLifeSeconds = 0.85f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Damage", meta = (ClampMin = "0.0"))
 	float PostDamageInvulnerabilitySeconds = 1.0f;
@@ -1336,6 +1369,21 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Movement", meta = (ClampMin = "0.0"))
 	float AimWalkSpeed = 300.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Movement|Grab", meta = (ClampMin = "0.0"))
+	float OpposingFrozenCarryWalkSpeed = 100.0f;
+
+	/** L_IceGlacier_J에서 SnowSurface가 아닌 바닥에 미끄러짐을 적용할지 정한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Movement|Ice")
+	bool bEnableIceGlacierSlipperyMovement = true;
+
+	/** 빙하의 미끄러운 바닥에 적용할 GroundFriction 값이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Movement|Ice", meta = (ClampMin = "0.0"))
+	float SlipperyGroundFriction = 0.15f;
+
+	/** 빙하의 미끄러운 바닥에서 멈출 때 적용할 감속값이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Movement|Ice", meta = (ClampMin = "0.0"))
+	float SlipperyBrakingDecelerationWalking = 80.0f;
 
 	/** 눈 밟힘 효과를 허용할 바닥 Actor 태그다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep")
@@ -1741,6 +1789,10 @@ public:
 	bool bDistanceSnowTrailActive = false;
 	FVector LastDistanceSnowTrailStampLocation = FVector::ZeroVector;
 	FName LastDistanceSnowTrailFootSocketName = NAME_None;
+	bool bIsIceGlacierMap = false;
+	bool bSlipperyMovementApplied = false;
+	float DefaultGroundFriction = 8.0f;
+	float DefaultBrakingDecelerationWalking = 2048.0f;
 
 	UPROPERTY(Transient)
 	TObjectPtr<ALobbyInteractionBoard> FocusedLobbyBoard;

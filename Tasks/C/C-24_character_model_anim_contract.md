@@ -131,6 +131,7 @@
 - `BP_SnowRumbleCharacter`의 Mesh Anim Class에 새 ABP를 지정한다.
 - 새 모델 머티리얼에 C-11의 `BodyColor` Vector Parameter와 `PaintTexture` Texture Parameter를 연결하거나, BP의 파라미터 이름을 실제 머티리얼 이름에 맞춘다.
 - 새 모델 머리 높이가 다르면 `OverheadNameRelativeLocation`을 조정한다.
+- `USnowRumbleCharacterAnimInstance`의 `ViewYawAlphaInterpSpeed`는 Control Rig 시점 yaw 보간 속도다. 기본값은 `8.0`이며 값이 낮을수록 좌우 시점 변화가 느리게 따라온다.
 - 새 Skeleton에는 작은 눈용 `SnowballSocket`과 큰 눈용 `LargeSnowballSocket`을 만든다. 큰 눈 소켓은 큰 눈 Hold/Throw 몽타주에서 양손 또는 몸 앞 위치에 맞게 조정한다.
 - 새 Skeleton 또는 캐릭터 Mesh에는 목도리용 `ScarfSocket`을 목/가슴 사이에 만들고, `BP_SnowRumbleCharacter`에서 `ScarfMesh`, `ScarfAttachSocketName`, `ScarfRelativeLocation`, `ScarfRelativeRotation`, `ScarfRelativeScale`을 조정한다. 목도리 Material에는 기본 이름 `TeamColor`의 Vector Parameter를 만들거나, 실제 파라미터 이름에 맞게 `ScarfTeamColorParameterName`을 바꾼다.
 
@@ -149,6 +150,7 @@
 - [x] 로컬 정적 점검과 C++ 컴파일 통과. 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류
 - [x] 역할·소유권·담당자 이니셜 규칙 위반 없음
 - [x] 공용 계약과 캡슐화 규칙 위반 없음
+- [x] Control Rig용 `ViewYawAlpha` 좌우 시점 급변 보간 추가
 
 ### 결과 확인
 
@@ -158,3 +160,5 @@
 - [ ] 걷기, 달리기, 점프/낙하, 조준, 눈덩이 보유, 눈덩이 제작, 굴리기, 아이템 획득, 얼음, 사망 상태가 ABP 변수로 갱신된다.
 - [ ] 새 모델에서도 이름표, 팀 색, 커스터마이징 머티리얼, 눈덩이 손 부착 위치가 깨지지 않는다.
 - [ ] 새 모델의 `ScarfSocket`에 목도리 StaticMesh가 붙고 팀 변경 시 목도리 Material 색이 현재 팀 색으로 바뀐다.
+- [ ] 좌우 카메라 시점을 빠르게 전환해도 Control Rig 머리·상체 보정이 급격하게 튀지 않고 자연스럽게 따라온다.
+- [ ] 캐릭터에게 잡힌 플레이어가 이동·일반 행동 입력을 수행하지 못한다.

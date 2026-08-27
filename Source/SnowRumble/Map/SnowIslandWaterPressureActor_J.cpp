@@ -237,7 +237,6 @@ void ASnowIslandWaterPressureActor::ApplyWaterZ(float WaterZ)
 void ASnowIslandWaterPressureActor::HandleDamageTimerElapsed()
 {
 	if (!HasAuthority()
-		|| CurrentWaterStage == ESnowIslandWaterPressureStage::Stable
 		|| DamageCheckIntervalSeconds <= 0.0f)
 	{
 		return;

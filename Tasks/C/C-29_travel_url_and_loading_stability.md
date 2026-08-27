@@ -67,6 +67,7 @@
 - 2026-08-21: PvP->포디움 이동 후 GameInstance 로딩 WBP가 다시 붙고 사라지지 않는 문제를 수정했다. `APodiumPlayerController`가 로컬 BeginPlay에서 `ULoadingScreenSubsystem::HideLoadingScreen()`을 호출해 포디움 UI 표시 전에 잔여 로딩창을 닫는다.
 - 2026-08-23: 사용자가 최초 PvP 진입에만 Slate 로딩창을 유지하고, 최초 라운드 이후 모든 PvP 내부 라운드 전환과 PvP->포디움 이동은 검은 화면만 보이도록 요청했다. 후속 PvP travel 경로에서 `ClientShowLoadingScreen()` 호출을 제거하고 잔여 로딩 UI 숨김만 남겼다.
 - 2026-08-25: PvP 팀 소개 카메라 연출 시작부터 종료까지 로컬 메인 HUD·채팅·음소거·키 가이드·상호작용 안내·이모트·관전 WBP를 숨기고, 연출 전 표시 상태를 종료 후 복원하도록 보강했다.
+- 2026-08-27: 서버 종료 또는 호스트 이탈 후 메인 메뉴로 복귀할 때 이전 네트워크 월드의 원격 캐릭터가 남아 기본 외형으로 보이는 문제를 보강했다. 메인 메뉴 컨트롤러가 로컬 프리뷰 Pawn을 제외한 잔류 `ASnowRumbleCharacter`를 정리한다.
 
 ## 수동 작업
 
