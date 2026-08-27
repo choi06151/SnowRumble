@@ -124,8 +124,21 @@ void UMainHUDWidget::RefreshHealthBars()
 		return;
 	}
 
+	if (World->GetGameState<ASnowmanModeGameState>())
+	{
+		if (LocalHealthBar)
+		{
+			LocalHealthBar->SetVisibility(ESlateVisibility::Collapsed);
+			LocalHealthBar->SetObservedActor(nullptr);
+		}
+		TSet<TWeakObjectPtr<ASnowRumbleCharacter>> EmptyValidPlayers;
+		RemoveInvalidOtherPlayerHealthBars(EmptyValidPlayers);
+		return;
+	}
+
 	if (LocalHealthBar)
 	{
+		LocalHealthBar->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		LocalHealthBar->SetObservedActor(LocalCharacter);
 	}
 

@@ -53,6 +53,9 @@ private:
 	/** HP 컴포넌트 이벤트를 해제한다. */
 	void UnbindObservedHealthComponent();
 
+	/** 눈사람 모드에서는 HP 바 위젯 자체를 숨겨 다른 PvP UI는 유지한다. */
+	bool ShouldHideForSnowmanMode() const;
+
 	/** HP 값으로 Progress Bar와 선택 텍스트를 갱신한다. */
 	void UpdateHealthPresentation(float CurrentHealth, float MaxHealth);
 
