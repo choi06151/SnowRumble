@@ -2577,6 +2577,12 @@ void ASnowRumbleCharacter::PawnClientRestart()
 	ApplyInputMappingContext();
 	ApplyCameraPitchLimits();
 	RefreshLocalSnowEffect();
+	if (const ASnowRumblePlayerController* SnowRumblePlayerController =
+		Cast<ASnowRumblePlayerController>(Controller))
+	{
+		SetPvpIntroWidgetsHidden(
+			SnowRumblePlayerController->IsPvpIntroWidgetsHidden());
+	}
 	EnsureEmoteRadialMenuWidget();
 	EnsureMainHUDWidget();
 	RefreshPvpMatchInputLock();
