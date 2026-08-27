@@ -30,15 +30,9 @@ void USnowballCreationComponent::StartCreatingSnowball()
 		return;
 	}
 
-	const UCameraComponent* FollowCamera =
-		OwningPawn->FindComponentByClass<UCameraComponent>();
-	if (!FollowCamera)
-	{
-		return;
-	}
-
-	const FVector ViewLocation = FollowCamera->GetComponentLocation();
-	const FVector ViewDirection = FollowCamera->GetForwardVector();
+	// 눈 제작은 더 이상 카메라 각도를 사용하지 않고 현재 캐릭터 발밑을 검사한다.
+	const FVector ViewLocation = OwningPawn->GetActorLocation();
+	const FVector ViewDirection = FVector::DownVector;
 
 	if (bIsCreating)
 	{
@@ -321,7 +315,7 @@ bool USnowballCreationComponent::FindSnowSurface(
 {
 	const ASnowRumbleCharacter* Character = Cast<ASnowRumbleCharacter>(GetOwner());
 	UWorld* World = GetWorld();
-	if (!Character || !World || ViewDirection.IsNearlyZero())
+	if (!Character || !World)
 	{
 		return false;
 	}
@@ -333,15 +327,14 @@ bool USnowballCreationComponent::FindSnowSurface(
 	Character->GetAttachedActors(AttachedActors, true, true);
 	QueryParams.AddIgnoredActors(AttachedActors);
 
-	const float EffectiveTraceDistance =
-		CreationTraceDistance
-		+ FVector::Distance(ViewLocation, Character->GetActorLocation());
+	const FVector TraceStart =
+		Character->GetActorLocation() + FVector::UpVector * 50.0f;
 	const FVector TraceEnd =
-		ViewLocation + ViewDirection.GetSafeNormal() * EffectiveTraceDistance;
+		TraceStart - FVector::UpVector * CreationTraceDistance;
 	TArray<FHitResult> Hits;
 	const bool bHit = World->LineTraceMultiByChannel(
 		Hits,
-		ViewLocation,
+		TraceStart,
 		TraceEnd,
 		ECC_Visibility,
 		QueryParams);
