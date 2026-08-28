@@ -2811,6 +2811,9 @@ void ASnowRumbleCharacter::ApplyPodiumMeshScale()
 
 	const float SafeScaleMultiplier =
 		FMath::Max(0.01f, PodiumMeshScaleMultiplier);
+	FVector PodiumMeshRelativeLocation = DefaultCharacterMeshRelativeLocation;
+	PodiumMeshRelativeLocation.Z += PodiumMeshZOffset;
+	CharacterMesh->SetRelativeLocation(PodiumMeshRelativeLocation);
 	CharacterMesh->SetRelativeScale3D(
 		DefaultCharacterMeshRelativeScale * SafeScaleMultiplier);
 }

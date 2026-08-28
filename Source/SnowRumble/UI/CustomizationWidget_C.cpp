@@ -4,6 +4,7 @@
 
 #include "Components/Button.h"
 #include "Components/Border.h"
+#include "Components/ContentWidget.h"
 #include "Components/Image.h"
 #include "Components/PanelWidget.h"
 #include "Components/Slider.h"
@@ -1144,40 +1145,38 @@ void UCustomizationWidget::RefreshPaintActionButtonTextColors()
 	TArray<UTextBlock*> BrushSizeTextBlocks;
 	TArray<UTextBlock*> FillBodyColorTextBlocks;
 	TArray<UTextBlock*> PaintModeTextBlocks;
+	TArray<UTextBlock*> HatModeTextBlocks;
+	TArray<UTextBlock*> GlassesModeTextBlocks;
+	TArray<UTextBlock*> NoseModeTextBlocks;
+	TArray<UTextBlock*> EarmuffsModeTextBlocks;
 	CacheButtonTextColors(BrushSizeButton, BrushSizeTextBlocks);
 	CacheButtonTextColors(FillBodyColorButton, FillBodyColorTextBlocks);
 	CacheButtonTextColors(PaintModeButton, PaintModeTextBlocks);
+	CacheButtonTextColors(HatModeButton, HatModeTextBlocks);
+	CacheButtonTextColors(GlassesModeButton, GlassesModeTextBlocks);
+	CacheButtonTextColors(NoseModeButton, NoseModeTextBlocks);
+	CacheButtonTextColors(EarmuffsModeButton, EarmuffsModeTextBlocks);
 
-	if (DefaultPaintActionButtonTextColors.IsEmpty())
+	const auto CacheDefaultTextColors = [this](
+		const TArray<UTextBlock*>& TextBlocks)
 	{
-		for (UTextBlock* TextBlock : BrushSizeTextBlocks)
+		for (UTextBlock* TextBlock : TextBlocks)
 		{
 			if (TextBlock)
 			{
-				DefaultPaintActionButtonTextColors.Add(
+				DefaultPaintActionButtonTextColors.FindOrAdd(
 					TextBlock,
 					TextBlock->GetColorAndOpacity());
 			}
 		}
-		for (UTextBlock* TextBlock : FillBodyColorTextBlocks)
-		{
-			if (TextBlock)
-			{
-				DefaultPaintActionButtonTextColors.Add(
-					TextBlock,
-					TextBlock->GetColorAndOpacity());
-			}
-		}
-		for (UTextBlock* TextBlock : PaintModeTextBlocks)
-		{
-			if (TextBlock)
-			{
-				DefaultPaintActionButtonTextColors.Add(
-					TextBlock,
-					TextBlock->GetColorAndOpacity());
-			}
-		}
-	}
+	};
+	CacheDefaultTextColors(BrushSizeTextBlocks);
+	CacheDefaultTextColors(FillBodyColorTextBlocks);
+	CacheDefaultTextColors(PaintModeTextBlocks);
+	CacheDefaultTextColors(HatModeTextBlocks);
+	CacheDefaultTextColors(GlassesModeTextBlocks);
+	CacheDefaultTextColors(NoseModeTextBlocks);
+	CacheDefaultTextColors(EarmuffsModeTextBlocks);
 
 	const auto ApplyTextColors = [this](
 		UButton* Button,
@@ -1207,6 +1206,10 @@ void UCustomizationWidget::RefreshPaintActionButtonTextColors()
 	ApplyTextColors(BrushSizeButton, BrushSizeTextBlocks);
 	ApplyTextColors(FillBodyColorButton, FillBodyColorTextBlocks);
 	ApplyTextColors(PaintModeButton, PaintModeTextBlocks);
+	ApplyTextColors(HatModeButton, HatModeTextBlocks);
+	ApplyTextColors(GlassesModeButton, GlassesModeTextBlocks);
+	ApplyTextColors(NoseModeButton, NoseModeTextBlocks);
+	ApplyTextColors(EarmuffsModeButton, EarmuffsModeTextBlocks);
 }
 
 void UCustomizationWidget::CacheButtonTextColors(
@@ -1240,6 +1243,10 @@ void UCustomizationWidget::CacheButtonTextColorsRecursive(
 		{
 			CacheButtonTextColorsRecursive(Panel->GetChildAt(Index), TextBlocks);
 		}
+	}
+	else if (UContentWidget* ContentWidget = Cast<UContentWidget>(Widget))
+	{
+		CacheButtonTextColorsRecursive(ContentWidget->GetContent(), TextBlocks);
 	}
 }
 

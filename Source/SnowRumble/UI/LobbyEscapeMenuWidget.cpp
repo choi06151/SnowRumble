@@ -4,8 +4,47 @@
 
 #include "../Audio/SnowRumbleAudioHelpers.h"
 #include "Components/Button.h"
+#include "Components/ContentWidget.h"
+#include "Components/PanelWidget.h"
+#include "Components/TextBlock.h"
 #include "InputCoreTypes.h"
 #include "LobbyPlayerController.h"
+
+namespace
+{
+	void CollectLobbyEscapeButtonTextBlocks(
+		UWidget* Widget,
+		TArray<UTextBlock*>& OutTextBlocks)
+	{
+		if (!Widget)
+		{
+			return;
+		}
+
+		if (UTextBlock* TextBlock = Cast<UTextBlock>(Widget))
+		{
+			OutTextBlocks.AddUnique(TextBlock);
+		}
+
+		if (UPanelWidget* PanelWidget = Cast<UPanelWidget>(Widget))
+		{
+			for (int32 ChildIndex = 0;
+				ChildIndex < PanelWidget->GetChildrenCount();
+				++ChildIndex)
+			{
+				CollectLobbyEscapeButtonTextBlocks(
+					PanelWidget->GetChildAt(ChildIndex),
+					OutTextBlocks);
+			}
+		}
+		else if (UContentWidget* ContentWidget = Cast<UContentWidget>(Widget))
+		{
+			CollectLobbyEscapeButtonTextBlocks(
+				ContentWidget->GetContent(),
+				OutTextBlocks);
+		}
+	}
+}
 
 void ULobbyEscapeMenuWidget::SetLobbyPlayerController(
 	ALobbyPlayerController* NewPlayerController)
@@ -28,6 +67,15 @@ void ULobbyEscapeMenuWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
+void ULobbyEscapeMenuWidget::NativeTick(
+	const FGeometry& MyGeometry,
+	float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	RefreshTargetButtonTextColors();
+}
+
 FReply ULobbyEscapeMenuWidget::NativeOnKeyDown(
 	const FGeometry& InGeometry,
 	const FKeyEvent& InKeyEvent)
@@ -44,6 +92,13 @@ FReply ULobbyEscapeMenuWidget::NativeOnKeyDown(
 
 void ULobbyEscapeMenuWidget::BindMenuButtons()
 {
+	BindTargetButtonTextColor(ReturnToMainMenuButton);
+	BindTargetButtonTextColor(ReturnToLobbyButton);
+	BindTargetButtonTextColor(SettingsButton);
+	BindTargetButtonTextColor(InviteFriendsButton);
+	BindTargetButtonTextColor(BackButton);
+	RefreshTargetButtonTextColors();
+
 	if (ReturnToMainMenuButton)
 	{
 		ReturnToMainMenuButton->OnClicked.AddUniqueDynamic(
@@ -78,6 +133,12 @@ void ULobbyEscapeMenuWidget::BindMenuButtons()
 
 void ULobbyEscapeMenuWidget::UnbindMenuButtons()
 {
+	UnbindTargetButtonTextColor(ReturnToMainMenuButton);
+	UnbindTargetButtonTextColor(ReturnToLobbyButton);
+	UnbindTargetButtonTextColor(SettingsButton);
+	UnbindTargetButtonTextColor(InviteFriendsButton);
+	UnbindTargetButtonTextColor(BackButton);
+
 	if (ReturnToMainMenuButton)
 	{
 		ReturnToMainMenuButton->OnClicked.RemoveAll(this);
@@ -97,6 +158,92 @@ void ULobbyEscapeMenuWidget::UnbindMenuButtons()
 	if (BackButton)
 	{
 		BackButton->OnClicked.RemoveAll(this);
+	}
+}
+
+void ULobbyEscapeMenuWidget::BindTargetButtonTextColor(UButton* Button)
+{
+	if (!Button)
+	{
+		return;
+	}
+
+	Button->OnHovered.AddUniqueDynamic(
+		this,
+		&ULobbyEscapeMenuWidget::RefreshTargetButtonTextColors);
+	Button->OnUnhovered.AddUniqueDynamic(
+		this,
+		&ULobbyEscapeMenuWidget::RefreshTargetButtonTextColors);
+	Button->OnPressed.AddUniqueDynamic(
+		this,
+		&ULobbyEscapeMenuWidget::RefreshTargetButtonTextColors);
+	Button->OnReleased.AddUniqueDynamic(
+		this,
+		&ULobbyEscapeMenuWidget::RefreshTargetButtonTextColors);
+
+	TArray<UTextBlock*> TextBlocks;
+	CollectLobbyEscapeButtonTextBlocks(Button->GetContent(), TextBlocks);
+	for (UTextBlock* TextBlock : TextBlocks)
+	{
+		if (TextBlock)
+		{
+			TargetButtonTextDefaultColors.FindOrAdd(
+				TextBlock,
+				TextBlock->GetColorAndOpacity());
+		}
+	}
+}
+
+void ULobbyEscapeMenuWidget::UnbindTargetButtonTextColor(UButton* Button)
+{
+	if (Button)
+	{
+		Button->OnHovered.RemoveAll(this);
+		Button->OnUnhovered.RemoveAll(this);
+		Button->OnPressed.RemoveAll(this);
+		Button->OnReleased.RemoveAll(this);
+	}
+}
+
+void ULobbyEscapeMenuWidget::RefreshTargetButtonTextColors()
+{
+	const FSlateColor ActiveTextColor(FLinearColor::White);
+	const TArray<UButton*> TargetButtons =
+	{
+		ReturnToMainMenuButton,
+		ReturnToLobbyButton,
+		SettingsButton,
+		InviteFriendsButton,
+		BackButton
+	};
+
+	for (UButton* Button : TargetButtons)
+	{
+		if (!Button)
+		{
+			continue;
+		}
+
+		TArray<UTextBlock*> TextBlocks;
+		CollectLobbyEscapeButtonTextBlocks(Button->GetContent(), TextBlocks);
+		const bool bUseActiveColor = Button->IsHovered() || Button->IsPressed();
+		for (UTextBlock* TextBlock : TextBlocks)
+		{
+			if (!TextBlock)
+			{
+				continue;
+			}
+
+			if (bUseActiveColor)
+			{
+				TextBlock->SetColorAndOpacity(ActiveTextColor);
+			}
+			else if (const FSlateColor* DefaultColor =
+				TargetButtonTextDefaultColors.Find(TextBlock))
+			{
+				TextBlock->SetColorAndOpacity(*DefaultColor);
+			}
+		}
 	}
 }
 
