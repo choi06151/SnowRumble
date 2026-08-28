@@ -314,6 +314,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float GrabbedCharacterInputVelocityRetention = 0.55f;
 
+	/** 잡힌 캐릭터 당김 속도가 순간적으로 바뀌지 않도록 보간하는 속도다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0"))
+	float GrabbedCharacterTetherVelocityInterpSpeed = 8.0f;
+
+	/** 잡힌 캐릭터가 손 위치를 따라갈 때 사용할 위치 보간 속도다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0"))
+	float GrabbedCharacterLocationInterpSpeed = 8.0f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0"))
 	float GrabbedCharacterFacingInterpSpeed = 14.0f;
 

@@ -23,6 +23,7 @@ class UInteractionPromptWidget;
 class UKeyGuideWidget;
 class UMainHUDWidget;
 class UMaterialInstanceDynamic;
+class UMeshComponent;
 class UOverheadNameplateWidget;
 class UOverheadTimedActionWidget;
 class USpectatorWidget;
@@ -107,7 +108,8 @@ class SNOWRUMBLE_API ASnowRumbleCharacter : public ACharacter
 	GENERATED_BODY()
 
 public:
-	ASnowRumbleCharacter();
+	ASnowRumbleCharacter(
+		const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual void Tick(float DeltaSeconds) override;
 
@@ -333,8 +335,10 @@ public:
 	/** 서버에서 아이템 획득 성공 애니메이션 상태를 시작한다. */
 	void NotifyItemPickupSucceeded();
 
-	/** 서버에서 눈덩이 획득 성공 one-shot 애니메이션을 포함해 상태를 시작한다. */
-	void NotifySnowballPickupSucceeded(bool bWasLargeSnowball);
+	/** 서버에서 눈덩이 획득 성공 상태와 선택적 one-shot 애니메이션을 시작한다. */
+	void NotifySnowballPickupSucceeded(
+		bool bWasLargeSnowball,
+		bool bPlayPickupAnimation = true);
 
 	/** 서버에서 눈덩이 던지기 성공 one-shot 애니메이션을 모든 화면에 요청한다. */
 	void NotifySnowballThrowSucceeded(bool bWasLargeSnowball);
@@ -455,6 +459,9 @@ public:
 
 	/** 로컬 눈 VFX의 바람 방향 파라미터를 갱신한다. */
 	void SetLocalSnowEffectWindDirection(const FVector& WindDirection);
+
+	/** 로컬 눈 VFX의 바람 세기 파라미터를 갱신한다. */
+	void SetLocalSnowEffectWindStrength(float WindStrength);
 
 protected:
 	virtual void OnConstruction(const FTransform& Transform) override;
@@ -637,6 +644,15 @@ protected:
 	/** 조준 상태에 따라 로컬 카메라와 모든 화면의 이동속도를 갱신한다. */
 	UFUNCTION()
 	void HandleSnowballAimingChanged(bool bNewAiming);
+
+	/** 작은 눈 조준 중 로컬 캐릭터와 치장품 Mesh의 시야 방해를 줄인다. */
+	void UpdateSmallSnowballAimMeshFade(float DeltaSeconds);
+
+	/** 현재 캐릭터와 치장품 Mesh의 조준용 Dynamic Material을 준비한다. */
+	void CacheSmallSnowballAimFadeMaterials();
+
+	/** 조준용 Dynamic Material에 보간된 시야 노출값을 적용한다. */
+	void ApplySmallSnowballAimMeshFade(float FadeValue);
 
 	/** 복제된 PlayerState 닉네임으로 머리 위 이름표를 갱신한다. */
 	UFUNCTION()
@@ -1582,6 +1598,14 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|VFX")
 	FName LocalSnowEffectWindDirectionParameterName = TEXT("Direction");
 
+	/** 바람이 없을 때 로컬 눈 VFX가 사용할 기본 낙하 방향이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|VFX")
+	FVector LocalSnowEffectDefaultDirection = FVector(0.0f, 0.0f, -1.0f);
+
+	/** 로컬 눈 VFX에 전달할 바람 세기 Niagara Float 파라미터 이름이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|VFX")
+	FName LocalSnowEffectWindStrengthParameterName = TEXT("Strength");
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera")
 	float CameraPivotHeight = 65.0f;
 
@@ -1845,6 +1869,22 @@ public:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> CustomizationMaterialInstance;
+
+	/** 작은 눈 조준 중 로컬 화면에서만 사용하는 Mesh별 Dynamic Material이다. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> SmallSnowballAimFadeMaterials;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Small Snowball Aim", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float SmallSnowballAimMeshFadeTarget = 0.25f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Small Snowball Aim", meta = (ClampMin = "0.0"))
+	float SmallSnowballAimMeshFadeInterpSpeed = 8.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Small Snowball Aim")
+	FName SmallSnowballAimMeshFadeParameterName = TEXT("AimFade");
+
+	float SmallSnowballAimMeshFadeValue = 1.0f;
+	bool bSmallSnowballAimMeshFadeActive = false;
 
 	UPROPERTY(Transient)
 	TMap<int32, TObjectPtr<UCanvasRenderTarget2D>> CustomizationPaintRenderTargets;

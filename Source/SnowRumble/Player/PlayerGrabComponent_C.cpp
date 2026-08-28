@@ -3,6 +3,7 @@
 #include "PlayerGrabComponent_C.h"
 
 #include "../Audio/SnowRumbleAudioHelpers.h"
+#include "../Interaction/JukeboxActor_C.h"
 #include "../Item/GrabbablePhysicsObject_C.h"
 #include "../Snowball/SnowballEquipmentComponent.h"
 #include "../Snowball/SnowballItem.h"
@@ -566,6 +567,15 @@ bool UPlayerGrabComponent::FindGrabCandidate(
 			continue;
 		}
 
+		// The jukebox jump volume is an overlap-only gameplay trigger, never a grab target.
+		if (const AJukeboxActor* Jukebox = Cast<AJukeboxActor>(Hit.GetActor()))
+		{
+			if (!Jukebox->IsJukeboxMeshComponent(HitComponent))
+			{
+				continue;
+			}
+		}
+
 		AGrabbablePhysicsObject* PhysicsObject =
 			Cast<AGrabbablePhysicsObject>(Hit.GetActor());
 		ASnowballItem* Snowball = Cast<ASnowballItem>(Hit.GetActor());
@@ -983,23 +993,17 @@ void UPlayerGrabComponent::UpdateGrabbedCharacterTether(float DeltaTime)
 	const float Distance = ToDesired.Size();
 	if (Distance <= GrabTetherSlackDistance)
 	{
-		TargetMovement->Velocity.Z =
-			FMath::Min(TargetMovement->Velocity.Z, 0.0f)
-			* GrabTetherVelocityDamping;
+		TargetMovement->StopMovementImmediately();
 		return;
 	}
 
-	const FVector PullDirection = ToDesired / Distance;
-	const float PullSpeed = FMath::Clamp(
-		(Distance - GrabTetherSlackDistance) * GrabTetherPullStrength,
-		0.0f,
-		GrabTetherMaxPullSpeed);
-	const FVector CorrectionVelocity = PullDirection * PullSpeed;
-	TargetMovement->Velocity =
-		TargetMovement->Velocity * GrabbedCharacterInputVelocityRetention
-		+ CorrectionVelocity;
-	TargetMovement->Velocity = TargetMovement->Velocity.GetClampedToMaxSize(
-		GrabTetherMaxPullSpeed);
+	const FVector SmoothedTargetLocation = FMath::VInterpTo(
+		CurrentTargetLocation,
+		DesiredTargetLocation,
+		DeltaTime,
+		FMath::Max(0.0f, GrabbedCharacterLocationInterpSpeed));
+	TargetCharacter->SetActorLocation(SmoothedTargetLocation, true);
+	TargetMovement->StopMovementImmediately();
 	TargetCharacter->ForceNetUpdate();
 	Character->ForceNetUpdate();
 }

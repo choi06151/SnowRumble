@@ -15,6 +15,8 @@
 
 const TArray<FSnowRumbleSessionInfo> UMainMenuWidget::EmptyResults;
 
+DEFINE_LOG_CATEGORY_STATIC(LogSnowRumbleMainMenu, Log, All);
+
 namespace
 {
 	void CollectButtonTextBlocks(
@@ -220,7 +222,7 @@ void UMainMenuWidget::HandleSessionStateChanged(
 void UMainMenuWidget::HandleSearchCompleted(
 	const TArray<FSnowRumbleSessionInfo>& Results)
 {
-	SetStatusMessage(FString::Printf(TEXT("Found %d LAN session(s)"), Results.Num()));
+	SetStatusMessage(FString::Printf(TEXT("Found %d session(s)"), Results.Num()));
 	if (Results.IsEmpty())
 	{
 		if (USnowRumbleSessionSubsystem* SessionSubsystem =
@@ -238,6 +240,10 @@ void UMainMenuWidget::HandleSearchCompleted(
 
 void UMainMenuWidget::HandleHostButtonClicked()
 {
+	UE_LOG(
+		LogSnowRumbleMainMenu,
+		Log,
+		TEXT("Main menu HostButton clicked. Requesting online host."));
 	HostLanGame(8);
 }
 
@@ -272,6 +278,10 @@ void UMainMenuWidget::HandleCustomizationButtonClicked()
 
 void UMainMenuWidget::HandleQuitGameButtonClicked()
 {
+	UE_LOG(
+		LogSnowRumbleMainMenu,
+		Log,
+		TEXT("Main menu QuitGameButton clicked. Requesting game quit."));
 	if (AMainMenuPlayerController* MainMenuPlayerController =
 		Cast<AMainMenuPlayerController>(GetOwningPlayer()))
 	{
@@ -312,6 +322,7 @@ void UMainMenuWidget::BindMenuButtons()
 
 	if (HostButton)
 	{
+		HostButton->OnClicked.Clear();
 		HostButton->OnClicked.AddUniqueDynamic(
 			this,
 			&UMainMenuWidget::HandleHostButtonClicked);
@@ -319,6 +330,7 @@ void UMainMenuWidget::BindMenuButtons()
 
 	if (QuickJoinButton)
 	{
+		QuickJoinButton->OnClicked.Clear();
 		QuickJoinButton->OnClicked.AddUniqueDynamic(
 			this,
 			&UMainMenuWidget::HandleQuickJoinButtonClicked);
@@ -326,6 +338,7 @@ void UMainMenuWidget::BindMenuButtons()
 
 	if (FindButton)
 	{
+		FindButton->OnClicked.Clear();
 		FindButton->OnClicked.AddUniqueDynamic(
 			this,
 			&UMainMenuWidget::HandleFindButtonClicked);
@@ -333,6 +346,7 @@ void UMainMenuWidget::BindMenuButtons()
 
 	if (SettingsButton)
 	{
+		SettingsButton->OnClicked.Clear();
 		SettingsButton->OnClicked.AddUniqueDynamic(
 			this,
 			&UMainMenuWidget::HandleSettingsButtonClicked);
@@ -340,6 +354,7 @@ void UMainMenuWidget::BindMenuButtons()
 
 	if (CustomizationButton)
 	{
+		CustomizationButton->OnClicked.Clear();
 		CustomizationButton->OnClicked.AddUniqueDynamic(
 			this,
 			&UMainMenuWidget::HandleCustomizationButtonClicked);
@@ -347,6 +362,7 @@ void UMainMenuWidget::BindMenuButtons()
 
 	if (QuitGameButton)
 	{
+		QuitGameButton->OnClicked.Clear();
 		QuitGameButton->OnClicked.AddUniqueDynamic(
 			this,
 			&UMainMenuWidget::HandleQuitGameButtonClicked);
@@ -354,6 +370,7 @@ void UMainMenuWidget::BindMenuButtons()
 
 	if (KeyGuideButton)
 	{
+		KeyGuideButton->OnClicked.Clear();
 		KeyGuideButton->OnClicked.AddUniqueDynamic(
 			this,
 			&UMainMenuWidget::HandleKeyGuideButtonClicked);
@@ -361,6 +378,7 @@ void UMainMenuWidget::BindMenuButtons()
 
 	if (ConfirmRoomCodeJoinButton)
 	{
+		ConfirmRoomCodeJoinButton->OnClicked.Clear();
 		ConfirmRoomCodeJoinButton->OnClicked.AddUniqueDynamic(
 			this,
 			&UMainMenuWidget::HandleConfirmRoomCodeJoinClicked);
@@ -368,6 +386,7 @@ void UMainMenuWidget::BindMenuButtons()
 
 	if (CancelRoomCodeJoinButton)
 	{
+		CancelRoomCodeJoinButton->OnClicked.Clear();
 		CancelRoomCodeJoinButton->OnClicked.AddUniqueDynamic(
 			this,
 			&UMainMenuWidget::HandleCancelRoomCodeJoinClicked);

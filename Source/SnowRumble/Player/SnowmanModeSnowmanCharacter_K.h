@@ -66,6 +66,7 @@ protected:
 	TObjectPtr<USoundAttenuation> SnowmanInfectionSoundAttenuation;
 
 private:
+	void HandleSnowmanDropEquipment();
 	void StartSnowmanJump();
 	void StopSnowmanJump();
 

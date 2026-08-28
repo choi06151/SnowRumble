@@ -49,10 +49,10 @@
 
 ## 세션 개발 정책
 
-- 현재 MVP 구현과 빠른 로컬 검증은 `OnlineSubsystem NULL` 기반 LAN 세션으로 계속 진행한다.
-- Steam 출시는 최종 목표로 유지하며 Steam 세션 통합은 C-18에서 별도 최종 Task로 처리한다.
+- 현재 패키지/Standalone 기본 세션은 `OnlineSubsystemSteam` 기반 Steam 세션으로 진행한다.
+- Steam 초기화가 불가능한 로컬 개발 환경은 기존 NULL/LAN fallback을 유지하되, 최종 확인 기준은 Steam 빌드다.
 - 앞으로 메인메뉴, 로비, PvP, ESC 메뉴, 친구 초대 UI는 `USnowRumbleSessionSubsystem` 등 공개 세션 계약만 호출하고 LAN/Steam 구현 세부사항에 직접 의존하지 않는다.
-- 친구 부르기 버튼은 현재 Blueprint 이벤트와 UI 계약만 유지하고, 실제 Steam Overlay 초대 연결은 C-18에서 처리한다.
+- 친구 부르기 버튼은 Steam Overlay 초대 연결을 C-18에서 처리한다.
 - 새 기능이 세션 생성·검색·참가·초대·퇴장·복귀에 영향을 주면 C-18 Steam 전환 영향 여부를 함께 기록한다.
 
 ## 통합 관문
@@ -135,6 +135,7 @@
 - 2026-08-27: C-35 피격 데미지 텍스트 표시 계약을 추가했다. 서버가 실제 적용 피해량을 확정한 뒤 모든 클라이언트에 `OnDamageTextRequested`를 호출한다.
 - 2026-08-27: C-35 일반/헤드샷 데미지 텍스트 WBP 슬롯을 분리했다. `UDamageTextWidget` 기반 WBP의 `DamageText` TextBlock은 C++가 자동으로 피해량을 입력한다.
 - 2026-08-27: C-35 직접 투척 눈덩이 헤드샷 판정을 추가했다. 머리 bone 충돌 시 피해 배율과 헤드샷 데미지 텍스트 타입을 적용한다.
+- 2026-08-27: 사용자 결정으로 세션 개발 정책을 LAN 기준에서 Steam 기준으로 전환했다. `DefaultPlatformService=Steam`을 기본으로 사용하고 NULL/LAN은 Steam 초기화 불가 환경의 fallback으로만 유지한다.
 
 - 2026-08-24: C-09 공중 작은 눈덩이 투척 보정을 추가했다. 서버 release 시점에 공중이면 기존 `ThrowSmallSnowballInAir` 모션과 맞춰 피해 1.5배와 속도 기본 1.2배를 적용한다.
 - 2026-08-24: C-30 효과음 공간화 범위를 눈덩이 충돌음과 캐릭터 피격음으로 한정했다. UI 상호작용음은 해당 플레이어 로컬 2D 재생으로 유지하고, `ASnowballItem::ImpactSoundAttenuation`과 `ASnowRumbleCharacter::DamageSoundAttenuation`으로 attenuation 연결 지점을 추가했다.

@@ -10,6 +10,8 @@ public class SnowRumbleTarget : TargetRules
 		Type = TargetType.Game;
 		DefaultBuildSettings = BuildSettingsVersion.V7;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_8;
+		// Shipping builds must not compile or emit runtime log output.
+		bUseLoggingInShipping = false;
 		ExtraModuleNames.Add("SnowRumble");
 	}
 }
