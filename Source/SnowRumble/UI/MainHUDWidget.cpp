@@ -2,6 +2,7 @@
 
 #include "MainHUDWidget.h"
 
+#include "../Game/SnowmanModeGameState_K.h"
 #include "../Game/SnowRumbleGameState_C.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "../Player/SnowRumbleCharacter.h"
@@ -27,7 +28,7 @@ const TArray<ESnowRumbleTeam>& GetScoreboardTeamOrder()
 		ESnowRumbleTeam::Purple,
 		ESnowRumbleTeam::Pink,
 		ESnowRumbleTeam::Blue,
-		ESnowRumbleTeam::White
+		ESnowRumbleTeam::Orange
 	};
 	return TeamOrder;
 }
@@ -102,6 +103,17 @@ void UMainHUDWidget::ShowPersonalTextAlarm(const FText& Message)
 	}
 }
 
+void UMainHUDWidget::SetAimCrosshairVisibleImmediate(bool bVisible)
+{
+	if (AimCrosshair)
+	{
+		AimCrosshair->SetVisibility(
+			bVisible
+				? ESlateVisibility::SelfHitTestInvisible
+				: ESlateVisibility::Collapsed);
+	}
+}
+
 void UMainHUDWidget::RefreshHealthBars()
 {
 	UWorld* World = GetWorld();
@@ -112,8 +124,21 @@ void UMainHUDWidget::RefreshHealthBars()
 		return;
 	}
 
+	if (World->GetGameState<ASnowmanModeGameState>())
+	{
+		if (LocalHealthBar)
+		{
+			LocalHealthBar->SetVisibility(ESlateVisibility::Collapsed);
+			LocalHealthBar->SetObservedActor(nullptr);
+		}
+		TSet<TWeakObjectPtr<ASnowRumbleCharacter>> EmptyValidPlayers;
+		RemoveInvalidOtherPlayerHealthBars(EmptyValidPlayers);
+		return;
+	}
+
 	if (LocalHealthBar)
 	{
+		LocalHealthBar->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		LocalHealthBar->SetObservedActor(LocalCharacter);
 	}
 
@@ -183,7 +208,9 @@ void UMainHUDWidget::RefreshCombatHudPresentation()
 		return;
 	}
 
-	const bool bShouldShowAimCrosshair = LocalCharacter->IsAiming();
+	const bool bShouldShowAimCrosshair =
+		LocalCharacter->IsAiming()
+		&& !LocalCharacter->IsHoldingLargeSnowball();
 	if (AimCrosshair)
 	{
 		AimCrosshair->SetVisibility(
@@ -194,15 +221,21 @@ void UMainHUDWidget::RefreshCombatHudPresentation()
 
 	const bool bShouldShowChargeBar =
 		LocalCharacter->IsChargingSnowball();
+	const bool bShouldShowGrabTimeBar =
+		!bShouldShowChargeBar
+		&& LocalCharacter->IsGrabAttached()
+		&& !LocalCharacter->IsGrabbingPhysicsObject();
 	if (AimChargeProgressBar)
 	{
 		AimChargeProgressBar->SetVisibility(
-			bShouldShowChargeBar
+			(bShouldShowChargeBar || bShouldShowGrabTimeBar)
 				? ESlateVisibility::SelfHitTestInvisible
 				: ESlateVisibility::Collapsed);
 		AimChargeProgressBar->SetPercent(
 			bShouldShowChargeBar
 				? LocalCharacter->GetSnowballChargeProgress()
+				: bShouldShowGrabTimeBar
+					? LocalCharacter->GetGrabRemainingTimeProgress()
 				: 0.0f);
 	}
 }
@@ -238,6 +271,19 @@ void UMainHUDWidget::RefreshStartCountdownPresentation()
 	const ASnowRumbleGameState* SnowRumbleGameState = World
 		? World->GetGameState<ASnowRumbleGameState>()
 		: nullptr;
+	const ASnowmanModeGameState* SnowmanModeGameState = World
+		? World->GetGameState<ASnowmanModeGameState>()
+		: nullptr;
+	if (SnowmanModeGameState
+		&& SnowmanModeGameState->ShouldShowSnowmanModeStartCountdown())
+	{
+		StartCountdownText->SetText(
+			SnowmanModeGameState->GetSnowmanModeStartCountdownText());
+		StartCountdownText->SetVisibility(
+			ESlateVisibility::SelfHitTestInvisible);
+		return;
+	}
+
 	if (!SnowRumbleGameState
 		|| !SnowRumbleGameState->ShouldShowStartCountdown())
 	{
@@ -270,7 +316,7 @@ void UMainHUDWidget::RefreshCurrentRoundPresentation()
 	CurrentRoundText->SetText(SnowRumbleGameState->IsTiebreakerRound()
 		? NSLOCTEXT("SnowRumble", "CurrentRoundTiebreaker", "단판승부")
 		: FText::Format(
-			NSLOCTEXT("SnowRumble", "CurrentRoundFormat", "라운드 {0} / {1}"),
+			NSLOCTEXT("SnowRumble", "CurrentRoundFormat", "{0} / {1}"),
 			FText::AsNumber(SnowRumbleGameState->GetCurrentRoundNumber()),
 			FText::AsNumber(SnowRumbleGameState->GetRoundLimit())));
 	CurrentRoundText->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
@@ -278,7 +324,7 @@ void UMainHUDWidget::RefreshCurrentRoundPresentation()
 
 void UMainHUDWidget::RefreshMatchTimerPresentation()
 {
-	if (!MatchElapsedTimeText && !MapShrinkCountdownText)
+	if (!MatchElapsedTimeText && !MapShrinkCountdownText && !MapShrinkStatusText)
 	{
 		return;
 	}
@@ -287,6 +333,40 @@ void UMainHUDWidget::RefreshMatchTimerPresentation()
 	const ASnowRumbleGameState* SnowRumbleGameState = World
 		? World->GetGameState<ASnowRumbleGameState>()
 		: nullptr;
+	const ASnowmanModeGameState* SnowmanModeGameState = World
+		? World->GetGameState<ASnowmanModeGameState>()
+		: nullptr;
+	if (SnowmanModeGameState)
+	{
+		const bool bShouldShowSnowmanMatchTime =
+			SnowmanModeGameState->IsSnowmanModeTimerActive();
+
+		if (MatchElapsedTimeText)
+		{
+			if (bShouldShowSnowmanMatchTime)
+			{
+				MatchElapsedTimeText->SetText(
+					SnowmanModeGameState->GetSnowmanModeElapsedTimeText());
+				MatchElapsedTimeText->SetVisibility(
+					ESlateVisibility::SelfHitTestInvisible);
+			}
+			else
+			{
+				MatchElapsedTimeText->SetVisibility(ESlateVisibility::Collapsed);
+			}
+		}
+
+		if (MapShrinkCountdownText)
+		{
+			MapShrinkCountdownText->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		if (MapShrinkStatusText)
+		{
+			MapShrinkStatusText->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		return;
+	}
+
 	const bool bShouldShowMatchTimers =
 		SnowRumbleGameState
 		&& !SnowRumbleGameState->IsMatchInputLocked()
@@ -320,6 +400,24 @@ void UMainHUDWidget::RefreshMatchTimerPresentation()
 		else
 		{
 			MapShrinkCountdownText->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+
+	if (MapShrinkStatusText)
+	{
+		if (bShouldShowMatchTimers
+			&& !SnowRumbleGameState->IsTiebreakerRound())
+		{
+			MapShrinkStatusText->SetText(
+				SnowRumbleGameState->IsMapShrinkInProgress()
+					? NSLOCTEXT("SnowRumble", "MapShrinkInProgressStatus", "축소중")
+					: NSLOCTEXT("SnowRumble", "MapShrinkPendingStatus", "축소됩니다"));
+			MapShrinkStatusText->SetVisibility(
+				ESlateVisibility::SelfHitTestInvisible);
+		}
+		else
+		{
+			MapShrinkStatusText->SetVisibility(ESlateVisibility::Collapsed);
 		}
 	}
 }
@@ -584,7 +682,7 @@ UWidget* UMainHUDWidget::GetTeamScoreDisplayWidget(
 		return BlueTeamScoreRow
 			? BlueTeamScoreRow.Get()
 			: FindTeamScoreRowWidget(Team);
-	case ESnowRumbleTeam::White:
+	case ESnowRumbleTeam::Orange:
 		return WhiteTeamScoreRow
 			? WhiteTeamScoreRow.Get()
 			: FindTeamScoreRowWidget(Team);
@@ -625,7 +723,7 @@ UWidget* UMainHUDWidget::FindTeamScoreRowWidget(
 	case ESnowRumbleTeam::Blue:
 		RowName = TEXT("BlueTeamScoreRow");
 		break;
-	case ESnowRumbleTeam::White:
+	case ESnowRumbleTeam::Orange:
 		RowName = TEXT("WhiteTeamScoreRow");
 		break;
 	default:
@@ -657,7 +755,7 @@ UTextBlock* UMainHUDWidget::GetTeamScoreText(
 		return PinkTeamScoreText;
 	case ESnowRumbleTeam::Blue:
 		return BlueTeamScoreText;
-	case ESnowRumbleTeam::White:
+	case ESnowRumbleTeam::Orange:
 		return WhiteTeamScoreText;
 	default:
 		return nullptr;

@@ -58,6 +58,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby")
 	void HideLobbyEscapeMenu();
 
+	/** Steam 세션 초대창을 열고 현재 로비 세션을 초대 대상으로 지정한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby")
+	bool OpenSteamSessionInviteUI();
+
 	/** 로비 ESC 메뉴에서 메인메뉴 맵으로 이동한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby")
 	void RequestReturnToMainMenu();
@@ -74,12 +78,17 @@ public:
 	UFUNCTION(Client, Reliable)
 	void ClientRequestApplySavedLobbyPlayerName();
 
+	/** 방 설정 변경을 포커스 중인 게시판의 기존 피드백 UI로 표시한다. */
+	UFUNCTION(Client, Reliable)
+	void ClientShowLobbyBoardInvalidActionFeedback(const FText& ReasonText);
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void SetupInputComponent() override;
 	virtual void ClientShowLoadingScreen_Implementation() override;
 	virtual bool CanOpenChatInput() const override;
+	virtual bool IsGameplayUiInputOpen() const override;
 	virtual bool SupportsTeamChat() const override;
 
 	/** 대기방에서 자동 생성할 WBP_Lobby 클래스다. */
@@ -96,7 +105,8 @@ protected:
 
 	/** ESC 메뉴에서 메인메뉴로 이동할 때 사용할 travel URL이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Lobby")
-	FString MainMenuTravelUrl = TEXT("/Game/Maps/L_MainMenu");
+	FString MainMenuTravelUrl =
+		TEXT("/Game/Maps/L_MainMenu?game=/Game/Game/BP_MainMenuGameMode.BP_MainMenuGameMode_C");
 
 private:
 	/** 로컬 GameInstance에 저장된 닉네임을 서버로 제출한다. */

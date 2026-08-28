@@ -2,8 +2,11 @@
 
 #include "SnowRumbleLobbyGameState.h"
 
+#include "../Online/SnowRumbleSessionSubsystem.h"
+#include "Engine/GameInstance.h"
 #include "Net/UnrealNetwork.h"
 #include "SnowRumblePlayerState.h"
+#include "../UI/LobbyPlayerController.h"
 
 TArray<ASnowRumblePlayerState*> ASnowRumbleLobbyGameState::GetLobbyPlayers()
 	const
@@ -202,6 +205,18 @@ void ASnowRumbleLobbyGameState::SetLobbyModeFromServer(
 	}
 
 	LobbyMode = NewLobbyMode;
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USnowRumbleSessionSubsystem* SessionSubsystem =
+			GameInstance->GetSubsystem<USnowRumbleSessionSubsystem>())
+		{
+			SessionSubsystem->UpdateAdvertisedGameMode(
+				LobbyMode == ESnowRumbleLobbyMode::Snowman
+					? TEXT("Snowman")
+					: TEXT("TeamPvP"));
+		}
+	}
+	BroadcastRoomSettingsChangedAlarmToClients();
 	NotifyLobbyStateChanged();
 }
 
@@ -215,6 +230,7 @@ void ASnowRumbleLobbyGameState::SetMatchRoundLimitFromServer(
 	}
 
 	MatchRoundLimit = NormalizedRoundLimit;
+	BroadcastRoomSettingsChangedAlarmToClients();
 	NotifyLobbyStateChanged();
 }
 
@@ -227,6 +243,7 @@ void ASnowRumbleLobbyGameState::SetGameSpeedFromServer(
 	}
 
 	GameSpeed = NewGameSpeed;
+	BroadcastRoomSettingsChangedAlarmToClients();
 	NotifyLobbyStateChanged();
 }
 
@@ -272,4 +289,38 @@ int32 ASnowRumbleLobbyGameState::NormalizeRoundLimit(
 		return 3;
 	}
 	return 5;
+}
+
+void ASnowRumbleLobbyGameState::BroadcastRoomSettingsChangedAlarmToClients()
+	const
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const FText AlarmText = NSLOCTEXT(
+		"SnowRumble",
+		"LobbyRoomSettingsChangedAlarm",
+		"방장이 방설정을 변경하였습니다");
+	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
+		It;
+		++It)
+	{
+		ALobbyPlayerController* PlayerController =
+			Cast<ALobbyPlayerController>(It->Get());
+		const ASnowRumblePlayerState* PlayerState = PlayerController
+			? PlayerController->GetPlayerState<ASnowRumblePlayerState>()
+			: nullptr;
+		if (PlayerController && PlayerState && !PlayerState->IsLobbyHost())
+		{
+			PlayerController->ClientShowLobbyBoardInvalidActionFeedback(AlarmText);
+		}
+	}
 }

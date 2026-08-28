@@ -4,9 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "UObject/SoftObjectPath.h"
 #include "PodiumPlayerController.generated.h"
 
-class UPodiumWidget;
+class UPodiumWinnerWidget;
+class USoundBase;
+enum class ESnowRumbleTeam : uint8;
 
 UCLASS()
 class SNOWRUMBLE_API APodiumPlayerController : public APlayerController
@@ -16,24 +19,48 @@ class SNOWRUMBLE_API APodiumPlayerController : public APlayerController
 public:
 	APodiumPlayerController();
 
-	/** 서버가 확정한 포디움 결과 문구를 로컬 위젯에 전달한다. */
+	/** 서버가 확정한 포디움 승리 팀 정보를 로컬 위젯에 전달한다. */
 	UFUNCTION(Client, Reliable)
-	void ClientSetPodiumResults(
-		const FText& FirstPlace,
-		const FText& SecondPlace,
-		const FText& ThirdPlace,
+	void ClientSetPodiumWinner(
+		ESnowRumbleTeam WinningTeam,
 		const FText& Subtitle);
+
+	/** 포디움 복귀 카운트다운 문구만 갱신한다. */
+	UFUNCTION(Client, Reliable)
+	void ClientUpdatePodiumReturnSubtitle(const FText& Subtitle);
+
+	UFUNCTION(Client, Reliable, Category = "SnowRumble|Audio")
+	void ClientPlayBackgroundMusic(const FSoftObjectPath& BackgroundMusicPath);
+
+	UFUNCTION(Client, Reliable, Category = "SnowRumble|Audio")
+	void ClientStopBackgroundMusic();
+
+	/** 포디움 Pawn이 늦게 스폰된 클라이언트도 PvP 포디움과 같은 표시 상태로 맞춘다. */
+	UFUNCTION(Client, Reliable)
+	void ClientRefreshPodiumPawnPresentation();
+
+	/** 현재 재생 중인 배경음악의 볼륨 프리뷰를 갱신한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Audio")
+	void SetBackgroundMusicPreviewVolume(float MasterVolume, float BgmVolume);
 
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void OnPossess(APawn* InPawn) override;
 
 	/** 포디움에서 로컬 플레이어에게 보여줄 UI WBP 클래스다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Podium|UI")
-	TSubclassOf<UPodiumWidget> PodiumWidgetClass;
+	TSubclassOf<UPodiumWinnerWidget> PodiumWinnerWidgetClass;
+
+	/** 포디움에서 재생할 배경음악이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")
+	TObjectPtr<USoundBase> BackgroundMusicSound;
 
 	/** 현재 로컬 화면에 띄운 포디움 UI 인스턴스다. */
 	UPROPERTY(Transient)
-	TObjectPtr<UPodiumWidget> PodiumWidget;
+	TObjectPtr<UPodiumWinnerWidget> PodiumWinnerWidget;
+
+	void PlayBackgroundMusic(USoundBase* Music);
+	void StopBackgroundMusic();
+	void ApplyPodiumPawnPresentation(APawn* InPawn);
 };
-	

@@ -106,6 +106,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Match")
 	float GetMapShrinkIntervalSeconds() const;
 
+	/** 서버가 GameMode의 맵 축소 간격을 설정한다. */
+	void SetMapShrinkIntervalSecondsFromServer(float IntervalSeconds);
+
+	/** 서버가 GameMode의 맵 축소 대기 시간을 설정한다. */
+	void SetMapShrinkWaitDurationSecondsFromServer(float WaitDurationSeconds);
+
 	virtual void GetLifetimeReplicatedProps(
 		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
@@ -143,6 +149,12 @@ protected:
 
 	UPROPERTY(Replicated)
 	ESnowRumbleGameSpeed GameSpeed = ESnowRumbleGameSpeed::Normal;
+
+	UPROPERTY(Replicated)
+	float MapShrinkIntervalSeconds = 20.0f;
+
+	UPROPERTY(Replicated)
+	float MapShrinkWaitDurationSeconds = 20.0f;
 
 	UPROPERTY(ReplicatedUsing = OnRep_RoundResult)
 	bool bRoundEnded = false;

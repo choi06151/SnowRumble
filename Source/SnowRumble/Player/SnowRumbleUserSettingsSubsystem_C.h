@@ -27,6 +27,7 @@ public:
 	FSnowRumbleUserSettingsChanged OnMicrophoneSettingsChanged;
 
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Input")
 	void SetKeyBinding(FName BindingId, FKey NewKey);
@@ -59,16 +60,31 @@ public:
 	float GetMaxMouseSensitivity() const;
 
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Audio")
+	void SetMasterVolume(float NewVolume);
+
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Audio")
 	void SetBgmVolume(float NewVolume);
 
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Audio")
 	void SetSfxVolume(float NewVolume);
 
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Audio")
+	void SetVoiceVolume(float NewVolume);
+
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Audio")
+	void ResetMasterVolume();
+
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Audio")
 	void ResetBgmVolume();
 
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Audio")
 	void ResetSfxVolume();
+
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Audio")
+	void ResetVoiceVolume();
+
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|User Settings|Audio")
+	float GetMasterVolume() const;
 
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|User Settings|Audio")
 	float GetBgmVolume() const;
@@ -77,7 +93,13 @@ public:
 	float GetSfxVolume() const;
 
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|User Settings|Audio")
+	float GetVoiceVolume() const;
+
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|User Settings|Audio")
 	float GetDefaultAudioVolume() const;
+
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|User Settings|Audio")
+	float GetDefaultVoiceVolume() const;
 
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Microphone")
 	void SetMicrophoneVolume(float NewVolume);
@@ -100,12 +122,34 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|User Settings|Microphone")
 	ESnowRumbleMicrophoneMode GetDefaultMicrophoneMode() const;
 
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Microphone")
+	void SetMicrophoneDeviceId(const FString& NewDeviceId);
+
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Microphone")
+	void ResetMicrophoneDeviceId();
+
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|User Settings|Microphone")
+	FString GetMicrophoneDeviceId() const;
+
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|User Settings|Language")
+	void SetLanguageCulture(const FString& NewCulture);
+
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|User Settings|Language")
+	FString GetLanguageCulture() const;
+
 private:
+	void ApplyLanguageCulture(const FString& Culture);
+	void AddSnowRumbleLocalizationPath(TArray<FString>& LocalizationPaths);
+	static void LogLanguageProbe(const FString& Culture);
+
 	UPROPERTY(Config)
 	TMap<FName, FKey> KeyBindings;
 
 	UPROPERTY(Config)
 	float MouseSensitivity = 1.0f;
+
+	UPROPERTY(Config)
+	float MasterVolume = 1.0f;
 
 	UPROPERTY(Config)
 	float BgmVolume = 1.0f;
@@ -114,17 +158,29 @@ private:
 	float SfxVolume = 1.0f;
 
 	UPROPERTY(Config)
-	float MicrophoneVolume = 1.0f;
+	float VoiceVolume = DefaultVoiceVolume;
+
+	UPROPERTY(Config)
+	float MicrophoneVolume = DefaultMicrophoneVolume;
 
 	UPROPERTY(Config)
 	ESnowRumbleMicrophoneMode MicrophoneMode =
 		ESnowRumbleMicrophoneMode::PushToTalk;
 
+	UPROPERTY(Config)
+	FString MicrophoneDeviceId;
+
+	UPROPERTY(Config)
+	FString LanguageCulture = TEXT("ko");
+
 	static constexpr float MinMouseSensitivity = 0.2f;
 	static constexpr float MaxMouseSensitivity = 3.0f;
 	static constexpr float DefaultMouseSensitivity = 1.0f;
 	static constexpr float DefaultAudioVolume = 1.0f;
-	static constexpr float DefaultMicrophoneVolume = 1.0f;
+	static constexpr float MaxVoiceVolume = 2.0f;
+	static constexpr float MaxMicrophoneVolume = 2.0f;
+	static constexpr float DefaultVoiceVolume = 1.5f;
+	static constexpr float DefaultMicrophoneVolume = 1.5f;
 	static constexpr ESnowRumbleMicrophoneMode DefaultMicrophoneMode =
 		ESnowRumbleMicrophoneMode::PushToTalk;
 };

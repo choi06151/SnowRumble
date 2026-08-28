@@ -12,6 +12,23 @@
 
 namespace
 {
+constexpr int32 SnowRumbleChatMessageFontSize = 28;
+
+void ApplySnowRumbleChatMessageFont(FSlateFontInfo& FontInfo)
+{
+	static const TCHAR* ChatMessageFontPath =
+		TEXT("/Game/Font/온글잎_박다현체_Font.온글잎_박다현체_Font");
+
+	if (UObject* FontObject = StaticLoadObject(
+		UObject::StaticClass(),
+		nullptr,
+		ChatMessageFontPath))
+	{
+		FontInfo.FontObject = FontObject;
+	}
+	FontInfo.Size = SnowRumbleChatMessageFontSize;
+}
+
 FText GetChatChannelText(ESnowRumbleChatChannel Channel)
 {
 	switch (Channel)
@@ -23,6 +40,12 @@ FText GetChatChannelText(ESnowRumbleChatChannel Channel)
 		return NSLOCTEXT("SnowRumble", "ChatChannelAll", "전체");
 	}
 }
+}
+
+UChatWidget::UChatWidget(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	ApplySnowRumbleChatMessageFont(ChatMessageFont);
 }
 
 void UChatWidget::SetChatPlayerController(
@@ -49,6 +72,7 @@ void UChatWidget::NativeConstruct()
 		OriginalChatLogBorderBrushColor = ChatLogBorder->GetBrushColor();
 	}
 
+	ApplySnowRumbleChatMessageFont(ChatMessageFont);
 	ApplyConfiguredFonts();
 	RefreshChatLogChrome();
 	RefreshChannelText();
@@ -69,6 +93,18 @@ void UChatWidget::NativeTick(
 	float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	const bool bChatToggleKeyDown =
+		bChatInputOpen
+		&& ChatPlayerController
+		&& ChatPlayerController->IsInputKeyDown(EKeys::Tab);
+	if (bChatToggleKeyDown
+		&& !bChatChannelToggleKeyWasDown
+		&& LastChatChannelToggleFrameNumber != GFrameCounter)
+	{
+		ToggleChatChannel();
+	}
+	bChatChannelToggleKeyWasDown = bChatToggleKeyDown;
 
 	RefreshChatVisibility();
 }
@@ -125,11 +161,7 @@ void UChatWidget::OpenChatInput(ESnowRumbleChatChannel InitialChannel)
 	{
 		ChatInputTextBox->SetText(FText::GetEmpty());
 		ChatInputTextBox->SetVisibility(ESlateVisibility::Visible);
-		if (ChatPlayerController)
-		{
-			ChatInputTextBox->SetUserFocus(ChatPlayerController);
-		}
-		ChatInputTextBox->SetKeyboardFocus();
+		FocusChatInputTextBox();
 	}
 	if (ChatChannelText)
 	{
@@ -138,6 +170,25 @@ void UChatWidget::OpenChatInput(ESnowRumbleChatChannel InitialChannel)
 	RefreshChatLogChrome();
 
 	OnChatInputOpenChanged(true);
+}
+
+UWidget* UChatWidget::GetChatInputFocusWidget() const
+{
+	return ChatInputTextBox ? ChatInputTextBox.Get() : nullptr;
+}
+
+void UChatWidget::FocusChatInputTextBox()
+{
+	if (!bChatInputOpen || !ChatInputTextBox)
+	{
+		return;
+	}
+
+	if (ChatPlayerController)
+	{
+		ChatInputTextBox->SetUserFocus(ChatPlayerController);
+	}
+	ChatInputTextBox->SetKeyboardFocus();
 }
 
 void UChatWidget::CloseChatInput()
@@ -209,6 +260,8 @@ ESnowRumbleChatChannel UChatWidget::GetActiveChatChannel() const
 
 void UChatWidget::ToggleChatChannel()
 {
+	LastChatChannelToggleFrameNumber = GFrameCounter;
+
 	if (!ChatPlayerController || !ChatPlayerController->IsTeamChatAvailable())
 	{
 		SetActiveChatChannel(ESnowRumbleChatChannel::All);

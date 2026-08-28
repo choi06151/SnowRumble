@@ -11,6 +11,7 @@ class AActor;
 class ASnowRumbleCharacter;
 class APlayerStart;
 class UAnimationAsset;
+class UAudioComponent;
 class UCanvas;
 class UCanvasRenderTarget2D;
 class UCustomizationWidget;
@@ -18,6 +19,7 @@ class UBorder;
 class UImage;
 class USizeBox;
 class UUserWidget;
+class USoundBase;
 
 UCLASS(Blueprintable)
 class SNOWRUMBLE_API ACustomizationPlayerController : public APlayerController
@@ -68,6 +70,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
 	void AdjustPaintBrushSizeFromWheel(float WheelDelta);
 
+	/** 0~1 정규화 값으로 페인트 브러시 크기를 설정한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
+	void SetPaintBrushSizeFromNormalizedValue(float NormalizedValue);
+
+	/** 현재 페인트 브러시 크기를 0~1 정규화 값으로 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization")
+	float GetPaintBrushSizeNormalizedValue() const;
+
 	/** 현재 페인트 브러시 크기를 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization")
 	float GetPaintBrushSize() const;
@@ -95,6 +105,27 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization|Hat")
 	int32 GetPreviewHatMeshIndex() const;
+
+	/** 액세서리 종류별 프리뷰 Static Mesh 선택 인덱스를 설정한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization|Accessory")
+	void SetPreviewAccessoryMeshIndex(
+		ESnowRumbleCustomizationAccessory Accessory,
+		int32 NewMeshIndex);
+
+	/** 액세서리 종류별 이전 후보를 선택한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization|Accessory")
+	void SelectPreviousPreviewAccessory(
+		ESnowRumbleCustomizationAccessory Accessory);
+
+	/** 액세서리 종류별 다음 후보를 선택한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization|Accessory")
+	void SelectNextPreviewAccessory(
+		ESnowRumbleCustomizationAccessory Accessory);
+
+	/** 액세서리 종류별 현재 프리뷰 선택 인덱스를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization|Accessory")
+	int32 GetPreviewAccessoryMeshIndex(
+		ESnowRumbleCustomizationAccessory Accessory) const;
 
 	/** 마지막으로 완료한 드로잉 선 하나를 제거한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
@@ -124,6 +155,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization|Cursor")
 	void SetPaintCursorActive(bool bNewPaintCursorActive);
 
+	/** 슬라이더나 다른 UI가 마우스를 캡처한 뒤 커스터마이징 커서를 다시 적용한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization|Cursor")
+	void RefreshCustomizationMouseCursor();
+
+	/** 현재 재생 중인 배경음악의 볼륨 프리뷰를 갱신한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Audio")
+	void SetBackgroundMusicPreviewVolume(float MasterVolume, float BgmVolume);
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -140,6 +179,10 @@ protected:
 	/** 돌아가기 버튼으로 이동할 메인메뉴 URL이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization")
 	FString MainMenuTravelUrl = TEXT("/Game/Maps/L_MainMenu");
+
+	/** 커스터마이징에서 재생할 배경음악이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")
+	TObjectPtr<USoundBase> BackgroundMusicSound;
 
 	/** 커스터마이징 화면에서 평소에 사용할 전역 기본 마우스 커서 위젯이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Cursor")
@@ -169,6 +212,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization")
 	TSubclassOf<ASnowRumbleCharacter> PreviewCharacterClass;
 
+	/** 커스텀 레벨 프리뷰 캐릭터 Mesh의 상대 Z 위치에 더할 오프셋(cm)이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Preview")
+	float PreviewCharacterZOffset = 0.0f;
+
+	/** 커스터마이징 레벨에서만 적용할 프리뷰 캐릭터 Mesh 배율이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Preview", meta = (ClampMin = "0.1", ClampMax = "3.0"))
+	float PreviewCharacterMeshScale = 1.15f;
+
 	/** 커스터마이징 방에서 프리뷰 캐릭터에 사용할 단일 애니메이션 에셋이다. 비워두면 현재 애니메이션을 그대로 멈춘다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Preview")
 	TObjectPtr<UAnimationAsset> PreviewAnimationAsset;
@@ -189,6 +240,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "0.0001", ClampMax = "1.0"))
 	float PaintPointMinDistance = 0.0025f;
 
+	/** UV 좌표 변화가 이 값보다 크면 UV seam으로 보고 현재 선을 끊는다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float PaintPointMaxDistance = 0.08f;
+
 	/** RenderTarget에 그릴 선 두께다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "1.0", ClampMax = "256.0"))
 	float PaintStrokeThickness = 12.0f;
@@ -206,12 +261,12 @@ protected:
 	float PaintBrushWheelStep = 2.0f;
 
 	/** 브러시 크기의 최소값이다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "1.0", ClampMax = "256.0"))
-	float MinPaintBrushSize = 1.0f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "1.0", ClampMax = "1024.0"))
+	float MinPaintBrushSize = 5.0f;
 
 	/** 브러시 크기의 최대값이다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "1.0", ClampMax = "256.0"))
-	float MaxPaintBrushSize = 96.0f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "1.0", ClampMax = "1024.0"))
+	float MaxPaintBrushSize = 70.0f;
 
 	/** 머티리얼 UV 방향에 맞춰 드로잉 RenderTarget Y축을 뒤집을지 정한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint")
@@ -221,9 +276,13 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint")
 	FVector2D PaintCursorScreenOffset = FVector2D::ZeroVector;
 
-	/** 소프트웨어 페인트 커서의 좌상단 기준 표시를 원 중심 trace로 보정할지 정한다. */
+	/** 소프트웨어 페인트 커서 hotspot이 고정으로 어긋난 경우 아래 고정 보정값을 trace에 반영할지 정한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint")
 	bool bUsePaintCursorCenterTraceOffset = true;
+
+	/** 브러시 크기와 무관하게 trace에 더할 고정 커서 중심 보정값이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint")
+	FVector2D PaintCursorCenterTraceOffset = FVector2D::ZeroVector;
 
 	/** 페인트를 허용할 머티리얼 슬롯이다. -1이면 모든 슬롯을 허용한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint")
@@ -250,6 +309,9 @@ private:
 	/** 현재 페이지와 커서 슬롯에 맞춰 표시할 소프트웨어 커서를 적용한다. */
 	void ApplyCurrentMouseCursorWidget();
 
+	/** 커스터마이징 화면에서는 마우스/UI 입력만 쓰도록 Pawn 이동과 시점 입력을 잠근다. */
+	void ApplyCustomizationInputLock();
+
 	/** 원형 페인트 커서 위젯의 표시 크기와 색을 현재 브러시에 맞춘다. */
 	void UpdatePaintMouseCursorPresentation();
 
@@ -260,11 +322,23 @@ private:
 	/** 현재 조종 중인 커마용 캐릭터를 반환한다. */
 	ASnowRumbleCharacter* GetPreviewCharacter() const;
 
+	/** 커스터마이징 배경음악을 재생한다. */
+	void PlayBackgroundMusic();
+
+	/** 현재 재생 중인 커스터마이징 배경음악을 중지한다. */
+	void StopBackgroundMusic();
+
 	/** 프리뷰 캐릭터를 찾거나 없으면 스폰한다. */
 	ASnowRumbleCharacter* EnsurePreviewCharacter();
 
 	/** 프리뷰 캐릭터 자동 스폰 위치를 찾는다. */
 	FTransform GetPreviewCharacterSpawnTransform() const;
+
+	/** 프리뷰 캐릭터의 최종 Z 위치를 보정한다. */
+	void ApplyPreviewCharacterZOffset();
+
+	/** 커스터마이징 레벨의 프리뷰 캐릭터 Mesh 크기를 적용한다. */
+	void ApplyPreviewCharacterMeshScale();
 
 	/** 커스터마이징 방 전용 애니메이션 에셋과 정지 상태를 프리뷰 캐릭터에 적용한다. */
 	void ApplyPreviewAnimationSettings();
@@ -353,6 +427,8 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<ASnowRumbleCharacter> CachedPreviewCharacter;
+
+	TWeakObjectPtr<UAudioComponent> BackgroundMusicComponent;
 
 	TArray<FSnowRumblePaintStroke> PaintStrokes;
 	FSnowRumblePaintStroke ActivePaintStroke;

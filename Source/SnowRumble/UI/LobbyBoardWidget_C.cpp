@@ -2,6 +2,7 @@
 
 #include "LobbyBoardWidget_C.h"
 
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "../Game/SnowRumbleLobbyGameMode.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "../Game/SnowRumbleLobbyGameState.h"
@@ -31,8 +32,8 @@ ESnowRumbleTeam ToSnowRumbleTeam(ELobbyBoardTeamColor TeamColor)
 		return ESnowRumbleTeam::Pink;
 	case ELobbyBoardTeamColor::Blue:
 		return ESnowRumbleTeam::Blue;
-	case ELobbyBoardTeamColor::White:
-		return ESnowRumbleTeam::White;
+	case ELobbyBoardTeamColor::Orange:
+		return ESnowRumbleTeam::Orange;
 	default:
 		return ESnowRumbleTeam::None;
 	}
@@ -171,9 +172,14 @@ void ULobbyBoardWidget::ResolveBoardButtons()
 		BlueTeamButton =
 			WidgetTree->FindWidget<UButton>(TEXT("BlueTeamButton"));
 	}
-	if (!WhiteTeamButton)
+	if (!OrangeTeamButton)
 	{
-		WhiteTeamButton =
+		OrangeTeamButton =
+			WidgetTree->FindWidget<UButton>(TEXT("OrangeTeamButton"));
+	}
+	if (!OrangeTeamButton)
+	{
+		OrangeTeamButton =
 			WidgetTree->FindWidget<UButton>(TEXT("WhiteTeamButton"));
 	}
 	if (!PvpModeButton)
@@ -295,9 +301,14 @@ void ULobbyBoardWidget::ResolveTeamCountTexts()
 		BlueTeamCountText =
 			WidgetTree->FindWidget<UTextBlock>(TEXT("BlueTeamCountText"));
 	}
-	if (!WhiteTeamCountText)
+	if (!OrangeTeamCountText)
 	{
-		WhiteTeamCountText =
+		OrangeTeamCountText =
+			WidgetTree->FindWidget<UTextBlock>(TEXT("OrangeTeamCountText"));
+	}
+	if (!OrangeTeamCountText)
+	{
+		OrangeTeamCountText =
 			WidgetTree->FindWidget<UTextBlock>(TEXT("WhiteTeamCountText"));
 	}
 }
@@ -376,11 +387,11 @@ void ULobbyBoardWidget::BindBoardButtons()
 			this,
 			&ULobbyBoardWidget::HandleBlueTeamButtonClicked);
 	}
-	if (WhiteTeamButton)
+	if (OrangeTeamButton)
 	{
-		WhiteTeamButton->OnClicked.AddUniqueDynamic(
+		OrangeTeamButton->OnClicked.AddUniqueDynamic(
 			this,
-			&ULobbyBoardWidget::HandleWhiteTeamButtonClicked);
+			&ULobbyBoardWidget::HandleOrangeTeamButtonClicked);
 	}
 	if (PvpModeButton)
 	{
@@ -512,9 +523,9 @@ void ULobbyBoardWidget::UnbindBoardButtons()
 	{
 		BlueTeamButton->OnClicked.RemoveAll(this);
 	}
-	if (WhiteTeamButton)
+	if (OrangeTeamButton)
 	{
-		WhiteTeamButton->OnClicked.RemoveAll(this);
+		OrangeTeamButton->OnClicked.RemoveAll(this);
 	}
 	if (PvpModeButton)
 	{
@@ -633,9 +644,9 @@ void ULobbyBoardWidget::HandleBlueTeamButtonClicked()
 	SubmitTeamColor(ELobbyBoardTeamColor::Blue);
 }
 
-void ULobbyBoardWidget::HandleWhiteTeamButtonClicked()
+void ULobbyBoardWidget::HandleOrangeTeamButtonClicked()
 {
-	SubmitTeamColor(ELobbyBoardTeamColor::White);
+	SubmitTeamColor(ELobbyBoardTeamColor::Orange);
 }
 
 void ULobbyBoardWidget::HandlePvpModeButtonClicked()
@@ -779,6 +790,19 @@ void ULobbyBoardWidget::SubmitTeamColorFromBlueprint(
 	OnTeamColorButtonClicked(TeamColor);
 }
 
+void ULobbyBoardWidget::ShowInvalidActionFeedbackForController(
+	ALobbyPlayerController* RequestingPlayerController,
+	const FText& ReasonText)
+{
+	if (!RequestingPlayerController ||
+		GetRequestingLobbyPlayerController() != RequestingPlayerController)
+	{
+		return;
+	}
+
+	ShowInvalidActionFeedback(ReasonText);
+}
+
 ALobbyPlayerController* ULobbyBoardWidget::GetRequestingLobbyPlayerController()
 	const
 {
@@ -832,7 +856,7 @@ void ULobbyBoardWidget::RefreshTeamCountTexts()
 	SetTeamCountText(PurpleTeamCountText, ESnowRumbleTeam::Purple);
 	SetTeamCountText(PinkTeamCountText, ESnowRumbleTeam::Pink);
 	SetTeamCountText(BlueTeamCountText, ESnowRumbleTeam::Blue);
-	SetTeamCountText(WhiteTeamCountText, ESnowRumbleTeam::White);
+	SetTeamCountText(OrangeTeamCountText, ESnowRumbleTeam::Orange);
 }
 
 void ULobbyBoardWidget::RefreshReadyStartButtonText()
@@ -844,14 +868,16 @@ void ULobbyBoardWidget::RefreshReadyStartButtonText()
 
 	if (IsRequestingPlayerHost())
 	{
-		ReadyStartButtonText->SetText(FText::FromString(TEXT("게임 시작")));
+		ReadyStartButtonText->SetText(
+			NSLOCTEXT("SnowRumble", "LobbyBoardStartGame", "게임 시작"));
 		return;
 	}
 
 	const ASnowRumblePlayerState* PlayerState = GetRequestingPlayerState();
 	const bool bReady = PlayerState && PlayerState->IsLobbyReady();
-	ReadyStartButtonText->SetText(FText::FromString(
-		bReady ? TEXT("준비 취소") : TEXT("준비 완료")));
+	ReadyStartButtonText->SetText(bReady
+		? NSLOCTEXT("SnowRumble", "LobbyBoardCancelReady", "준비 취소")
+		: NSLOCTEXT("SnowRumble", "LobbyBoardReady", "준비 완료"));
 }
 
 void ULobbyBoardWidget::RefreshMatchRoundLimitText()
@@ -906,8 +932,8 @@ void ULobbyBoardWidget::RefreshSelectedButtonVisuals()
 		BlueTeamButton,
 		SelectedTeam == ESnowRumbleTeam::Blue);
 	SetButtonSelectedVisual(
-		WhiteTeamButton,
-		SelectedTeam == ESnowRumbleTeam::White);
+		OrangeTeamButton,
+		SelectedTeam == ESnowRumbleTeam::Orange);
 
 	const ESnowRumbleLobbyMode LobbyMode = LobbyGameState
 		? LobbyGameState->GetLobbyMode()

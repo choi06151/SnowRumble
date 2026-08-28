@@ -2,6 +2,9 @@
 
 #include "HealthBarWidget.h"
 
+#include "../Game/SnowmanModeGameState_K.h"
+#include "../Game/SnowRumblePlayerState.h"
+#include "../Player/SnowRumbleCharacter.h"
 #include "../Player/SnowRumbleHealthComponent.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
@@ -10,6 +13,12 @@
 void UHealthBarWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+
+	if (ShouldHideForSnowmanMode())
+	{
+		SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
 
 	if (ObservedHealthComponent)
 	{
@@ -21,6 +30,7 @@ void UHealthBarWidget::NativeConstruct()
 	{
 		UpdateHealthPresentation(0.0f, 1.0f);
 	}
+	UpdateObservedPlayerName();
 }
 
 void UHealthBarWidget::NativeDestruct()
@@ -36,20 +46,36 @@ void UHealthBarWidget::NativeTick(
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
+	if (ShouldHideForSnowmanMode())
+	{
+		SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
 	if (ObservedHealthComponent)
 	{
 		UpdateHealthPresentation(
 			ObservedHealthComponent->GetCurrentHealth(),
 			ObservedHealthComponent->GetMaxHealth());
 	}
+	UpdateObservedPlayerName();
 }
 
 void UHealthBarWidget::SetObservedActor(AActor* NewObservedActor)
 {
+	ObservedActor = NewObservedActor;
+	if (ShouldHideForSnowmanMode())
+	{
+		SetVisibility(ESlateVisibility::Collapsed);
+		SetObservedHealthComponent(nullptr);
+		return;
+	}
+
 	SetObservedHealthComponent(
 		NewObservedActor
 			? NewObservedActor->FindComponentByClass<USnowRumbleHealthComponent>()
 			: nullptr);
+	UpdateObservedPlayerName();
 }
 
 void UHealthBarWidget::SetObservedHealthComponent(
@@ -85,10 +111,22 @@ void UHealthBarWidget::UnbindObservedHealthComponent()
 	}
 }
 
+bool UHealthBarWidget::ShouldHideForSnowmanMode() const
+{
+	const UWorld* World = GetWorld();
+	return World && World->GetGameState<ASnowmanModeGameState>();
+}
+
 void UHealthBarWidget::UpdateHealthPresentation(
 	float CurrentHealth,
 	float MaxHealth)
 {
+	if (ShouldHideForSnowmanMode())
+	{
+		SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
 	const float SafeMaxHealth = FMath::Max(MaxHealth, 1.0f);
 	const float HealthRatio =
 		FMath::Clamp(CurrentHealth / SafeMaxHealth, 0.0f, 1.0f);
@@ -105,6 +143,24 @@ void UHealthBarWidget::UpdateHealthPresentation(
 			FText::AsNumber(FMath::RoundToInt(CurrentHealth)),
 			FText::AsNumber(FMath::RoundToInt(SafeMaxHealth))));
 	}
+}
+
+void UHealthBarWidget::UpdateObservedPlayerName()
+{
+	if (!PlayerNameText)
+	{
+		return;
+	}
+
+	const ASnowRumbleCharacter* Character =
+		Cast<ASnowRumbleCharacter>(ObservedActor);
+	const ASnowRumblePlayerState* PlayerState = Character
+		? Character->GetPlayerState<ASnowRumblePlayerState>()
+		: nullptr;
+	PlayerNameText->SetText(
+		PlayerState
+			? FText::FromString(PlayerState->GetLobbyPlayerName())
+			: FText::GetEmpty());
 }
 
 void UHealthBarWidget::HandleHealthChanged(

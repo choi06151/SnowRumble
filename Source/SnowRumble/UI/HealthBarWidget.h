@@ -45,12 +45,22 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> HealthTextBlock;
 
+	/** WBP에서 같은 이름으로 만들면 현재 체력 대상 플레이어 이름을 표시한다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> PlayerNameText;
+
 private:
 	/** HP 컴포넌트 이벤트를 해제한다. */
 	void UnbindObservedHealthComponent();
 
+	/** 눈사람 모드에서는 HP 바 위젯 자체를 숨겨 다른 PvP UI는 유지한다. */
+	bool ShouldHideForSnowmanMode() const;
+
 	/** HP 값으로 Progress Bar와 선택 텍스트를 갱신한다. */
 	void UpdateHealthPresentation(float CurrentHealth, float MaxHealth);
+
+	/** 복제된 PlayerState에서 체력 대상 플레이어 이름을 갱신한다. */
+	void UpdateObservedPlayerName();
 
 	/** HP 컴포넌트의 복제 변경 이벤트를 받아 UI를 갱신한다. */
 	UFUNCTION()
@@ -58,4 +68,7 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<USnowRumbleHealthComponent> ObservedHealthComponent;
+
+	UPROPERTY(Transient)
+	TObjectPtr<AActor> ObservedActor;
 };

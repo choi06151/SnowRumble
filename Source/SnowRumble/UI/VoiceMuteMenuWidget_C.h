@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "SnowRumbleAudioUserWidget.h"
 #include "VoiceMuteMenuWidget_C.generated.h"
 
 class ASnowRumblePlayerController;
@@ -13,7 +13,7 @@ class UPanelWidget;
 class UVoiceMutePlayerRowWidget;
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API UVoiceMuteMenuWidget : public UUserWidget
+class SNOWRUMBLE_API UVoiceMuteMenuWidget : public USnowRumbleAudioUserWidget
 {
 	GENERATED_BODY()
 

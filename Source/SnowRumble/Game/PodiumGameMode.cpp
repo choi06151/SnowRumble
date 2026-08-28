@@ -2,6 +2,7 @@
 
 #include "PodiumGameMode.h"
 
+#include "../Audio/SnowRumbleAudioHelpers.h"
 #include "PodiumPlayerController.h"
 #include "SnowRumbleMatchSubsystem_C.h"
 #include "SnowRumblePlayerState.h"
@@ -11,18 +12,66 @@
 #include "EngineUtils.h"
 #include "GameFramework/PlayerStart.h"
 #include "Kismet/GameplayStatics.h"
+#include "Sound/SoundBase.h"
+
+namespace
+{
+constexpr const TCHAR* PodiumLobbyGameModeTravelPath =
+	TEXT("/Game/Game/BP_LobbyGameMode.BP_LobbyGameMode_C");
+
+FText BuildPodiumReturnSubtitle(int32 SecondsRemaining)
+{
+	const int32 SafeSecondsRemaining = FMath::Max(0, SecondsRemaining);
+	return FText::Format(
+		NSLOCTEXT(
+			"SnowRumble",
+			"PodiumReturnSubtitleCountdown",
+			"{0}초 후 로비로 돌아갑니다."),
+		FText::AsNumber(SafeSecondsRemaining));
+}
+
+void EnsurePodiumTravelOption(FString& TravelUrl, const TCHAR* Option)
+{
+	if (!TravelUrl.Contains(Option, ESearchCase::IgnoreCase))
+	{
+		TravelUrl += Option;
+	}
+}
+
+void EnsurePodiumTravelOptionValue(
+	FString& TravelUrl,
+	const TCHAR* OptionName,
+	const FString& OptionValue)
+{
+	if (OptionValue.IsEmpty())
+	{
+		return;
+	}
+
+	const FString OptionPrefix = FString::Printf(TEXT("%s="), OptionName);
+	if (!TravelUrl.Contains(OptionPrefix, ESearchCase::IgnoreCase))
+	{
+		TravelUrl += FString::Printf(
+			TEXT("?%s=%s"),
+			OptionName,
+			*OptionValue);
+	}
+}
+}
 
 APodiumGameMode::APodiumGameMode()
 {
 	PlayerControllerClass = APodiumPlayerController::StaticClass();
 	DefaultPawnClass = ASnowRumbleCharacter::StaticClass();
 	PlayerStateClass = ASnowRumblePlayerState::StaticClass();
+	bStartPlayersAsSpectators = true;
 }
 
 void APodiumGameMode::BeginPlay()
 {
 	Super::BeginPlay();
 	SchedulePodiumSetup();
+	BroadcastBackgroundMusic();
 }
 
 void APodiumGameMode::InitGame(
@@ -46,6 +95,7 @@ void APodiumGameMode::PostLogin(APlayerController* NewPlayer)
 {
 	AGameModeBase::PostLogin(NewPlayer);
 	SchedulePodiumSetup();
+	BroadcastBackgroundMusic();
 }
 
 void APodiumGameMode::HandleStartingNewPlayer_Implementation(
@@ -53,6 +103,33 @@ void APodiumGameMode::HandleStartingNewPlayer_Implementation(
 {
 	AGameModeBase::HandleStartingNewPlayer_Implementation(NewPlayer);
 	SchedulePodiumSetup();
+	BroadcastBackgroundMusic();
+}
+
+void APodiumGameMode::BroadcastBackgroundMusic() const
+{
+	UWorld* World = GetWorld();
+	if (!World || !BackgroundMusicSound)
+	{
+		return;
+	}
+
+	const FSoftObjectPath BackgroundMusicPath(BackgroundMusicSound);
+	if (!BackgroundMusicPath.IsValid())
+	{
+		return;
+	}
+
+	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
+		It;
+		++It)
+	{
+		if (APodiumPlayerController* PodiumController =
+			Cast<APodiumPlayerController>(It->Get()))
+		{
+			PodiumController->ClientPlayBackgroundMusic(BackgroundMusicPath);
+		}
+	}
 }
 
 void APodiumGameMode::SchedulePodiumSetup()
@@ -99,16 +176,12 @@ void APodiumGameMode::SetupPodiumFromServer()
 		return;
 	}
 
-	TArray<APlayerStart*> FirstPlaceStarts;
-	TArray<APlayerStart*> SecondPlaceStarts;
-	TArray<APlayerStart*> ThirdPlaceStarts;
-	CollectPodiumPlayerStarts(
-		FirstPlaceStarts,
-		SecondPlaceStarts,
-		ThirdPlaceStarts);
+	PodiumWinningTeam = TeamResults[0].Team;
+	TArray<APlayerStart*> WinningTeamStarts;
+	CollectPodiumPlayerStarts(WinningTeamStarts);
 
 	ACameraActor* PodiumCamera = FindPodiumCamera();
-	TMap<ESnowRumbleTeam, int32> UsedStartCounts;
+	TArray<APlayerController*> WinningTeamControllers;
 
 	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
 		It;
@@ -128,33 +201,9 @@ void APodiumGameMode::SetupPodiumFromServer()
 		}
 
 		const ESnowRumbleTeam PlayerTeam = SnowPlayerState->GetLobbyTeam();
-		const int32 RankIndex = TeamResults.IndexOfByPredicate(
-			[PlayerTeam](const FSnowRumblePodiumTeamResult& Result)
-			{
-				return Result.Team == PlayerTeam;
-			});
-
-		TArray<APlayerStart*>* StartsForRank = nullptr;
-		if (RankIndex == 0)
+		if (PlayerTeam == PodiumWinningTeam)
 		{
-			StartsForRank = &FirstPlaceStarts;
-		}
-		else if (RankIndex == 1)
-		{
-			StartsForRank = &SecondPlaceStarts;
-		}
-		else if (RankIndex == 2)
-		{
-			StartsForRank = &ThirdPlaceStarts;
-		}
-
-		if (StartsForRank && !StartsForRank->IsEmpty())
-		{
-			const int32 UsedCount = UsedStartCounts.FindRef(PlayerTeam);
-			APlayerStart* SelectedStart =
-				(*StartsForRank)[UsedCount % StartsForRank->Num()];
-			RestartPlayerAtPlayerStart(PlayerController, SelectedStart);
-			UsedStartCounts.Add(PlayerTeam, UsedCount + 1);
+			WinningTeamControllers.Add(PlayerController);
 		}
 
 		if (PodiumCamera)
@@ -162,49 +211,41 @@ void APodiumGameMode::SetupPodiumFromServer()
 			PlayerController->SetViewTargetWithBlend(PodiumCamera, 0.5f);
 		}
 
-		if (ASnowRumbleCharacter* Character =
-			Cast<ASnowRumbleCharacter>(PlayerController->GetPawn()))
-		{
-			Character->PlayServerDirectedEmote(0);
-		}
 	}
 
-	const FSnowRumblePodiumTeamResult* FirstResult =
-		TeamResults.IsValidIndex(0) ? &TeamResults[0] : nullptr;
-	const FSnowRumblePodiumTeamResult* SecondResult =
-		TeamResults.IsValidIndex(1) ? &TeamResults[1] : nullptr;
-	const FSnowRumblePodiumTeamResult* ThirdResult =
-		TeamResults.IsValidIndex(2) ? &TeamResults[2] : nullptr;
-	const FText FirstText = BuildResultText(FirstResult);
-	const FText SecondText = BuildResultText(SecondResult);
-	const FText ThirdText = BuildResultText(ThirdResult);
-	const FText SubtitleText = NSLOCTEXT(
-		"SnowRumble",
-		"PodiumReturnSubtitle",
-		"10초 후 로비로 돌아갑니다.");
-
-	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
-		It;
-		++It)
+	if (!WinningTeamStarts.IsEmpty())
 	{
-		if (APodiumPlayerController* PodiumController =
-			Cast<APodiumPlayerController>(It->Get()))
+		if (WinningTeamControllers.Num() >= 4
+			&& WinningTeamStarts.Num() >= 4)
 		{
-			PodiumController->ClientSetPodiumResults(
-				FirstText,
-				SecondText,
-				ThirdText,
-				SubtitleText);
+			for (int32 Index = WinningTeamStarts.Num() - 1; Index > 0; --Index)
+			{
+				const int32 SwapIndex = FMath::RandRange(0, Index);
+				WinningTeamStarts.Swap(Index, SwapIndex);
+			}
+		}
+
+		for (int32 Index = 0; Index < WinningTeamControllers.Num(); ++Index)
+		{
+			APlayerController* PlayerController = WinningTeamControllers[Index];
+			APlayerStart* SelectedStart =
+				WinningTeamStarts[Index % WinningTeamStarts.Num()];
+			RestartPlayerAtPlayerStart(PlayerController, SelectedStart);
+			if (ASnowRumbleCharacter* PodiumCharacter =
+				Cast<ASnowRumbleCharacter>(PlayerController->GetPawn()))
+			{
+				PodiumCharacter->PlayRandomServerDirectedEmote();
+			}
+			if (PodiumCamera)
+			{
+				PlayerController->SetViewTargetWithBlend(PodiumCamera, 0.5f);
+			}
 		}
 	}
+
+	StartPodiumReturnCountdown(PodiumWinningTeam);
 
 	bPodiumSetupComplete = true;
-	GetWorldTimerManager().SetTimer(
-		PodiumReturnTimerHandle,
-		this,
-		&APodiumGameMode::ReturnToLobbyAfterPodium,
-		PodiumReturnDelaySeconds,
-		false);
 }
 
 void APodiumGameMode::ReturnToLobbyAfterPodium()
@@ -213,6 +254,9 @@ void APodiumGameMode::ReturnToLobbyAfterPodium()
 	{
 		return;
 	}
+
+	GetWorldTimerManager().ClearTimer(PodiumReturnCountdownTimerHandle);
+	GetWorldTimerManager().ClearTimer(PodiumReturnTimerHandle);
 
 	if (UGameInstance* GameInstance = GetGameInstance())
 	{
@@ -224,14 +268,96 @@ void APodiumGameMode::ReturnToLobbyAfterPodium()
 	}
 
 	FString TravelUrl = PodiumLobbyReturnTravelUrl;
-	if (!TravelUrl.Contains(TEXT("?listen"), ESearchCase::IgnoreCase))
-	{
-		TravelUrl += TEXT("?listen");
-	}
+	EnsurePodiumTravelOption(TravelUrl, TEXT("?listen"));
+	EnsurePodiumTravelOptionValue(
+		TravelUrl,
+		TEXT("game"),
+		PodiumLobbyGameModeTravelPath);
 
 	if (UWorld* World = GetWorld())
 	{
 		World->ServerTravel(TravelUrl);
+	}
+}
+
+void APodiumGameMode::StartPodiumReturnCountdown(ESnowRumbleTeam WinningTeam)
+{
+	PodiumWinningTeam = WinningTeam;
+	PodiumReturnCountdownRemainingSeconds =
+		FMath::Max(0, FMath::CeilToInt(PodiumReturnDelaySeconds));
+	BroadcastPodiumReturnCountdown();
+
+	if (PodiumReturnCountdownRemainingSeconds <= 0)
+	{
+		ReturnToLobbyAfterPodium();
+		return;
+	}
+
+	GetWorldTimerManager().ClearTimer(PodiumReturnCountdownTimerHandle);
+	GetWorldTimerManager().SetTimer(
+		PodiumReturnCountdownTimerHandle,
+		this,
+		&APodiumGameMode::TickPodiumReturnCountdown,
+		1.0f,
+		true);
+}
+
+void APodiumGameMode::TickPodiumReturnCountdown()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (PodiumReturnCountdownRemainingSeconds <= 0)
+	{
+		GetWorldTimerManager().ClearTimer(PodiumReturnCountdownTimerHandle);
+		ReturnToLobbyAfterPodium();
+		return;
+	}
+
+	--PodiumReturnCountdownRemainingSeconds;
+	if (PodiumReturnCountdownRemainingSeconds <= 0)
+	{
+		GetWorldTimerManager().ClearTimer(PodiumReturnCountdownTimerHandle);
+		ReturnToLobbyAfterPodium();
+		return;
+	}
+
+	BroadcastPodiumReturnCountdown();
+}
+
+void APodiumGameMode::BroadcastPodiumReturnCountdown()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const FText SubtitleText =
+		BuildPodiumReturnSubtitle(PodiumReturnCountdownRemainingSeconds);
+	for (FConstPlayerControllerIterator It =
+		World->GetPlayerControllerIterator();
+		It;
+		++It)
+	{
+		if (APodiumPlayerController* PodiumController =
+			Cast<APodiumPlayerController>(It->Get()))
+		{
+			if (PodiumReturnCountdownRemainingSeconds
+				== FMath::CeilToInt(PodiumReturnDelaySeconds))
+			{
+				PodiumController->ClientSetPodiumWinner(
+					PodiumWinningTeam,
+					SubtitleText);
+			}
+			else
+			{
+				PodiumController->ClientUpdatePodiumReturnSubtitle(
+					SubtitleText);
+			}
+		}
 	}
 }
 
@@ -293,13 +419,10 @@ void APodiumGameMode::BuildParticipatingTeamResults(
 }
 
 void APodiumGameMode::CollectPodiumPlayerStarts(
-	TArray<APlayerStart*>& OutFirstPlaceStarts,
-	TArray<APlayerStart*>& OutSecondPlaceStarts,
-	TArray<APlayerStart*>& OutThirdPlaceStarts) const
+	TArray<APlayerStart*>& OutWinningTeamStarts) const
 {
-	OutFirstPlaceStarts.Reset();
-	OutSecondPlaceStarts.Reset();
-	OutThirdPlaceStarts.Reset();
+	OutWinningTeamStarts.Reset();
+	OutWinningTeamStarts.SetNumZeroed(4);
 
 	if (const UWorld* World = GetWorld())
 	{
@@ -313,18 +436,28 @@ void APodiumGameMode::CollectPodiumPlayerStarts(
 
 			if (PlayerStart->ActorHasTag(TEXT("Podium_Team1")))
 			{
-				OutFirstPlaceStarts.Add(PlayerStart);
+				OutWinningTeamStarts[0] = PlayerStart;
 			}
 			else if (PlayerStart->ActorHasTag(TEXT("Podium_Team2")))
 			{
-				OutSecondPlaceStarts.Add(PlayerStart);
+				OutWinningTeamStarts[1] = PlayerStart;
 			}
 			else if (PlayerStart->ActorHasTag(TEXT("Podium_Team3")))
 			{
-				OutThirdPlaceStarts.Add(PlayerStart);
+				OutWinningTeamStarts[2] = PlayerStart;
+			}
+			else if (PlayerStart->ActorHasTag(TEXT("Podium_Team4")))
+			{
+				OutWinningTeamStarts[3] = PlayerStart;
 			}
 		}
 	}
+
+	OutWinningTeamStarts.RemoveAll(
+		[](const APlayerStart* PlayerStart)
+		{
+			return PlayerStart == nullptr;
+		});
 }
 
 ACameraActor* APodiumGameMode::FindPodiumCamera() const
@@ -342,44 +475,4 @@ ACameraActor* APodiumGameMode::FindPodiumCamera() const
 	}
 
 	return nullptr;
-}
-
-FText APodiumGameMode::BuildResultText(
-	const FSnowRumblePodiumTeamResult* Result) const
-{
-	if (!Result)
-	{
-		return FText::GetEmpty();
-	}
-
-	return FText::Format(
-		NSLOCTEXT("SnowRumble", "PodiumTeamResultFormat", "{0} - {1}승"),
-		GetTeamDisplayName(Result->Team),
-		FText::AsNumber(Result->RoundWins));
-}
-
-FText APodiumGameMode::GetTeamDisplayName(ESnowRumbleTeam Team) const
-{
-	switch (Team)
-	{
-	case ESnowRumbleTeam::Red:
-		return NSLOCTEXT("SnowRumble", "PodiumRedTeam", "빨강 팀");
-	case ESnowRumbleTeam::Sky:
-		return NSLOCTEXT("SnowRumble", "PodiumSkyTeam", "하늘 팀");
-	case ESnowRumbleTeam::Green:
-		return NSLOCTEXT("SnowRumble", "PodiumGreenTeam", "초록 팀");
-	case ESnowRumbleTeam::Yellow:
-		return NSLOCTEXT("SnowRumble", "PodiumYellowTeam", "노랑 팀");
-	case ESnowRumbleTeam::Purple:
-		return NSLOCTEXT("SnowRumble", "PodiumPurpleTeam", "보라 팀");
-	case ESnowRumbleTeam::Pink:
-		return NSLOCTEXT("SnowRumble", "PodiumPinkTeam", "분홍 팀");
-	case ESnowRumbleTeam::Blue:
-		return NSLOCTEXT("SnowRumble", "PodiumBlueTeam", "파랑 팀");
-	case ESnowRumbleTeam::White:
-		return NSLOCTEXT("SnowRumble", "PodiumWhiteTeam", "하양 팀");
-	case ESnowRumbleTeam::None:
-	default:
-		return NSLOCTEXT("SnowRumble", "PodiumNoTeam", "팀 없음");
-	}
 }
