@@ -12,7 +12,7 @@
 
 namespace
 {
-	void CollectButtonTextBlocks(
+	void CollectLobbyEscapeButtonTextBlocks(
 		UWidget* Widget,
 		TArray<UTextBlock*>& OutTextBlocks)
 	{
@@ -32,14 +32,16 @@ namespace
 				ChildIndex < PanelWidget->GetChildrenCount();
 				++ChildIndex)
 			{
-				CollectButtonTextBlocks(
+				CollectLobbyEscapeButtonTextBlocks(
 					PanelWidget->GetChildAt(ChildIndex),
 					OutTextBlocks);
 			}
 		}
 		else if (UContentWidget* ContentWidget = Cast<UContentWidget>(Widget))
 		{
-			CollectButtonTextBlocks(ContentWidget->GetContent(), OutTextBlocks);
+			CollectLobbyEscapeButtonTextBlocks(
+				ContentWidget->GetContent(),
+				OutTextBlocks);
 		}
 	}
 }
@@ -180,7 +182,7 @@ void ULobbyEscapeMenuWidget::BindTargetButtonTextColor(UButton* Button)
 		&ULobbyEscapeMenuWidget::RefreshTargetButtonTextColors);
 
 	TArray<UTextBlock*> TextBlocks;
-	CollectButtonTextBlocks(Button->GetContent(), TextBlocks);
+	CollectLobbyEscapeButtonTextBlocks(Button->GetContent(), TextBlocks);
 	for (UTextBlock* TextBlock : TextBlocks)
 	{
 		if (TextBlock)
@@ -223,7 +225,7 @@ void ULobbyEscapeMenuWidget::RefreshTargetButtonTextColors()
 		}
 
 		TArray<UTextBlock*> TextBlocks;
-		CollectButtonTextBlocks(Button->GetContent(), TextBlocks);
+		CollectLobbyEscapeButtonTextBlocks(Button->GetContent(), TextBlocks);
 		const bool bUseActiveColor = Button->IsHovered() || Button->IsPressed();
 		for (UTextBlock* TextBlock : TextBlocks)
 		{
