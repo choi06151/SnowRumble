@@ -24,6 +24,7 @@
 - [x] 보행 중 좌클릭 연타로 바닥·천장·즉시 월드 붙음이 잘못 확정되어 캐릭터가 위로 튀는 경로를 차단한다.
 - [x] 벽·월드 오브젝트를 잡으면 잡는 캐릭터의 이동 입력은 허용하고 점프·일반 행동은 잠그며, 붙은 손 위치 기준으로 몸을 매달린 위치에 유지한다.
 - [x] 플레이어를 잡으면 잡힌 캐릭터의 이동 입력은 허용하고 점프·일반 행동은 해제 전까지 잠그며, 서버가 잡은 손 위치 쪽으로 몸을 부드럽게 끌어당긴다.
+- [x] 플레이어를 잡은 상태에서 잡는 캐릭터가 카메라 Yaw를 따라 회전하도록 보정한다.
 - [x] 손이 캐릭터나 월드에 붙은 뒤 잡기 유지 시간이 최대 시간을 넘으면 서버가 자동으로 잡기를 해제한다.
 - [x] 로컬 HUD의 기존 `AimChargeProgressBar`를 손이 붙은 잡기 중 남은 시간 표시로 재사용해 1에서 0으로 줄어들게 한다.
 - [x] 얼음 상태 플레이어는 같은 팀 Grabber에게만 잡히고, 기존 Grab tether로 운반되게 한다.
@@ -108,6 +109,8 @@
 - 2026-08-27: Grab Trace 방향은 카메라 Yaw/Pitch가 아닌 캐릭터 Mesh 정면을 사용하도록 조정했다. 좌클릭으로 Grab reach 중에는 `bUseControllerRotationYaw`를 활성화하고 이동 방향 회전을 끄며, 카메라 Yaw를 따라 플레이어가 회전하고 해제 시 기존 설정을 복원한다. 기존 손·상체의 카메라 Pitch 보정 계약은 유지한다.
 - 2026-08-27: 캐릭터 Mesh 자산의 로컬 축과 게임상 정면이 90도 어긋나 Trace가 왼쪽으로 나가던 문제를 보정했다. Mesh의 시각적 정면에 해당하는 local Right 축을 Grab Trace와 손 목표의 forward로 사용하고, 반대 축을 lateral right로 사용한다.
 - 2026-08-27: 중앙점 단일 Trace를 제거하고 오른손·왼손 grab bone/socket 각각에서 sphere Trace를 실행하도록 변경했다. 두 Trace의 Hit.Time을 비교해 먼저 닿은 유효 후보를 우선 선택한다.
+- 2026-08-28: 플레이어를 실제로 붙잡은 Character Grab 상태에서도 잡는 캐릭터가 카메라 Yaw를 따라 회전하도록 보강했다. `UPlayerGrabComponent`가 `GrabAttachmentType::Character` 동안 기존 Grab reach 회전 모드를 유지하고 `UpdateGrabOwnerRotationToControlYaw()`로 소유자/서버 Actor yaw를 ControlRotation yaw에 보간한다.
+- 2026-08-28: 플레이어 Character Grab의 기존 게이지 제한을 복구했다. Character Grab은 게이지가 남아 있는 동안 유지되고, 좌클릭 해제나 `MaximumGrabHoldSeconds` 만료, 대상 사망 같은 정리 조건에서 풀린다.
 
 ## 수동 작업
 
@@ -129,6 +132,7 @@
 - 잡힌 플레이어 neck translation 보정은 AnimBP의 `bIsGrabbedByCharacter`가 true일 때 `GrabbedByCharacterComponentLocation`을 Control Rig로 넘겨 사용한다. neck을 해당 위치에 그대로 넣기보다 현재 neck 위치에서 목표 방향으로 짧은 offset만 적용해 과도한 늘어남을 막는다.
 - 잡힌 플레이어의 입력감은 `GrabbedCharacterInputVelocityRetention`으로 조정한다. 낮출수록 잡은 손 위치에 더 강하게 묶이고, 높일수록 잡힌 플레이어 이동 입력이 더 잘 먹는다.
 - 잡힌 플레이어가 잡힌 손 위치를 바라보는 속도는 `GrabbedCharacterFacingInterpSpeed`로 조정한다.
+- 플레이어를 잡은 캐릭터가 카메라 Yaw를 따라 도는 속도는 `GrabOwnerControlYawInterpSpeed`로 조정한다.
 - 잡기 최대 유지 시간은 `BP_SnowRumbleCharacter`의 `PlayerGrabComponent`에서 `MaximumGrabHoldSeconds`로 조정한다. 0이면 시간 제한을 쓰지 않고, 기본값은 5초다. 시간은 팔 뻗기 시작이 아니라 손이 캐릭터나 월드에 붙은 순간부터 감소한다.
 - HUD의 기존 `AimChargeProgressBar`가 투척 충전과 손이 붙은 잡기의 남은 시간 표시를 함께 담당한다. 잡기 전용 위치나 색상이 필요하면 `WBP_MainHUDWidget`에서 해당 ProgressBar 스타일을 조정한다.
 - 벽 매달림 위치는 `WorldGrabBodyBackOffset`, `WorldGrabBodyDownOffset`으로 조정하고, 매달림 강도는 `WorldGrabTetherSlackDistance`, `WorldGrabTetherPullStrength`, `WorldGrabTetherMaxPullSpeed`로 조정한다. 이동 입력이 너무 잘 먹으면 `WorldGrabInputVelocityRetention`을 낮추고, 입력감이 너무 죽으면 올린다.
@@ -151,10 +155,16 @@
 - [x] 플레이어·벽 붙음 상태와 붙은 위치 복제 추가
 - [x] 벽잡기 매달림 서버 tether 추가
 - [x] 잡힌 플레이어 입력 잠금과 서버 tether 이동 추가
+- [x] 플레이어 Grab 중 잡는 캐릭터의 카메라 Yaw 회전 보정 추가
 - [x] 잡기 최대 유지 시간과 서버 자동 해제 추가
+- [x] 플레이어 Character Grab 기존 게이지 제한 복구
 - [x] 기존 HUD ProgressBar의 잡기 남은 시간 표시 추가
 - [x] 현재 Task 문서가 실제 구현 기준으로 갱신됨
-- [x] `SnowRumbleEditor Win64 Development` 빌드 성공
+- [ ] `SnowRumbleEditor Win64 Development` 빌드 확인
+
+### 검증 메모
+
+- 2026-08-28: Character Grab 게이지 제한 복구 후 `git diff --check`와 충돌 표식 검색은 통과했다. `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 UBT가 시작 단계에서 중단했다.
 
 ### 결과 확인
 
@@ -173,6 +183,7 @@
 - [ ] 보행 중 빈손 좌클릭을 빠르게 연타해도 캐릭터가 공중으로 튀거나 계속 상승하지 않는다.
 - [ ] 벽이나 월드 오브젝트를 잡으면 잡는 캐릭터는 이동 입력으로 몸을 흔들 수 있지만 점프·일반 행동은 할 수 없고, 붙은 손 위치 기준으로 몸이 매달린 위치에 유지되며 몸 방향은 붙은 손 위치 쪽을 유지한다.
 - [ ] 플레이어를 잡으면 잡힌 플레이어는 이동·점프·일반 행동 입력을 할 수 없고, 잡는 사람이 움직이면 몸이 손 위치 쪽으로 끌려오며 몸 방향은 잡힌 손 위치 쪽을 유지하고, 좌클릭 해제 후 다시 자유롭게 움직일 수 있다.
+- [ ] 플레이어를 잡은 상태에서 잡는 플레이어가 카메라를 좌우로 돌리면 잡는 캐릭터의 몸 방향도 카메라 Yaw를 따라 회전한다.
 - [ ] 손이 캐릭터나 월드에 붙은 잡기를 유지하면 HUD의 기존 ProgressBar가 1에서 0으로 줄어든다.
-- [ ] 손이 붙은 뒤 `MaximumGrabHoldSeconds`가 지나면 좌클릭을 계속 누르고 있어도 잡기가 자동으로 풀리고 이동·점프·일반 행동 잠금이 복구된다.
+- [ ] 손이 캐릭터나 월드에 붙은 뒤 `MaximumGrabHoldSeconds`가 지나면 좌클릭을 계속 누르고 있어도 잡기가 자동으로 풀리고 이동·점프·일반 행동 잠금이 복구된다.
 - 2026-08-24: Grab 제한 게이지를 연결마다 초기화하지 않도록 서버 잔량을 유지하게 했다. 해제 후 `GrabRecoveryDelaySeconds` 기본 1초를 기다리고 `GrabRecoverySeconds` 기본 5초 동안 서서히 회복하며, HUD 표시 조건은 기존 `IsGrabAttached()`를 유지한다.

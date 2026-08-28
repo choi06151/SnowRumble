@@ -15,6 +15,7 @@
 - [x] 기존 구조에서 재사용할 수 있는 부분을 확인한 뒤 눈사람 모드 전용 GameMode와 GameState를 구현한다.
 - [x] 기존 PvP 맵 후보를 재사용하되 눈사람 모드에서는 수위 상승, 자기장, 눈 폭 같은 줄어드는 기믹이 발동하지 않게 한다.
 - [x] 10분 제한시간을 서버 권한으로 관리하고 GameState 공개 함수로 클라이언트가 읽을 수 있게 한다.
+- [x] 눈사람 모드 라운드 번호와 전체 라운드 수를 서버 권한 GameState 복제값으로 제공해 HUD가 PvP와 같은 형식으로 표시하게 한다.
 - [x] 기존 PvP 맵의 PlayerStart 배치를 재사용할 때 눈사람 모드에서도 플레이어 Pawn이 분산 스폰되게 한다.
 - [x] 눈사람 모드 로딩 완료 후 3초 시작 카운트다운을 거친 뒤 10분 제한시간을 시작한다.
 - [x] 눈사람 모드 시작 카운트다운 동안 플레이어 이동과 시야 입력을 잠그고 시작 시 해제한다.
@@ -54,6 +55,8 @@
   - `ASnowmanModeGameState::GetSnowmanModeRemainingTimeText()`: 남은 시간을 `0:00` 형식 텍스트로 반환한다.
   - `ASnowmanModeGameState::GetSnowmanModeElapsedSeconds()`: 시작 후 진행 시간을 초 단위로 반환한다.
   - `ASnowmanModeGameState::GetSnowmanModeElapsedTimeText()`: 기존 HUD `MatchElapsedTimeText`에 표시할 진행 시간을 `경기 시간 0:00` 형식 텍스트로 반환한다.
+  - `ASnowmanModeGameState::GetCurrentRoundNumber()`: 기존 HUD `CurrentRoundText`에 표시할 현재 눈사람 모드 라운드 번호를 반환한다.
+  - `ASnowmanModeGameState::GetRoundLimit()`: 기존 HUD `CurrentRoundText`에 표시할 전체 눈사람 모드 라운드 수를 반환한다.
   - `ASnowRumbleLobbyGameMode::SnowmanModeGameModeClass`: 눈사람 모드 시작 시 travel URL의 `game` 옵션으로 사용할 GameMode 클래스다.
 - 인계 대상: K-13, K-14, C 통합 검토, S/J 맵 담당
 
@@ -90,6 +93,7 @@
 - 2026-08-13: `StartCountdownText`가 `3`, `2`, `1`까지만 보이고 `시작!`이 보이지 않는 문제를 수정했다. 눈사람 모드 타이머가 시작된 뒤에도 시작 기준 시간으로부터 약 1초 동안 카운트다운 표시를 유지해 PvP와 같은 `시작!` 표시 구간을 제공한다.
 - 2026-08-13: 시작 카운트다운 동안 `ASnowmanModeGameMode`가 모든 PlayerController의 이동과 시야 입력을 잠그고 Pawn 이동을 즉시 멈춘 뒤, 카운트다운 종료 시 입력 잠금을 해제하게 했다.
 - 2026-08-13: 이동은 잠기지만 시야가 회전하는 문제를 수정했다. `ASnowRumbleCharacter::IsPvpMatchInputLocked()`가 눈사람 모드 `ASnowmanModeGameState::IsSnowmanModeInputLocked()`도 함께 확인하게 해 `Look()` 입력 경로에서 회전을 차단한다.
+- 2026-08-28: C 통합 경로에서 눈사람 모드 라운드 HUD 계약을 PvP와 맞췄다. `ASnowmanModeGameMode::InitGameState()`가 URL 옵션 기반 `CurrentRoundIndex`와 `TotalMatchRounds`를 `ASnowmanModeGameState` 복제값으로 확정하고, `UMainHUDWidget::CurrentRoundText`가 `{현재} / {전체}` 형식으로 표시한다.
 
 ## 수동 작업
 
@@ -99,7 +103,8 @@
 - `Content/Game/BP_LobbyGameMode`의 `SnowmanModeGameModeClass`를 `BP_SnowmanModeGameMode_K`로 지정한다.
 - `Content/Game/BP_LobbyGameMode` 또는 기본 클래스 설정에서 `PvPLevelCandidates` 배열에 기존 PvP 후보 맵 전체가 들어 있는지 확인한다.
 - 눈사람 모드용 GameMode Blueprint에서 스폰 보정값을 조정해야 하면 `SnowRumble|Spawn` 카테고리의 `PlayerStartSpawnScatterRadius`, `PlayerStartSpawnMinimumSpacing`, `PlayerStartSpawnScatterAttempts`를 조정한다.
-- `Content/WBP/WBP_MainHUDWidget`에 기존 `StartCountdownText`와 `MatchElapsedTimeText` TextBlock이 유지되어 있는지 확인한다. 별도 `SnowmanTimerText`는 필요 없다.
+- `Content/WBP/WBP_MainHUDWidget` 또는 눈사람 모드 전용 HUD WBP에 기존 `CurrentRoundText`, `StartCountdownText`, `MatchElapsedTimeText` TextBlock이 유지되어 있는지 확인한다. 별도 `SnowmanTimerText`는 필요 없다.
+- 눈사람 모드 라운드 정보는 기존 HUD의 `CurrentRoundText`에 PvP와 같은 `1 / 3` 형식으로 표시된다.
 - 눈사람 모드 시작 카운트다운은 기존 HUD의 `StartCountdownText`에 표시된다.
 - 눈사람 모드 진행 시간은 기존 HUD의 `MatchElapsedTimeText`에 `경기 시간 0:00` 형식으로 표시된다.
 - 제한시간 종료 후 승패 확정, 결과 표시, 로비 복귀는 K-14 범위이므로 K-12에서는 시간이 0이 되어도 자동 종료되지 않는다.
@@ -116,17 +121,20 @@
 - [x] 눈사람 모드 시작 카운트다운과 제한시간 지연 시작 추가
 - [x] 눈사람 모드 시작 전 이동·시야 입력 잠금 추가
 - [x] 기존 HUD `StartCountdownText`/`MatchElapsedTimeText` 재사용 표시 경로 추가
+- [x] 기존 HUD `CurrentRoundText` 재사용 라운드 표시 경로 추가
 - [x] 역할·소유권·담당자 이니셜 규칙 위반 없음
 - [x] 공용 계약과 캡슐화 규칙 위반 없음
 - [x] 현재 Task 문서가 실제 구현 기준으로 갱신됨
 - [x] `git diff --check` 공백 점검 통과
-- [ ] `SnowRumbleEditor Win64 Development` 빌드 확인
+- [x] `SnowRumbleEditor Win64 Development` 빌드 확인
 
 ### 검증 메모
 
 - 2026-08-12: `git diff --check`는 통과했다. 현재 환경에는 `C:\Program Files\Epic Games\UE_5.8\Engine\Build\BatchFiles\Build.bat`과 `UnrealBuildTool`이 없어 `SnowRumbleEditor Win64 Development` 빌드는 실행하지 못했다.
 - 2026-08-13: 스폰 보정 수정 후 `git diff --check`는 통과했다. 현재 환경에는 `C:\Program Files\Epic Games\UE_5.8\Engine\Build\BatchFiles\Build.bat`이 없어 `SnowRumbleEditor Win64 Development` 빌드는 실행하지 못했다.
 - 2026-08-13: 사용자가 눈사람 모드 진입, 플레이어 스폰, 시작 카운트다운, 이동·시야 입력 잠금과 해제, 진행 시간 표시를 실제 실행으로 확인 완료했다.
+- 2026-08-28: 눈사람 라운드 HUD 보강 후 `git diff --check`와 충돌 표식 검색은 통과했다. `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 UBT가 시작 단계에서 중단했다.
+- 2026-08-28: Live Coding 해제 후 `SnowRumbleEditor Win64 Development` 빌드가 성공했다. 기존 `SnowRumbleIceGlacierCollapseActor_J.cpp`의 `GetMovementBase` deprecation warning 1개는 남아 있으며 이번 라운드 HUD 변경과는 별개다.
 
 ### 결과 확인
 
@@ -136,6 +144,8 @@
 - [x] 이동한 맵의 GameMode가 `ASnowmanModeGameMode` 또는 이를 부모로 한 Blueprint인지 확인한다.
 - [x] 모든 예상 플레이어가 접속하면 로딩창이 닫히는지 확인한다.
 - [x] 로딩창이 닫힌 뒤 기존 HUD `StartCountdownText`에 `3`, `2`, `1`, `시작!` 순서가 표시되는지 확인한다.
+- [ ] 눈사람 모드 HUD의 기존 `CurrentRoundText`에 첫 라운드 `1 / 설정 라운드 수`가 표시되는지 확인한다.
+- [ ] 여러 라운드 설정에서 다음 눈사람 라운드로 넘어가면 `CurrentRoundText`가 `2 / 설정 라운드 수`처럼 증가하는지 확인한다.
 - [x] 시작 카운트다운 동안 호스트와 클라이언트 모두 이동과 시야 회전이 막히는지 확인한다.
 - [x] `시작!` 표시 뒤 호스트와 클라이언트 모두 이동과 시야 회전이 다시 가능한지 확인한다.
 - [x] 시작 카운트다운이 끝난 뒤 기존 HUD `MatchElapsedTimeText`에 `경기 시간 0:00`부터 진행 시간이 증가하는지 확인한다.

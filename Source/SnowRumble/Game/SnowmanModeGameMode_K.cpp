@@ -317,6 +317,19 @@ void ASnowmanModeGameMode::InitGame(
 	BroadcastBackgroundMusic();
 }
 
+void ASnowmanModeGameMode::InitGameState()
+{
+	Super::InitGameState();
+
+	if (ASnowmanModeGameState* SnowmanGameState =
+		GetGameState<ASnowmanModeGameState>())
+	{
+		SnowmanGameState->SetSnowmanModeRoundInfoFromServer(
+			CurrentRoundIndex,
+			TotalMatchRounds);
+	}
+}
+
 void ASnowmanModeGameMode::PostLogin(APlayerController* NewPlayer)
 {
 	Super::PostLogin(NewPlayer);

@@ -115,6 +115,23 @@ void ASnowmanModeGameState::StartSnowmanModeTimerFromServer(
 	ForceNetUpdate();
 }
 
+void ASnowmanModeGameState::SetSnowmanModeRoundInfoFromServer(
+	int32 InCurrentRoundNumber,
+	int32 InRoundLimit)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	RoundLimit = FMath::Max(1, InRoundLimit);
+	CurrentRoundNumber = FMath::Clamp(
+		InCurrentRoundNumber,
+		1,
+		RoundLimit);
+	ForceNetUpdate();
+}
+
 void ASnowmanModeGameState::ResetSnowmanModePlayersFromServer(
 	const TArray<ASnowRumblePlayerState*>& PlayerStates)
 {
@@ -346,6 +363,16 @@ FText ASnowmanModeGameState::GetSnowmanModeElapsedTimeText() const
 		FormatSecondsAsClock(GetSnowmanModeElapsedSeconds()));
 }
 
+int32 ASnowmanModeGameState::GetCurrentRoundNumber() const
+{
+	return CurrentRoundNumber;
+}
+
+int32 ASnowmanModeGameState::GetRoundLimit() const
+{
+	return RoundLimit;
+}
+
 ESnowmanModePlayerRole ASnowmanModeGameState::GetSnowmanModePlayerRole(
 	const APlayerState* PlayerState) const
 {
@@ -403,6 +430,8 @@ void ASnowmanModeGameState::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ASnowmanModeGameState, SnowmanModeStartCountdownSeconds);
 	DOREPLIFETIME(ASnowmanModeGameState, SnowmanModeStartServerTime);
 	DOREPLIFETIME(ASnowmanModeGameState, SnowmanModeTimeLimitSeconds);
+	DOREPLIFETIME(ASnowmanModeGameState, CurrentRoundNumber);
+	DOREPLIFETIME(ASnowmanModeGameState, RoundLimit);
 	DOREPLIFETIME(ASnowmanModeGameState, SnowmanModePlayerEntries);
 	DOREPLIFETIME(ASnowmanModeGameState, bSnowmanModeEnded);
 	DOREPLIFETIME(ASnowmanModeGameState, SnowmanModeResult);
