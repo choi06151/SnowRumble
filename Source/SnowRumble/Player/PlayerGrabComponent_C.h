@@ -300,7 +300,7 @@ protected:
 	TObjectPtr<USoundAttenuation> GrabSoundAttenuation;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0"))
-	float GrabTetherSlackDistance = 18.0f;
+	float GrabTetherSlackDistance = 10.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0"))
 	float GrabTetherPullStrength = 7.0f;
@@ -320,7 +320,7 @@ protected:
 
 	/** 잡힌 캐릭터가 손 위치를 따라갈 때 사용할 위치 보간 속도다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0"))
-	float GrabbedCharacterLocationInterpSpeed = 8.0f;
+	float GrabbedCharacterLocationInterpSpeed = 14.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0"))
 	float GrabbedCharacterFacingInterpSpeed = 14.0f;

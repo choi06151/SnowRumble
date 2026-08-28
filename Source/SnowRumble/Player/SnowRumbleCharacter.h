@@ -1511,6 +1511,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Podium", meta = (ClampMin = "0.01"))
 	float PodiumMeshScaleMultiplier = 1.35f;
 
+	/** 포디움 맵에서 캐릭터 메쉬에만 적용할 상대 Z 오프셋(cm)이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Podium", meta = (ClampMin = "-500.0", ClampMax = "500.0"))
+	float PodiumMeshZOffset = 0.0f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera", meta = (ClampMin = "5.0", ClampMax = "170.0"))
 	float AimFieldOfView = 75.0f;
 
