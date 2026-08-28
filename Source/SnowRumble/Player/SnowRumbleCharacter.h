@@ -28,6 +28,7 @@ class UOverheadNameplateWidget;
 class UOverheadTimedActionWidget;
 class USpectatorWidget;
 class UNiagaraComponent;
+class UNiagaraSystem;
 class UOutlineComponent;
 class UPlayerGrabComponent;
 class USceneComponent;
@@ -1467,6 +1468,18 @@ public:
 	/** 일반 바닥 발걸음 사운드의 월드 거리감과 공간감을 설정한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep|Audio")
 	TObjectPtr<USoundAttenuation> NormalFootstepSoundAttenuation;
+
+	/** 눈 표면 발 착지 시 위치 기반으로 재생할 Niagara 이펙트다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep|VFX")
+	TObjectPtr<UNiagaraSystem> SnowFootstepEffect;
+
+	/** 일반 바닥 발 착지 시 위치 기반으로 재생할 Niagara 이펙트다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep|VFX")
+	TObjectPtr<UNiagaraSystem> NormalFootstepEffect;
+
+	/** 발걸음 이펙트를 바닥에서 띄워 z-fighting을 피할 오프셋이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Footstep|VFX", meta = (ClampMin = "0.0"))
+	float FootstepEffectSurfaceOffset = 2.0f;
 
 	/** 눈 밟힘 위치를 서버 검증 후 지형 RenderTarget 눈길 stamp로 공유할지 정한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snow Trail")

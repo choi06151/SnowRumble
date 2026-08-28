@@ -73,6 +73,8 @@
 #include "UnrealClient.h"
 #include "Net/UnrealNetwork.h"
 #include "NiagaraComponent.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
 #include "TimerManager.h"
 #include "UObject/UObjectGlobals.h"
 #include "Blueprint/UserWidget.h"
@@ -1266,6 +1268,10 @@ void ASnowRumbleCharacter::RequestSnowFootstepEffect(FName FootSocketName)
 	USoundAttenuation* FootstepAttenuationToUse = bIsSnowSurface
 		? FootstepSoundAttenuation
 		: NormalFootstepSoundAttenuation;
+	UNiagaraSystem* FootstepEffectToSpawn = bIsSnowSurface
+		? SnowFootstepEffect
+		: NormalFootstepEffect;
+	const FVector FootstepNormal = FootstepHit.ImpactNormal.GetSafeNormal();
 	LastSnowFootstepEffectTime = CurrentTime;
 	SnowRumbleAudio::PlaySoundAtLocation(
 		this,
@@ -1275,12 +1281,23 @@ void ASnowRumbleCharacter::RequestSnowFootstepEffect(FName FootSocketName)
 		1.0f,
 		1.0f,
 		FootstepAttenuationToUse);
+	if (FootstepEffectToSpawn)
+	{
+		const FVector EffectLocation =
+			FootstepHit.ImpactPoint
+			+ FootstepNormal * FMath::Max(0.0f, FootstepEffectSurfaceOffset);
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			this,
+			FootstepEffectToSpawn,
+			EffectLocation,
+			FootstepNormal.Rotation());
+	}
 	if (bIsSnowSurface)
 	{
 		OnSnowFootstepEffect(
 			FootSocketName,
 			FootstepHit.ImpactPoint,
-			FootstepHit.ImpactNormal.GetSafeNormal());
+			FootstepNormal);
 	}
 
 	if (bIsSnowSurface
@@ -1289,7 +1306,7 @@ void ASnowRumbleCharacter::RequestSnowFootstepEffect(FName FootSocketName)
 	{
 		RequestSharedSnowTrailStamp(
 			FootstepHit.ImpactPoint,
-			FootstepHit.ImpactNormal.GetSafeNormal(),
+			FootstepNormal,
 			FootSocketName);
 
 		if (bEnableDistanceBasedSnowTrailStamps)
