@@ -5,7 +5,9 @@
 #include "Components/Button.h"
 #include "Components/Border.h"
 #include "Components/Image.h"
+#include "Components/PanelWidget.h"
 #include "Components/Slider.h"
+#include "Components/TextBlock.h"
 #include "Components/WidgetSwitcher.h"
 #include "Blueprint/WidgetTree.h"
 #include "CustomizationPlayerController_C.h"
@@ -107,6 +109,7 @@ void UCustomizationWidget::NativeConstruct()
 	SetCustomizationPage(CurrentCustomizationPage);
 	RefreshBrushSizeSlider();
 	RefreshPaintBrushPreview();
+	RefreshPaintActionButtonTextColors();
 	BindAccessoryItemButtons();
 	RefreshAccessoryItemButtonSelection();
 }
@@ -127,6 +130,7 @@ void UCustomizationWidget::NativeTick(
 
 	RefreshPaintBrushPreview();
 	RefreshBrushSizeSlider();
+	RefreshPaintActionButtonTextColors();
 }
 
 FReply UCustomizationWidget::NativeOnKeyDown(
@@ -1133,6 +1137,110 @@ void UCustomizationWidget::RefreshPaintBrushPreview()
 		BrushColorPreviewImage->SetColorAndOpacity(CurrentBrushColor);
 	}
 	RefreshPaletteButtonSelection();
+}
+
+void UCustomizationWidget::RefreshPaintActionButtonTextColors()
+{
+	TArray<UTextBlock*> BrushSizeTextBlocks;
+	TArray<UTextBlock*> FillBodyColorTextBlocks;
+	TArray<UTextBlock*> PaintModeTextBlocks;
+	CacheButtonTextColors(BrushSizeButton, BrushSizeTextBlocks);
+	CacheButtonTextColors(FillBodyColorButton, FillBodyColorTextBlocks);
+	CacheButtonTextColors(PaintModeButton, PaintModeTextBlocks);
+
+	if (DefaultPaintActionButtonTextColors.IsEmpty())
+	{
+		for (UTextBlock* TextBlock : BrushSizeTextBlocks)
+		{
+			if (TextBlock)
+			{
+				DefaultPaintActionButtonTextColors.Add(
+					TextBlock,
+					TextBlock->GetColorAndOpacity());
+			}
+		}
+		for (UTextBlock* TextBlock : FillBodyColorTextBlocks)
+		{
+			if (TextBlock)
+			{
+				DefaultPaintActionButtonTextColors.Add(
+					TextBlock,
+					TextBlock->GetColorAndOpacity());
+			}
+		}
+		for (UTextBlock* TextBlock : PaintModeTextBlocks)
+		{
+			if (TextBlock)
+			{
+				DefaultPaintActionButtonTextColors.Add(
+					TextBlock,
+					TextBlock->GetColorAndOpacity());
+			}
+		}
+	}
+
+	const auto ApplyTextColors = [this](
+		UButton* Button,
+		const TArray<UTextBlock*>& TextBlocks)
+	{
+		const bool bActive = Button
+			&& (Button->IsHovered() || Button->IsPressed());
+		for (UTextBlock* TextBlock : TextBlocks)
+		{
+			if (!TextBlock)
+			{
+				continue;
+			}
+
+			const FSlateColor* DefaultColor =
+				DefaultPaintActionButtonTextColors.Find(TextBlock);
+			if (DefaultColor)
+			{
+				TextBlock->SetColorAndOpacity(
+					bActive
+						? FSlateColor(FLinearColor::White)
+						: *DefaultColor);
+			}
+		}
+	};
+
+	ApplyTextColors(BrushSizeButton, BrushSizeTextBlocks);
+	ApplyTextColors(FillBodyColorButton, FillBodyColorTextBlocks);
+	ApplyTextColors(PaintModeButton, PaintModeTextBlocks);
+}
+
+void UCustomizationWidget::CacheButtonTextColors(
+	UButton* Button,
+	TArray<UTextBlock*>& TextBlocks)
+{
+	if (Button && Button->GetContent())
+	{
+		CacheButtonTextColorsRecursive(Button->GetContent(), TextBlocks);
+	}
+}
+
+void UCustomizationWidget::CacheButtonTextColorsRecursive(
+	UWidget* Widget,
+	TArray<UTextBlock*>& TextBlocks)
+{
+	if (!Widget)
+	{
+		return;
+	}
+
+	if (UTextBlock* TextBlock = Cast<UTextBlock>(Widget))
+	{
+		TextBlocks.AddUnique(TextBlock);
+		return;
+	}
+
+	if (UPanelWidget* Panel = Cast<UPanelWidget>(Widget))
+	{
+		for (int32 Index = 0; Index < Panel->GetChildrenCount(); ++Index)
+		{
+			CacheButtonTextColorsRecursive(Panel->GetChildAt(Index), TextBlocks);
+		}
+	}
 }
 
 void UCustomizationWidget::ApplyPaletteButtonColors()

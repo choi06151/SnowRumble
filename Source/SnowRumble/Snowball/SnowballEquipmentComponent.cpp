@@ -147,7 +147,9 @@ bool USnowballEquipmentComponent::EquipSnowballFromGrab(
 	}
 
 	HeldSnowball = GrabbedSnowball;
-	Character->NotifySnowballPickupSucceeded(IsHoldingLargeSnowball());
+	Character->NotifySnowballPickupSucceeded(
+		IsHoldingLargeSnowball(),
+		false);
 	OnRep_HeldSnowball();
 	Character->ForceNetUpdate();
 	return true;

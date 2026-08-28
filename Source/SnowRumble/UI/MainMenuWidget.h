@@ -19,27 +19,27 @@ class SNOWRUMBLE_API UMainMenuWidget : public USnowRumbleAudioUserWidget
 	GENERATED_BODY()
 
 public:
-	/** 시작화면에서 LAN 호스트 생성을 요청한다. */
+	/** 시작화면에서 현재 OnlineSubsystem 호스트 생성을 요청한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Main Menu")
 	void HostLanGame(int32 MaxPlayers = 8, const FString& RoomName = FString());
 
-	/** 시작화면에서 LAN 세션 검색을 요청한다. */
+	/** 시작화면에서 현재 OnlineSubsystem 세션 검색을 요청한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Main Menu")
 	void FindLanGames();
 
-	/** 빈자리가 있는 첫 번째 LAN 방에 자동 참가한다. */
+	/** 빈자리가 있는 첫 번째 온라인 방에 자동 참가한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Main Menu")
 	void QuickJoinLanGame();
 
-	/** 검색 결과 인덱스로 LAN 세션 참가를 요청한다. */
+	/** 검색 결과 인덱스로 온라인 세션 참가를 요청한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Main Menu")
 	void JoinLanGame(int32 ResultIndex);
 
-	/** 입력한 방 코드와 일치하는 LAN 방에 참가한다. */
+	/** 입력한 방 코드와 일치하는 온라인 방에 참가한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Main Menu")
 	void JoinLanGameByRoomCode(const FString& RoomCode);
 
-	/** 마지막 LAN 세션 검색 결과를 반환한다. */
+	/** 마지막 온라인 세션 검색 결과를 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI|Main Menu")
 	const TArray<FSnowRumbleSessionInfo>& GetLanSearchResults() const;
 
@@ -54,11 +54,11 @@ protected:
 		const FGeometry& MyGeometry,
 		float InDeltaTime) override;
 
-	/** 있으면 자동으로 HostLanGame(8)에 연결되는 버튼이다. */
+	/** 있으면 자동으로 HostLanGame(8)에 연결되는 버튼이다. 이름은 Blueprint 호환을 위해 유지한다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Main Menu")
 	TObjectPtr<UButton> HostButton;
 
-	/** 있으면 빈자리가 있는 LAN 방에 자동 참가하는 빠른 참여 버튼이다. */
+	/** 있으면 빈자리가 있는 온라인 방에 자동 참가하는 빠른 참여 버튼이다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Main Menu")
 	TObjectPtr<UButton> QuickJoinButton;
 

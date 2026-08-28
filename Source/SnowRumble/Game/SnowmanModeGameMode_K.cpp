@@ -1,10 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SnowmanModeGameMode_K.h"
+#include "../Snowball/SnowballItem.h"
+#include "../UI/TimedDropAnnouncementWidget.h"
+#include "NavigationSystem.h"
 #include "TimerManager.h"
 #include "Engine/World.h"
 #include "SnowRumbleMatchSubsystem_C.h"
 #include "Engine/GameInstance.h"
+#include "Engine/TargetPoint.h"
 
 #include "../Audio/SnowRumbleAudioHelpers.h"
 #include "../Player/SnowRumbleCharacter.h"
@@ -23,6 +27,7 @@
 #include "SnowRumbleLobbyGameMode.h"
 #include "SnowRumblePlayerState.h"
 #include "Sound/SoundBase.h"
+#include "UObject/ConstructorHelpers.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSnowmanMode, Log, All);
 
@@ -226,6 +231,15 @@ ASnowmanModeGameMode::ASnowmanModeGameMode()
 	DefaultPawnClass = ASnowRumbleCharacter::StaticClass();
 	SnowmanCharacterClass = ASnowmanModeSnowmanCharacter::StaticClass();
 	LobbyReturnGameModeClass = ASnowRumbleLobbyGameMode::StaticClass();
+
+	static ConstructorHelpers::FClassFinder<UTimedDropAnnouncementWidget>
+		DefaultFallingSnowballAnnouncementWidget(
+			TEXT("/Game/WBP/WBP_FallingSnowAlarm"));
+	if (DefaultFallingSnowballAnnouncementWidget.Succeeded())
+	{
+		FallingSnowballAnnouncementWidgetClass =
+			DefaultFallingSnowballAnnouncementWidget.Class;
+	}
 	bUseSeamlessTravel = true;
 
 #if WITH_EDITOR
@@ -295,7 +309,10 @@ void ASnowmanModeGameMode::InitGame(
 		World->GetTimerManager().ClearTimer(SnowmanIntroTimerHandle);
 		World->GetTimerManager().ClearTimer(SnowmanModeTimeLimitTimerHandle);
 		World->GetTimerManager().ClearTimer(SnowmanModeLobbyReturnTimerHandle);
+		World->GetTimerManager().ClearTimer(FallingSnowballEventTimerHandle);
+		World->GetTimerManager().ClearTimer(FallingSnowballSpawnTimerHandle);
 	}
+	RemainingFallingSnowballs = 0;
 
 	BroadcastBackgroundMusic();
 }
@@ -688,6 +705,151 @@ void ASnowmanModeGameMode::StartSnowmanModeAfterCountdown()
 			SnowmanModeTimeLimitSeconds,
 			false);
 	}
+	if (World && bEnableFallingSnowballEvent && FallingSnowballCount > 0)
+	{
+		ScheduleFallingSnowballEvent(FirstFallingSnowballDelaySeconds);
+	}
+}
+
+void ASnowmanModeGameMode::ScheduleFallingSnowballEvent(float DelaySeconds)
+{
+	if (!HasAuthority() || !GetWorld() || !bEnableFallingSnowballEvent)
+	{
+		return;
+	}
+
+	GetWorldTimerManager().SetTimer(
+		FallingSnowballEventTimerHandle,
+		this,
+		&ASnowmanModeGameMode::SpawnFallingSnowballEvent,
+		FMath::Max(0.0f, DelaySeconds),
+		false);
+}
+
+void ASnowmanModeGameMode::SpawnFallingSnowballEvent()
+{
+	ASnowmanModeGameState* SnowmanGameState =
+		GetGameState<ASnowmanModeGameState>();
+	if (!HasAuthority()
+		|| !GetWorld()
+		|| !SnowmanGameState
+		|| SnowmanGameState->IsSnowmanModeEnded()
+		|| !SnowmanGameState->IsSnowmanModeTimerActive()
+		|| FallingSnowballCount <= 0)
+	{
+		return;
+	}
+
+	BroadcastFallingSnowballAnnouncement();
+	GetWorldTimerManager().ClearTimer(FallingSnowballSpawnTimerHandle);
+	RemainingFallingSnowballs = FallingSnowballCount;
+	SpawnNextFallingSnowball();
+	ScheduleFallingSnowballEvent(FallingSnowballEventIntervalSeconds);
+}
+
+void ASnowmanModeGameMode::SpawnNextFallingSnowball()
+{
+	if (!HasAuthority() || !GetWorld() || RemainingFallingSnowballs <= 0)
+	{
+		return;
+	}
+
+	TSubclassOf<ASnowballItem> SpawnClass = FallingSnowballClass;
+	if (!SpawnClass && DefaultFallingSnowballClassPath.IsValid())
+	{
+		SpawnClass = DefaultFallingSnowballClassPath.TryLoadClass<ASnowballItem>();
+	}
+	if (!SpawnClass)
+	{
+		UE_LOG(LogSnowmanMode, Warning, TEXT("Falling snowball class is missing."));
+		return;
+	}
+
+	TArray<AActor*> SpawnPointCandidates;
+	UGameplayStatics::GetAllActorsOfClass(
+		GetWorld(),
+		ATargetPoint::StaticClass(),
+		SpawnPointCandidates);
+	if (SpawnPointCandidates.IsEmpty())
+	{
+		UE_LOG(LogSnowmanMode, Warning, TEXT("No TargetPoint found for falling snowballs."));
+		return;
+	}
+
+	UNavigationSystemV1* NavigationSystem =
+		FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+	if (!NavigationSystem)
+	{
+		UE_LOG(LogSnowmanMode, Warning, TEXT("Navigation system is missing for falling snowballs."));
+		return;
+	}
+
+	const AActor* CenterActor = SpawnPointCandidates[
+		FMath::RandRange(0, SpawnPointCandidates.Num() - 1)];
+	FNavLocation NavLocation;
+	if (!CenterActor
+		|| !NavigationSystem->GetRandomReachablePointInRadius(
+			CenterActor->GetActorLocation(),
+			FallingSnowballScatterRadius,
+			NavLocation))
+	{
+		return;
+	}
+
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.SpawnCollisionHandlingOverride =
+		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+	ASnowballItem* Snowball = GetWorld()->SpawnActor<ASnowballItem>(
+		SpawnClass,
+		NavLocation.Location + FVector::UpVector * FallingSnowballHeightOffset,
+		FRotator::ZeroRotator,
+		SpawnParameters);
+	if (Snowball)
+	{
+		const float RandomAngle = FMath::FRandRange(0.0f, UE_TWO_PI);
+		const float RandomHorizontalSpeed = FMath::FRandRange(
+			FMath::Min(FallingSnowballHorizontalSpeedMin, FallingSnowballHorizontalSpeedMax),
+			FMath::Max(FallingSnowballHorizontalSpeedMin, FallingSnowballHorizontalSpeedMax));
+		Snowball->InitializeFallingLargeSnowball(
+			FallingSnowballDamage,
+			FVector(
+				FMath::Cos(RandomAngle) * RandomHorizontalSpeed,
+				FMath::Sin(RandomAngle) * RandomHorizontalSpeed,
+				-250.0f));
+	}
+
+	--RemainingFallingSnowballs;
+	if (RemainingFallingSnowballs > 0)
+	{
+		GetWorldTimerManager().SetTimer(
+			FallingSnowballSpawnTimerHandle,
+			this,
+			&ASnowmanModeGameMode::SpawnNextFallingSnowball,
+			FMath::Max(0.0f, FallingSnowballSpawnIntervalSeconds),
+			false);
+	}
+}
+
+void ASnowmanModeGameMode::BroadcastFallingSnowballAnnouncement() const
+{
+	UWorld* World = GetWorld();
+	if (!World || !FallingSnowballAnnouncementWidgetClass)
+	{
+		return;
+	}
+
+	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator();
+		It;
+		++It)
+	{
+		if (ASnowRumblePlayerController* PlayerController =
+			Cast<ASnowRumblePlayerController>(It->Get()))
+		{
+			PlayerController->ClientShowTimedDropAnnouncement(
+				FallingSnowballAnnouncementWidgetClass,
+				FallingSnowballAnnouncementDisplayDurationSeconds);
+		}
+	}
 }
 
 void ASnowmanModeGameMode::InitializeSnowmanRoles()
@@ -833,14 +995,26 @@ void ASnowmanModeGameMode::UpdateSnowmanInfectionFlow()
 
                 if (IsSpawnInfectionGraceActive(InfectionTargetPlayerState)) continue;
 
-                const float SnowmanCapsuleRadius = SnowmanCharacter->GetCapsuleComponent()->GetScaledCapsuleRadius();
-                const float NormalCapsuleRadius = NormalCharacter->GetCapsuleComponent()->GetScaledCapsuleRadius();
-                const float EffectiveContactRadius = InfectionContactRadius + SnowmanCapsuleRadius + NormalCapsuleRadius;
-                
-                const float DistanceSquared = FVector::DistSquared2D(SnowmanCharacter->GetActorLocation(), NormalCharacter->GetActorLocation());
-                
-                if (DistanceSquared <= FMath::Square(EffectiveContactRadius))
-                {
+				const float SnowmanCapsuleRadius = SnowmanCharacter->GetCapsuleComponent()->GetScaledCapsuleRadius();
+				const float NormalCapsuleRadius = NormalCharacter->GetCapsuleComponent()->GetScaledCapsuleRadius();
+				const float SnowmanCapsuleHalfHeight = SnowmanCharacter->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+				const float NormalCapsuleHalfHeight = NormalCharacter->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+				const float EffectiveContactRadius = InfectionContactRadius + SnowmanCapsuleRadius + NormalCapsuleRadius;
+				const FVector SnowmanCapsuleLocation = SnowmanCharacter->GetCapsuleComponent()->GetComponentLocation();
+				const FVector NormalCapsuleLocation = NormalCharacter->GetCapsuleComponent()->GetComponentLocation();
+				const float HorizontalDistanceSquared =
+					FVector::DistSquared2D(SnowmanCapsuleLocation, NormalCapsuleLocation);
+				const float VerticalDistance =
+					FMath::Abs(SnowmanCapsuleLocation.Z - NormalCapsuleLocation.Z);
+				const float MaxVerticalContactDistance =
+					SnowmanCapsuleHalfHeight + NormalCapsuleHalfHeight;
+
+				// The configurable contact radius applies on the ground plane only.
+				// Requiring capsule-height overlap prevents floating players from infecting
+				// grounded players while they are visibly separated in the air.
+				if (HorizontalDistanceSquared <= FMath::Square(EffectiveContactRadius)
+					&& VerticalDistance <= MaxVerticalContactDistance)
+				{
                     const bool bConverted = ConvertPlayerToSnowmanPawn(InfectionTargetPlayerState);
                     if (bConverted)
                     {
@@ -953,6 +1127,9 @@ void ASnowmanModeGameMode::EndSnowmanMode(ESnowmanModeResult Result)
 	ApplySnowmanModeStartInputLock(true);
 	World->GetTimerManager().ClearTimer(InfectionScanTimerHandle);
 	World->GetTimerManager().ClearTimer(SnowmanModeTimeLimitTimerHandle);
+	World->GetTimerManager().ClearTimer(FallingSnowballEventTimerHandle);
+	World->GetTimerManager().ClearTimer(FallingSnowballSpawnTimerHandle);
+	RemainingFallingSnowballs = 0;
 	
 	
 	

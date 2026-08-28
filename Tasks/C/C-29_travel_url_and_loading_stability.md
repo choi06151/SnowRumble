@@ -76,6 +76,7 @@
 - 2026-08-27: `CreateWidget cannot be used on Player Controller with no attached player` 오류를 막기 위해 PvP PlayerController와 캐릭터 로컬 UI 생성 전에 `GetLocalPlayer()`를 확인한다. 눈사람 인트로 호스트 HUD 잔류는 Listen Server 로컬 PC 직접 숨김과 viewport MainHUD 강제 collapse로 보강했다.
 - 2026-08-27: 눈사람 포디움 클라이언트 카메라가 맵 자산 태그 차이에 흔들리지 않도록 PvP와 동일하게 `Podium_Camera` 태그 또는 이름 기준으로 찾는다. Survivor 승자 스폰은 travel 후 PlayerId가 바뀌는 경우를 대비해 `WinnerPlayerNames` URL 옵션으로 PlayerState 이름 fallback 매칭을 추가했다.
 - 2026-08-27: 눈사람 인트로 종료 후 HUD가 복원되지 않는 문제를 수정했다. 인트로 종료 RPC가 컨트롤러/캐릭터 숨김 플래그를 해제하고, viewport에 직접 접어 둔 MainHUD 계열 위젯을 다시 `Visible`로 복원한다.
+- 2026-08-27: 패키지 실행본에서 메인메뉴 `방 만들기` 클릭 직후 종료되는 문제를 추적했다. 로그상 `Host requested` 없이 `Closing by request`가 찍혀 세션 생성 실패가 아니라 메인메뉴 버튼 클릭 델리게이트가 종료 경로를 타는 문제로 보고, 메인메뉴 버튼 `OnClicked`를 C++에서 초기화한 뒤 의도한 핸들러만 다시 바인딩하게 했다. 패키지 로그에서 실제 클릭 경로를 확인할 수 있도록 Host/Quit 클릭 로그도 추가했다.
 
 ## 수동 작업
 
@@ -94,6 +95,7 @@
 - 눈사람 모드 로비->맵 travel 직후 호스트/클라이언트 로그에 `CreateWidget cannot be used on Player Controller with no attached player`가 재발하지 않는지 확인한다.
 - 눈사람 Survivor 승리 후 포디움에서 호스트 화면 기준 클라이언트 승자도 `Podium_Team*` PlayerStart에 배치되고, 클라이언트 화면 카메라가 `Podium_Camera`에 고정되는지 확인한다.
 - 눈사람 모드 팀 인트로가 끝나면 호스트와 클라이언트 모두 Snowman HUD가 다시 표시되는지 확인한다.
+- 패키지 실행본에서 메인메뉴 `방 만들기` 클릭 시 `Main menu HostButton clicked`와 `Host requested` 로그가 이어지고 로비로 이동하는지 확인한다. `Main menu QuitGameButton clicked`가 찍히면 WBP의 실제 버튼 이름/배치가 Quit 버튼으로 잘못 잡힌 것이다.
 
 ## 완료 조건
 
