@@ -28,7 +28,7 @@
 | I-01 기존 기반 | C-01 | 모든 역할 | 재사용 파일·자산과 공용 소유권 | 완료 |
 | I-02 세션·방 | C-02 | C-03, S-02 | 방 설정·검색·참가 상태와 요청 | 진행중 |
 | I-03 팀·대기방 | C-03 | C-04, C-08, C-14, S-03 | 팀 색 선택·준비·다색 팀 시작 상태 | 진행중 |
-| I-04 랜덤 맵·로딩 | C-04 | C-05, S-04, S-10, J | 선택 맵·로딩 인원·시작 결과 | 진행중 |
+| I-04 랜덤 맵·로딩 | C-04, C-29 | C-05, S-04, S-10, J | 선택 맵·강제 GameMode travel URL·로딩 인원·시작 결과 | 진행중 |
 | I-05 얼음·사망 | C-06 | C-05, C-07, C-13, K-07, S-07 | 얼음 잔여시간·사망·관전·전멸 결과 | 예정 |
 | I-06 플레이어 효과 | C-07 | K-01, K-03~K-06, K-08, S-09, S-10, J-02, J-04 | 피해·회복·무적·능력 보정 요청 | 예정 |
 | I-07 팀 식별 | C-08 | S-05 | 닉네임·팀 색·이름표용 상태 | 진행중 |
@@ -38,12 +38,14 @@
 | I-11 아이템 | C-25, 기존 K-01~K-11 대기 | C-12, S-08, S-09, S-10, J | 선물상자 스폰·개봉·랜덤 보상 확정, 아이템 상태·모델 요구·배치·UI 계약 | 진행중 |
 | I-12 레벨·비주얼 | S-12, J-05 | C-12 | 세 맵과 UI·모델·표현 자산 | 예정 |
 | I-13 부활 계약 | C-13 | K-07, S-07, C-05 | 핫팩 부활 진행·취소·완료와 무적 결과 | 예정 |
-| I-14 팀 등장 | C-14 | S-10, J-02, J-04 | 팀 스폰·시작 제한·팀 소개 상태 | 예정 |
+| I-14 팀 등장 | C-14 | S-10, J-02, J-04 | 팀 스폰·시작 제한·팀 소개 상태, 런타임 팀 소개 카메라와 UI 이벤트 | 진행중 |
 | I-15 맵 환경 압박 | C-05, S-10, J-02, J-04 | C-12 | C-05 게임 속도별 축소 주기·경기 시간·축소 호출 계약, 레벨 담당 맵별 수위·자기장·눈 폭 서버 로직과 배치 | 진행중 |
 | I-16 로비 게시판 상호작용 | C-15 | S-03, 사용자 | 게시판 outline, E 입력, 서버 검증 상호작용 이벤트, 카메라 컴포넌트 기반 포커스, 월드 UI 버튼 액션, 팀 색 선택, 매치 시작 로딩창 | 진행중 |
-| I-17 Steam 세션 전환 | C-18 | C-02, S-02, 사용자 | LAN fallback을 유지하면서 Steam 세션·Overlay 친구 초대·초대 수락·세션 정리 통합 | 예정 |
+| I-17 Steam 세션 전환 | C-18 | C-02, S-02, 사용자 | LAN fallback을 유지하면서 Steam 세션·Overlay 친구 초대·초대 수락·세션 정리 통합 | 진행중 |
 | I-18 캐릭터 모델·ABP | C-24 | S-01, S-05, S-08, 사용자 | 새 캐릭터 모델용 ABP 부모, 애니메이션 슬롯 이름, 캐릭터 상태 변수 | 진행중 |
 | I-19 눈사람 모드 | K-12~K-14 | C-04, C-05, C-09, S/J 맵 담당, 사용자 | 기존 PvP 맵 재사용, 환경 축소 비활성, 10분 제한시간, 랜덤 눈사람 시작, 감염·전환·승패 결과 | 예정 |
+| I-20 Grab 물리 물건 | C-34 | S·후속 물건 Blueprint, C-09 | 물리 물건 부모 Actor, Grab 연결, 플레이어 밀침, 작은·큰 눈 파괴 충돌 | 진행중 |
+| I-21 데미지 텍스트 표시 | C-35 | S·후속 HUD/캐릭터 Blueprint | `UDamageTextWidget`, 일반/헤드샷 WBP 슬롯, 직접 투척 눈덩이 `HeadshotBoneNames` 판정 제공 | 진행중 |
 
 ## 세션 개발 정책
 
@@ -81,12 +83,16 @@
 | C-03 | C | 최재원(C) | 최재원(C) | 문서·C++: 최재원(C), 로비 맵 PlayerStart 배치: 사용자/S·J 인계 | `Tasks/C/C-03_random_team_lobby.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Game/SnowRumbleLobbyGameMode.*`, `Source/SnowRumble/Game/SnowRumbleLobbyGameState.*`, `Source/SnowRumble/Game/SnowRumblePlayerState.*`, `Source/SnowRumble/UI/LobbyPlayerController.*` | 진행중 |
 | C-04 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), PvP 후보 레벨 자산 지정: 사용자/S/J 인계 | `Tasks/C/C-04_random_map_loading.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Game/SnowRumbleLobbyGameMode.*`, `Source/SnowRumble/Game/SnowRumbleMatchSubsystem_C.*` | 진행중 |
 | C-06 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 얼음/사망 표현 UI·VFX: 사용자/S 인계 | `Tasks/C/C-06_freeze_death_spectate.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Player/SnowRumbleHealthComponent.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*` | 진행중 |
-| C-05 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 결과 UI/연출: 사용자/S 인계 | `Tasks/C/C-05_round_match_flow.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Game/SnowRumbleGameMode.*`, `Source/SnowRumble/Game/SnowRumbleGameState_C.*`, `Source/SnowRumble/Game/SnowRumbleLobbyGameState.*`, `Source/SnowRumble/Game/SnowRumbleMatchSubsystem_C.*`, `Source/SnowRumble/Game/PodiumGameMode.*`, `Source/SnowRumble/Game/PodiumPlayerController.*`, `Source/SnowRumble/UI/LobbyBoardWidget_C.*`, `Source/SnowRumble/UI/MainHUDWidget.cpp`, `Source/SnowRumble/UI/PodiumWidget.*`, `Source/SnowRumble/Player/SnowRumbleHealthComponent.cpp`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Content/Game/BP_SnowRumblePodiumGameMode.uasset`, `Content/Controller/BP_SnowRumblePodiumController.uasset`, `Content/Maps/L_Podium.umap` | 진행중 |
+| C-05 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 결과 UI/연출: 사용자/S 인계 | `Tasks/C/C-05_round_match_flow.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Game/SnowRumbleGameMode.*`, `Source/SnowRumble/Game/SnowRumbleGameState_C.*`, `Source/SnowRumble/Game/SnowRumbleLobbyGameState.*`, `Source/SnowRumble/Game/SnowRumbleMatchSubsystem_C.*`, `Source/SnowRumble/Game/PodiumGameMode.*`, `Source/SnowRumble/Game/PodiumPlayerController.*`, `Source/SnowRumble/UI/LobbyBoardWidget_C.*`, `Source/SnowRumble/UI/MainHUDWidget.cpp`, `Source/SnowRumble/UI/PodiumWinnerWidget.*`, `Source/SnowRumble/Player/SnowRumbleHealthComponent.cpp`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Content/Game/BP_SnowRumblePodiumGameMode.uasset`, `Content/Controller/BP_SnowRumblePodiumController.uasset`, `Content/Maps/L_Podium.umap` | 진행중 |
 | C-08 | C | 최재원(C) | 최재원(C) | C++: 최재원(C), 이름표 WBP·그래픽: S-05 인계 | `Tasks/C/C-08_spawn_intro_identity.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/UI/OverheadNameplateWidget_C.*` | 진행중 |
+| C-10 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 이모션 WBP·커서 WBP 연결: 사용자/S 인계 | `Tasks/C/C-10_emote_revalidation.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Player/SnowRumbleCharacter.cpp`, `Source/SnowRumble/UI/SnowRumblePlayerController.*` | 진행중 |
+| C-14 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 팀 소개 UI/WBP 애니메이션과 최종 카메라 감도: 사용자/S 인계 | `Tasks/C/C-14_spawn_intro_flow.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Game/SnowRumbleGameMode.*`, `Source/SnowRumble/UI/SnowRumblePlayerController.*` | 진행중 |
 | C-15 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 게시판 Blueprint·맵 배치·로딩 WBP: 사용자/S 인계 | `Tasks/C/C-15_lobby_board_interaction.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Interaction/LobbyInteractionBoard_C.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/UI/*LoadingScreen*`, `Source/SnowRumble/UI/SnowRumblePlayerController.*`, `Source/SnowRumble/Game/SnowRumbleGameMode.*` | 진행중 |
 | C-16 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), HUD WBP 배치: 사용자/S 인계 | `Tasks/C/C-16_teammate_health_hud.md`, `Tasks/C/PLAN_C.md`, `Tasks/C/ROLE_C.md`, `docs/PLANS.md`, `Source/SnowRumble/UI/MainHUDWidget.*` | 완료 |
 | C-17 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 카운트다운 WBP 표시 배치: 사용자/S 인계 | `Tasks/C/C-17_pvp_start_countdown.md`, `Tasks/C/PLAN_C.md`, `Tasks/C/ROLE_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Game/SnowRumbleGameState_C.*`, `Source/SnowRumble/Game/SnowRumbleGameMode.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/UI/MainHUDWidget.*` | 진행중 |
-| C-18 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), Steam App ID·테스트 계정·빌드 환경: 사용자 확인 | `Tasks/C/C-18_steam_session_integration.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Config/DefaultEngine.ini`, `Source/SnowRumble/Online/SnowRumbleSessionSubsystem.*`, `Source/SnowRumble/UI/LobbyEscapeMenuWidget.*`, `Source/SnowRumble/UI/MainMenuWidget.*`, `Source/SnowRumble/UI/LobbyPlayerController.*` | 예정 |
+| C-29 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 맵별 WorldSettings 정리: 사용자/S/J 인계 | `Tasks/C/C-29_travel_url_and_loading_stability.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Game/SnowRumbleLobbyGameMode.*`, `Source/SnowRumble/Game/SnowRumbleGameMode.*`, `Source/SnowRumble/Game/PodiumGameMode.*`, `Source/SnowRumble/UI/LoadingScreenSubsystem.*`, `Source/SnowRumble/SnowRumble.Build.cs` | 진행중 |
+| C-30 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 맵별 배경음악 자산 지정: 사용자/S 인계 | `Tasks/C/C-30_audio_feedback_and_voice_mix.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Audio/SnowRumbleAudioHelpers.*`, `Source/SnowRumble/Audio/SnowRumbleBackgroundMusicSubsystem_C.*`, `Source/SnowRumble/Game/SnowRumbleGameMode.*`, `Source/SnowRumble/Game/SnowRumbleLobbyGameMode.*`, `Source/SnowRumble/Game/SnowmanModeGameMode_K.*`, `Source/SnowRumble/Game/SnowRumbleMainMenuGameMode.*`, `Source/SnowRumble/Game/SnowRumbleCustomizationGameMode_C.*`, `Source/SnowRumble/Game/PodiumGameMode.*`, `Source/SnowRumble/Game/PodiumPlayerController.*`, `Source/SnowRumble/UI/MainMenuPlayerController.*`, `Source/SnowRumble/UI/CustomizationPlayerController_C.*`, `Source/SnowRumble/UI/SnowRumblePlayerController.*` | 진행중 |
+| C-18 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), Steam App ID·테스트 계정·빌드 환경: 사용자 확인 | `Tasks/C/C-18_steam_session_integration.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Config/DefaultEngine.ini`, `Source/SnowRumble/Online/SnowRumbleSessionSubsystem.*`, `Source/SnowRumble/UI/LobbyEscapeMenuWidget.*`, `Source/SnowRumble/UI/MainMenuWidget.*`, `Source/SnowRumble/UI/LobbyPlayerController.*` | 진행중 |
 | C-19 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 채팅 WBP 배치·스타일: 사용자/S 인계 | `Tasks/C/C-19_text_chat.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/UI/ChatWidget_C.*`, `Source/SnowRumble/UI/SnowRumblePlayerController.*`, `Source/SnowRumble/UI/LobbyPlayerController.*` | 진행중 |
 | C-20 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 로비/HUD 로그 WBP 배치·스타일: 사용자/S 인계 | `Tasks/C/C-20_event_log_ui.md`, `Tasks/C/ROLE_C.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/UI/SnowRumblePlayerController.*`, `Source/SnowRumble/UI/LobbyWidget.*`, `Source/SnowRumble/UI/MainHUDWidget.*`, `Source/SnowRumble/Game/SnowRumblePlayerState.*`, `Source/SnowRumble/Game/SnowRumbleGameMode.*` | 진행중 |
 | C-21 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 옵션 WBP 배치·스타일: 사용자/S 인계 | `Tasks/C/C-21_options_menu.md`, `Tasks/C/ROLE_C.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/UI/OptionsWidget_C.*`, `Source/SnowRumble/UI/OptionsKeyBindingRowWidget_C.*`, `Source/SnowRumble/UI/MainMenuWidget.*`, `Source/SnowRumble/UI/MainMenuPlayerController.*`, `Source/SnowRumble/UI/LobbyEscapeMenuWidget.*`, `Source/SnowRumble/UI/LobbyPlayerController.*`, `Source/SnowRumble/UI/SnowRumblePlayerController.*`, `Source/SnowRumble/Player/SnowRumbleUserSettingsSubsystem_C.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*` | 진행중 |
@@ -97,6 +103,7 @@
 | C-25 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 선물상자 Blueprint·아이템 Pickup Blueprint·모델·모닥불 Blueprint·맵 TargetPoint 배치: 사용자/S/J 인계 | `Tasks/C/C-25_pvp_gift_box_item_foundation.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `docs/ARCHITECTURE.md`, `docs/PENDING_ISSUES.md`, `Source/SnowRumble/Item/GiftBox_C.*`, `Source/SnowRumble/Item/GiftBoxItemPickup_C.*`, `Source/SnowRumble/Item/GiftItemEffectComponent_C.*`, `Source/SnowRumble/Item/Campfire_C.*`, `Source/SnowRumble/Game/SnowRumbleGameMode.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/Player/SnowRumbleHealthComponent.*`, `Source/SnowRumble/Snowball/SnowballCreationComponent.*`, `Source/SnowRumble/Snowball/SnowballItem.*` | 진행중 |
 | C-26 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), AnimNotify·Niagara·Decal·Sound 연결: 사용자/S 인계 | `Tasks/C/C-26_snow_footstep_effect.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Player/SnowRumbleCharacter.*` | 진행중 |
 | C-27 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 지형 머티리얼·Stamp 머티리얼·맵 배치: 사용자/S/J 인계 | `Tasks/C/C-27_snow_trail_render_target.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `docs/ARCHITECTURE.md`, `docs/PENDING_ISSUES.md`, `Source/SnowRumble/Environment/SnowTrailRenderTargetManager_C.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*` | 진행중 |
+| C-28 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), Control Rig·AnimBP·Physics Asset·HUD ProgressBar 연결: 사용자/S 인계 | `Tasks/C/C-28_player_grab_control_rig_foundation.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Player/PlayerGrabComponent_C.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/Player/SnowRumbleCharacterAnimInstance_C.*`, `Source/SnowRumble/UI/MainHUDWidget.*` | 진행중 |
 | K-12 | K | 강혜원(K) | 강혜원(K), 공용 로딩·플레이어 계약: 최재원(C) | 문서·C++·Blueprint: 강혜원(K), 기존 PvP 맵 자산 수정 없음 | `Tasks/K/K-12_snowman_mode_foundation.md`, `Tasks/K/PLAN_K.md`, 눈사람 모드 GameMode/GameState/PlayerController 후보는 구현 승인 전 확정 | 예정 |
 | K-13 | K | 강혜원(K) | 강혜원(K), 공용 플레이어·눈 전투 계약: 최재원(C) | 문서·C++·Blueprint: 강혜원(K) | `Tasks/K/K-13_snowman_infection_flow.md`, `Tasks/K/PLAN_K.md`, 눈사람 이동·감염 관련 생성 후보는 구현 승인 전 확정 | 예정 |
 | K-14 | K | 강혜원(K) | 강혜원(K), 공용 경기 결과 계약: 최재원(C) | 문서·C++·Blueprint: 강혜원(K), UI 표현 자산은 사용자/S 인계 | `Tasks/K/K-14_snowman_mode_integration.md`, `Tasks/K/PLAN_K.md`, 눈사람 모드 승패·HUD 인계 후보는 구현 승인 전 확정 | 예정 |
@@ -111,28 +118,77 @@
 
 ## 최근 통합 로그
 
-- 2026-08-11: C-24 캐릭터 모델·ABP 계약을 추가함. 새 ABP는 `USnowRumbleCharacterAnimInstance`를 부모로 사용하고, 캐릭터 상태 변수와 `IdleAnimation` 등 슬롯 프로퍼티에 새 Skeleton용 애니메이션을 장착할 수 있음. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor PID 41016의 DLL 잠금으로 최종 링크는 보류됨.
-- 2026-08-12: C-11 페인트 trace를 기본 몸 머티리얼 slot 0 전용으로 제한함. `PaintAllowedMaterialIndex`는 기본 0, -1이면 모든 slot 허용이며, `bShowPaintHitDebug`로 hit 컴포넌트·slot·UV를 확인할 수 있음. `SnowRumbleEditor Win64 Development` 빌드가 성공함.
-- 2026-08-12: C-11 페인트 trace에 원형 커서 중심 자동 보정을 추가함. `bUsePaintCursorCenterTraceOffset`이 켜져 있으면 현재 브러시 커서 지름의 절반만큼 trace 위치를 보정하고, `PaintCursorScreenOffset`은 마지막 미세 조정값으로 유지함. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor PID 46944의 DLL 잠금으로 최종 링크는 보류됨.
-- 2026-08-12: 강혜원(K) 담당을 아이템 중심에서 눈사람 모드 중심으로 변경함. 눈사람 모드는 10분 제한시간, 기존 PvP 맵 재사용, 환경 축소 비활성, 랜덤 눈사람 시작, 접촉 감염과 전원 감염/생존자 승리 조건을 기준으로 K-12~K-14 후속 Task에서 개발함.
-- 2026-08-12: C-11 모자 커스터마이징 계약을 추가함. `FSnowRumbleCustomizationData::HatMeshIndex`, 캐릭터 `HatMeshComponent`/`CustomizationHatMeshes`, 커스터마이징 WBP `HatModeButton`/`HatPreviousButton`/`HatNextButton`으로 모자 후보를 순환·저장·복제·적용하게 함. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됨.
-- 2026-08-12: PvP 내부 아이템 첫 범위로 C-25 선물상자 계약을 추가함. 기존 대기 상태의 I-11 아이템 계약은 C-25가 선물상자 스폰·개봉·랜덤 보상 확정 기반을 먼저 제공하고, 실제 개별 아이템 효과와 모델·맵 배치는 후속 인계로 처리함.
-- 2026-08-12: C-25 선물상자 C++ 기반을 구현함. `AGiftBox`는 빨간색/황금색 등급과 등급별 보상 후보, 낙하·착지·개봉 Blueprint 이벤트를 제공하고, PvP GameMode는 레벨 담당자가 배치한 `TargetPoint` 후보에서 상자를 공중 스폰함. `SnowRumbleEditor Win64 Development` 빌드가 성공함.
-- 2026-08-12: C-25 선물상자 보상 흐름을 아이템 Pickup 스폰 후 `E` 획득 구조로 변경함. `AGiftBox::TakeDamage()`로 눈덩이 피격 개봉을 지원하고, `AGiftBoxItemPickup`이 획득 확정과 로그/알림을 담당함. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됨.
-- 2026-08-12: C-25 아이템 효과 1차 구현을 추가함. `UGiftItemEffectComponent`가 핫팩 보유, 즉시 회복, 에너지 드링크 5초 무적, 부츠 이동속도, 패딩 피해 감소, 장갑 눈 제작 시간 감소, 눈오리 제작기 눈덩이 피해 증가, 황금 붕어빵 지속 회복, 눈삽 내구도와 모닥불 키트 보유 수를 서버 권한으로 관리함. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됨.
-- 2026-08-12: C-25 핫팩과 모닥불 키트 정책을 사용자 결정에 맞게 변경함. 일반 핫팩은 1개까지만 장착하고, 황금 핫팩은 획득 즉시 같은 팀의 얼음 상태 아군을 50% HP로 부활시키며, 모닥불 키트는 보유하지 않고 `ACampfire`를 캐릭터 앞에 즉시 설치함. `SnowRumbleEditor Win64 Development` 빌드가 성공함.
-- 2026-08-12: C-25 장비 외형 슬롯을 추가함. 캐릭터는 부츠, 장갑, 패딩, 핫팩, 눈삽, 눈오리 제작기용 고정 StaticMeshComponent를 갖고 `UGiftItemEffectComponent` 복제 상태에 따라 표시함. UHT는 통과했으나 현재 시스템 page file 부족 `C3859/C1076`으로 C++ 컴파일 전 PCH 생성 단계에서 빌드가 보류됨.
-- 2026-08-12: C-24 애니메이션 장착 자세 계약을 보강함. `ESnowRumbleHeldAnimationState`/`HeldAnimationState`로 맨손, 작은 눈덩이, 큰 눈덩이, 눈삽, 눈오리 제작기를 ABP에서 한 값으로 분기할 수 있고, 빠른 연결용 `SnowShovelHoldAnimation`, `SnowDuckMakerHoldAnimation` 슬롯을 추가함.
-- 2026-08-12: C-24/C-25 애니메이션 연동을 보강함. 선물상자 열기와 선물 아이템 획득 성공은 `bIsInteractingWithItem`/`ItemInteractionAnimation`으로, 실제 HP 피해 피격은 `bIsHitReacting`/`HitReactAnimation`으로 ABP가 분기할 수 있음.
-- 2026-08-12: C-24/C-25 애니메이션 연동 변경은 `git diff --check`와 UHT/C++ 컴파일을 통과함. 최종 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됨.
-- 2026-08-13: C-24 ABP 부모를 이동·상체·전체 몸 액션 3계층 상태 구조로 확장함. `LocomotionAnimState`, `UpperBodyAnimState`, `FullBodyAnimState`와 override helper를 통해 ABP가 조준+이동, 스프린트+장착 같은 조합을 enum blend와 상체 레이어로 처리하게 함. C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됨.
-- 2026-08-13: C-24 Class Defaults 애니메이션 슬롯 계약을 제거함. `GetPrimaryAnimation()`과 `IdleAnimation` 등 슬롯 프로퍼티는 삭제하고, 새 ABP는 Anim Graph의 상태별 Sequence Player에 애니메이션 에셋을 직접 연결하는 구조로 확정함.
-- 2026-08-13: C-24 one-shot 애니메이션 trigger 계약을 추가함. `ESnowRumbleCharacterAnimTrigger`와 `OnAnimationTriggerRequested`로 눈덩이 줍기/던지기, 아이템 상호작용, 피격 반응을 서버 확정 후 모든 화면의 AnimBP에 전달함. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됨.
-- 2026-08-12: C-11 색칠하기 브러시 색 선택을 기본 컬러 피커에서 고정 팔레트 버튼으로 변경함. WBP는 빨강, 주황, 노랑, 초록, 파랑, 남색, 보라, 검정, 하양 버튼만 배치하고, 선택된 색은 Pressed 스타일로 유지됨.
-- 2026-08-12: C-11 고정 팔레트 버튼 변경은 `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드를 통과함.
-- 2026-08-12: C-11 팔레트 버튼 클릭 시 실제 브러시 색이 해당 버튼의 WBP 스타일 Normal Tint와 BackgroundColor를 기준으로 정해지게 함.
-- 2026-08-12: C-11 버튼 tint 기반 브러시 색 변경은 `git diff --check`와 UHT/C++ 컴파일을 통과함. 최종 링크는 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 보류됨.
-- 2026-08-13: C-05 정규 라운드 최종 공동 1등 처리로 단판 승부 타이브레이커를 추가함. `ASnowRumbleGameMode::TiebreakerTravelUrl`에 전용 PvP 맵을 지정하면 공동 1등 팀끼리만 최종 판정과 피해 적용 대상이 되며, 같은 GameMode/Controller/HUD를 사용함. HUD는 `단판승부`와 경기 시간만 표시하고 맵 축소는 비활성화하며, 선물상자 아이템 스폰은 기존 PvP와 동일하게 유지함. UHT와 C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 최종 링크는 보류됨.
-- 2026-08-13: C-05 단판 승부 비동점 팀은 관전자 상태로 전환함. `ASnowRumbleCharacter::SetTiebreakerSpectatorFromServer()`가 관전자 상태를 복제하고, 관전자는 이동·상호작용·아이템 사용과 충돌 간섭이 막히며 `RefreshTiebreakerSpectatorViewTarget()`으로 경기 참가자 시점을 봄. `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드를 통과함.
-- 2026-08-13: C-05 매치 종료 후 포디움 레벨 이동을 추가함. `APodiumGameMode`가 현재 매치 참가 팀 색만 기준으로 1~3등을 산정하고 `Podium_Team1`/`Podium_Team2`/`Podium_Team3` PlayerStart에 배치하며, `UPodiumWidget`에 결과 문구를 전달한 뒤 10초 후 `ResetPvPMatch()`와 로비 복귀를 수행함. `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드가 성공함.
-- 2026-08-13: 레벨별 책임 분리를 위해 포디움 전용 `APodiumGameMode`/`APodiumPlayerController`에서 PvP GameMode/PlayerController 상속을 제거함. 포디움은 결과 표시·배치·로비 복귀만 담당하고, PvP HUD·채팅·ESC·라운드 입력 복구 흐름은 섞이지 않게 함. 커스터마이징 커서 숨김 문제도 공용 캐릭터 입력 복구 경로에서 `ACustomizationPlayerController`를 제외해 수정함. C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 보류됨.
+- 2026-08-27: C-34 물리 상호작용 물건 계약을 추가했다. `AGrabbablePhysicsObject`를 기반으로 여러 물건 Blueprint가 서버 복제 물리, Grab 연결, 플레이어 밀침과 눈덩이 파괴 동작을 재사용할 수 있게 했다.
+- 2026-08-27: C-09/C-28 입력을 좌클릭 Grab, `Q` 눈 만들기, `E` 눈덩이 굴리기, `F` 일반 상호작용으로 분리했다. Grab trace가 바닥 눈덩이를 만나면 기존 손 위치에 장착하고, 새 제작·굴리기 InputAction 슬롯과 옵션 키 재설정 항목을 추가했다.
+- 2026-08-27: C-34 물리 물건 Grab 회귀를 보강했다. 캐릭터 손 bone에 직접 물리 Constraint를 걸지 않고 숨김 PhysicsOnly 앵커에 물건을 연결해 손 늘어남을 막는다.
+- 2026-08-27: C-34 물리 물건 Grab 동작을 고정 이동 기준으로 변경했다. 잡힌 동안 물건은 손 위치에 직접 고정되고, 상대 플레이어 밀침은 별도 서버 overlap으로 처리한다.
+- 2026-08-27: C-34 Grab 물건 자식 기믹 확장을 추가했다. `AGrabbablePhysicsObject`의 Grab 훅과 `ATambourineGrabbableObject` 위치 기반 찰랑 사운드 슬롯을 제공한다.
+- 2026-08-27: C-34 Grab 물건의 눈덩이 피격과 플레이어 밀침을 공통 상호작용 횟수로 집계하고, 기본 1회 도달 시 지정 Niagara VFX를 재생한 뒤 액터를 제거하는 파괴 슬롯을 추가했다.
+- 2026-08-27: C-34 태그 기반 StaticMesh 치환 계약을 추가했다. 맵에 `AGrabbableStaticMeshBootstrapActor`를 배치하고 Actor 또는 StaticMeshComponent에 `grabbable`/`grabable` 태그를 달면 서버가 `AGrabbablePhysicsObject`를 스폰하고 원본 Static Mesh는 각 로컬에서 숨김·충돌 해제한다.
+- 2026-08-27: C-34 `AGrabbablePhysicsObject` 테스트 기본값을 파괴 1회, 플레이어 밀침 힘 3000으로 조정했다.
+- 2026-08-27: C-34 태그 치환 물건의 밀침 힘, 파괴 횟수, 파괴 Niagara 이펙트를 `AGrabbableStaticMeshBootstrapActor`에서 지정할 수 있게 했다.
+- 2026-08-27: C-34 QA에서 호스트에만 보이던 태그 치환 물건을 수정했다. `AGrabbablePhysicsObject`가 변환 Static Mesh와 Material을 복제하고 클라이언트 `OnRep`에서 적용한다.
+- 2026-08-27: C-18 Steam 연결 전제에 맞춰 로비 선택 모드를 세션 광고에 반영하고, 경기 중 수락된 Steam 초대가 기존 세션을 정리하지 않도록 보강했다.
+- 2026-08-27: C-04/C-18 연계로 `BP_LobbyGameMode`에 눈사람 전용 `SnowmanLevelCandidates` 맵 슬롯을 추가하고, 눈사람 모드가 해당 배열에서 랜덤 맵을 선택하도록 분리했다.
+- 2026-08-27: C-04/C-29 연계로 `ASnowRumblePlayerController`에 눈사람 전용 로딩 WBP 슬롯을 추가하고, 로비 서버가 선택한 모드에 따라 클라이언트 로딩 화면을 분기하도록 연결했다.
+- 2026-08-27: C-28 얼음 플레이어 Grab을 상대팀에도 허용하고, 상대팀 얼음 운반 중인 Grabber의 이동속도를 `OpposingFrozenCarryWalkSpeed`로 제한하는 계약을 추가했다.
+- 2026-08-27: C-35 피격 데미지 텍스트 표시 계약을 추가했다. 서버가 실제 적용 피해량을 확정한 뒤 모든 클라이언트에 `OnDamageTextRequested`를 호출한다.
+- 2026-08-27: C-35 일반/헤드샷 데미지 텍스트 WBP 슬롯을 분리했다. `UDamageTextWidget` 기반 WBP의 `DamageText` TextBlock은 C++가 자동으로 피해량을 입력한다.
+- 2026-08-27: C-35 직접 투척 눈덩이 헤드샷 판정을 추가했다. 머리 bone 충돌 시 피해 배율과 헤드샷 데미지 텍스트 타입을 적용한다.
+
+- 2026-08-24: C-09 공중 작은 눈덩이 투척 보정을 추가했다. 서버 release 시점에 공중이면 기존 `ThrowSmallSnowballInAir` 모션과 맞춰 피해 1.5배와 속도 기본 1.2배를 적용한다.
+- 2026-08-24: C-30 효과음 공간화 범위를 눈덩이 충돌음과 캐릭터 피격음으로 한정했다. UI 상호작용음은 해당 플레이어 로컬 2D 재생으로 유지하고, `ASnowballItem::ImpactSoundAttenuation`과 `ASnowRumbleCharacter::DamageSoundAttenuation`으로 attenuation 연결 지점을 추가했다.
+- 2026-08-25: C-30 눈덩이 투척 휘두르기 사운드가 캐릭터 위치 기반으로 재생되도록 `SnowballThrowSoundAttenuation` Blueprint 슬롯을 추가하고 연결했다.
+- 2026-08-25: C-06 얼음·사망 관전을 추가했다. `ASnowRumbleCharacter`가 자기 캐릭터를 포함한 참여 캐릭터 전체를 PlayerId 순으로 후보화하고 A/D로 로컬 카메라 시점을 순환한다. `USpectatorWidget`의 `CurrentViewTargetIdText`에 현재 대상 PlayerId를 표시하며, WBP 배치는 사용자/S 인계로 남겼다.
+- 2026-08-25: C-06 관전 카메라를 실제 시점 복제 방식으로 보강했다. 대상 소유 클라이언트의 `FollowCamera` 위치·회전·FOV를 서버 RPC로 전달하고, 관전자 로컬 `ACameraActor`가 복제값을 적용해 대상 화면과 동일한 시점을 표시한다.
+- 2026-08-25: C-31을 추가했다. PvP 최초 진입은 클라이언트별 Ready 핸드셰이크를 기준으로 시작하고, 45초 내 미준비 시 전체 매치를 취소해 로비로 복귀하며, PSO Precaching·캐시 수집 경로를 안정화한다.
+- 2026-08-25: C-31 Ready 핸드셰이크와 45초 타임아웃 전체 로비 복귀를 구현했다. PSO Precaching·Shader Pipeline Cache·Material Shader Code 공유 설정을 활성화했고 C++ 빌드가 성공했다. 4인 PIE와 실제 PSO Cache 수집은 수동 확인으로 남겼다.
+- 2026-08-25: 핫팩 아군 부활 중에도 기존 눈 제작용 머리 위 ProgressBar를 재사용하도록 `RevivingTeammate` timed action과 0~1 진행도 계산을 추가했다.
+- 2026-08-24: C-30 UI 버튼 공통 클릭음을 추가했다. `USnowRumbleAudioUserWidget`이 버튼을 자동 연결하고 단일 `ButtonInteractionSound`를 로컬 2D로 재생한다.
+- 2026-08-24: C-30 UI 사운드를 hover/click 슬롯으로 분리했다. 버튼 hover는 `ButtonHoverSound`, click은 `ButtonClickSound`를 로컬 2D로 재생한다.
+- 2026-08-24: C-30 눈 제작·굴리기·잡기·놓기·점프·큰 눈덩이 폭발 사운드 연결을 추가했다. 제작·굴리기·잡기·놓기·큰 눈덩이는 위치 기반으로, 점프는 로컬 SFX로 재생한다.
+- 2026-08-24: C-26 발걸음 AnimNotify에 `FootstepSound`와 `FootstepSoundAttenuation`을 연결해 `SnowSurface` 발 위치에서 공간음향으로 재생한다.
+- 2026-08-24: 병합 중 MainHUD WBP 참조 손실에 대비해 C++가 `/Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C`를 우선 로드하도록 보강했다.
+- 2026-08-24: C-11 커스터마이징 UI 계약을 기존 버튼 이름 자동 바인딩 방식으로 36색 팔레트까지 확장하고 C++가 버튼 RGB 스타일을 초기화하게 했다. WBP 버튼 배치는 사용자/S 인계로 남겼다.
+- 2026-08-24: C-11 커스터마이징 UI에 선택적 `BrushSizeSlider` 계약을 추가했다. 0~1 Slider 값은 기존 브러시 최소·최대 크기로 변환되고 버튼·휠 조절과 동기화된다.
+- 2026-08-25: C-11 커스터마이징 장착 계약을 모자·안경·코·귀마개 4종으로 확장했다. `FSnowRumbleCustomizationData`에 액세서리별 인덱스를 추가하고, 캐릭터가 `HatSocket`·`GlassesSocket`·`NoseSocket`·`EarmuffsSocket`에 후보 StaticMesh를 장착하며, 프리뷰용 공통 선택 API를 제공한다. 실제 StaticMesh 자산 제작·소켓 생성·WBP 배치는 사용자/S 인계로 남겼다.
+- 2026-08-25: C-11 커스터마이징 WBP가 이름 기반 액세서리 버튼을 자동 연결하도록 확장했다. 카테고리 버튼은 모자·안경·코·귀마개 페이지로 전환하고, `HatItemButton_N`, `GlassesItemButton_N`, `NoseItemButton_N`, `EarmuffsItemButton_N`의 `_0`은 해제, `_1`부터 후보 배열을 선택한다.
+- 2026-08-25: C-11 액세서리 전용 WidgetSwitcher 인덱스를 0 모자, 1 안경, 2 코, 3 귀마개로 확정하고, 커스터마이징 WBP 진입 시 0번 모자 페이지가 표시되도록 조정했다.
+- 2026-08-25: C-11 커스터마이징 프리뷰에 A/D 회전을 추가했다. A/D는 기존 좌우 회전 버튼과 같은 회전 속도를 사용하며 WASD 이동·카메라 룩 잠금은 유지한다.
+- 2026-08-25: C-11 브러시 크기 슬라이더의 Hover 커서를 기본 커서로 고정해 슬라이더 전용 커서가 커스터마이징 커서를 덮어쓰지 않게 했다.
+- 2026-08-25: C-11 브러시 크기 슬라이더의 마우스 캡처 시작·종료 시에도 커스터마이징 커서를 재적용하도록 보강했다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-25: C-11 페인트 커서 활성 중 매 프레임 커서 위젯을 재적용해 슬라이더 드래그 중에도 원형 페인트 커서를 유지하게 했다.
+- 2026-08-25: C-11 슬라이더가 드래그 중 반환하는 `ResizeLeftRight` 등 UI 커서 타입에도 PaintMode 원형 커서 위젯을 등록하게 보강했다. C++ 컴파일은 통과했으나 실행 중인 Unreal Editor DLL 잠금 `LNK1104`로 최종 링크는 보류됐다.
+- 2026-08-25: C-11 브러쉬 최소/최대 범위가 256을 넘어도 슬라이더의 0~1 정규화와 원형 페인트 커서 크기가 전체 범위를 반영하도록 보완했다.
+- 2026-08-24: C-06/C-28 얼음·Grab 공용 계약을 확장했다. 서버는 얼은 대상에 대해 같은 팀 Grab만 허용하고, 기존 Grab tether 운반과 사망 시 자동 해제를 연결한다.
+- 2026-08-24: C-09 눈 전투 공용 판정을 보강했다. `ASnowballItem` 서버 충돌 처리에서 같은 팀 캐릭터는 눈덩이 피해와 넉백을 받지 않고 적 팀만 기존 피해 경로를 사용한다.
+- 2026-08-24: C-09 눈덩이 성장값을 투척 피해에 연결했다. `GrowthProgress` 0~1을 `MaximumGrowthDamageMultiplier` 1~3배로 보간해 차지 피해와 곱하고 서버에서 최종 피해를 확정한다.
+- 2026-08-24: 로비에서 게임 맵으로 이동할 때 로딩창을 먼저 표시하고 `MatchTravelDelaySeconds` 기본 5초 후 `ServerTravel`하도록 연결했다.
+- 2026-08-24: Grab 게이지를 서버 잔량으로 유지하고 해제 후 1초 대기, 기본 5초 점진 회복을 추가했다. 기존 HUD 표시 조건은 변경하지 않았다.
+- 2026-08-24: 일반 핫팩을 같은 팀 얼음 플레이어 근접 부활 상호작용에 연결했다. 아웃라인·`E - 살리기` 안내·홀드 입력과 서버 검증 부활 후 핫팩 소모를 추가했다.
+- 2026-08-24: 황금 핫팩도 장착형 근접 부활로 통합했다. 일반 핫팩 대비 E 홀드 2배, 부활 HP 100%, 성공 후 아이템 유지 규칙을 적용했다.
+- 2026-08-24: 로비 8번째 팀을 White에서 Orange로 변경했다. `ESnowRumbleTeam`, 서버 팀 배정, LobbyBoard 선택 버튼, 팀 색상 표시를 Orange로 연결하고 기존 White WBP 이름은 호환 fallback으로 유지한다.
+- 2026-08-24: C-06 얼음 상태를 기존 `OverheadTimedActionWidget` timed action 계약에 연결했다. `GetFrozenProgress()`가 복제 서버 시각 기준 남은 60초를 1에서 0으로 반환한다.
+
+- 2026-08-22: 포디움 전용 WBP 계약을 승리 팀명과 로비 복귀 카운트다운만 표시하도록 축소함. `UPodiumWinnerWidget`은 `WinningTeamText`와 `SubtitleText`만 자동 갱신하고, `APodiumPlayerController`와 `APodiumGameMode`는 팀원 이름 목록 전달을 중단했다.
+- 2026-08-22: 포디움에서는 `APodiumPlayerController`가 캐릭터 중력을 끄고 입력을 잠그며, `ASnowRumbleCharacter`가 `MainHUDWidget`, 이모션 원형 메뉴, 상호작용 안내 위젯을 만들지 않도록 차단했다.
+- 2026-08-18: C-19 채팅 Tab edge-detect 변경은 `git diff --check`와 C++ 컴파일을 통과함. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됨.
+- 2026-08-18: C-14 PvP 맵 이상 위치 스폰 원인을 PlayerStart 주변 900cm 랜덤 오프셋이 바닥·충돌 검증 없이 선택되는 경로로 확인함. 분산 후보는 바닥 trace, Pawn 캡슐 overlap, 기존 스폰 간격을 통과할 때만 쓰고, 실패 시 원래 PlayerStart 위치로 fallback함.
+- 2026-08-18: C-14 PvP 분산 스폰 안전성 변경은 `git diff --check`, UHT, `SnowRumbleGameMode.cpp` 컴파일을 통과함. 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됨.
+- 2026-08-21: C-29로 전환 URL 안정화 계약을 추가함. 로비->랜덤 PvP, PvP->포디움, 포디움->로비 이동은 코드에서 목적 GameMode를 강제하고, PvP 로딩창은 모든 예상 플레이어 접속 후 팀 소개 시퀀서 시작 직전에 닫는다.
+- 2026-08-21: C-29 로비->PvP 로딩 화면을 `MoviePlayer` 기반으로 보강함. travel 중 검은 화면 대신 Slate 로딩 화면이 전체 화면을 덮고, 맵 로드 후 기존 WBP 로딩창이 이어받아 팀 소개 시퀀서 직전까지 유지된다.
+- 2026-08-21: C-04/C-29 로딩 커스터마이징 데이터 계약을 추가함. 로비 GameMode의 `PvPLevelLoadingPresentations`가 랜덤 선택 맵별 표시명·이미지를 제공하고, 매치 시작 시 클라이언트별 같은 팀 플레이어 이름 목록을 로딩 UI에 전달한다.
+- 2026-08-19: C-25 눈오리 제작기 좌클릭 연동을 보강함. 눈오리 제작기 장착 중 좌클릭 눈 제작 완료 시 생성된 눈덩이를 즉시 손에 장착하고, 장착된 눈덩이는 우클릭 조준 없이 좌클릭만으로 충전·투척하며 `ThrowSnowDuckMaker` 애니메이션 트리거와 `SnowDuckBallSocket` 부착 위치를 사용함.
+- 2026-08-19: C-25 모닥불 VFX 연결을 보강함. `ACampfire`에 `FireVfxComponent`와 `HealRadiusVfxComponent`를 추가해 Blueprint에서 불꽃과 회복 범위 VFX를 연결할 수 있고, 모닥불이 꺼지면 두 VFX가 자동 비활성화됨.
+- 2026-08-21: C-25/J-04 모닥불과 눈섬 물 상승 연동을 추가함. `ACampfire::ExtinguishFromWater()`를 C-25 계약으로 제공하고, `ASnowIslandWaterPressureActor`가 서버 수위에 닿은 모닥불을 즉시 꺼서 회복·충돌·VFX만 비활성화하고 Actor와 Mesh는 남긴다. `git diff --check`와 충돌 표식 검색은 통과했고, `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 보류됨.
+- 2026-08-21: C-25 선물상자 등급별 VFX 연결을 보강함. `AGiftBox`에 `GradeVfxComponent`, `RedGiftBoxEffect`, `GoldGiftBoxEffect`를 추가해 복제된 빨간/황금 등급에 맞는 Niagara System을 각 클라이언트에서 적용하고, 상자가 열리면 등급 VFX를 비활성화함. `git diff --check`와 충돌 표식 검색은 통과했고, `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 보류됨.
+- 2026-08-21: C-28 보행 중 좌클릭 연타로 월드 잡기 tether가 즉시 확정되어 캐릭터가 위로 튀는 회귀를 보강함. 잡기 확정은 손 올림 alpha가 일정 값 이상일 때만 진행하고, 월드 붙음은 짧은 hold 시간 이후 수직 벽 계열 표면과 손 높이 범위를 통과할 때만 확정한다. 월드 tether 상승 속도와 해제 시 잔여 Z 속도도 제한했다. `git diff --check`와 충돌 표식 검색은 통과했고, `SnowRumbleEditor Win64 Development` 빌드는 Live Coding 활성화로 보류됨.
+- 2026-08-20: C-28 잡기 손 접촉 붙음 상태를 확장함. 서버가 플레이어 Mesh와 벽·월드 오브젝트 접촉을 확정해 붙은 위치를 복제하고, 플레이어를 잡으면 잡힌 캐릭터의 이동·점프·일반 행동을 해제 전까지 잠근다. UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고, 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됨.
+- 2026-08-20: C-28 벽잡기 매달림 tether를 추가함. 월드 표면에 손이 붙으면 잡는 캐릭터의 이동 입력·점프·일반 행동을 차단하고, 붙은 손 위치 기준 뒤·아래 오프셋으로 몸을 유지한다. `SnowRumbleEditor Win64 Development` 빌드가 성공함.
+- 2026-08-21: C-11 메인메뉴 프리뷰 캐릭터 고정을 추가함. 메인메뉴 PlayerController BP는 `MainMenuPreviewAnimationAsset`, `bPauseMainMenuPreviewAnimation`, `MainMenuPreviewAnimationPositionSeconds`, `MainMenuPreviewMeshScale`로 possess된 캐릭터 포즈와 Mesh 스케일을 지정할 수 있고, C++은 이동·시점 입력과 중력·MovementMode를 막는다. `git diff --check`와 `SnowRumbleEditor Win64 Development` 빌드가 성공함.
+- 2026-08-21: J-04 눈섬 물 상승 클라이언트 표현 누락을 보강함. 서버 Damage는 정상이고 클라이언트 물 위치 표현만 누락되는 증상이라 `ASnowIslandWaterPressureActor`를 항상 relevant하게 설정해 수위 복제 상태가 클라이언트에도 도달하게 했다.
+- 2026-08-21: C-25 선물상자 스폰 위치를 TargetPoint 주변 랜덤 위치로 변경함. `ASnowRumbleGameMode::GiftBoxSpawnScatterRadius` 반경 안에서 서버가 XY 오프셋을 확정하고, 기존 높이 오프셋으로 공중 낙하 스폰한다.
+- 2026-08-22: C-24/C-09 눈덩이 Notify 투척 조준을 보강함. 입력 release 때 저장한 방향이 아니라 `UAnimNotify_SnowballThrowRelease` 시점의 로컬 카메라 위치·방향을 서버 RPC로 보내 최종 trace와 투척 방향을 다시 계산하게 했다.
+- 2026-08-22: C-30 맵별 배경음악 시작 지점을 추가함. 메인메뉴와 커스터마이징은 로컬 PlayerController가 직접 재생하고, 로비·PvP·눈사람 모드·포디움은 GameMode가 각 클라이언트 컨트롤러에 배경음악 재생 RPC를 보낸다.
+- 2026-08-22: PvP 전환 중 배경음악이 끊기는 문제를 `USnowRumbleBackgroundMusicSubsystem`으로 보정함. 컨트롤러 EndPlay 중지 호출을 제거하고, travel 중에는 같은 오디오 컴포넌트를 유지한 채 맵별 음악만 교체한다.
+- 2026-08-27: 작은 눈덩이 안내를 `E - 굴리기 / F - 줍기`로 분리하고, 장비·눈덩이 내려놓기 기본 입력을 `Enter`로 변경했다.

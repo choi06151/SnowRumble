@@ -8,6 +8,12 @@
 #include "Components/ProgressBar.h"
 #include "GameFramework/PlayerController.h"
 
+void UOverheadTimedActionWidget::SetObservedCharacter(
+	ASnowRumbleCharacter* NewCharacter)
+{
+	ObservedCharacter = NewCharacter;
+}
+
 void UOverheadTimedActionWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
@@ -38,13 +44,18 @@ void UOverheadTimedActionWidget::RefreshActionProgressPresentation()
 
 	APlayerController* OwningPlayer = GetOwningPlayer();
 	ASnowRumbleCharacter* Character =
-		Cast<ASnowRumbleCharacter>(GetOwningPlayerPawn());
+		ObservedCharacter
+			? ObservedCharacter.Get()
+			: Cast<ASnowRumbleCharacter>(GetOwningPlayerPawn());
+	const bool bIsRemoteFrozenTimer = ObservedCharacter != nullptr;
 	const bool bShouldShow =
 		OwningPlayer
 		&& Character
-		&& Character->IsLocallyControlled()
-		&& Character->GetTimedActionState()
-			!= ESnowRumbleTimedActionState::None;
+		&& (bIsRemoteFrozenTimer
+			? Character->IsFrozen()
+			: Character->IsLocallyControlled()
+				&& Character->GetTimedActionState()
+					!= ESnowRumbleTimedActionState::None);
 
 	TimedActionProgressBar->SetVisibility(
 		bShouldShow
@@ -57,7 +68,10 @@ void UOverheadTimedActionWidget::RefreshActionProgressPresentation()
 		return;
 	}
 
-	TimedActionProgressBar->SetPercent(Character->GetTimedActionProgress());
+	TimedActionProgressBar->SetPercent(
+		bIsRemoteFrozenTimer
+			? Character->GetFrozenProgress()
+			: Character->GetTimedActionProgress());
 
 	FVector2D ScreenPosition = FVector2D::ZeroVector;
 	const bool bProjected =

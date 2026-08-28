@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "SnowRumbleAudioUserWidget.h"
 #include "Styling/SlateTypes.h"
 #include "../Game/SnowRumbleMatchSubsystem_C.h"
 #include "../Game/SnowRumblePlayerState.h"
@@ -26,7 +26,7 @@ enum class ELobbyBoardTeamColor : uint8
 	Purple,
 	Pink,
 	Blue,
-	White
+	Orange
 };
 
 UENUM(BlueprintType)
@@ -37,7 +37,7 @@ enum class ELobbyBoardGameMode : uint8
 };
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API ULobbyBoardWidget : public UUserWidget
+class SNOWRUMBLE_API ULobbyBoardWidget : public USnowRumbleAudioUserWidget
 {
 	GENERATED_BODY()
 
@@ -54,6 +54,11 @@ public:
 	/** WBP 버튼 OnClicked에서 수동으로 팀 색 변경 요청을 보낼 때 사용한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Lobby Board")
 	void SubmitTeamColorFromBlueprint(ELobbyBoardTeamColor TeamColor);
+
+	/** 지정된 로컬 PlayerController가 포커스한 게시판에 외부 설정 변경 피드백을 표시한다. */
+	void ShowInvalidActionFeedbackForController(
+		ALobbyPlayerController* RequestingPlayerController,
+		const FText& ReasonText);
 
 protected:
 	/** 위젯 생성 시 선택 버튼과 닫기 버튼을 연결한다. */
@@ -115,9 +120,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UButton> BlueTeamButton;
 
-	/** WBP에서 같은 이름으로 만든 하양 팀 버튼에 자동 연결된다. */
+	/** WBP에서 같은 이름으로 만든 주황 팀 버튼에 자동 연결된다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UButton> WhiteTeamButton;
+	TObjectPtr<UButton> OrangeTeamButton;
 
 	/** WBP에서 같은 이름으로 만든 PVP 모드 버튼에 자동 연결된다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
@@ -207,9 +212,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> BlueTeamCountText;
 
-	/** WBP에서 같은 이름으로 만든 하양 팀 인원 수 텍스트에 자동 연결된다. */
+	/** WBP에서 같은 이름으로 만든 주황 팀 인원 수 텍스트에 자동 연결된다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UTextBlock> WhiteTeamCountText;
+	TObjectPtr<UTextBlock> OrangeTeamCountText;
 
 	/** 팀 색 버튼이 눌렸을 때 WBP가 표시 반응이나 이후 기능 연결을 처리한다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Lobby Board")
@@ -281,7 +286,7 @@ private:
 	void HandleBlueTeamButtonClicked();
 
 	UFUNCTION()
-	void HandleWhiteTeamButtonClicked();
+	void HandleOrangeTeamButtonClicked();
 
 	UFUNCTION()
 	void HandlePvpModeButtonClicked();

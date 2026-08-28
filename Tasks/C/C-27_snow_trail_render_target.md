@@ -63,11 +63,14 @@
 - 2026-08-14: 사전 지정 `SnowTrailRenderTarget` 사용 시 BeginPlay에서 stamp 목록과 RT 픽셀을 초기화하고 `OnSnowTrailRenderTargetReady`로 지형 머티리얼 파라미터 재연결 시점을 제공함. `SnowRumbleEditor Win64 Development` 빌드가 최종 링크까지 성공함.
 - 2026-08-14: 발걸음 stamp가 점처럼 끊겨 보여 같은 캐릭터의 이전 stamp와 현재 stamp 사이를 보간해 중간 stamp를 추가하는 옵션을 Manager에 추가함. `bInterpolateTrailBetweenStamps`, `InterpolatedStampSpacingWorld`, `MaxInterpolatedStampDistanceWorld`로 조정한다. C++ 컴파일과 `.lib` 생성은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 `LNK1104`로 보류됨.
 - 2026-08-14: AnimNotify가 눈 표면을 확인한 뒤 캐릭터가 눈 표면 위를 이동하는 동안 거리 기준으로 연속 stamp를 요청하는 경로를 추가함. `bEnableDistanceBasedSnowTrailStamps`, `SnowTrailDistanceStampInterval`, `SnowTrailDistanceStampMinimumSpeed`로 조정한다. 이번 변경 대상 파일의 `git diff --check`는 통과했고, UHT와 C++ 컴파일, `.lib` 생성은 통과했으나 실행 중인 Unreal Editor DLL 잠금으로 최종 링크는 `LNK1104`로 보류됨.
+- 2026-08-19: `L_snowisland`처럼 Lobby와 다른 Landscape UV 배치에서 RT 마스크가 다른 위치에 보이는 문제를 보정하기 위해 Manager에 맵별 `SnowTrailUVScale`, `SnowTrailUVOffset`, `bSnowTrailFlipU`, `bSnowTrailFlipV` 조정값을 추가함. Manager는 머티리얼 파라미터 `SnowTrailUVScale`/`TrailUVScale`, `SnowTrailUVOffset`/`TrailUVOffset`, `SnowTrailFlipU`/`TrailFlipU`, `SnowTrailFlipV`/`TrailFlipV`를 자동 적용한다.
+- 2026-08-19: `SnowTrailMaterialActors`, `SnowTrailMaterialComponents`, 또는 `SnowSurface` 태그 자동 적용 대상의 Bounds에서 `TrailWorldCenter`와 `TrailWorldSize`를 계산하는 `bAutoFitTrailWorldAreaFromMaterialBounds` 옵션을 추가함. `TrailWorldBoundsPadding`으로 가장자리 여유를 조정하고, 유효 Bounds가 없으면 기존 수동 값을 유지한다.
 
 ## 수동 작업
 
 - `BP_SnowTrailRenderTargetManager_C`를 만들고 부모를 `ASnowTrailRenderTargetManager`로 설정한다.
 - 눈길을 만들 맵에 Manager BP를 1개 배치하고 `TrailWorldCenter`, `TrailWorldSize`, `RenderTargetSize`를 맵 크기에 맞춘다.
+- `L_snowisland`처럼 Landscape 크기와 위치를 수동으로 맞추기 어려운 맵은 Manager BP에서 `bAutoFitTrailWorldAreaFromMaterialBounds`를 켜고, Landscape Actor를 `SnowTrailMaterialActors`에 넣거나 Landscape 컴포넌트를 `SnowTrailMaterialComponents`에 넣는다. 가장자리가 잘리면 `TrailWorldBoundsPadding`을 늘린다.
 - 걷기/달리기 애니메이션 에셋의 왼발·오른발이 바닥에 닿는 프레임에 `Snow Rumble Snow Footstep` AnimNotify를 추가하고, `FootSocketName`을 실제 Skeleton socket 이름으로 지정한다.
 - 캐릭터 BP에서 `bEnableDistanceBasedSnowTrailStamps`를 켜고, `SnowTrailDistanceStampInterval`은 35~45cm, `SnowTrailDistanceStampMinimumSpeed`는 20cm/s 전후로 시작한다.
 - Manager BP의 `OnSnowTrailStampRequested`에서 눈 지형 머티리얼 인스턴스에 `TargetRenderTarget`, `TrailWorldCenter`, `TrailWorldSize`를 전달하거나 필요한 파라미터 갱신을 수행한다.
@@ -76,6 +79,7 @@
 - Manager BP의 `SnowTrailStampMaterial`에 발자국/눈길 stamp material을 지정한다. `bDrawStampsInCpp`가 켜져 있으면 C++가 `StampData.TrailUV`와 `StampData.RadiusPixels` 기준으로 Canvas에 직접 그린다.
 - `OnDrawSnowTrailStamp`는 기본 C++ stamp 위에 추가 보정이나 별도 레이어가 필요할 때만 구현한다. Manager가 기존 stamp 목록을 보관하고 RenderTarget 갱신 때 전부 다시 그리므로 Blueprint는 누적 목록을 따로 저장하지 않는다.
 - 눈 지형 머티리얼에 Manager의 `SnowTrailRenderTarget`을 Texture Parameter로 전달하고, `AbsoluteWorldPosition.xy`를 Manager의 `TrailWorldCenter`/`TrailWorldSize`와 같은 방식으로 UV 변환해 마스크를 샘플링한다.
+- 맵별 Landscape UV가 Lobby와 다르면 기본 UV 계산 뒤 `SnowTrailUVScale`, `SnowTrailUVOffset`, `SnowTrailFlipU`, `SnowTrailFlipV`를 적용한다. Lobby Manager는 기본값 `Scale=(1,1)`, `Offset=(0,0)`, Flip 꺼짐으로 두고, `L_snowisland` Manager BP에서만 보정값을 조정한다.
 - 마스크 값이 높은 곳은 BaseColor를 살짝 어둡게, Normal/Roughness/Height 표현을 눌린 눈처럼 조정한다.
 
 ## 완료 조건

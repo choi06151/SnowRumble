@@ -7,6 +7,7 @@
 #include "Campfire_C.generated.h"
 
 class ASnowRumbleCharacter;
+class UNiagaraComponent;
 class USphereComponent;
 class UStaticMeshComponent;
 
@@ -20,6 +21,9 @@ public:
 
 	/** 서버가 설치자를 기록하고 모닥불 수명을 시작한다. */
 	void InitializeCampfireFromServer(ASnowRumbleCharacter* NewInstaller);
+
+	/** 서버 물 침수 판정으로 모닥불을 즉시 끈다. */
+	void ExtinguishFromWater();
 
 	/** 눈덩이 등 공격을 받으면 서버가 모닥불 내구도를 감소시킨다. */
 	virtual float TakeDamage(
@@ -44,6 +48,9 @@ protected:
 	/** 모닥불이 꺼졌을 때 서버와 클라이언트 표현을 갱신한다. */
 	void ExtinguishCampfire();
 
+	/** 현재 내구도와 꺼짐 상태에 맞춰 C++ 기본 컴포넌트 표현을 갱신한다. */
+	void RefreshCampfirePresentation();
+
 	UFUNCTION()
 	void OnRep_RemainingHitPoints();
 
@@ -53,6 +60,12 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Campfire")
 	TObjectPtr<UStaticMeshComponent> CampfireMeshComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Campfire|VFX")
+	TObjectPtr<UNiagaraComponent> FireVfxComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Campfire|VFX")
+	TObjectPtr<UNiagaraComponent> HealRadiusVfxComponent;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Campfire", meta = (ClampMin = "0.0"))
 	float HealRadius = 320.0f;
 
@@ -60,13 +73,10 @@ protected:
 	float HealPerSecond = 4.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Campfire", meta = (ClampMin = "1"))
-	int32 MaximumHitPoints = 5;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Campfire", meta = (ClampMin = "0.0"))
-	float ExtinguishedDestroyDelaySeconds = 2.0f;
+	int32 MaximumHitPoints = 2;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_RemainingHitPoints, Category = "SnowRumble|Item|Campfire")
-	int32 RemainingHitPoints = 5;
+	int32 RemainingHitPoints = 2;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Item|Campfire")
 	TObjectPtr<ASnowRumbleCharacter> Installer;

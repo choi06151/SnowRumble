@@ -3,13 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "SnowRumbleAudioUserWidget.h"
 #include "EmoteRadialMenuWidget.generated.h"
 
 class UButton;
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API UEmoteRadialMenuWidget : public UUserWidget
+class SNOWRUMBLE_API UEmoteRadialMenuWidget : public USnowRumbleAudioUserWidget
 {
 	GENERATED_BODY()
 
@@ -161,4 +161,5 @@ private:
 	void UnbindEmoteButtons();
 
 	int32 HoveredEmoteIndex = INDEX_NONE;
+
 };

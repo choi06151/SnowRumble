@@ -32,6 +32,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Personal Alarm")
 	void ShowPersonalTextAlarm(const FText& Message);
 
+	/** 조준 입력 이벤트 직후 조준점 표시를 즉시 갱신한다. */
+	void SetAimCrosshairVisibleImmediate(bool bVisible);
+
 protected:
 	/** HUD 생성 시 로컬 플레이어와 다른 플레이어 체력 바를 초기화한다. */
 	virtual void NativeConstruct() override;
@@ -80,6 +83,10 @@ protected:
 	/** WBP에서 직접 배치한 다음 맵 축소 안내 TextBlock에 자동 연결된다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> MapShrinkCountdownText;
+
+	/** WBP에서 직접 배치한 맵 축소 상태 TextBlock에 자동 연결된다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> MapShrinkStatusText;
 
 	/** WBP에서 직접 배치한 라운드 종료 패널에 자동 연결된다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))

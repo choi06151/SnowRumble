@@ -7,6 +7,14 @@
 #include "SnowballEquipmentComponent.generated.h"
 
 class ASnowballItem;
+class ASnowRumbleCharacter;
+class AActor;
+class USplineComponent;
+class USplineMeshComponent;
+class UStaticMesh;
+class UMaterialInterface;
+class UNiagaraComponent;
+class UNiagaraSystem;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 	FOnHeldSnowballChanged,
@@ -48,6 +56,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
 	ASnowballItem* GetHeldSnowball() const;
 
+	/** 서버가 새로 만든 눈덩이를 즉시 손에 장착한다. */
+	bool EquipCreatedSnowballFromServer(ASnowballItem* CreatedSnowball);
+
+	/** 서버가 Grab trace로 찾은 바닥 눈덩이를 손에 장착한다. */
+	bool EquipSnowballFromGrab(ASnowballItem* GrabbedSnowball);
+
 	/** 현재 최대 성장 큰 눈덩이를 들고 있는지 확인한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
 	bool IsHoldingLargeSnowball() const;
@@ -79,9 +93,20 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snowball")
 	void ReleaseChargedSnowball();
 
+	/** 던지기 몽타주의 AnimNotify 시점에 현재 카메라 조준으로 보류 중인 투척을 실제 발사한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snowball")
+	void ConfirmPendingThrowFromAnimationNotify();
+
+	/** 로컬 소유자의 큰 눈덩이 투척 궤적과 착탄 표시를 즉시 숨긴다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snowball")
+	void HideThrowTrajectoryPreview();
+
 	/** 투척 없이 진행 중인 충전을 취소한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snowball")
 	void CancelCharging();
+
+	/** 피격 등으로 던지기 연출이 끊겼을 때 보유 눈덩이는 유지하고 충전/보류 투척만 정리한다. */
+	void InterruptThrowStateFromServer();
 
 	/** 현재 투척 충전 중인지 확인한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowball")
@@ -142,6 +167,11 @@ protected:
 		FVector_NetQuantizeNormal ViewDirection);
 
 	UFUNCTION(Server, Reliable)
+	void ServerConfirmPendingThrowFromAnimationNotify(
+		FVector_NetQuantize ViewLocation,
+		FVector_NetQuantizeNormal ViewDirection);
+
+	UFUNCTION(Server, Reliable)
 	void ServerCancelCharging();
 
 	/** 서버가 실제 보유 상태를 검사하고 캐릭터 앞에 눈덩이를 내려놓는다. */
@@ -170,11 +200,35 @@ protected:
 	/** 현재 보유한 눈덩이 크기에 맞는 최대 충전시간을 반환한다. */
 	float GetCurrentMaximumChargeSeconds() const;
 
+	/** 굴리는 동안 서버가 눈덩이를 유지할 캐릭터 앞 위치를 계산한다. */
+	FVector BuildRollingSnowballTargetLocation(
+		const ASnowRumbleCharacter* Character,
+		const ASnowballItem* Snowball) const;
+
 	/** 서버가 검증한 카메라 Line Trace로 화면 중앙의 월드 조준점을 찾는다. */
 	bool FindServerAimTarget(
 		const FVector& ViewLocation,
 		const FVector& ViewDirection,
 		FVector& OutAimTarget) const;
+
+	/** 로컬 소유자의 현재 카메라 또는 Pawn 시야 정보를 얻는다. */
+	bool BuildCurrentThrowView(
+		FVector& OutViewLocation,
+		FVector& OutViewDirection) const;
+
+	/** 서버가 저장해 둔 속도·충전값과 Notify 시점 조준으로 실제 눈덩이 투척을 처리한다. */
+	void ExecutePendingThrowFromServer(
+		const FVector& ViewLocation,
+		const FVector& ViewDirection);
+
+	/** 로컬 조준 화면에 큰 눈덩이의 포물선 미리보기를 갱신한다. */
+	void UpdateThrowTrajectoryPreview();
+
+	/** 로컬 조준 화면의 포물선 미리보기를 비운다. */
+	void ClearThrowTrajectoryPreview();
+
+	/** 보류 중인 던지기 값을 모두 초기화한다. */
+	void ClearPendingThrow();
 
 	void SetChargingState(bool bNewCharging);
 
@@ -202,6 +256,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw", meta = (ClampMin = "0.0"))
 	float MaximumThrowSpeed = 2400.0f;
 
+	/** 공중에서 작은 눈덩이를 던질 때 적용할 피해 배율이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Airborne", meta = (ClampMin = "0.0"))
+	float AirborneThrowDamageMultiplier = 1.5f;
+
+	/** 공중에서 작은 눈덩이를 던질 때 적용할 속도 배율이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Airborne", meta = (ClampMin = "0.0"))
+	float AirborneThrowSpeedMultiplier = 1.2f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Aim", meta = (ClampMin = "0.0"))
 	float AimTraceDistance = 10000.0f;
 
@@ -226,11 +288,88 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling", meta = (ClampMin = "0.0"))
 	float RollingDistance = 90.0f;
 
+	/** SnowSurface 위에서 굴릴 때 공 중심에 적용할 월드 Z 오프셋이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling")
+	float RollingSnowballSnowSurfaceZOffset = 0.0f;
+
+	/** 일반 지면 위에서 굴릴 때 공 위치에 적용할 월드 Z 오프셋이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling")
+	float RollingSnowballGroundZOffset = 0.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling", meta = (ClampMin = "0.0"))
+	float RollingGroundTraceUpDistance = 120.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling", meta = (ClampMin = "0.0"))
+	float RollingGroundTraceDownDistance = 500.0f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling", meta = (ClampMin = "0.0"))
 	float SmallSnowballRollingWalkSpeed = 300.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling", meta = (ClampMin = "0.0"))
 	float LargeSnowballRollingWalkSpeed = 150.0f;
+
+	/** 큰 눈덩이 포물선 미리보기에서 사용할 샘플 개수다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory", meta = (ClampMin = "2", ClampMax = "64"))
+	int32 TrajectoryPreviewSampleCount = 24;
+
+	/** 큰 눈덩이 포물선 미리보기의 샘플 시간 간격이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory", meta = (ClampMin = "0.01"))
+	float TrajectoryPreviewTimeStep = 0.08f;
+
+	/** 큰 눈덩이 포물선 미리보기를 화면에 표시할지 여부다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory")
+	bool bDrawTrajectoryPreview = true;
+
+	/** 패키징에서도 표시할 큰 눈덩이 포물선용 Static Mesh다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory")
+	TObjectPtr<UStaticMesh> TrajectoryPreviewMesh;
+
+	/** 큰 눈덩이 포물선 메쉬에 적용할 Material이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory")
+	TObjectPtr<UMaterialInterface> TrajectoryPreviewMaterial;
+
+	/** 큰 눈덩이 포물선 메쉬에 적용할 색상이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory")
+	FLinearColor TrajectoryPreviewColor = FLinearColor(0.2f, 0.75f, 1.0f, 1.0f);
+
+	/** 큰 눈덩이 포물선 메쉬에서 우선 적용할 머티리얼 슬롯 이름이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory")
+	FName TrajectoryPreviewMaterialSlotName = TEXT("TransformGizmoMaterial");
+
+	/** 포물선 Spline Mesh의 단면 스케일이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory", meta = (ClampMin = "0.01"))
+	float TrajectoryPreviewMeshScale = 1.0f;
+
+	/** 큰 눈덩이 착탄 예상 위치에 표시할 액터 블루프린트다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory")
+	TSubclassOf<AActor> TrajectoryPreviewLandingActorClass;
+
+	/** 큰 눈덩이 궤적 표시를 Niagara로도 출력할지 여부다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory|Niagara")
+	bool bUseTrajectoryPreviewNiagara = true;
+
+	/** BP에서 플레이어에 미리 붙여둔 궤적 Niagara 컴포넌트를 지정한다. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SnowRumble|Snowball|Throw|Trajectory|Niagara")
+	TObjectPtr<UNiagaraComponent> TrajectoryPreviewNiagaraComponent;
+
+	/** 지정 컴포넌트가 없을 때 런타임 생성에 사용할 궤적 Niagara 시스템이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory|Niagara")
+	TObjectPtr<UNiagaraSystem> TrajectoryPreviewNiagaraSystem;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory|Niagara")
+	FName TrajectoryPreviewNiagaraPointsParameter = TEXT("User.TrajectoryPoints");
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory|Niagara")
+	FName TrajectoryPreviewNiagaraPointCountParameter = TEXT("User.TrajectoryPointCount");
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory|Niagara")
+	FName TrajectoryPreviewNiagaraColorParameter = TEXT("User.TrajectoryColor");
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory|Niagara")
+	FName TrajectoryPreviewNiagaraStartParameter = TEXT("User.TrajectoryStart");
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowball|Throw|Trajectory|Niagara")
+	FName TrajectoryPreviewNiagaraEndParameter = TEXT("User.TrajectoryEnd");
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Rolling", meta = (ClampMin = "0.0"))
 	float RollingObstaclePushSpeed = 120.0f;
@@ -238,5 +377,22 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Carry", meta = (ClampMin = "0.0"))
 	float LargeSnowballCarryWalkSpeed = 200.0f;
 
+	UPROPERTY(Transient)
+	TObjectPtr<USplineComponent> ThrowTrajectorySpline;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<USplineMeshComponent>> ThrowTrajectorySplineMeshes;
+
+	/** 착탄 예상 위치 표시용 로컬 액터다. */
+	UPROPERTY(Transient)
+	TObjectPtr<AActor> TrajectoryPreviewLandingActor;
+
+	bool bHideTrajectoryPreviewForCurrentThrow = false;
+
 	double ChargeStartTime = -1.0;
+	bool bHasPendingThrow = false;
+	FVector LastRollingMovementDirection = FVector::ForwardVector;
+	float PendingThrowSpeed = 0.0f;
+	float PendingThrowChargeProgress = 0.0f;
+	float PendingThrowDamageMultiplier = 1.0f;
 };

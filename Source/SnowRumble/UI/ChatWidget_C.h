@@ -14,6 +14,7 @@ class UBorder;
 class UEditableTextBox;
 class UScrollBox;
 class UTextBlock;
+class UWidget;
 
 UENUM(BlueprintType)
 enum class ESnowRumbleChatChannel : uint8
@@ -28,6 +29,8 @@ class SNOWRUMBLE_API UChatWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	UChatWidget(const FObjectInitializer& ObjectInitializer);
+
 	/** 채팅 위젯이 메시지 요청을 보낼 PlayerController를 연결한다. */
 	void SetChatPlayerController(ASnowRumblePlayerController* NewPlayerController);
 
@@ -38,6 +41,10 @@ public:
 	/** 입력창을 닫고 현재 입력값을 비운다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Chat")
 	void CloseChatInput();
+
+	UWidget* GetChatInputFocusWidget() const;
+
+	void FocusChatInputTextBox();
 
 	/** 현재 입력창이 열려 있는지 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI|Chat")
@@ -169,6 +176,8 @@ private:
 	FLinearColor OriginalChatLogBorderBrushColor = FLinearColor::Transparent;
 
 	float LastChatVisibilityRefreshTime = 0.0f;
+	uint64 LastChatChannelToggleFrameNumber = 0;
+	bool bChatChannelToggleKeyWasDown = false;
 
 	ESnowRumbleChatChannel ActiveChatChannel = ESnowRumbleChatChannel::All;
 	bool bChatInputOpen = false;

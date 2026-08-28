@@ -10,6 +10,8 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "Net/UnrealNetwork.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
 #include "TimerManager.h"
 
 AGiftBoxItemPickup::AGiftBoxItemPickup()
@@ -38,6 +40,11 @@ AGiftBoxItemPickup::AGiftBoxItemPickup()
 void AGiftBoxItemPickup::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (HasAuthority())
+	{
+		InitializePlacedPickupFromDefaults();
+	}
 
 	if (ItemMeshComponent)
 	{
@@ -127,6 +134,7 @@ bool AGiftBoxItemPickup::TryPickup(ASnowRumbleCharacter* Character)
 
 	Character->NotifyItemInteractionSucceeded();
 	NotifyPickedUp(Character);
+	MulticastPlayPickedUpEffect();
 	OnItemPickedUp(Character);
 	SetLifeSpan(PickedUpDestroyDelaySeconds);
 	ForceNetUpdate();
@@ -162,6 +170,43 @@ void AGiftBoxItemPickup::GetLifetimeReplicatedProps(
 void AGiftBoxItemPickup::OnRep_ItemData()
 {
 	OnItemDataChanged(ItemType, ItemId, DisplayName);
+}
+
+void AGiftBoxItemPickup::MulticastPlayPickedUpEffect_Implementation()
+{
+	SpawnPickedUpEffect();
+}
+
+void AGiftBoxItemPickup::InitializePlacedPickupFromDefaults()
+{
+	if (ItemType != ESnowRumbleGiftItemType::None
+		|| DefaultItemType == ESnowRumbleGiftItemType::None)
+	{
+		return;
+	}
+
+	ItemType = DefaultItemType;
+	ItemId = DefaultItemId.IsNone()
+		? FName(*StaticEnum<ESnowRumbleGiftItemType>()->GetNameStringByValue(
+			static_cast<int64>(DefaultItemType)))
+		: DefaultItemId;
+	DisplayName = DefaultDisplayName.IsEmpty()
+		? GetFallbackDisplayNameForItemType()
+		: DefaultDisplayName;
+	OnRep_ItemData();
+	ForceNetUpdate();
+}
+
+FText AGiftBoxItemPickup::GetFallbackDisplayNameForItemType() const
+{
+	const UEnum* ItemTypeEnum = StaticEnum<ESnowRumbleGiftItemType>();
+	if (!ItemTypeEnum || ItemType == ESnowRumbleGiftItemType::None)
+	{
+		return FText::GetEmpty();
+	}
+
+	return FText::FromString(
+		ItemTypeEnum->GetNameStringByValue(static_cast<int64>(ItemType)));
 }
 
 void AGiftBoxItemPickup::NotifyPickedUp(
@@ -206,6 +251,20 @@ void AGiftBoxItemPickup::NotifyPickedUp(
 			PlayerController->ClientShowPersonalTextAlarm(PersonalMessage);
 		}
 	}
+}
+
+void AGiftBoxItemPickup::SpawnPickedUpEffect() const
+{
+	if (!PickedUpEffect)
+	{
+		return;
+	}
+
+	UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+		this,
+		PickedUpEffect,
+		GetActorLocation() + PickedUpEffectLocationOffset,
+		GetActorRotation());
 }
 
 FString AGiftBoxItemPickup::GetCharacterDisplayName(

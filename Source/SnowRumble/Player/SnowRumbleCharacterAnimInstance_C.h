@@ -21,12 +21,18 @@ UENUM(BlueprintType)
 enum class ESnowRumbleUpperBodyAnimState : uint8
 {
 	None,
-	Aim,
 	SmallSnowball,
+	SmallSnowballAim,
 	LargeSnowball,
+	LargeSnowballAim,
 	SnowShovel,
+	SnowShovelAim,
 	SnowDuckMaker,
-	ChargeSnowball
+	SnowDuckMakerAim,
+	SmallSnowballCharge,
+	LargeSnowballCharge,
+	SnowShovelCharge,
+	SnowDuckMakerCharge
 };
 
 UENUM(BlueprintType)
@@ -101,6 +107,55 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|State")
 	bool bIsHitReacting = false;
 
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	bool bIsGrabReaching = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	bool bIsGrabbingCharacter = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	bool bIsGrabAttached = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	bool bIsHangingFromWorldGrab = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	bool bIsGrabbedByCharacter = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	FVector GrabAttachedWorldLocation = FVector::ZeroVector;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	FVector GrabbedByCharacterWorldLocation = FVector::ZeroVector;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	FVector GrabbedByCharacterComponentLocation = FVector::ZeroVector;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	FVector RightHandGrabTargetLocation = FVector::ZeroVector;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	FVector LeftHandGrabTargetLocation = FVector::ZeroVector;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Grab")
+	float GrabReachAlpha = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|View")
+	float ViewPitchDegrees = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|View")
+	float ViewPitchAlpha = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|View")
+	float ViewYawDegrees = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|View")
+	float ViewYawAlpha = 0.0f;
+
+	/** Control Rig에 전달할 시점 yaw alpha의 보간 속도다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Animation|View", meta = (ClampMin = "0.0"))
+	float ViewYawAlphaInterpSpeed = 8.0f;
+
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|State")
 	ESnowballCarryState SnowballCarryState = ESnowballCarryState::Normal;
 
@@ -134,7 +189,7 @@ public:
 		ESnowRumbleFullBodyAnimState::None;
 
 protected:
-	void RefreshFromOwnerCharacter();
+	void RefreshFromOwnerCharacter(float DeltaSeconds = 0.0f);
 	void RefreshDerivedAnimationStates();
 	void ResetAnimationState();
 

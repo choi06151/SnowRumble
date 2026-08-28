@@ -7,7 +7,9 @@
 #include "LoadingScreenWidget.generated.h"
 
 class UProgressBar;
+class UImage;
 class UTextBlock;
+class UTexture2D;
 
 UCLASS(Blueprintable)
 class SNOWRUMBLE_API ULoadingScreenWidget : public UUserWidget
@@ -23,6 +25,18 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI|Loading")
 	FText GetLoadingMessageText() const;
+
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI|Loading")
+	FString GetLoadingMapPackageName() const;
+
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI|Loading")
+	FText GetLoadingMapDisplayName() const;
+
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI|Loading")
+	UTexture2D* GetLoadingMapImage() const;
+
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI|Loading")
+	TArray<FString> GetLoadingTeamPlayerNames() const;
 
 protected:
 	virtual void NativeConstruct() override;
@@ -40,6 +54,22 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Loading")
 	TObjectPtr<UTextBlock> LoadingMessageText;
 
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Loading")
+	TObjectPtr<UImage> LoadingMapImage;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Loading")
+	TObjectPtr<UTextBlock> LoadingMapNameText;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Loading")
+	TObjectPtr<UTextBlock> LoadingTeamPlayerNamesText;
+
 private:
+	float GetTargetLoadingProgress() const;
 	void RefreshLoadingPresentation();
+	FText GetLoadingTeamPlayerNamesText() const;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|UI|Loading", meta = (ClampMin = "0.0"))
+	float LoadingProgressInterpSpeed = 6.0f;
+
+	float DisplayedLoadingProgress = 0.0f;
 };

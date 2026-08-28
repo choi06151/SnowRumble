@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "{83BB93CE-4EBC-710F-0AEC-5AA34922FCAC}",
+	"EngineAssociation": "{7EA8AF84-4392-8FB3-9F96-EA8D78F3C475}",
 	"Category": "",
 	"Description": "",
 	"Modules": [
@@ -11,6 +11,24 @@
 		}
 	],
 	"Plugins": [
+		{
+			"Name": "OnlineSubsystemSteam",
+			"Enabled": true,
+			"TargetAllowList": [
+				"Client",
+				"Game",
+				"Editor"
+			]
+		},
+		{
+			"Name": "SocketSubsystemSteamIP",
+			"Enabled": true,
+			"TargetAllowList": [
+				"Client",
+				"Game",
+				"Editor"
+			]
+		},
 		{
 			"Name": "ModelingToolsEditorMode",
 			"Enabled": true,

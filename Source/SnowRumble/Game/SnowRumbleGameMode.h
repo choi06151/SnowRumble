@@ -10,7 +10,11 @@ class APlayerController;
 class AActor;
 class APawn;
 class AGiftBox;
+class ASnowballItem;
+class UTimedDropAnnouncementWidget;
 class ASnowRumbleCharacter;
+class ASnowIslandWaterPressureActor;
+class USoundBase;
 enum class ESnowRumbleTeam : uint8;
 enum class ESnowRumbleGiftBoxGrade : uint8;
 
@@ -30,6 +34,8 @@ public:
 		FString& ErrorMessage) override;
 
 	virtual void PostLogin(APlayerController* NewPlayer) override;
+
+	virtual void HandleSeamlessTravelPlayer(AController*& C) override;
 
 	virtual void HandleStartingNewPlayer_Implementation(
 		APlayerController* NewPlayer) override;
@@ -52,7 +58,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Map Pressure")
 	void CompleteMapShrinkFromBlueprint();
 
+	/** 클라이언트가 PvP 맵과 제한된 Warmup을 완료했음을 서버에 알린다. */
+	void NotifyPvpPlayerReady(APlayerController* PlayerController);
+
 protected:
+	/** PvP 맵에서 재생할 배경음악이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Audio")
+	TObjectPtr<USoundBase> BackgroundMusicSound;
+
 	/** 서버가 맵 축소 시점에 맵 Blueprint로 넘기는 이벤트다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Map Pressure")
 	void OnMapShrinkRequested(
@@ -65,7 +78,22 @@ private:
 	int32 ExpectedPlayerCount = 0;
 
 	bool bLoadingScreensDismissed = false;
+	bool bLoadingScreensHidden = false;
 	bool bStartCountdownStarted = false;
+	bool bMatchIntroStarted = false;
+	bool bPvpLoadingTimedOut = false;
+	int32 MatchIntroTeamIndex = 0;
+	TSet<TWeakObjectPtr<APlayerController>> ReadyPvpPlayers;
+	FTimerHandle PvpReadyTimeoutTimerHandle;
+	FTimerHandle PvpLoadingFailureTravelTimerHandle;
+
+	/** 최초 PvP 진입에서 모든 클라이언트 Ready를 기다리는 최대 시간이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Loading", meta = (ClampMin = "1.0"))
+	float PvpReadyTimeoutSeconds = 45.0f;
+
+	/** 로딩 실패 안내가 잠시 보인 뒤 로비로 이동하는 지연이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Loading", meta = (ClampMin = "0.0"))
+	float PvpLoadingFailureReturnDelaySeconds = 1.5f;
 
 	/** PvP 맵 시작 후 입력을 잠글 카운트다운 시간이다. */
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Match", meta = (ClampMin = "0.0"))
@@ -74,6 +102,10 @@ private:
 	/** 로딩창 제거와 HUD 생성이 반영된 뒤 카운트다운을 시작하기 위한 지연이다. */
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Match", meta = (ClampMin = "0.0"))
 	float MatchStartCountdownDelaySeconds = 3.0f;
+
+	/** PvP 시작 전 팀 소개에서 한 팀을 보여줄 시간이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Match Intro", meta = (ClampMin = "0.0"))
+	float MatchIntroTeamShotSeconds = 2.5f;
 
 	/** 라운드 종료 결과를 보여준 뒤 다음 라운드 맵으로 이동하기까지 기다릴 시간이다. */
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Match", meta = (ClampMin = "0.0"))
@@ -99,15 +131,57 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Match", meta = (ClampMin = "0.0"))
 	float PodiumTravelDelaySeconds = 3.0f;
 
-	/** 실제 맵 축소 완료 신호가 오기 전 임시로 축소 완료를 가정할 시간이다. */
-	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Map Pressure", meta = (ClampMin = "0.0"))
-	float TemporaryMapShrinkDurationSeconds = 5.0f;
+	/** 빠름 게임 속도에서 전체 맵 축소를 완료할 경기 시간이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Map Pressure", meta = (ClampMin = "1.0"))
+	float FastMapShrinkDurationSeconds = 180.0f;
+
+	/** 보통 게임 속도에서 전체 맵 축소를 완료할 경기 시간이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Map Pressure", meta = (ClampMin = "1.0"))
+	float NormalMapShrinkDurationSeconds = 300.0f;
+
+	/** 느림 게임 속도에서 전체 맵 축소를 완료할 경기 시간이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Map Pressure", meta = (ClampMin = "1.0"))
+	float SlowMapShrinkDurationSeconds = 420.0f;
+
+	/** 전체 맵 축소와 물 상승을 나눌 구간 수다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Map Pressure", meta = (ClampMin = "1"))
+	int32 MapShrinkSegmentCount = 4;
 
 	/** 모든 예상 플레이어가 접속하면 전체 클라이언트의 로딩창을 닫는다. */
 	void TryDismissLoadingScreens();
 
+	/** 현재 PvP 맵에서 Ready를 제출한 유효한 플레이어 수를 반환한다. */
+	int32 GetReadyPvpPlayerCount() const;
+
+	/** PvP Ready 타임아웃으로 전체 매치를 취소하고 로비 복귀를 예약한다. */
+	void CancelPvpMatchForLoadingTimeout();
+
+	/** 로딩 타임아웃 안내 후 서버가 로비로 이동한다. */
+	void ReturnToLobbyAfterPvpLoadingTimeout();
+
 	/** PvP 맵 로딩이 끝난 뒤 서버 확정 시작 카운트다운을 시작한다. */
 	void StartMatchCountdownAfterLoading();
+
+	/** PvP 맵 로딩이 끝난 뒤 팀 소개 인트로를 시작한다. */
+	void StartMatchIntroAfterLoading();
+
+	/** 현재 PvP 진입에서 팀 소개 시퀀스를 재생해야 하는지 반환한다. */
+	bool ShouldPlayMatchIntroSequence() const;
+
+	/** 현재 로컬 클라이언트에 PvP 배경음악을 재생하도록 지시한다. */
+	void BroadcastBackgroundMusic() const;
+
+	/** 다음 팀 소개 카메라 샷을 모든 클라이언트에 지시한다. */
+	void AdvanceMatchIntroSequence();
+
+	/** 팀 소개가 끝난 뒤 기존 시작 카운트다운을 확정한다. */
+	void FinishMatchIntroSequence();
+
+	/** 모든 클라이언트의 PvP 로딩창을 닫는다. */
+	void HideLoadingScreensBeforeIntro();
+
+	/** 기존 C-17 시작 카운트다운과 경기 타이머들을 시작한다. */
+	void StartConfirmedMatchCountdown();
 
 	/** 라운드 결과 표시 후 남은 라운드가 있으면 다음 PvP 맵으로 이동한다. */
 	void TravelToNextRoundIfNeeded();
@@ -118,17 +192,44 @@ private:
 	/** 매치 종료 후 포디엄으로 서버가 이동하는 함수(헤더에 선언되어야 함). */
 	void TravelToPodiumAfterMatchEnd();
 
+	/** 매치 승리 팀의 플레이어들에게 랜덤 승리 이모션을 재생한다. */
+	void PlayWinningTeamEmotes(ESnowRumbleTeam WinningTeam) const;
+
 	/** 다음 맵 축소 타이머를 예약한다. */
 	void ScheduleNextMapShrink();
 
-	/** 다음 선물상자 스폰 타이머를 예약한다. */
-	void ScheduleNextGiftBoxSpawn(float DelaySeconds);
+	/** 현재 맵 Water Actor의 구간 시간으로 맵 축소 간격을 계산한다. */
+	float GetWaterDrivenMapShrinkIntervalSeconds() const;
+
+	/** 현재 게임 속도에 맞는 전체 맵 축소 시간을 반환한다. */
+	float GetMapShrinkTotalDurationSeconds() const;
+
+	/** 한 구간에서 실제 맵 축소가 진행되는 1/3 시간을 반환한다. */
+	float GetMapShrinkRiseDurationSeconds() const;
+
+	/** 다음 맵 축소까지 대기하는 2/3 시간을 반환한다. */
+	float GetMapShrinkWaitDurationSeconds() const;
+
+	/** 다음 선물상자·큰 눈덩이 교대 이벤트를 예약한다. */
+	void ScheduleNextTimedDrop(float DelaySeconds);
+
+	/** 다음 교대 이벤트에서 선물상자 또는 큰 눈덩이를 생성한다. */
+	void SpawnNextTimedDrop();
 
 	/** 서버가 맵 축소를 시작하고 Blueprint 이벤트를 호출한다. */
 	void TriggerMapShrink();
 
 	/** 서버가 TargetPoint 후보 중 하나에 선물상자를 공중 스폰한다. */
 	void SpawnGiftBox();
+
+	/** 선물상자 낙하 시점에 NavMesh 위로 큰 눈덩이 무리를 공중 스폰한다. */
+	void SpawnFallingSnowballs();
+
+	/** 유성우 시퀀스에서 다음 큰 눈덩이 하나를 생성한다. */
+	void SpawnNextFallingSnowball();
+
+	/** 현재 게임 속도에 맞는 선물상자·큰 눈덩이 이벤트 간격을 반환한다. */
+	float GetTimedDropIntervalSeconds() const;
 
 	/** 맵 축소 완료 상태를 확정하고 다음 축소를 예약한다. */
 	void CompleteMapShrinkFromServer();
@@ -151,6 +252,10 @@ private:
 	/** 모든 클라이언트의 개인 알림 UI에 메시지를 보낸다. */
 	void BroadcastPersonalTextAlarm(const FText& Message) const;
 
+	/** 모든 클라이언트에 이벤트 전용 WBP 알림을 표시한다. */
+	void BroadcastTimedDropAnnouncement(
+		TSubclassOf<UTimedDropAnnouncementWidget> WidgetClass) const;
+
 	/** 이벤트 로그에 표시할 플레이어 이름을 반환한다. */
 	FString GetEventLogPlayerName(const ASnowRumbleCharacter* Character) const;
 
@@ -166,6 +271,9 @@ private:
 	/** 현재 팀이 라운드 참가 팀으로 유효한지 확인한다. */
 	bool IsValidRoundTeam(ESnowRumbleTeam Team) const;
 
+	/** 현재 라운드에 실제 참가 중인 팀을 고정 표시 순서로 수집한다. */
+	void GetActiveRoundTeams(TArray<ESnowRumbleTeam>& OutTeams) const;
+
 	/** 현재 PvP 레벨 접속 진행률을 접속 완료된 클라이언트들에게 보낸다. */
 	void BroadcastLoadingProgress();
 
@@ -177,6 +285,8 @@ private:
 
 	/** 이번 PvP 매치에서 이미 확정한 실제 스폰 위치다. */
 	TArray<FVector> UsedSpawnLocations;
+
+	TArray<ESnowRumbleTeam> MatchIntroTeams;
 
 	struct FTrackedLifeState
 	{
@@ -193,10 +303,51 @@ private:
 	FTimerHandle MapShrinkTimerHandle;
 	FTimerHandle MapShrinkCompletionTimerHandle;
 	FTimerHandle GiftBoxSpawnTimerHandle;
+	FTimerHandle FallingSnowballSpawnTimerHandle;
+	FTimerHandle MatchIntroTimerHandle;
+	int32 RemainingFallingSnowballs = 0;
+	bool bNextTimedDropIsGiftBox = true;
 
 	/** 서버가 스폰할 선물상자 Blueprint 클래스다. */
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box")
 	TSubclassOf<AGiftBox> GiftBoxClass;
+
+	/** 선물상자 낙하 시 함께 생성할 큰 눈덩이 Blueprint 클래스다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Falling Snowball")
+	TSubclassOf<ASnowballItem> FallingSnowballClass;
+
+	/** FallingSnowballClass가 비어 있을 때 사용할 기본 눈덩이 Blueprint 경로다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Falling Snowball")
+	FSoftClassPath DefaultFallingSnowballClassPath =
+		FSoftClassPath(TEXT("/Game/Snowball/BP_SnowballItem.BP_SnowballItem_C"));
+
+	/** 선물상자 낙하 시 함께 떨어뜨릴 큰 눈덩이 개수다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Falling Snowball", meta = (ClampMin = "0"))
+	int32 FallingSnowballCount = 10;
+
+	/** 큰 눈덩이가 플레이어에 직접 충돌할 때 적용할 피해량이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Falling Snowball", meta = (ClampMin = "0.0"))
+	float FallingSnowballDamage = 50.0f;
+
+	/** 큰 눈덩이가 NavMesh 위에서 떨어질 위치를 분산할 반경이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Falling Snowball", meta = (ClampMin = "0.0"))
+	float FallingSnowballScatterRadius = 650.0f;
+
+	/** 큰 눈덩이가 생성될 때 NavMesh 위보다 높게 띄울 거리다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Falling Snowball", meta = (ClampMin = "0.0"))
+	float FallingSnowballHeightOffset = 1000.0f;
+
+	/** 유성우에서 큰 눈덩이 사이의 생성 간격이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Falling Snowball", meta = (ClampMin = "0.0"))
+	float FallingSnowballSpawnIntervalSeconds = 0.25f;
+
+	/** 큰 눈덩이 낙하 시 적용할 랜덤 수평 속도 최소값이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Falling Snowball", meta = (ClampMin = "0.0"))
+	float FallingSnowballHorizontalSpeedMin = 80.0f;
+
+	/** 큰 눈덩이 낙하 시 적용할 랜덤 수평 속도 최대값이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Falling Snowball", meta = (ClampMin = "0.0"))
+	float FallingSnowballHorizontalSpeedMax = 280.0f;
 
 	/** GiftBoxClass가 비어 있을 때 임시로 로드할 기본 Blueprint 경로다. */
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box")
@@ -207,13 +358,37 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box", meta = (ClampMin = "0.0"))
 	float FirstGiftBoxSpawnDelaySeconds = 30.0f;
 
-	/** 첫 상자 이후 선물상자가 반복 생성되는 간격이다. */
-	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box", meta = (ClampMin = "0.1"))
-	float GiftBoxSpawnIntervalSeconds = 60.0f;
+	/** 선물상자 이벤트에 표시할 WBP 클래스다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Timed Drop")
+	TSubclassOf<UTimedDropAnnouncementWidget> GiftBoxAnnouncementWidgetClass;
+
+	/** 큰 눈덩이 이벤트에 표시할 WBP 클래스다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Timed Drop")
+	TSubclassOf<UTimedDropAnnouncementWidget> FallingSnowballAnnouncementWidgetClass;
+
+	/** 이벤트 알림 WBP가 화면에 유지되는 시간이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Timed Drop", meta = (ClampMin = "0.1"))
+	float TimedDropAnnouncementDisplayDurationSeconds = 3.0f;
+
+	/** 느림 게임 속도에서 교대 이벤트 사이의 간격이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Timed Drop", meta = (ClampMin = "0.1"))
+	float SlowTimedDropIntervalSeconds = 30.0f;
+
+	/** 보통 게임 속도에서 교대 이벤트 사이의 간격이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Timed Drop", meta = (ClampMin = "0.1"))
+	float NormalTimedDropIntervalSeconds = 20.0f;
+
+	/** 빠름 게임 속도에서 교대 이벤트 사이의 간격이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Timed Drop", meta = (ClampMin = "0.1"))
+	float FastTimedDropIntervalSeconds = 10.0f;
 
 	/** TargetPoint 위치보다 얼마나 위에서 선물상자를 떨어뜨릴지 정한다. */
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box", meta = (ClampMin = "0.0"))
 	float GiftBoxSpawnHeightOffset = 800.0f;
+
+	/** TargetPoint 주변에서 선물상자 낙하 시작 위치를 랜덤하게 분산할 반경이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box", meta = (ClampMin = "0.0"))
+	float GiftBoxSpawnScatterRadius = 450.0f;
 
 	/** 이 태그가 붙은 TargetPoint만 우선 사용한다. 없으면 맵의 모든 TargetPoint를 사용한다. */
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Item|Gift Box")
@@ -235,10 +410,34 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Spawn", meta = (ClampMin = "1"))
 	int32 PlayerStartSpawnScatterAttempts = 24;
 
-	/** 선택된 PlayerStart를 기준으로 실제 Pawn 생성 transform을 만든다. */
+	/** 같은 팀원이 이미 스폰된 경우 팀원 주변에 배치할 최대 거리다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Spawn", meta = (ClampMin = "0.0"))
+	float TeammateSpawnRadius = 180.0f;
+
+	/** 팀원 주변 유효 스폰 위치를 찾기 위해 시도할 횟수다. */
+	UPROPERTY(EditDefaultsOnly, Category = "SnowRumble|Spawn", meta = (ClampMin = "1"))
+	int32 TeammateSpawnAttempts = 24;
+
+	/** 같은 팀원이 있으면 팀원 옆을 우선하고, 없으면 선택된 PlayerStart를 기준으로 transform을 만든다. */
 	FTransform BuildScatteredPlayerStartTransform(
+		const AController* NewPlayer,
 		const AActor* StartSpot) const;
 
+	/** 같은 팀원 주변에서 충돌 없는 스폰 transform을 찾는다. */
+	bool TryBuildTeammateSpawnTransform(
+		const AController* NewPlayer,
+		FTransform& OutSpawnTransform) const;
+
 	/** 이번 매치에서 이미 확정한 스폰 위치와 충분히 떨어져 있는지 확인한다. */
+	bool TryResolveSpawnLocationOnGround(
+		const FVector& CandidateLocation,
+		FVector& OutSpawnLocation) const;
+
+	bool IsSpawnCapsuleClear(const FVector& SpawnLocation) const;
+
+	void GetDefaultPawnCapsuleSize(
+		float& OutCapsuleRadius,
+		float& OutCapsuleHalfHeight) const;
+
 	bool IsSpawnLocationFarEnough(const FVector& CandidateLocation) const;
 };
