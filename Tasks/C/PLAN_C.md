@@ -51,7 +51,7 @@
 | 24 | [C-23](C-23_camera_wheel_zoom.md) | 마우스 휠 카메라 줌 | 기존 플레이어 카메라 | 진행중 |
 | 25 | [C-24](C-24_character_model_anim_contract.md) | 캐릭터 모델과 ABP 애니메이션 계약 | C-01, C-08, C-11 | 진행중 |
 | 26 | [C-25](C-25_pvp_gift_box_item_foundation.md) | PvP 선물상자와 아이템 기본 계약 | C-01, C-05, C-22 | 진행중 |
-| 27 | [C-26](C-26_snow_footstep_effect.md) | 눈 밟힘 효과 계약 | C-01 | 진행중 |
+| 27 | [C-26](C-26_snow_footstep_effect.md) | 눈 밟힘 효과 계약 | C-01 | 완료 |
 | 28 | [C-27](C-27_snow_trail_render_target.md) | 눈길 RenderTarget 계약 | C-26 | 진행중 |
 | 29 | [C-28](C-28_player_grab_control_rig_foundation.md) | 플레이어 잡기와 Control Rig 기본틀 | C-24 | 진행중 |
 | 30 | [C-29](C-29_travel_url_and_loading_stability.md) | 전환 URL과 PvP 로딩 안정화 | C-04, C-05, C-17 | 진행중 |
@@ -65,6 +65,7 @@
 
 ## 계획 변경 기록
 
+- 2026-08-28: C-26 눈/일반 바닥 발걸음 Niagara 슬롯과 자산 연결을 완료했다. `ASnowRumbleCharacter`가 `SnowSurface` 여부에 따라 `SnowFootstepEffect` 또는 `NormalFootstepEffect`를 발밑 위치에 스폰하며, 사용자 확인 요청에 따라 C-26을 완료 게시 대상으로 전환했다.
 - 2026-08-27: 사용자 요청으로 C-18의 기본 검증 기준을 LAN에서 Steam으로 전환했다. 패키지/Standalone은 `OnlineSubsystemSteam`을 기본 사용하고, 기존 `HostLanSession` 등 Blueprint API 이름은 호환을 위해 유지한다.
 - 2026-08-27: 사용자 승인으로 C-34를 추가했다. 기존 C-28 Grab과 C-09 눈덩이 충돌을 확장해 여러 물건 Blueprint가 재사용할 물리 Actor 베이스를 제공한다.
 - 2026-08-27: C-34 QA 오류를 수정했다. 태그 치환 물건의 Static Mesh와 Material을 복제해 클라이언트의 물리 컴포넌트에 적용하도록 보강했다.
