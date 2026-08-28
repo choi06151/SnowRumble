@@ -307,6 +307,19 @@ void UMainHUDWidget::RefreshCurrentRoundPresentation()
 	const ASnowRumbleGameState* SnowRumbleGameState = World
 		? World->GetGameState<ASnowRumbleGameState>()
 		: nullptr;
+	const ASnowmanModeGameState* SnowmanModeGameState = World
+		? World->GetGameState<ASnowmanModeGameState>()
+		: nullptr;
+	if (SnowmanModeGameState)
+	{
+		CurrentRoundText->SetText(FText::Format(
+			NSLOCTEXT("SnowRumble", "CurrentRoundFormat", "{0} / {1}"),
+			FText::AsNumber(SnowmanModeGameState->GetCurrentRoundNumber()),
+			FText::AsNumber(SnowmanModeGameState->GetRoundLimit())));
+		CurrentRoundText->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		return;
+	}
+
 	if (!SnowRumbleGameState)
 	{
 		CurrentRoundText->SetVisibility(ESlateVisibility::Collapsed);

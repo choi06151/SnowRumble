@@ -180,6 +180,9 @@ protected:
 	/** Grab reach 종료 시 기존 캐릭터 회전 설정을 복원한다. */
 	void ClearGrabReachRotationMode();
 
+	/** 플레이어를 붙잡고 있는 동안 잡는 캐릭터가 카메라 Yaw를 따라 돌도록 보정한다. */
+	void UpdateGrabOwnerRotationToControlYaw(float DeltaTime);
+
 	ASnowRumbleCharacter* GetOwnerCharacter() const;
 
 	/** 서버 시각을 가져와 잡기 제한과 회복을 같은 시간축으로 계산한다. */
@@ -324,6 +327,10 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0"))
 	float GrabbedCharacterFacingInterpSpeed = 14.0f;
+
+	/** 플레이어를 잡은 캐릭터가 카메라 Yaw를 따라 회전하는 보간 속도다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0"))
+	float GrabOwnerControlYawInterpSpeed = 24.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0"))
 	float WorldGrabBodyBackOffset = 42.0f;

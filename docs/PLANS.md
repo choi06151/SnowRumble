@@ -118,6 +118,7 @@
 
 ## 최근 통합 로그
 
+- 2026-08-28: C 통합 경로로 K-12 눈사람 모드 라운드 HUD 계약을 보강했다. `ASnowmanModeGameState`가 현재/전체 라운드를 복제하고, `UMainHUDWidget::CurrentRoundText`가 PvP와 같은 `{현재} / {전체}` 형식으로 표시한다.
 - 2026-08-28: C-26 눈/일반 바닥 발걸음 Niagara 계약과 자산 연결을 완료했다. `ASnowRumbleCharacter`가 `SnowFootstepEffect`/`NormalFootstepEffect`를 발밑 위치에 직접 스폰하고, 관련 발걸음 VFX 자산을 포함해 게시한다.
 - 2026-08-27: C-34 물리 상호작용 물건 계약을 추가했다. `AGrabbablePhysicsObject`를 기반으로 여러 물건 Blueprint가 서버 복제 물리, Grab 연결, 플레이어 밀침과 눈덩이 파괴 동작을 재사용할 수 있게 했다.
 - 2026-08-27: C-09/C-28 입력을 좌클릭 Grab, `Q` 눈 만들기, `E` 눈덩이 굴리기, `F` 일반 상호작용으로 분리했다. Grab trace가 바닥 눈덩이를 만나면 기존 손 위치에 장착하고, 새 제작·굴리기 InputAction 슬롯과 옵션 키 재설정 항목을 추가했다.

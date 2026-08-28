@@ -32,6 +32,9 @@ public:
 		const FString& Options,
 		FString& ErrorMessage) override;
 
+	/** URL 옵션에서 읽은 눈사람 모드 라운드 정보를 GameState 복제 상태로 넘긴다. */
+	virtual void InitGameState() override;
+
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 
 	virtual void HandleSeamlessTravelPlayer(AController*& C) override;

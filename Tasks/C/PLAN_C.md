@@ -65,6 +65,9 @@
 
 ## 계획 변경 기록
 
+- 2026-08-28: C-28 Character Grab의 기존 게이지 제한을 복구했다. 플레이어를 잡은 상태도 `MaximumGrabHoldSeconds`가 지나면 자동 해제되고, 게이지가 남아 있는 동안은 카메라 Yaw 회전 보정과 tether를 유지한다.
+- 2026-08-28: C 통합 경로로 K 눈사람 모드 라운드 HUD 계약을 보강했다. `ASnowmanModeGameState`가 현재/전체 라운드를 복제하고, `UMainHUDWidget::CurrentRoundText`가 눈사람 모드에서도 PvP처럼 `{현재} / {전체}` 형식을 표시한다.
+- 2026-08-28: C-28 후속 오류 대응을 반영했다. 플레이어를 붙잡은 Character Grab 상태에서 잡는 캐릭터가 카메라 Yaw를 따라 돌도록 `UPlayerGrabComponent`가 소유자/서버 Actor yaw를 ControlRotation yaw에 보간한다.
 - 2026-08-28: C-26 눈/일반 바닥 발걸음 Niagara 슬롯과 자산 연결을 완료했다. `ASnowRumbleCharacter`가 `SnowSurface` 여부에 따라 `SnowFootstepEffect` 또는 `NormalFootstepEffect`를 발밑 위치에 스폰하며, 사용자 확인 요청에 따라 C-26을 완료 게시 대상으로 전환했다.
 - 2026-08-27: 사용자 요청으로 C-18의 기본 검증 기준을 LAN에서 Steam으로 전환했다. 패키지/Standalone은 `OnlineSubsystemSteam`을 기본 사용하고, 기존 `HostLanSession` 등 Blueprint API 이름은 호환을 위해 유지한다.
 - 2026-08-27: 사용자 승인으로 C-34를 추가했다. 기존 C-28 Grab과 C-09 눈덩이 충돌을 확장해 여러 물건 Blueprint가 재사용할 물리 Actor 베이스를 제공한다.

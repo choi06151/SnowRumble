@@ -76,6 +76,11 @@ public:
 	/** 서버가 눈사람 모드 제한시간을 시작한다. */
 	void StartSnowmanModeTimerFromServer(float InTimeLimitSeconds);
 
+	/** 서버가 HUD에 표시할 눈사람 모드 라운드 정보를 확정한다. */
+	void SetSnowmanModeRoundInfoFromServer(
+		int32 InCurrentRoundNumber,
+		int32 InRoundLimit);
+
 	/** 서버가 이번 눈사람 모드 참가자 상태 목록을 초기화한다. */
 	void ResetSnowmanModePlayersFromServer(
 		const TArray<ASnowRumblePlayerState*>& PlayerStates);
@@ -149,6 +154,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowman")
 	FText GetSnowmanModeElapsedTimeText() const;
 
+	/** HUD에 표시할 현재 눈사람 모드 라운드 번호를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowman")
+	int32 GetCurrentRoundNumber() const;
+
+	/** HUD에 표시할 눈사람 모드 전체 라운드 수를 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowman")
+	int32 GetRoundLimit() const;
+
 	/** 지정 PlayerState의 눈사람 모드 역할을 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowman")
 	ESnowmanModePlayerRole GetSnowmanModePlayerRole(
@@ -208,6 +221,12 @@ private:
 
 	UPROPERTY(Replicated)
 	float SnowmanModeTimeLimitSeconds = 600.0f;
+
+	UPROPERTY(Replicated)
+	int32 CurrentRoundNumber = 1;
+
+	UPROPERTY(Replicated)
+	int32 RoundLimit = 1;
 
 	UPROPERTY(Replicated)
 	TArray<FSnowmanModePlayerEntry> SnowmanModePlayerEntries;

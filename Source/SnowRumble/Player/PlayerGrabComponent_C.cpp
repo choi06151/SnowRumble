@@ -55,6 +55,13 @@ void UPlayerGrabComponent::TickComponent(
 		DeltaTime,
 		InterpSpeed);
 
+	if (bIsGrabReaching
+		&& GrabAttachmentType == ESnowRumbleGrabAttachmentType::Character)
+	{
+		ApplyGrabReachRotationMode();
+		UpdateGrabOwnerRotationToControlYaw(DeltaTime);
+	}
+
 	if (!GetOwner() || !GetOwner()->HasAuthority() || !bIsGrabReaching)
 	{
 		return;
@@ -964,6 +971,7 @@ void UPlayerGrabComponent::UpdateGrabbedCharacterTether(float DeltaTime)
 	}
 
 	GrabAttachedWorldLocation = BuildHandGrabAnchorLocation(ActiveGrabHand);
+	UpdateGrabOwnerRotationToControlYaw(DeltaTime);
 	if (GrabConstraintComponent)
 	{
 		GrabConstraintComponent->SetWorldLocation(GrabAttachedWorldLocation);
@@ -1307,6 +1315,33 @@ void UPlayerGrabComponent::ClearGrabReachRotationMode()
 	}
 
 	bHasGrabReachRotationOverride = false;
+}
+
+void UPlayerGrabComponent::UpdateGrabOwnerRotationToControlYaw(float DeltaTime)
+{
+	ASnowRumbleCharacter* Character = GetOwnerCharacter();
+	if (!Character
+		|| (!Character->HasAuthority() && !Character->IsLocallyControlled()))
+	{
+		return;
+	}
+
+	const AController* CharacterController = Character->GetController();
+	if (!CharacterController)
+	{
+		return;
+	}
+
+	const FRotator ControlRotation = CharacterController->GetControlRotation();
+	const FRotator DesiredRotation(0.0f, ControlRotation.Yaw, 0.0f);
+	const FRotator NewRotation = GrabOwnerControlYawInterpSpeed > 0.0f
+		? FMath::RInterpTo(
+			Character->GetActorRotation(),
+			DesiredRotation,
+			DeltaTime,
+			GrabOwnerControlYawInterpSpeed)
+		: DesiredRotation;
+	Character->SetActorRotation(NewRotation);
 }
 
 ASnowRumbleCharacter* UPlayerGrabComponent::GetOwnerCharacter() const
