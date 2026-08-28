@@ -19,7 +19,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogSnowRumbleMainMenu, Log, All);
 
 namespace
 {
-	void CollectButtonTextBlocks(
+	void CollectMainMenuButtonTextBlocks(
 		UWidget* Widget,
 		TArray<UTextBlock*>& OutTextBlocks)
 	{
@@ -39,14 +39,16 @@ namespace
 				ChildIndex < PanelWidget->GetChildrenCount();
 				++ChildIndex)
 			{
-				CollectButtonTextBlocks(
+				CollectMainMenuButtonTextBlocks(
 					PanelWidget->GetChildAt(ChildIndex),
 					OutTextBlocks);
 			}
 		}
 		else if (UContentWidget* ContentWidget = Cast<UContentWidget>(Widget))
 		{
-			CollectButtonTextBlocks(ContentWidget->GetContent(), OutTextBlocks);
+			CollectMainMenuButtonTextBlocks(
+				ContentWidget->GetContent(),
+				OutTextBlocks);
 		}
 	}
 }
@@ -480,7 +482,7 @@ void UMainMenuWidget::BindTargetButtonTextColor(UButton* Button)
 		&UMainMenuWidget::RefreshTargetButtonTextColors);
 
 	TArray<UTextBlock*> TextBlocks;
-	CollectButtonTextBlocks(Button->GetContent(), TextBlocks);
+	CollectMainMenuButtonTextBlocks(Button->GetContent(), TextBlocks);
 	for (UTextBlock* TextBlock : TextBlocks)
 	{
 		if (TextBlock)
@@ -524,7 +526,7 @@ void UMainMenuWidget::RefreshTargetButtonTextColors()
 		}
 
 		TArray<UTextBlock*> TextBlocks;
-		CollectButtonTextBlocks(Button->GetContent(), TextBlocks);
+		CollectMainMenuButtonTextBlocks(Button->GetContent(), TextBlocks);
 		const bool bUseActiveColor = Button->IsHovered() || Button->IsPressed();
 		for (UTextBlock* TextBlock : TextBlocks)
 		{
