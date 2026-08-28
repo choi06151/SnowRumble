@@ -4,10 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "SnowRumbleAudioUserWidget.h"
+#include "Styling/SlateTypes.h"
 #include "LobbyEscapeMenuWidget.generated.h"
 
 class ALobbyPlayerController;
 class UButton;
+class UTextBlock;
 
 UCLASS(Abstract, Blueprintable)
 class SNOWRUMBLE_API ULobbyEscapeMenuWidget : public USnowRumbleAudioUserWidget
@@ -21,6 +23,9 @@ public:
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+	virtual void NativeTick(
+		const FGeometry& MyGeometry,
+		float InDeltaTime) override;
 	virtual FReply NativeOnKeyDown(
 		const FGeometry& InGeometry,
 		const FKeyEvent& InKeyEvent) override;
@@ -72,9 +77,17 @@ private:
 
 	void BindMenuButtons();
 	void UnbindMenuButtons();
+	void BindTargetButtonTextColor(UButton* Button);
+	void UnbindTargetButtonTextColor(UButton* Button);
+
+	UFUNCTION()
+	void RefreshTargetButtonTextColors();
+
 	void CloseMenu();
 
 	UPROPERTY(Transient)
 	TObjectPtr<ALobbyPlayerController> LobbyPlayerController;
+
+	TMap<UTextBlock*, FSlateColor> TargetButtonTextDefaultColors;
 
 };

@@ -53,7 +53,7 @@ struct FIceGlacierCollapsePiece
 
 	/** 이 조각이 Initial Z에서 World Z 아래로 내려갈 거리다. */
 	UPROPERTY(EditAnywhere, Category = "SnowRumble|Ice Glacier Collapse|Piece", meta = (ClampMin = "0.0"))
-	float SinkDistance = 1200.0f;
+	float SinkDistance = 2000.0f;
 };
 
 struct FIceGlacierCollapsePieceRuntimeSettings
@@ -63,7 +63,7 @@ struct FIceGlacierCollapsePieceRuntimeSettings
 	float ShakeAmplitude = 8.0f;
 	float ShakeFrequency = 8.0f;
 	float FallDurationSeconds = 2.0f;
-	float SinkDistance = 1200.0f;
+	float SinkDistance = 2000.0f;
 };
 
 struct FIceGlacierCollapseComponentCollisionState

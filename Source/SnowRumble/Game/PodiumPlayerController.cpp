@@ -43,7 +43,7 @@ void APodiumPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (IsLocalController())
+	if (IsLocalController() && GetLocalPlayer())
 	{
 		UGameInstance* GameInstance = GetGameInstance();
 		if (ULoadingScreenSubsystem* LoadingScreenSubsystem = GameInstance
@@ -74,28 +74,9 @@ void APodiumPlayerController::BeginPlay()
 		SetViewTargetWithBlend(PodiumCamActor, 0.5f);
 	}
 
-	SetCinematicMode(true, false, true, true, true);
-	SetIgnoreMoveInput(true);
-	SetIgnoreLookInput(true);
+	ApplyPodiumPawnPresentation(GetPawn());
 
-	if (APawn* P = GetPawn())
-	{
-		DisableActorShadowCasting(P);
-		P->DisableInput(this);
-
-		if (ACharacter* PodiumCharacter = Cast<ACharacter>(P))
-		{
-			if (UCharacterMovementComponent* MovementComponent =
-				PodiumCharacter->GetCharacterMovement())
-			{
-				MovementComponent->StopMovementImmediately();
-				MovementComponent->SetMovementMode(MOVE_None);
-				MovementComponent->GravityScale = 0.0f;
-			}
-		}
-	}
-
-	if (IsLocalController() && PodiumWinnerWidgetClass)
+	if (IsLocalController() && GetLocalPlayer() && PodiumWinnerWidgetClass)
 	{
 		PodiumWinnerWidget = CreateWidget<UPodiumWinnerWidget>(
 			this,
@@ -119,11 +100,23 @@ void APodiumPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
+void APodiumPlayerController::OnPossess(APawn* InPawn)
+{
+	Super::OnPossess(InPawn);
+
+	ApplyPodiumPawnPresentation(InPawn);
+}
+
 void APodiumPlayerController::ClientSetPodiumWinner_Implementation(
 	ESnowRumbleTeam WinningTeam,
 	const FText& Subtitle)
 {
 	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (!GetLocalPlayer())
 	{
 		return;
 	}
@@ -197,6 +190,16 @@ void APodiumPlayerController::ClientStopBackgroundMusic_Implementation()
 	StopBackgroundMusic();
 }
 
+void APodiumPlayerController::ClientRefreshPodiumPawnPresentation_Implementation()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	ApplyPodiumPawnPresentation(GetPawn());
+}
+
 void APodiumPlayerController::SetBackgroundMusicPreviewVolume(
 	float MasterVolume,
 	float BgmVolume)
@@ -233,6 +236,32 @@ void APodiumPlayerController::StopBackgroundMusic()
 			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
 		{
 			BackgroundMusicSubsystem->StopBackgroundMusic();
+		}
+	}
+}
+
+void APodiumPlayerController::ApplyPodiumPawnPresentation(APawn* InPawn)
+{
+	SetCinematicMode(true, false, true, true, true);
+	SetIgnoreMoveInput(true);
+	SetIgnoreLookInput(true);
+
+	if (!InPawn)
+	{
+		return;
+	}
+
+	DisableActorShadowCasting(InPawn);
+	InPawn->DisableInput(this);
+
+	if (ACharacter* PodiumCharacter = Cast<ACharacter>(InPawn))
+	{
+		if (UCharacterMovementComponent* MovementComponent =
+			PodiumCharacter->GetCharacterMovement())
+		{
+			MovementComponent->StopMovementImmediately();
+			MovementComponent->SetMovementMode(MOVE_None);
+			MovementComponent->GravityScale = 0.0f;
 		}
 	}
 }

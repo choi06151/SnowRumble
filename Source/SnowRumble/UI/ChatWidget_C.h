@@ -29,6 +29,8 @@ class SNOWRUMBLE_API UChatWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	UChatWidget(const FObjectInitializer& ObjectInitializer);
+
 	/** 채팅 위젯이 메시지 요청을 보낼 PlayerController를 연결한다. */
 	void SetChatPlayerController(ASnowRumblePlayerController* NewPlayerController);
 

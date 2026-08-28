@@ -25,7 +25,7 @@
 | --- | --- | --- | --- | --- |
 | 1 | [K-12](K-12_snowman_mode_foundation.md) | 눈사람 모드 기반 | C-04, C 공용 로딩·모드 선택 계약 확인 | 완료 |
 | 2 | [K-13](K-13_snowman_infection_flow.md) | 눈사람 이동과 감염 | K-12, C-09 또는 눈덩이 피격 계약 확인 | 완료 |
-| 3 | [K-14](K-14_snowman_mode_integration.md) | 눈사람 모드 통합 | K-12, K-13, 결과 UI·로딩 인계 확인 | 예정 |
+| 3 | [K-14](K-14_snowman_mode_integration.md) | 눈사람 모드 통합 | K-12, K-13, 결과 UI·로딩 인계 확인 | 진행중 |
 | 4 | [K-01](K-01_item_foundation.md) | 아이템 기반 | 재배정 결정 필요 | 대기 |
 | 5 | [K-03](K-03_consumables.md) | 회복·무적 소비 아이템 | 재배정 결정 필요 | 대기 |
 | 6 | [K-04](K-04_wearable_equipment.md) | 착용 장비 | 재배정 결정 필요 | 대기 |
@@ -41,7 +41,8 @@
 ## 통합 변경 요청
 
 - 아이템 Task K-01~K-11은 K의 현재 담당 범위에서 제외되었으므로, MVP 아이템을 계속 진행하려면 담당자 재배정 또는 범위 축소 결정이 필요하다.
-- K-13 눈덩이 피격 효과는 C-09 및 공용 눈 전투 계약 이후 연결이 필요하다. K-13은 접촉 감염 흐름을 우선 구현하고, 눈사람이 눈덩이에 맞았을 때의 감속/경직/감염 지연/HP 차감 효과는 C 통합 검토 후 확정한다.
+- K-14에서 눈사람 모드 최소 눈덩이 피격 규칙을 연결했다. Normal끼리의 눈덩이 HP 피해는 무효화하고, Normal이 Snowman을 맞추면 HP 피해 대신 10초 기절을 적용한다. 기절 중 추가 피격은 기존 기절 타이머를 초기화하고 새 10초 기절로 갱신한다. 전용 VFX와 별도 밸런스 값은 후속 K/S 작업에서 조정한다.
+- K-14에서 공용 `UHealthBarWidget`에 눈사람 모드 감지 시 `Collapsed` 예외를 추가했다. HUD의 다른 PvP UI는 유지하고 HP 바 위젯만 숨기는 목적이며, 공용 UI 파일 변경이므로 C 통합 검토가 필요하다.
 
 ## 계획 변경 기록
 
@@ -66,4 +67,17 @@
 - 2026-08-13: K-13 실행 로그에서 접촉 거리 판정은 통과하지만 감염 시작이 false로 반환되는 문제를 확인했다. Snowman GameState의 참가자 Entry 검색은 PlayerState 포인터 외에 PlayerId/UniqueId fallback을 사용해 같은 플레이어 매칭 실패를 줄인다.
 - 2026-08-14: K-13 결과 확인 중 감염 완료 후 눈사람 BP로 전환된 캐릭터가 땅에 박혀 움직이지 못하는 문제를 반영했다. Snowman GameMode는 전환 스폰 시 기존 Pawn의 발 위치와 바닥 trace를 기준으로 새 눈사람 Capsule 높이를 보정하고, collision handling을 `AdjustIfPossibleButAlwaysSpawn`으로 변경한다.
 - 2026-08-14: 사용자가 K-13 결과 확인을 완료했다. 랜덤 시작 눈사람, 접촉 감염 대기, 10초 뒤 눈사람 전환, 전환 후 이동, 클라이언트 상태 동기화를 확인했고, 땅에 박혀 생성되는 문제는 테스트 횟수가 많지는 않지만 해결된 것으로 보인다고 판단했다. K-13을 완료로 전환하고 다음 집중 Task를 K-14로 넘긴다.
+- 2026-08-14: 사용자가 다음 Task 진행을 요청해 K-14를 진행중으로 전환했다. K-14는 눈사람 전원 감염 승리, 제한시간 종료 시 일반 플레이어 생존 승리, 결과 상태 복제와 로비 복귀 인계를 다룬다. 구현 전 결과 후 복귀 시간, 결과 문구, 제한시간 종료 직전 감염 대기 플레이어 판정을 확정한다.
+- 2026-08-19: K-14 확인 중 결과 후 로비 복귀가 로비 대기 상태가 아니라 눈사람 모드 시작처럼 3-2-1 표시를 띄우는 문제를 반영했다. Snowman GameMode 복귀 travel은 로비 GameMode를 명시하고 absolute travel로 실행해 이전 눈사람 `?game=` 옵션이 남지 않게 한다.
+- 2026-08-21: K-14 확인 중 초기 눈사람이 초기 스폰/RestartPlayer 경로에서 인간 Pawn으로 생성되는 문제와 컨트롤러 소실 Pending cleanup 경고 반복 문제를 반영했다. Snowman GameMode는 초기 역할이 `Snowman`이면 `SnowmanCharacterClass`를 기본 Pawn으로 반환하고, 컨트롤러 없는 Pending 참가자는 Entry를 삭제하지 않고 Pending 상태만 1회 해제해 참가자 목록 유실과 반복 로그를 막는다.
 - 2026-08-14: `master`에 K 브랜치를 병합한 뒤 UE unity build에서 `SnowmanModeGameMode_K.cpp`와 `SnowRumbleGameMode.cpp`의 익명 namespace helper 이름이 충돌해 컴파일이 실패하는 문제를 수정했다. K 소유 helper를 `MakeSnowmanModeRandomHorizontalOffset`으로 변경했고, `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
+- 2026-08-21: K-14 눈사람 모드 스폰을 기존 PvP 모드 PlayerStart 랜덤 스폰 로직과 맞췄다. PlayerStart 후보 랜덤 선택은 유지하고, 주변 분산 위치에 바닥 trace와 캡슐 점유 검사를 적용하며 기본 인간 Pawn과 `SnowmanCharacterClass` 중 더 큰 캡슐 기준으로 안전 위치를 고른다.
+- 2026-08-21: K-14 눈사람 모드 전용 눈덩이 피격 규칙을 추가했다. Snowman GameState가 있는 월드에서 Normal이 Normal을 눈덩이로 맞추면 HP 피해를 무시하고, Normal이 Snowman을 맞추면 HP 피해 대신 복제되는 눈사람 기절을 적용한다. 눈사람 모드 HUD에서는 로컬/타 플레이어 체력바를 숨기며, PvP 모드의 기존 눈덩이 대미지와 체력바는 유지한다.
+- 2026-08-21: K-14 눈사람 모드 종료 흐름을 기존 PvP 포디움 이동과 연결했다. Snowman GameMode는 결과 텍스트를 MatchSubsystem 포디움 override로 저장하고 `/Game/Maps/L_Podium?listen`으로 이동하며, PodiumGameMode는 override가 있으면 PvP 팀 승수 대신 눈사람 승리/참가자/생존자 정보를 위젯에 전달한다.
+- 2026-08-21: K-14 눈사람 Pawn 전환 안정성과 스폰 직후 감염 버그를 보완했다. 눈사람 전환은 새 Pawn 스폰과 Possess 성공 확인 뒤 기존 Pawn을 제거하며, 스폰/경기 시작/전환 직후 `SpawnInfectionGraceSeconds` 기본 3초 동안 접촉 감염 시작을 무시한다.
+- 2026-08-26: 사용자 요청에 따라 K-14의 눈사람 모드 포디움 결과 override를 제거했다. Snowman GameMode는 결과 표시 후 로비로 복귀하고, MatchSubsystem/PodiumGameMode의 override API와 분기를 삭제해 PvP 포디움 기본 동작과 분리했다. C 소유 공용 결과 파일 변경이 포함되어 통합 검토가 필요하다.
+- 2026-08-26: 사용자 요청에 따라 눈사람 접촉 감염을 Pending 없이 즉시 전환 기준으로 바꿨다. `ASnowmanModeGameMode::UpdateSnowmanInfectionFlow()`는 아이템 생성·지연 감염 처리 없이 서버에서 역할, 컨트롤러, Pawn, CapsuleComponent, 전환 중 상태를 검사하고 `BP_SnowmanCharacter_K` 전환과 Snowman 역할 복제를 바로 확정한다.
+- 2026-08-26: 사용자 요청에 따라 눈사람 모드 눈덩이 피격 기절을 10초로 확정하고 연속 피격 예외 처리를 보강했다. `ASnowmanModeSnowmanCharacter`는 피격 때 기존 스턴 타이머를 지운 뒤 새 10초 타이머를 걸며, 스턴 중 `DisableMovement()`와 `StopJumping()`으로 이동과 점프를 막는다.
+- 2026-08-26: 눈사람 기절 UI 연동을 위해 `ASnowmanModeSnowmanCharacter::IsSnowballHitStunned()`와 `GetSnowballHitStunSecondsRemaining()` BlueprintPure 조회 함수를 추가했다. 남은 시간은 복제된 `SnowballHitStunEndServerTime`과 서버 시각 기준으로 계산한다.
+- 2026-08-27: 사용자 요청에 따라 눈사람 모드 전용 포디움 결과를 보정했다. K 전용 포디움 컨트롤러가 부모 PvP 우승 UI를 생성하지 않게 하고 `/Game/WBP/WBP_PodiumWinnerWidget_Snowman_K`를 기본 결과 WBP로 사용하게 했으며, 결과 문구를 `눈사람팀 우승`/`사람팀 우승`으로 변경했다. 눈사람팀 승리는 모든 플레이어, 사람팀 승리는 생존자만 배치하도록 수정했다.
+- 2026-08-27: 사용자 요청에 따라 눈사람 모드 플레이 중 HP 바 UI만 보이지 않도록 `UHealthBarWidget`에 `ASnowmanModeGameState` 기반 `Collapsed` 예외를 추가했다. 기존 `UMainHUDWidget`의 다른 PvP UI 표시 분기는 유지한다.

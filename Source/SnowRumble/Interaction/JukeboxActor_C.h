@@ -9,6 +9,7 @@
 class ASnowRumbleCharacter;
 class ASpotLight;
 class UBoxComponent;
+class UPrimitiveComponent;
 class USoundAttenuation;
 class USoundBase;
 class USceneComponent;
@@ -37,6 +38,8 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Jukebox")
 	bool IsCharacterParticipating(const ASnowRumbleCharacter* Character) const;
+
+	bool IsJukeboxMeshComponent(const UPrimitiveComponent* Component) const;
 
 protected:
 	virtual void BeginPlay() override;
