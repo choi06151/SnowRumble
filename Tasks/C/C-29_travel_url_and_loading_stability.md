@@ -68,6 +68,15 @@
 - 2026-08-23: 사용자가 최초 PvP 진입에만 Slate 로딩창을 유지하고, 최초 라운드 이후 모든 PvP 내부 라운드 전환과 PvP->포디움 이동은 검은 화면만 보이도록 요청했다. 후속 PvP travel 경로에서 `ClientShowLoadingScreen()` 호출을 제거하고 잔여 로딩 UI 숨김만 남겼다.
 - 2026-08-25: PvP 팀 소개 카메라 연출 시작부터 종료까지 로컬 메인 HUD·채팅·음소거·키 가이드·상호작용 안내·이모트·관전 WBP를 숨기고, 연출 전 표시 상태를 종료 후 복원하도록 보강했다.
 - 2026-08-27: 서버 종료 또는 호스트 이탈 후 메인 메뉴로 복귀할 때 이전 네트워크 월드의 원격 캐릭터가 남아 기본 외형으로 보이는 문제를 보강했다. 메인 메뉴 컨트롤러가 로컬 프리뷰 Pawn을 제외한 잔류 `ASnowRumbleCharacter`를 정리한다.
+- 2026-08-27: 눈사람 모드도 PvP와 동일하게 모든 예상 플레이어 접속 후 5초 대기 동안 로딩 화면을 유지하고, 대기 종료 후 인트로 직전에 로딩 화면을 닫도록 조정했다. 기존 팀 인트로 RPC가 HUD를 숨기고 인트로 종료 후 복원한다.
+- 2026-08-27: 눈사람 모드 포디움에서 배경음악을 `FSoftObjectPath` Client RPC로 전달하고, 각 클라이언트가 로컬 `Podium_Camera`를 직접 활성화하도록 보강했다.
+- 2026-08-27: 눈사람 모드 팀 인트로 직전에 별도 Client RPC로 HUD와 보조 위젯을 먼저 숨겨 Listen Server와 클라이언트의 Pawn/HUD 생성 타이밍 차이로 서버 HUD가 남는 문제를 보강했다.
+- 2026-08-27: Listen Server 호스트에서 인트로 숨김 RPC 이후 HUD가 다시 남는 문제를 재보강했다. 캐릭터의 HUD 생성 억제 조건이 소유 PlayerController의 인트로 숨김 상태도 보게 하고, PlayerController가 인트로 숨김 상태 동안 현재 Pawn에 숨김 상태를 계속 동기화한다.
+- 2026-08-27: 눈사람 포디움 맵은 꾸밈 작업을 위해 PvP 포디움 맵과 분리 유지하되, 포디움 Pawn 표시 설정은 PvP와 동일하게 공통화했다. 스폰 후 입력 잠금, 시네마틱 모드, 이동 정지, 중력 0, 그림자 끄기를 다시 적용하고, 포디움 계열 맵에서 동일한 캐릭터 메쉬 스케일을 사용한다.
+- 2026-08-27: `CreateWidget cannot be used on Player Controller with no attached player` 오류를 막기 위해 PvP PlayerController와 캐릭터 로컬 UI 생성 전에 `GetLocalPlayer()`를 확인한다. 눈사람 인트로 호스트 HUD 잔류는 Listen Server 로컬 PC 직접 숨김과 viewport MainHUD 강제 collapse로 보강했다.
+- 2026-08-27: 눈사람 포디움 클라이언트 카메라가 맵 자산 태그 차이에 흔들리지 않도록 PvP와 동일하게 `Podium_Camera` 태그 또는 이름 기준으로 찾는다. Survivor 승자 스폰은 travel 후 PlayerId가 바뀌는 경우를 대비해 `WinnerPlayerNames` URL 옵션으로 PlayerState 이름 fallback 매칭을 추가했다.
+- 2026-08-27: 눈사람 인트로 종료 후 HUD가 복원되지 않는 문제를 수정했다. 인트로 종료 RPC가 컨트롤러/캐릭터 숨김 플래그를 해제하고, viewport에 직접 접어 둔 MainHUD 계열 위젯을 다시 `Visible`로 복원한다.
+- 2026-08-27: 패키지 실행본에서 메인메뉴 `방 만들기` 클릭 직후 종료되는 문제를 추적했다. 로그상 `Host requested` 없이 `Closing by request`가 찍혀 세션 생성 실패가 아니라 메인메뉴 버튼 클릭 델리게이트가 종료 경로를 타는 문제로 보고, 메인메뉴 버튼 `OnClicked`를 C++에서 초기화한 뒤 의도한 핸들러만 다시 바인딩하게 했다. 패키지 로그에서 실제 클릭 경로를 확인할 수 있도록 Host/Quit 클릭 로그도 추가했다.
 
 ## 수동 작업
 
@@ -79,6 +88,14 @@
 - Unreal Editor 두 개를 켠 상태에서 한쪽이 로비가 아닌 맵에 있을 때 빠른참가가 해당 세션을 건너뛰고, `L_Lobby` 대기방 세션만 참가하는지 확인한다.
 - PvP 매치 종료 후 포디움, 포디움 10초 후 로비 복귀가 각각 올바른 GameMode로 실행되는지 확인한다.
 - PvP 로딩 종료 후 팀 소개 카메라 연출 동안 모든 WBP가 보이지 않고, 연출 종료 후 HUD와 입력 UI가 정상 복원되는지 확인한다.
+- 로비->눈사람 모드에서 5초 대기 동안 로딩 화면이 유지되고, 이후 검정 전환 뒤 팀 인트로가 시작되며 인트로 종료 후 HUD가 표시되는지 호스트와 클라이언트에서 확인한다.
+- 눈사람 모드 종료 후 포디움에서 `ASnowmanModePodiumGameMode::BackgroundMusicSound`가 재생되고, 호스트와 클라이언트 모두 `Podium_Camera` 시점으로 전환되는지 확인한다.
+- 눈사람 모드 팀 인트로 중 호스트와 클라이언트 모두 MainHUD·키 가이드·상호작용 안내·이모트·관전 UI가 숨겨지고, 인트로 종료 후 복원되는지 확인한다.
+- 눈사람 전용 포디움 맵을 유지한 상태에서 승자 캐릭터의 크기, 입력 잠금, 이동 정지, 중력 0, 그림자 표시가 PvP 포디움과 동일한지 확인한다.
+- 눈사람 모드 로비->맵 travel 직후 호스트/클라이언트 로그에 `CreateWidget cannot be used on Player Controller with no attached player`가 재발하지 않는지 확인한다.
+- 눈사람 Survivor 승리 후 포디움에서 호스트 화면 기준 클라이언트 승자도 `Podium_Team*` PlayerStart에 배치되고, 클라이언트 화면 카메라가 `Podium_Camera`에 고정되는지 확인한다.
+- 눈사람 모드 팀 인트로가 끝나면 호스트와 클라이언트 모두 Snowman HUD가 다시 표시되는지 확인한다.
+- 패키지 실행본에서 메인메뉴 `방 만들기` 클릭 시 `Main menu HostButton clicked`와 `Host requested` 로그가 이어지고 로비로 이동하는지 확인한다. `Main menu QuitGameButton clicked`가 찍히면 WBP의 실제 버튼 이름/배치가 Quit 버튼으로 잘못 잡힌 것이다.
 
 ## 완료 조건
 

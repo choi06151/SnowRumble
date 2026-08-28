@@ -79,12 +79,20 @@ UI 버튼, 눈덩이 투척과 폭발, 피해 피드백, 아이템 및 게시판
 - 2026-08-24: C-26 발걸음 AnimNotify가 `SnowSurface`를 확인한 발 socket 위치에서 `FootstepSound`와 `FootstepSoundAttenuation`을 위치 기반으로 재생하도록 연결했다.
 - 2026-08-27: 로비에서 M 음소거 메뉴가 열린 뒤 로비 입력 복구 경로가 `GameOnly`로 되돌려 커서와 UI 포커스가 사라지는 회귀를 보강했다. 음소거 메뉴가 열려 있으면 공통 게임 입력 복구와 로비 `EnableLobbyGameInput()`이 UIOnly 상태를 유지하고, 로비 Tick 끝에서 PvP와 같은 커서·포커스·이동/시점 차단 상태를 재적용한다.
 - 2026-08-27: 로비 M 음소거 메뉴 클릭이 되지 않는 회귀를 보강했다. 음소거 메뉴 UIOnly/포커스 적용은 메뉴 열림·입력 복구 충돌 시 강제로 1회 적용하고, Tick에서는 아직 적용되지 않은 경우만 보정하도록 바꿔 Slate 버튼 클릭 press/release 흐름을 끊지 않게 했다.
+- 2026-08-27: 눈사람 모드 점프음과 감염음을 PvP 위치 기반 사운드 패턴으로 추가했다. 점프는 서버 RPC 후 눈사람 위치에서 Multicast하고, 감염은 새 눈사람 Pawn 빙의 성공 직후 위치에서 Multicast한다. `SnowmanJumpSound`, `SnowmanJumpSoundAttenuation`, `SnowmanInfectionSound`, `SnowmanInfectionSoundAttenuation`은 `ASnowmanModeSnowmanCharacter` Blueprint 슬롯으로 지정한다. `git diff --check`, UHT와 C++ 컴파일 및 `.lib` 생성은 통과했고 최종 DLL 링크는 실행 중인 Unreal Editor DLL 잠금으로 보류됐다.
+- 2026-08-27: 템버린 그랩 중 흔들림 사운드의 `JingleCooldownSeconds` 제한을 제거했다. 기존 `MinimumHeldTravelDistanceForJingle` 기준 거리를 넘을 때마다 서버가 피치 랜덤 위치 기반 징글을 Multicast해, 실제 흔들림 단위마다 소리가 재생되도록 했다.
+- 2026-08-27: 일반 Grabbable 물체의 상호작용 파괴 확정 시 `InteractionBreakSound`와 선택 감쇠 슬롯을 추가했다. 기존 Niagara 파괴 이펙트와 같은 서버 확정 위치에서 `PlaySoundAtLocation`을 Multicast하며, `AGrabbablePhysicsObject` 파생 물체 전체에 적용된다.
+- 2026-08-27: 태그 기반 Static Mesh 변환 물체는 `AGrabbableStaticMeshBootstrapActor`의 `ConvertedInteractionBreakSound`와 `ConvertedInteractionBreakSoundAttenuation`을 공통값으로 주입하도록 연결했다. Bootstrap에서 지정한 사운드가 변환된 모든 Grabbable 물체의 개별 기본값을 덮어쓴다.
+- 2026-08-27: 템버린 징글 조건을 플레이어 이동속도·이동량 기반에서 그랩 중 플레이어 `ControlRotation` 회전속도·누적 회전량 기반으로 변경했다. 제자리에서 카메라를 흔들어도 `MinimumGrabberLookSpeedForJingle`과 `MinimumHeldRotationDegreesForJingle` 기준을 충족할 때마다 위치 기반 징글이 재생된다.
+- 2026-08-27: 눈사람이 눈덩이에 맞을 때 `SnowmanHitSound`와 선택 감쇠 슬롯을 추가했다. 서버 기절 판정 시 눈사람 위치에서 `PlaySoundAtLocation`을 Multicast하며, 기존 눈덩이 충돌음과 별도로 피격 전용 사운드를 지정한다.
 
 ## 수동 작업
 
 - `WBP_MainMenu`, `WBP_Lobby`, `WBP_MainHUD`, `WBP_Options`, `WBP_LobbyBoard`, `WBP_VoiceMuteMenu`에서 버튼/패널 클릭 사운드를 재생할 WBP 이벤트를 연결한다.
 - 버튼을 사용하는 WBP에서 공통 부모의 `ButtonHoverSound`와 `ButtonClickSound`에 각각 사운드 자산을 지정한다. 공통 부모가 하위 `UButton`을 자동 연결하므로 각 버튼별 이벤트 사운드 노드는 추가하지 않는다.
 - `BP_SnowRumbleCharacter`에서 `JumpSound`를 지정한다.
+- 눈사람 캐릭터 Blueprint에서 `SnowmanJumpSound`, `SnowmanJumpSoundAttenuation`, `SnowmanInfectionSound`, `SnowmanInfectionSoundAttenuation`을 지정한다. 점프음은 눈사람 Pawn 위치, 감염음은 새 눈사람 Pawn이 생성된 위치에서 모든 참가자에게 공간음향으로 재생된다.
+- 눈사람 캐릭터 Blueprint에서 `SnowmanHitSound`와 `SnowmanHitSoundAttenuation`을 지정한다. 눈사람이 눈덩이에 맞을 때마다 피격 위치에서 모든 참가자에게 공간음향으로 재생된다.
 - `BP_SnowRumbleCharacter`에서 `FootstepSound`와 `FootstepSoundAttenuation`을 지정한다.
 - `BP_SnowRumbleCharacter`에서 `NormalFootstepSound`와 `NormalFootstepSoundAttenuation`도 지정한다. `SnowSurface` Actor Tag가 있는 바닥은 눈길 사운드, 없는 바닥은 일반길 사운드를 사용한다.
 - 캐릭터의 `SnowballCreationComponent`에서 `SnowballCreationSound`와 `SnowballCreationSoundAttenuation`을 지정한다.
@@ -94,6 +102,7 @@ UI 버튼, 눈덩이 투척과 폭발, 피해 피드백, 아이템 및 게시판
 - `BP_SnowRumbleCharacter`와 관련 AnimBP/Blueprint에서 눈덩이 투척, 폭발, 피해, 상호작용, 잡기, 발걸음 사운드 자산을 연결한다.
 - `BP_SnowRumbleCharacter`에서 `DamageSound`와 `DamageSoundAttenuation`을 지정한다. 피격음은 피격자 위치에서 모든 참가자에게 거리감 있게 재생된다.
 - 눈덩이 Blueprint에서 `ImpactSound`와 `ImpactSoundAttenuation`을 지정한다. 충돌음은 충돌 지점에서 모든 참가자에게 거리감 있게 재생된다.
+- 일반 Grabbable Blueprint에서 `InteractionBreakSound`와 `InteractionBreakSoundAttenuation`을 지정한다. 물체가 상호작용 한도에 도달해 부서질 때 파괴 위치에서 모든 참가자에게 거리감 있게 재생된다.
 - `BgmSoundClass`, `SfxSoundClass`, 마이크 관련 음성 설정이 실제 SoundClass와 음성 채널에 맞게 연결되도록 확인한다.
 - 필요하면 master volume을 SoundClass 계층 또는 별도 AudioSettings UI로 배치한다.
 
@@ -111,6 +120,8 @@ UI 버튼, 눈덩이 투척과 폭발, 피해 피드백, 아이템 및 게시판
 - [ ] 눈 제작 완료와 눈 굴리기 시작 시 지정한 위치 기반 사운드가 재생된다.
 - [ ] 잡기 성공과 놓기 시 각각의 사운드가 재생된다.
 - [ ] 점프 성공 시 로컬 플레이어에게 점프 시작음이 재생된다.
+- [ ] 눈사람 점프 성공 시 지정한 위치 기반 점프음이 모든 참가자에게 재생된다.
+- [ ] 눈사람 감염 성공 시 새 눈사람 Pawn 위치에서 지정한 감염음이 모든 참가자에게 재생된다.
 - [ ] 최대 성장 큰 눈덩이가 충돌할 때 `LargeImpactSound`가 재생된다.
 - [ ] 눈덩이 투척과 폭발에 사운드가 연결된다.
 - [ ] 눈덩이 충돌음이 충돌 위치 기준으로 가까울수록 크게, 멀수록 작게 들린다.

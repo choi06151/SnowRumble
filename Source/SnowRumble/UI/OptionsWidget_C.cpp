@@ -5,11 +5,13 @@
 #include "../Audio/SnowRumbleAudioHelpers.h"
 #include "Components/Button.h"
 #include "Components/ComboBoxString.h"
+#include "Components/ContentWidget.h"
 #include "Components/PanelWidget.h"
 #include "Components/ProgressBar.h"
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
 #include "Components/WidgetSwitcher.h"
+#include "Blueprint/WidgetTree.h"
 #include "CustomizationPlayerController_C.h"
 #include "LobbyPlayerController.h"
 #include "../Player/SnowRumbleCharacter.h"
@@ -23,6 +25,39 @@
 #include "Sound/SoundClass.h"
 #include "Sound/SoundMix.h"
 #include "AudioCaptureCore.h"
+
+namespace
+{
+	UTextBlock* FindFirstTextBlock(UWidget* RootWidget)
+	{
+		if (!RootWidget)
+		{
+			return nullptr;
+		}
+
+		if (UTextBlock* TextBlock = Cast<UTextBlock>(RootWidget))
+		{
+			return TextBlock;
+		}
+
+		if (UPanelWidget* PanelWidget = Cast<UPanelWidget>(RootWidget))
+		{
+			for (int32 ChildIndex = 0; ChildIndex < PanelWidget->GetChildrenCount(); ++ChildIndex)
+			{
+				if (UTextBlock* TextBlock = FindFirstTextBlock(PanelWidget->GetChildAt(ChildIndex)))
+				{
+					return TextBlock;
+				}
+			}
+		}
+		else if (UContentWidget* ContentWidget = Cast<UContentWidget>(RootWidget))
+		{
+			return FindFirstTextBlock(ContentWidget->GetContent());
+		}
+
+		return nullptr;
+	}
+}
 
 namespace
 {
@@ -58,6 +93,15 @@ void UOptionsWidget::NativeConstruct()
 	InitializeSensitivitySetting();
 	InitializeAudioSettings();
 	InitializeMicrophoneSettings();
+	if (LanguageComboBox && !LanguageComboBox->OnGenerateWidgetEvent.IsBound())
+	{
+		DefaultLanguageComboBoxForegroundColor =
+			LanguageComboBox->GetForegroundColor();
+		bHasDefaultLanguageComboBoxForegroundColor = true;
+		LanguageComboBox->OnGenerateWidgetEvent.BindDynamic(
+			this,
+			&UOptionsWidget::HandleLanguageComboBoxGenerateWidget);
+	}
 	InitializeLanguageSetting();
 	RefreshMicrophoneDeviceList();
 	InitializeDefaultKeyBindingRows();
@@ -75,6 +119,7 @@ void UOptionsWidget::NativeConstruct()
 	RefreshMicrophoneValueText();
 	RefreshKeyBindingPanel();
 	SetOptionsCategory(CurrentOptionsCategory);
+	RefreshCategoryButtonTextColors();
 	SetHasPendingOptionChanges(false);
 }
 
@@ -106,6 +151,7 @@ void UOptionsWidget::NativeTick(
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 	RefreshMicrophoneTestDisplay(InDeltaTime);
+	RefreshCategoryButtonTextColors();
 }
 
 void UOptionsWidget::SetOptionsCategory(
@@ -964,7 +1010,7 @@ void UOptionsWidget::InitializeDefaultKeyBindingRows()
 	KeyBindingRows.Add(MakeKeyBindingRow(
 		TEXT("Interact"),
 		NSLOCTEXT("SnowRumble", "KeyBindingInteract", "상호작용"),
-		EKeys::E));
+		EKeys::F));
 	KeyBindingRows.Add(MakeKeyBindingRow(
 		TEXT("Aim"),
 		NSLOCTEXT("SnowRumble", "KeyBindingAim", "조준"),
@@ -974,9 +1020,17 @@ void UOptionsWidget::InitializeDefaultKeyBindingRows()
 		NSLOCTEXT("SnowRumble", "KeyBindingAction", "행동"),
 		EKeys::LeftMouseButton));
 	KeyBindingRows.Add(MakeKeyBindingRow(
+		TEXT("RollSnowball"),
+		NSLOCTEXT("SnowRumble", "KeyBindingRollSnowball", "눈덩이 굴리기"),
+		EKeys::E));
+	KeyBindingRows.Add(MakeKeyBindingRow(
+		TEXT("CreateSnowball"),
+		NSLOCTEXT("SnowRumble", "KeyBindingCreateSnowball", "눈 만들기"),
+		EKeys::Q));
+	KeyBindingRows.Add(MakeKeyBindingRow(
 		TEXT("DropEquipment"),
 		NSLOCTEXT("SnowRumble", "KeyBindingDropEquipment", "장비 내려놓기"),
-		EKeys::Q));
+		EKeys::Enter));
 	KeyBindingRows.Add(MakeKeyBindingRow(
 		TEXT("Emote"),
 		NSLOCTEXT("SnowRumble", "KeyBindingEmote", "이모션"),
@@ -1794,6 +1848,106 @@ void UOptionsWidget::RefreshCategoryButtonSelection()
 	SetButtonSelectedVisual(
 		MicrophoneCategoryButton,
 		CurrentOptionsCategory == ESnowRumbleOptionsCategory::Microphone);
+	RefreshCategoryButtonTextColors();
+}
+
+void UOptionsWidget::RefreshButtonTextColor(UButton* Button, bool bSelected)
+{
+	if (!Button)
+	{
+		return;
+	}
+
+	UTextBlock* TextBlock = FindFirstTextBlock(Button->GetContent());
+	if (!TextBlock)
+	{
+		return;
+	}
+
+	FSlateColor* DefaultColor = DefaultButtonTextColors.Find(TextBlock);
+	if (!DefaultColor)
+	{
+		DefaultButtonTextColors.Add(TextBlock, TextBlock->GetColorAndOpacity());
+		DefaultColor = DefaultButtonTextColors.Find(TextBlock);
+	}
+
+	const bool bShouldBeWhite = bSelected || Button->IsHovered() || Button->IsPressed();
+	TextBlock->SetColorAndOpacity(
+		bShouldBeWhite ? FSlateColor(FLinearColor::White) : *DefaultColor);
+}
+
+void UOptionsWidget::RefreshCategoryButtonTextColors()
+{
+	RefreshButtonTextColor(
+		SensitivityCategoryButton,
+		CurrentOptionsCategory == ESnowRumbleOptionsCategory::Sensitivity);
+	RefreshButtonTextColor(
+		AudioCategoryButton,
+		CurrentOptionsCategory == ESnowRumbleOptionsCategory::Audio);
+	RefreshButtonTextColor(
+		KeyBindingCategoryButton,
+		CurrentOptionsCategory == ESnowRumbleOptionsCategory::KeyBinding);
+	RefreshButtonTextColor(
+		MicrophoneCategoryButton,
+		CurrentOptionsCategory == ESnowRumbleOptionsCategory::Microphone);
+	RefreshButtonTextColor(
+		MicrophonePushToTalkButton,
+		PendingMicrophoneMode == ESnowRumbleMicrophoneMode::PushToTalk);
+	RefreshButtonTextColor(
+		MicrophoneAlwaysOnButton,
+		PendingMicrophoneMode == ESnowRumbleMicrophoneMode::AlwaysOn);
+	RefreshButtonTextColor(ApplyButton, false);
+	RefreshButtonTextColor(ResetButton, false);
+	RefreshLanguageComboBoxTextColor();
+}
+
+void UOptionsWidget::RefreshLanguageComboBoxTextColor()
+{
+	if (!LanguageComboBox)
+	{
+		return;
+	}
+
+	if (!bHasDefaultLanguageComboBoxForegroundColor)
+	{
+		DefaultLanguageComboBoxForegroundColor =
+			LanguageComboBox->GetForegroundColor();
+		bHasDefaultLanguageComboBoxForegroundColor = true;
+	}
+
+	const bool bShouldBeWhite =
+		LanguageComboBox->IsHovered() || LanguageComboBox->IsOpen();
+	for (UTextBlock* TextBlock : LanguageComboBoxTextBlocks)
+	{
+		if (TextBlock)
+		{
+			TextBlock->SetColorAndOpacity(
+				bShouldBeWhite
+					? FSlateColor(FLinearColor::White)
+					: DefaultLanguageComboBoxForegroundColor);
+		}
+	}
+}
+
+UWidget* UOptionsWidget::HandleLanguageComboBoxGenerateWidget(FString Item)
+{
+	if (!WidgetTree)
+	{
+		return nullptr;
+	}
+
+	UTextBlock* TextBlock = WidgetTree->ConstructWidget<UTextBlock>(
+		UTextBlock::StaticClass());
+	if (!TextBlock)
+	{
+		return nullptr;
+	}
+
+	TextBlock->SetText(FText::FromString(Item));
+	TextBlock->SetFont(LanguageComboBox->GetFont());
+	TextBlock->SetColorAndOpacity(DefaultLanguageComboBoxForegroundColor);
+	LanguageComboBoxTextBlocks.AddUnique(TextBlock);
+	return TextBlock;
 }
 
 void UOptionsWidget::RefreshMicrophoneModeButtonSelection()

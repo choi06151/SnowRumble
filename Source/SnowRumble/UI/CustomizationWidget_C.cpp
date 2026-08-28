@@ -4,8 +4,11 @@
 
 #include "Components/Button.h"
 #include "Components/Border.h"
+#include "Components/ContentWidget.h"
 #include "Components/Image.h"
+#include "Components/PanelWidget.h"
 #include "Components/Slider.h"
+#include "Components/TextBlock.h"
 #include "Components/WidgetSwitcher.h"
 #include "Blueprint/WidgetTree.h"
 #include "CustomizationPlayerController_C.h"
@@ -107,6 +110,7 @@ void UCustomizationWidget::NativeConstruct()
 	SetCustomizationPage(CurrentCustomizationPage);
 	RefreshBrushSizeSlider();
 	RefreshPaintBrushPreview();
+	RefreshPaintActionButtonTextColors();
 	BindAccessoryItemButtons();
 	RefreshAccessoryItemButtonSelection();
 }
@@ -127,6 +131,7 @@ void UCustomizationWidget::NativeTick(
 
 	RefreshPaintBrushPreview();
 	RefreshBrushSizeSlider();
+	RefreshPaintActionButtonTextColors();
 }
 
 FReply UCustomizationWidget::NativeOnKeyDown(
@@ -1135,19 +1140,145 @@ void UCustomizationWidget::RefreshPaintBrushPreview()
 	RefreshPaletteButtonSelection();
 }
 
+void UCustomizationWidget::RefreshPaintActionButtonTextColors()
+{
+	TArray<UTextBlock*> BrushSizeTextBlocks;
+	TArray<UTextBlock*> FillBodyColorTextBlocks;
+	TArray<UTextBlock*> PaintModeTextBlocks;
+	TArray<UTextBlock*> HatModeTextBlocks;
+	TArray<UTextBlock*> GlassesModeTextBlocks;
+	TArray<UTextBlock*> NoseModeTextBlocks;
+	TArray<UTextBlock*> EarmuffsModeTextBlocks;
+	CacheButtonTextColors(BrushSizeButton, BrushSizeTextBlocks);
+	CacheButtonTextColors(FillBodyColorButton, FillBodyColorTextBlocks);
+	CacheButtonTextColors(PaintModeButton, PaintModeTextBlocks);
+	CacheButtonTextColors(HatModeButton, HatModeTextBlocks);
+	CacheButtonTextColors(GlassesModeButton, GlassesModeTextBlocks);
+	CacheButtonTextColors(NoseModeButton, NoseModeTextBlocks);
+	CacheButtonTextColors(EarmuffsModeButton, EarmuffsModeTextBlocks);
+
+	const auto CacheDefaultTextColors = [this](
+		const TArray<UTextBlock*>& TextBlocks)
+	{
+		for (UTextBlock* TextBlock : TextBlocks)
+		{
+			if (TextBlock)
+			{
+				DefaultPaintActionButtonTextColors.FindOrAdd(
+					TextBlock,
+					TextBlock->GetColorAndOpacity());
+			}
+		}
+	};
+	CacheDefaultTextColors(BrushSizeTextBlocks);
+	CacheDefaultTextColors(FillBodyColorTextBlocks);
+	CacheDefaultTextColors(PaintModeTextBlocks);
+	CacheDefaultTextColors(HatModeTextBlocks);
+	CacheDefaultTextColors(GlassesModeTextBlocks);
+	CacheDefaultTextColors(NoseModeTextBlocks);
+	CacheDefaultTextColors(EarmuffsModeTextBlocks);
+
+	const auto ApplyTextColors = [this](
+		UButton* Button,
+		const TArray<UTextBlock*>& TextBlocks)
+	{
+		const bool bActive = Button
+			&& (Button->IsHovered() || Button->IsPressed());
+		for (UTextBlock* TextBlock : TextBlocks)
+		{
+			if (!TextBlock)
+			{
+				continue;
+			}
+
+			const FSlateColor* DefaultColor =
+				DefaultPaintActionButtonTextColors.Find(TextBlock);
+			if (DefaultColor)
+			{
+				TextBlock->SetColorAndOpacity(
+					bActive
+						? FSlateColor(FLinearColor::White)
+						: *DefaultColor);
+			}
+		}
+	};
+
+	ApplyTextColors(BrushSizeButton, BrushSizeTextBlocks);
+	ApplyTextColors(FillBodyColorButton, FillBodyColorTextBlocks);
+	ApplyTextColors(PaintModeButton, PaintModeTextBlocks);
+	ApplyTextColors(HatModeButton, HatModeTextBlocks);
+	ApplyTextColors(GlassesModeButton, GlassesModeTextBlocks);
+	ApplyTextColors(NoseModeButton, NoseModeTextBlocks);
+	ApplyTextColors(EarmuffsModeButton, EarmuffsModeTextBlocks);
+}
+
+void UCustomizationWidget::CacheButtonTextColors(
+	UButton* Button,
+	TArray<UTextBlock*>& TextBlocks)
+{
+	if (Button && Button->GetContent())
+	{
+		CacheButtonTextColorsRecursive(Button->GetContent(), TextBlocks);
+	}
+}
+
+void UCustomizationWidget::CacheButtonTextColorsRecursive(
+	UWidget* Widget,
+	TArray<UTextBlock*>& TextBlocks)
+{
+	if (!Widget)
+	{
+		return;
+	}
+
+	if (UTextBlock* TextBlock = Cast<UTextBlock>(Widget))
+	{
+		TextBlocks.AddUnique(TextBlock);
+		return;
+	}
+
+	if (UPanelWidget* Panel = Cast<UPanelWidget>(Widget))
+	{
+		for (int32 Index = 0; Index < Panel->GetChildrenCount(); ++Index)
+		{
+			CacheButtonTextColorsRecursive(Panel->GetChildAt(Index), TextBlocks);
+		}
+	}
+	else if (UContentWidget* ContentWidget = Cast<UContentWidget>(Widget))
+	{
+		CacheButtonTextColorsRecursive(ContentWidget->GetContent(), TextBlocks);
+	}
+}
+
 void UCustomizationWidget::ApplyPaletteButtonColors()
 {
-	ApplyPaletteButtonColor(RedBrushColorButton, FLinearColor::Red);
+	ApplyPaletteButtonColor(
+		RedBrushColorButton,
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("D93939"))));
 	ApplyPaletteButtonColor(OrangeBrushColorButton, FLinearColor(1.0f, 0.45f, 0.0f, 1.0f));
-	ApplyPaletteButtonColor(YellowBrushColorButton, FLinearColor::Yellow);
-	ApplyPaletteButtonColor(GreenBrushColorButton, FLinearColor::Green);
-	ApplyPaletteButtonColor(BlueBrushColorButton, FLinearColor::Blue);
-	ApplyPaletteButtonColor(IndigoBrushColorButton, FLinearColor(0.25f, 0.0f, 0.55f, 1.0f));
-	ApplyPaletteButtonColor(PurpleBrushColorButton, FLinearColor(0.55f, 0.0f, 1.0f, 1.0f));
+	ApplyPaletteButtonColor(
+		YellowBrushColorButton,
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("FFFB3C"))));
+	ApplyPaletteButtonColor(
+		GreenBrushColorButton,
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("6DDD62"))));
+	ApplyPaletteButtonColor(
+		BlueBrushColorButton,
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("00A6D7"))));
+	ApplyPaletteButtonColor(
+		IndigoBrushColorButton,
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("BC7AFF"))));
+	ApplyPaletteButtonColor(
+		PurpleBrushColorButton,
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("3AA7FF"))));
 	ApplyPaletteButtonColor(BlackBrushColorButton, FLinearColor::Black);
-	ApplyPaletteButtonColor(WhiteBrushColorButton, FLinearColor::White);
+	ApplyPaletteButtonColor(
+		WhiteBrushColorButton,
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("E664E9"))));
 	ApplyPaletteButtonColor(LightRedBrushColorButton, FLinearColor(1.0f, 0.52f, 0.46f, 1.0f));
-	ApplyPaletteButtonColor(DarkRedBrushColorButton, FLinearColor(0.78f, 0.02f, 0.02f, 1.0f));
+	ApplyPaletteButtonColor(
+		DarkRedBrushColorButton,
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("FF674C"))));
 	ApplyPaletteButtonColor(SoftRedBrushColorButton, FLinearColor(1.0f, 0.28f, 0.20f, 1.0f));
 	ApplyPaletteButtonColor(LightOrangeBrushColorButton, FLinearColor(1.0f, 0.76f, 0.42f, 1.0f));
 	ApplyPaletteButtonColor(DarkOrangeBrushColorButton, FLinearColor(0.82f, 0.22f, 0.01f, 1.0f));
@@ -1159,20 +1290,40 @@ void UCustomizationWidget::ApplyPaletteButtonColors()
 	ApplyPaletteButtonColor(DarkGreenBrushColorButton, FLinearColor(0.02f, 0.58f, 0.10f, 1.0f));
 	ApplyPaletteButtonColor(SoftGreenBrushColorButton, FLinearColor(0.30f, 1.0f, 0.42f, 1.0f));
 	ApplyPaletteButtonColor(LightBlueBrushColorButton, FLinearColor(0.52f, 0.88f, 1.0f, 1.0f));
-	ApplyPaletteButtonColor(DarkBlueBrushColorButton, FLinearColor(0.0f, 0.38f, 0.68f, 1.0f));
+	ApplyPaletteButtonColor(
+		DarkBlueBrushColorButton,
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("2FD0F0"))));
 	ApplyPaletteButtonColor(SoftBlueBrushColorButton, FLinearColor(0.22f, 0.82f, 1.0f, 1.0f));
-	ApplyPaletteButtonColor(LightIndigoBrushColorButton, FLinearColor(0.78f, 0.62f, 1.0f, 1.0f));
-	ApplyPaletteButtonColor(DarkIndigoBrushColorButton, FLinearColor(0.22f, 0.02f, 0.62f, 1.0f));
-	ApplyPaletteButtonColor(SoftIndigoBrushColorButton, FLinearColor(0.62f, 0.34f, 1.0f, 1.0f));
+	ApplyPaletteButtonColor(
+		LightIndigoBrushColorButton,
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("A9D8FF"))));
+	ApplyPaletteButtonColor(
+		DarkIndigoBrushColorButton,
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("1064FF"))));
+	ApplyPaletteButtonColor(
+		SoftIndigoBrushColorButton,
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("7EC5FF"))));
 	ApplyPaletteButtonColor(LightPurpleBrushColorButton, FLinearColor(0.86f, 0.60f, 1.0f, 1.0f));
-	ApplyPaletteButtonColor(DarkPurpleBrushColorButton, FLinearColor(0.38f, 0.12f, 0.92f, 1.0f));
+	ApplyPaletteButtonColor(
+		DarkPurpleBrushColorButton,
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("9E40FF"))));
 	ApplyPaletteButtonColor(SoftPurpleBrushColorButton, FLinearColor(0.70f, 0.40f, 1.0f, 1.0f));
-	ApplyPaletteButtonColor(PinkBrushColorButton, FLinearColor(1.0f, 0.18f, 0.55f, 1.0f));
-	ApplyPaletteButtonColor(CyanBrushColorButton, FLinearColor(0.05f, 0.75f, 0.85f, 1.0f));
-	ApplyPaletteButtonColor(BrownBrushColorButton, FLinearColor(0.42f, 0.18f, 0.05f, 1.0f));
+	ApplyPaletteButtonColor(
+		PinkBrushColorButton,
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("FEC8FF"))));
+	ApplyPaletteButtonColor(
+		CyanBrushColorButton,
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("FEADFF"))));
+	ApplyPaletteButtonColor(
+		BrownBrushColorButton,
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("AAAAAA"))));
 	ApplyPaletteButtonColor(DarkGrayBrushColorButton, FLinearColor(0.18f, 0.18f, 0.18f, 1.0f));
-	ApplyPaletteButtonColor(GrayBrushColorButton, FLinearColor(0.50f, 0.50f, 0.50f, 1.0f));
-	ApplyPaletteButtonColor(LightGrayBrushColorButton, FLinearColor(0.78f, 0.78f, 0.78f, 1.0f));
+	ApplyPaletteButtonColor(
+		GrayBrushColorButton,
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("E2E2E2"))));
+	ApplyPaletteButtonColor(
+		LightGrayBrushColorButton,
+		FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("FD8BFF"))));
 }
 
 void UCustomizationWidget::ApplyPaletteButtonColor(

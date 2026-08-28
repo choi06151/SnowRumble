@@ -103,6 +103,11 @@
 - 2026-08-21: 플레이어를 잡았을 때 잡힌 캐릭터가 잡는 캐릭터의 가상 reach 위치가 아니라 실제 잡는 손 bone/socket 위치를 기준으로 끌려오게 보강했다. `BuildHandGrabAnchorLocation()`이 `RightGrabHandBoneName`/`LeftGrabHandBoneName`의 Mesh 월드 위치를 우선 사용하고, 없을 때만 기존 `BuildHandGrabTargetLocation()`으로 fallback한다.
 - 2026-08-21: 잡힌 플레이어의 neck/상체 Control Rig 보정용 위치 계약을 추가했다. 잡는 손 위치를 잡힌 캐릭터의 `GrabbedByCharacterWorldLocation`으로 복제하고, `USnowRumbleCharacterAnimInstance`는 `GrabbedByCharacterWorldLocation`과 Mesh component space로 변환한 `GrabbedByCharacterComponentLocation`을 제공한다.
 - 2026-08-22: 잡기 최대 유지 시간을 추가했다. `UPlayerGrabComponent::MaximumGrabHoldSeconds`가 0보다 크면 서버가 손이 캐릭터나 월드에 붙은 시각부터 시간을 재고, 시간이 끝나면 `StopGrabReach`와 같은 해제 경로로 잡기를 자동 해제한다. 로컬 HUD는 기존 `AimChargeProgressBar`를 손이 붙은 잡기 중 남은 시간 표시로 재사용해 1에서 0으로 감소시킨다. `git diff --check`와 충돌 표식 검색은 통과했고, UHT와 C++ 컴파일 및 `.lib` 생성은 통과했으나 최종 DLL 링크는 실행 중인 Unreal Editor의 `UnrealEditor-SnowRumble.dll` 잠금 `LNK1104`로 보류됐다.
+- 2026-08-27: Grab 후보 탐지 기준을 캐릭터 액터 정면에서 활성 손의 실제 grab bone/socket 월드 위치로 변경했다. Trace는 해당 손 위치를 중심으로 캐릭터의 카메라 Yaw/Pitch 방향을 따라 뻗으며, 가상 손 목표 위치와 손별 탐지 방향도 같은 카메라 축을 사용한다.
+- 2026-08-27: Grab Trace 시작점을 활성 손 하나가 아니라 오른손·왼손 grab bone/socket 월드 위치의 중간점으로 변경했다. 한쪽 bone/socket을 찾지 못하면 기존 가상 손 목표 위치 fallback을 사용하고, 중간점에서 카메라 Yaw/Pitch 방향으로 탐지한다.
+- 2026-08-27: Grab Trace 방향은 카메라 Yaw/Pitch가 아닌 캐릭터 Mesh 정면을 사용하도록 조정했다. 좌클릭으로 Grab reach 중에는 `bUseControllerRotationYaw`를 활성화하고 이동 방향 회전을 끄며, 카메라 Yaw를 따라 플레이어가 회전하고 해제 시 기존 설정을 복원한다. 기존 손·상체의 카메라 Pitch 보정 계약은 유지한다.
+- 2026-08-27: 캐릭터 Mesh 자산의 로컬 축과 게임상 정면이 90도 어긋나 Trace가 왼쪽으로 나가던 문제를 보정했다. Mesh의 시각적 정면에 해당하는 local Right 축을 Grab Trace와 손 목표의 forward로 사용하고, 반대 축을 lateral right로 사용한다.
+- 2026-08-27: 중앙점 단일 Trace를 제거하고 오른손·왼손 grab bone/socket 각각에서 sphere Trace를 실행하도록 변경했다. 두 Trace의 Hit.Time을 비교해 먼저 닿은 유효 후보를 우선 선택한다.
 
 ## 수동 작업
 

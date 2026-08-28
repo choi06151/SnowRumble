@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SnowRumbleCharacter.h"
+#include "UObject/ConstructorHelpers.h"
 
 #include "SnowRumbleHealthComponent.h"
+#include "SnowmanModeSnowmanCharacter_K.h"
 #include "../Audio/SnowRumbleAudioHelpers.h"
 #include "../Game/SnowmanModeGameState_K.h"
 #include "../Game/SnowRumbleGameState_C.h"
@@ -18,11 +20,15 @@
 #include "../Item/GiftBoxItemPickup_C.h"
 #include "../Item/GiftItemEffectComponent_C.h"
 #include "PlayerGrabComponent_C.h"
+#include "SnowRumbleCharacterMovementComponent_C.h"
 #include "../Snowball/SnowballCreationComponent.h"
+#include "../Snowball/SnowballDamageTypes.h"
 #include "../Snowball/SnowballEquipmentComponent.h"
 #include "../Snowball/SnowballItem.h"
+#include "../Snowball/SnowballProjectile.h"
 #include "../UI/EmoteRadialMenuWidget.h"
 #include "../UI/CustomizationPlayerController_C.h"
+#include "../UI/DamageTextWidget_C.h"
 #include "../UI/InteractionPromptWidget_C.h"
 #include "../UI/KeyGuideWidget_C.h"
 #include "../UI/MainHUDWidget.h"
@@ -50,6 +56,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "Engine/Canvas.h"
 #include "Engine/CanvasRenderTarget2D.h"
+#include "Engine/DamageEvents.h"
 #include "EngineUtils.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -61,6 +68,7 @@
 #include "InputCoreTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Components/MeshComponent.h"
 #include "Misc/DateTime.h"
 #include "UnrealClient.h"
 #include "Net/UnrealNetwork.h"
@@ -74,6 +82,87 @@ DEFINE_LOG_CATEGORY_STATIC(LogSnowTrailCharacter, Log, All);
 
 namespace
 {
+bool IsSnowballDamageCauser(const AActor* DamageCauser)
+{
+	return DamageCauser
+		&& (DamageCauser->IsA<ASnowballProjectile>()
+			|| DamageCauser->IsA<ASnowballItem>());
+}
+
+const APlayerState* ResolveSnowballDamageInstigatorPlayerState(
+	AController* EventInstigator,
+	const AActor* DamageCauser)
+{
+	if (EventInstigator && EventInstigator->PlayerState)
+	{
+		return EventInstigator->PlayerState;
+	}
+
+	const ASnowRumbleCharacter* OwningCharacter =
+		DamageCauser
+			? Cast<ASnowRumbleCharacter>(DamageCauser->GetOwner())
+			: nullptr;
+	return OwningCharacter
+		? OwningCharacter->GetPlayerState()
+		: nullptr;
+}
+
+bool HandleSnowmanModeSnowballDamageOverride(
+	ASnowRumbleCharacter* DamagedCharacter,
+	AController* EventInstigator,
+	const AActor* DamageCauser)
+{
+	if (!DamagedCharacter || !IsSnowballDamageCauser(DamageCauser))
+	{
+		return false;
+	}
+
+	const UWorld* World = DamagedCharacter->GetWorld();
+	const ASnowmanModeGameState* SnowmanGameState = World
+		? World->GetGameState<ASnowmanModeGameState>()
+		: nullptr;
+	if (!SnowmanGameState)
+	{
+		return false;
+	}
+
+	const APlayerState* AttackerPlayerState =
+		ResolveSnowballDamageInstigatorPlayerState(
+			EventInstigator,
+			DamageCauser);
+	const APlayerState* TargetPlayerState = DamagedCharacter->GetPlayerState();
+	if (!AttackerPlayerState || !TargetPlayerState)
+	{
+		return false;
+	}
+
+	const ESnowmanModePlayerRole AttackerRole =
+		SnowmanGameState->GetSnowmanModePlayerRole(AttackerPlayerState);
+	const ESnowmanModePlayerRole TargetRole =
+		SnowmanGameState->GetSnowmanModePlayerRole(TargetPlayerState);
+	if (AttackerRole != ESnowmanModePlayerRole::Normal)
+	{
+		return false;
+	}
+
+	if (TargetRole == ESnowmanModePlayerRole::Normal)
+	{
+		return true;
+	}
+
+	if (TargetRole == ESnowmanModePlayerRole::Snowman)
+	{
+		if (ASnowmanModeSnowmanCharacter* SnowmanCharacter =
+			Cast<ASnowmanModeSnowmanCharacter>(DamagedCharacter))
+		{
+			SnowmanCharacter->ApplySnowballHitStunFromServer();
+			return true;
+		}
+	}
+
+	return false;
+}
+
 FTransform ResolveCustomizationAccessoryTransform(
 	const TArray<FTransform>& RelativeTransformOverrides,
 	int32 MeshIndex,
@@ -94,8 +183,26 @@ FTransform ResolveCustomizationAccessoryTransform(
 }
 }
 
-ASnowRumbleCharacter::ASnowRumbleCharacter()
+ASnowRumbleCharacter::ASnowRumbleCharacter(
+	const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<
+		USnowRumbleCharacterMovementComponent_C>(
+		ACharacter::CharacterMovementComponentName))
 {
+	static ConstructorHelpers::FObjectFinder<UInputAction> RollActionAsset(
+		TEXT("/Game/Input/IA_SnowRoll.IA_SnowRoll"));
+	if (RollActionAsset.Succeeded())
+	{
+		RollAction = RollActionAsset.Object;
+	}
+
+	static ConstructorHelpers::FObjectFinder<UInputAction> SnowCreationActionAsset(
+		TEXT("/Game/Input/IA_SnowMake.IA_SnowMake"));
+	if (SnowCreationActionAsset.Succeeded())
+	{
+		SnowCreationAction = SnowCreationActionAsset.Object;
+	}
+
 	GetCapsuleComponent()->InitCapsuleSize(42.0f, 96.0f);
 
 	bUseControllerRotationPitch = false;
@@ -285,6 +392,7 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 	UpdateIceGlacierMovementSurface();
 	EnsureOverheadTimedActionWidget();
+	UpdateSmallSnowballAimMeshFade(DeltaSeconds);
 
 	if (USkeletalMeshComponent* CharacterMesh = GetMesh())
 	{
@@ -691,6 +799,11 @@ bool ASnowRumbleCharacter::IsGrabAttached() const
 	return PlayerGrabComponent && PlayerGrabComponent->IsGrabAttached();
 }
 
+bool ASnowRumbleCharacter::IsGrabbingPhysicsObject() const
+{
+	return PlayerGrabComponent && PlayerGrabComponent->IsGrabbingPhysicsObject();
+}
+
 bool ASnowRumbleCharacter::IsHangingFromWorldGrab() const
 {
 	return PlayerGrabComponent && PlayerGrabComponent->IsHangingFromWorldGrab();
@@ -791,14 +904,13 @@ bool ASnowRumbleCharacter::CanStartPlayerGrabReach() const
 		&& !IsFrozen();
 }
 
-bool ASnowRumbleCharacter::ShouldPreferSnowCreationOverGrab() const
-{
-	return GetViewPitchAlpha() <= SnowCreationPreferredViewPitchAlpha;
-}
-
 bool ASnowRumbleCharacter::ShouldSuppressPvpWidgets() const
 {
+	const ASnowRumblePlayerController* SnowRumblePlayerController =
+		Cast<ASnowRumblePlayerController>(Controller);
 	return bPvpIntroWidgetsHidden
+		|| (SnowRumblePlayerController
+			&& SnowRumblePlayerController->IsPvpIntroWidgetsHidden())
 		|| Cast<APodiumPlayerController>(Controller) != nullptr;
 }
 
@@ -854,6 +966,12 @@ void ASnowRumbleCharacter::SetPvpIntroWidgetsHidden(bool bShouldHide)
 	}
 
 	bPvpIntroWidgetsHidden = false;
+	EnsureEmoteRadialMenuWidget();
+	EnsureKeyGuideWidget();
+	EnsureMainHUDWidget();
+	EnsureInteractionPromptWidget();
+	RefreshLifeStateSpectator();
+
 	if (EmoteRadialMenuWidget)
 	{
 		EmoteRadialMenuWidget->SetVisibility(PvpIntroEmoteVisibility);
@@ -875,6 +993,33 @@ void ASnowRumbleCharacter::SetPvpIntroWidgetsHidden(bool bShouldHide)
 	{
 		SpectatorWidget->SetVisibility(PvpIntroSpectatorVisibility);
 	}
+	RefreshInteractionPromptWidget();
+}
+
+void ASnowRumbleCharacter::SetLocalSnowEffectWindDirection(
+	const FVector& WindDirection)
+{
+	if (!IsLocallyControlled() || !LocalSnowEffect)
+	{
+		return;
+	}
+
+	LocalSnowEffect->SetVariableVec3(
+		LocalSnowEffectWindDirectionParameterName,
+		WindDirection.GetSafeNormal());
+}
+
+void ASnowRumbleCharacter::SetLocalSnowEffectWindStrength(
+	float WindStrength)
+{
+	if (!IsLocallyControlled() || !LocalSnowEffect)
+	{
+		return;
+	}
+
+	LocalSnowEffect->SetVariableFloat(
+		LocalSnowEffectWindStrengthParameterName,
+		FMath::Max(0.0f, WindStrength));
 }
 
 void ASnowRumbleCharacter::ApplyGrabbedByCharacter(
@@ -1287,7 +1432,9 @@ void ASnowRumbleCharacter::NotifyItemPickupSucceeded()
 	ForceNetUpdate();
 }
 
-void ASnowRumbleCharacter::NotifySnowballPickupSucceeded(bool bWasLargeSnowball)
+void ASnowRumbleCharacter::NotifySnowballPickupSucceeded(
+	bool bWasLargeSnowball,
+	bool bPlayPickupAnimation)
 {
 	if (!HasAuthority())
 	{
@@ -1296,6 +1443,12 @@ void ASnowRumbleCharacter::NotifySnowballPickupSucceeded(bool bWasLargeSnowball)
 
 	MulticastPlayCharacterFeedbackSound(
 		ESnowRumbleCharacterFeedbackSoundType::SnowballPickup);
+	if (!bPlayPickupAnimation)
+	{
+		ForceNetUpdate();
+		return;
+	}
+
 	bIsPickingUpItem = true;
 	OnRep_IsPickingUpItem();
 
@@ -1489,6 +1642,13 @@ float ASnowRumbleCharacter::TakeDamage(
 		return 0.0f;
 	}
 
+	if (HandleSnowmanModeSnowballDamageOverride(
+			this,
+			EventInstigator,
+			DamageCauser))
+	{
+		return 0.0f;
+	}
 	if (GiftItemEffectComponent && GiftItemEffectComponent->IsInvulnerable())
 	{
 		return 0.0f;
@@ -1518,7 +1678,20 @@ float ASnowRumbleCharacter::TakeDamage(
 		const FVector DamageCauserLocation = DamageCauser
 			? DamageCauser->GetActorLocation()
 			: GetActorLocation();
+		const UClass* DamageTypeClass = DamageEvent.DamageTypeClass
+			? DamageEvent.DamageTypeClass.Get()
+			: UDamageType::StaticClass();
+		const bool bHeadshotDamage =
+			DamageTypeClass
+			&& DamageTypeClass->IsChildOf(
+				USnowballHeadshotDamageType::StaticClass());
 		ClientRequestLocalDamageFeedback(AppliedDamage, DamageCauserLocation);
+		MulticastRequestDamageText(
+			AppliedDamage,
+			GetActorLocation() + DamageTextWorldOffset,
+			bHeadshotDamage
+				? ESnowRumbleDamageTextType::Headshot
+				: ESnowRumbleDamageTextType::Normal);
 		MulticastPlayDamageSound(GetActorLocation());
 	}
 
@@ -1538,6 +1711,11 @@ void ASnowRumbleCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (GEngine && FApp::IsGame())
+	{
+		GEngine->bEnableOnScreenDebugMessages = false;
+	}
+
 	if (const UWorld* World = GetWorld())
 	{
 		bIsIceGlacierMap = World->GetMapName().Contains(TEXT("L_IceGlacier_J"));
@@ -1552,6 +1730,8 @@ void ASnowRumbleCharacter::BeginPlay()
 	if (GetMesh())
 	{
 		DefaultCharacterMeshRelativeLocation = GetMesh()->GetRelativeLocation();
+		DefaultCharacterMeshRelativeScale = GetMesh()->GetRelativeScale3D();
+		ApplyPodiumMeshScale();
 	}
 
 	if (FollowCamera)
@@ -1823,6 +2003,12 @@ void ASnowRumbleCharacter::RefreshCustomizationHatMesh()
 
 	HatMeshComponent->SetStaticMesh(HatMesh);
 	HatMeshComponent->SetVisibility(HatMesh != nullptr, true);
+	if (bSmallSnowballAimMeshFadeActive)
+	{
+		// Customization can replicate after aiming starts, so include the newly
+		// assigned hat materials in the local aim-fade cache.
+		CacheSmallSnowballAimFadeMaterials();
+	}
 }
 
 void ASnowRumbleCharacter::RefreshCustomizationGlassesMesh()
@@ -2356,7 +2542,7 @@ void ASnowRumbleCharacter::ClientFocusLobbyBoard_Implementation(
 
 	APlayerController* PlayerController =
 		Cast<APlayerController>(GetController());
-	if (!PlayerController)
+	if (!PlayerController || !PlayerController->GetLocalPlayer())
 	{
 		return;
 	}
@@ -2546,6 +2732,12 @@ void ASnowRumbleCharacter::PawnClientRestart()
 	ApplyInputMappingContext();
 	ApplyCameraPitchLimits();
 	RefreshLocalSnowEffect();
+	if (const ASnowRumblePlayerController* SnowRumblePlayerController =
+		Cast<ASnowRumblePlayerController>(Controller))
+	{
+		SetPvpIntroWidgetsHidden(
+			SnowRumblePlayerController->IsPvpIntroWidgetsHidden());
+	}
 	EnsureEmoteRadialMenuWidget();
 	EnsureMainHUDWidget();
 	RefreshPvpMatchInputLock();
@@ -2601,6 +2793,29 @@ void ASnowRumbleCharacter::RefreshOverheadNameplateComponentSettings()
 	{
 		OverheadNameplateComponent->SetWidgetClass(OverheadNameplateWidgetClass);
 	}
+}
+
+void ASnowRumbleCharacter::ApplyPodiumMeshScale()
+{
+	USkeletalMeshComponent* CharacterMesh = GetMesh();
+	const UWorld* World = GetWorld();
+	if (!CharacterMesh || !World)
+	{
+		return;
+	}
+
+	if (!World->GetMapName().Contains(TEXT("Podium")))
+	{
+		return;
+	}
+
+	const float SafeScaleMultiplier =
+		FMath::Max(0.01f, PodiumMeshScaleMultiplier);
+	FVector PodiumMeshRelativeLocation = DefaultCharacterMeshRelativeLocation;
+	PodiumMeshRelativeLocation.Z += PodiumMeshZOffset;
+	CharacterMesh->SetRelativeLocation(PodiumMeshRelativeLocation);
+	CharacterMesh->SetRelativeScale3D(
+		DefaultCharacterMeshRelativeScale * SafeScaleMultiplier);
 }
 
 void ASnowRumbleCharacter::RefreshOverheadNameplateFacing()
@@ -2697,6 +2912,11 @@ void ASnowRumbleCharacter::RefreshLocalSnowEffect()
 		return;
 	}
 
+	if (bShouldShowLocalSnow)
+	{
+		SetLocalSnowEffectWindDirection(LocalSnowEffectDefaultDirection);
+	}
+
 	bLocalSnowEffectActive = bShouldShowLocalSnow;
 	LocalSnowEffect->SetVisibility(bShouldShowLocalSnow, true);
 
@@ -2718,9 +2938,15 @@ bool ASnowRumbleCharacter::ShouldShowLocalSnowEffect() const
 	}
 
 	const UWorld* World = GetWorld();
-	return World
-		&& World->GetGameState()
-		&& !World->GetGameState<ASnowRumbleLobbyGameState>();
+	if (!World || !World->GetGameState())
+	{
+		return false;
+	}
+
+	// 눈사람 모드에서는 플레이어 카메라에 붙은 눈 내림 VFX를 표시하지 않는다.
+	// 눈덩이 생성/투척 기능과는 별개의 로컬 환경 연출이다.
+	return !World->GetGameState<ASnowRumbleLobbyGameState>()
+		&& !World->GetGameState<ASnowmanModeGameState>();
 }
 
 void ASnowRumbleCharacter::EnsureEmoteRadialMenuWidget()
@@ -2734,7 +2960,7 @@ void ASnowRumbleCharacter::EnsureEmoteRadialMenuWidget()
 	}
 
 	APlayerController* PlayerController = Cast<APlayerController>(Controller);
-	if (!PlayerController)
+	if (!PlayerController || !PlayerController->GetLocalPlayer())
 	{
 		return;
 	}
@@ -2745,7 +2971,8 @@ void ASnowRumbleCharacter::EnsureEmoteRadialMenuWidget()
 			EmoteRadialMenuWidgetClass);
 	if (EmoteRadialMenuWidget)
 	{
-		EmoteRadialMenuWidget->AddToViewport();
+		// Keep the radial menu above the HUD so its buttons receive mouse hit tests.
+		EmoteRadialMenuWidget->AddToViewport(100);
 		EmoteRadialMenuWidget->CloseEmoteMenu();
 	}
 }
@@ -2761,7 +2988,7 @@ void ASnowRumbleCharacter::EnsureKeyGuideWidget()
 	}
 
 	APlayerController* PlayerController = Cast<APlayerController>(Controller);
-	if (!PlayerController)
+	if (!PlayerController || !PlayerController->GetLocalPlayer())
 	{
 		return;
 	}
@@ -2799,17 +3026,25 @@ void ASnowRumbleCharacter::EnsureMainHUDWidget()
 	}
 
 	APlayerController* PlayerController = Cast<APlayerController>(Controller);
-	if (!PlayerController)
+	if (!PlayerController || !PlayerController->GetLocalPlayer())
 	{
 		return;
 	}
 
-	TSubclassOf<UMainHUDWidget> HudWidgetClass = MainHUDWidgetClass;
-	if (UClass* PreferredHudClass = LoadClass<UMainHUDWidget>(
-		nullptr,
-		TEXT("/Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C")))
+	const bool bIsSnowmanMode = World
+		&& World->GetGameState<ASnowmanModeGameState>();
+	TSubclassOf<UMainHUDWidget> HudWidgetClass =
+		bIsSnowmanMode && SnowmanModeHUDWidgetClass
+			? SnowmanModeHUDWidgetClass
+			: MainHUDWidgetClass;
+	if (!bIsSnowmanMode)
 	{
-		HudWidgetClass = PreferredHudClass;
+		if (UClass* PreferredHudClass = LoadClass<UMainHUDWidget>(
+			nullptr,
+			TEXT("/Game/WBP/WBP_MainHUDWidget.WBP_MainHUDWidget_C")))
+		{
+			HudWidgetClass = PreferredHudClass;
+		}
 	}
 	if (!HudWidgetClass)
 	{
@@ -2837,7 +3072,7 @@ void ASnowRumbleCharacter::EnsureInteractionPromptWidget()
 	}
 
 	APlayerController* PlayerController = Cast<APlayerController>(Controller);
-	if (!PlayerController)
+	if (!PlayerController || !PlayerController->GetLocalPlayer())
 	{
 		return;
 	}
@@ -2932,7 +3167,7 @@ bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
 		OutPromptText = NSLOCTEXT(
 			"SnowRumble",
 			"InteractPromptPhoto",
-			"E - 사진찍기");
+			"F - 사진찍기");
 		OutPromptActor = PhotoActor;
 		return true;
 	}
@@ -2944,15 +3179,15 @@ bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
 				? NSLOCTEXT(
 					"SnowRumble",
 					"InteractPromptJukeboxOptOut",
-					"E - 참여 안하기")
+					"F - 참여 안하기")
 				: NSLOCTEXT(
 					"SnowRumble",
 					"InteractPromptJukeboxOptIn",
-					"E - 참여하기"))
+					"F - 참여하기"))
 			: NSLOCTEXT(
 				"SnowRumble",
 				"InteractPromptJukeboxStart",
-				"E - 노래틀기");
+				"F - 노래틀기");
 		OutPromptActor = Jukebox;
 		return true;
 	}
@@ -2962,7 +3197,7 @@ bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
 		OutPromptText = NSLOCTEXT(
 			"SnowRumble",
 			"InteractPromptBoard",
-			"E - 게시판");
+			"F - 게시판");
 		OutPromptActor = Board;
 		return true;
 	}
@@ -2973,7 +3208,7 @@ bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
 		OutPromptText = NSLOCTEXT(
 			"SnowRumble",
 			"InteractPromptReviveTeammate",
-			"E - 살리기");
+			"F - 살리기");
 		OutPromptActor = FrozenTeammate;
 		return true;
 	}
@@ -2983,7 +3218,7 @@ bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
 		OutPromptText = NSLOCTEXT(
 			"SnowRumble",
 			"InteractPromptGiftBox",
-			"E - 선물상자");
+			"F - 선물상자");
 		OutPromptActor = GiftBox;
 		return true;
 	}
@@ -2994,7 +3229,7 @@ bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
 			NSLOCTEXT(
 				"SnowRumble",
 				"InteractPromptGiftBoxItem",
-				"E - {0}"),
+				"F - {0}"),
 			Pickup->GetDisplayName());
 		OutPromptActor = Pickup;
 		return true;
@@ -3014,10 +3249,15 @@ bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
 		return false;
 	}
 
-	OutPromptText = NSLOCTEXT(
-		"SnowRumble",
-		"InteractPromptSnowball",
-		"E - 눈덩이");
+	OutPromptText = Snowball->IsFullyGrown()
+		? NSLOCTEXT(
+			"SnowRumble",
+			"InteractPromptSnowball",
+			"F - 눈덩이")
+		: NSLOCTEXT(
+			"SnowRumble",
+			"InteractPromptSmallSnowball",
+			"E - 굴리기 / F - 줍기");
 	OutPromptActor = Snowball;
 	return true;
 }
@@ -3288,6 +3528,19 @@ void ASnowRumbleCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 	{
 		EnhancedInputComponent->BindAction(ActionAction, ETriggerEvent::Started, this, &ASnowRumbleCharacter::HandleActionStarted);
 		EnhancedInputComponent->BindAction(ActionAction, ETriggerEvent::Completed, this, &ASnowRumbleCharacter::HandleActionCompleted);
+		EnhancedInputComponent->BindAction(ActionAction, ETriggerEvent::Canceled, this, &ASnowRumbleCharacter::HandleActionCompleted);
+	}
+	if (RollAction)
+	{
+		EnhancedInputComponent->BindAction(RollAction, ETriggerEvent::Started, this, &ASnowRumbleCharacter::HandleRollStarted);
+		EnhancedInputComponent->BindAction(RollAction, ETriggerEvent::Completed, this, &ASnowRumbleCharacter::HandleRollCompleted);
+		EnhancedInputComponent->BindAction(RollAction, ETriggerEvent::Canceled, this, &ASnowRumbleCharacter::HandleRollCompleted);
+	}
+	if (SnowCreationAction)
+	{
+		EnhancedInputComponent->BindAction(SnowCreationAction, ETriggerEvent::Started, this, &ASnowRumbleCharacter::HandleSnowCreationStarted);
+		EnhancedInputComponent->BindAction(SnowCreationAction, ETriggerEvent::Completed, this, &ASnowRumbleCharacter::HandleSnowCreationCompleted);
+		EnhancedInputComponent->BindAction(SnowCreationAction, ETriggerEvent::Canceled, this, &ASnowRumbleCharacter::HandleSnowCreationCompleted);
 	}
 	if (DropEquipmentAction)
 	{
@@ -3303,6 +3556,32 @@ void ASnowRumbleCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 		EnhancedInputComponent->BindAction(KeyGuideAction, ETriggerEvent::Started, this, &ASnowRumbleCharacter::HandleKeyGuideStarted);
 		EnhancedInputComponent->BindAction(KeyGuideAction, ETriggerEvent::Completed, this, &ASnowRumbleCharacter::HandleKeyGuideCompleted);
 		EnhancedInputComponent->BindAction(KeyGuideAction, ETriggerEvent::Canceled, this, &ASnowRumbleCharacter::HandleKeyGuideCompleted);
+	}
+	if (!RollAction)
+	{
+		PlayerInputComponent->BindKey(
+			EKeys::E,
+			IE_Pressed,
+			this,
+			&ASnowRumbleCharacter::HandleRollStarted);
+		PlayerInputComponent->BindKey(
+			EKeys::E,
+			IE_Released,
+			this,
+			&ASnowRumbleCharacter::HandleRollCompleted);
+	}
+	if (!SnowCreationAction)
+	{
+		PlayerInputComponent->BindKey(
+			EKeys::Q,
+			IE_Pressed,
+			this,
+			&ASnowRumbleCharacter::HandleSnowCreationStarted);
+		PlayerInputComponent->BindKey(
+			EKeys::Q,
+			IE_Released,
+			this,
+			&ASnowRumbleCharacter::HandleSnowCreationCompleted);
 	}
 	PlayerInputComponent->BindKey(
 		EKeys::P,
@@ -3335,14 +3614,14 @@ void ASnowRumbleCharacter::Move(const FInputActionValue& Value)
 		return;
 	}
 
-	if (bIsInteractHeld
-		&& !bUsedInteractForRolling
+	if (bIsRollHeld
+		&& !bUsedRollForMovement
 		&& !IsHangingFromWorldGrab()
 		&& !IsGrabbedByCharacter()
 		&& !MovementVector.IsNearlyZero()
 		&& SnowballEquipmentComponent)
 	{
-		bUsedInteractForRolling = true;
+		bUsedRollForMovement = true;
 		SnowballEquipmentComponent->StartRollingSnowball();
 	}
 
@@ -3555,7 +3834,6 @@ void ASnowRumbleCharacter::HandleInteractStarted()
 	if (CanPerformGameplayAction())
 	{
 		bIsInteractHeld = true;
-		bUsedInteractForRolling = false;
 		const ASnowRumbleCharacter* OutlinedTeammate = OutlineComponent
 			? Cast<ASnowRumbleCharacter>(OutlineComponent->GetOutlinedActor())
 			: nullptr;
@@ -3582,11 +3860,7 @@ void ASnowRumbleCharacter::HandleInteractCompleted()
 
 	if (SnowballEquipmentComponent)
 	{
-		if (bUsedInteractForRolling)
-		{
-			SnowballEquipmentComponent->StopRollingSnowball();
-		}
-		else if (FocusedLobbyBoard)
+		if (FocusedLobbyBoard)
 		{
 			ClearLobbyBoardFocus();
 		}
@@ -3681,46 +3955,28 @@ void ASnowRumbleCharacter::HandleAimCompleted()
 
 void ASnowRumbleCharacter::HandleActionStarted()
 {
-	const bool bCanAct = CanPerformGameplayAction();
-	USnowballCreationComponent* ActiveCreationComponent =
-		SnowballCreationComponent
-			? SnowballCreationComponent.Get()
-			: FindComponentByClass<USnowballCreationComponent>();
-
-	if (!bCanAct)
+	if (!CanPerformGameplayAction())
 	{
 		return;
 	}
 
+	// 비조준 좌클릭은 Grab, 우클릭 조준 중 좌클릭은 기존 눈덩이 투척 충전이다.
 	if (!IsAiming()
 		&& (!SnowballEquipmentComponent
 			|| !SnowballEquipmentComponent->HasHeldSnowball()))
 	{
-		if (!ShouldPreferSnowCreationOverGrab() && PlayerGrabComponent)
+		if (PlayerGrabComponent)
 		{
 			PlayerGrabComponent->StartGrabReach();
 			OnActionInput(true);
-			return;
 		}
+		return;
 	}
 
-	// Animation Blueprint용 IsHoldingSnowball()은 획득 연출 동안 의도적으로
-	// 지연되므로 입력 기능 분기에 사용하지 않는다. 두 요청을 모두 전달하고
-	// 서버의 실제 장비 상태가 제작 또는 충전 중 하나만 승인한다.
 	if (SnowballEquipmentComponent)
 	{
 		SnowballEquipmentComponent->StartCharging();
 	}
-
-	if (ActiveCreationComponent)
-	{
-		if (!SnowballCreationComponent)
-		{
-			SnowballCreationComponent = ActiveCreationComponent;
-		}
-		ActiveCreationComponent->StartCreatingSnowball();
-	}
-
 	OnActionInput(true);
 }
 
@@ -3751,11 +4007,58 @@ void ASnowRumbleCharacter::HandleActionCompleted()
 		SnowballEquipmentComponent->ReleaseChargedSnowball();
 	}
 
-	if (SnowballCreationComponent)
+	OnActionInput(false);
+}
+
+void ASnowRumbleCharacter::HandleRollStarted()
+{
+	if (!CanPerformGameplayAction() || !SnowballEquipmentComponent)
 	{
-		SnowballCreationComponent->CancelCreatingSnowball();
+		return;
 	}
 
+	bIsRollHeld = true;
+	bUsedRollForMovement = false;
+	OnInteractInput(true);
+}
+
+void ASnowRumbleCharacter::HandleRollCompleted()
+{
+	if (SnowballEquipmentComponent && bUsedRollForMovement)
+	{
+		SnowballEquipmentComponent->StopRollingSnowball();
+	}
+
+	bIsRollHeld = false;
+	bUsedRollForMovement = false;
+	OnInteractInput(false);
+}
+
+void ASnowRumbleCharacter::HandleSnowCreationStarted()
+{
+	USnowballCreationComponent* ActiveCreationComponent =
+		SnowballCreationComponent
+			? SnowballCreationComponent.Get()
+			: FindComponentByClass<USnowballCreationComponent>();
+	if (!CanPerformGameplayAction() || !ActiveCreationComponent)
+	{
+		return;
+	}
+
+	ActiveCreationComponent->StartCreatingSnowball();
+	OnActionInput(true);
+}
+
+void ASnowRumbleCharacter::HandleSnowCreationCompleted()
+{
+	USnowballCreationComponent* ActiveCreationComponent =
+		SnowballCreationComponent
+			? SnowballCreationComponent.Get()
+			: FindComponentByClass<USnowballCreationComponent>();
+	if (ActiveCreationComponent)
+	{
+		ActiveCreationComponent->CancelCreatingSnowball();
+	}
 	OnActionInput(false);
 }
 
@@ -4007,13 +4310,16 @@ void ASnowRumbleCharacter::ApplyInputMappingContext()
 				const FKey SavedKey = UserSettingsSubsystem->GetKeyBinding(
 					BindingId,
 					DefaultKey);
+				const bool bIsDropEquipmentBinding =
+					BindingId == TEXT("DropEquipment");
 				const int32 MappingCount = OriginalMappings.Num();
 				for (int32 MappingIndex = 0;
 					MappingIndex < MappingCount;
 					++MappingIndex)
 				{
 					if (OriginalMappings[MappingIndex].Action != Action
-						|| OriginalMappings[MappingIndex].Key != DefaultKey)
+						|| (!bIsDropEquipmentBinding
+							&& OriginalMappings[MappingIndex].Key != DefaultKey))
 					{
 						continue;
 					}
@@ -4030,10 +4336,12 @@ void ASnowRumbleCharacter::ApplyInputMappingContext()
 			ApplySavedKey(MoveAction, EKeys::D, TEXT("MoveRight"));
 			ApplySavedKey(JumpAction, EKeys::SpaceBar, TEXT("Jump"));
 			ApplySavedKey(SprintAction, EKeys::LeftShift, TEXT("Sprint"));
-			ApplySavedKey(InteractAction, EKeys::E, TEXT("Interact"));
+			ApplySavedKey(InteractAction, EKeys::F, TEXT("Interact"));
 			ApplySavedKey(AimAction, EKeys::RightMouseButton, TEXT("Aim"));
 			ApplySavedKey(ActionAction, EKeys::LeftMouseButton, TEXT("Action"));
-			ApplySavedKey(DropEquipmentAction, EKeys::Q, TEXT("DropEquipment"));
+			ApplySavedKey(RollAction, EKeys::E, TEXT("RollSnowball"));
+			ApplySavedKey(SnowCreationAction, EKeys::Q, TEXT("CreateSnowball"));
+			ApplySavedKey(DropEquipmentAction, EKeys::Enter, TEXT("DropEquipment"));
 			ApplySavedKey(EmoteAction, EKeys::Tab, TEXT("Emote"));
 			ApplySavedKey(KeyGuideAction, EKeys::T, TEXT("KeyGuide"));
 			ApplySavedKey(
@@ -4296,6 +4604,11 @@ void ASnowRumbleCharacter::ApplySpectatorViewTarget()
 	{
 		if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
 		{
+			if (!PlayerController->GetLocalPlayer())
+			{
+				return;
+			}
+
 			SpectatorWidget = CreateWidget<USpectatorWidget>(
 				PlayerController,
 				SpectatorWidgetClass);
@@ -4487,14 +4800,7 @@ void ASnowRumbleCharacter::HandleGrabbedByCharacterChanged(bool bNewGrabbed)
 			SnowballCreationComponent->CancelCreatingSnowball();
 		}
 		MovementComponent->StopMovementImmediately();
-		if (HealthComponent
-			&& !HealthComponent->IsDead()
-			&& !bTiebreakerSpectator
-			&& !bWaterSubmerged
-			&& MovementComponent->MovementMode == MOVE_None)
-		{
-			MovementComponent->SetMovementMode(MOVE_Walking);
-		}
+		MovementComponent->DisableMovement();
 		StopJumping();
 		ApplyMovementSpeed();
 		return;
@@ -4528,6 +4834,15 @@ void ASnowRumbleCharacter::HandleGrabbedByCharacterChanged(bool bNewGrabbed)
 
 void ASnowRumbleCharacter::HandleSnowballAimingChanged(bool bNewAiming)
 {
+	bSmallSnowballAimMeshFadeActive =
+		IsLocallyControlled()
+		&& bNewAiming
+		&& !IsHoldingLargeSnowball();
+	if (bSmallSnowballAimMeshFadeActive)
+	{
+		CacheSmallSnowballAimFadeMaterials();
+	}
+
 	if (IsLocallyControlled() && MainHUDWidget)
 	{
 		MainHUDWidget->SetAimCrosshairVisibleImmediate(
@@ -4579,6 +4894,95 @@ void ASnowRumbleCharacter::HandleSnowballAimingChanged(bool bNewAiming)
 	if (HasAuthority())
 	{
 		ForceNetUpdate();
+	}
+}
+
+void ASnowRumbleCharacter::UpdateSmallSnowballAimMeshFade(
+	float DeltaSeconds)
+{
+	if (!IsLocallyControlled())
+	{
+		return;
+	}
+
+	const float TargetFadeValue = bSmallSnowballAimMeshFadeActive
+		? FMath::Clamp(SmallSnowballAimMeshFadeTarget, 0.0f, 1.0f)
+		: 1.0f;
+	SmallSnowballAimMeshFadeValue = FMath::FInterpTo(
+		SmallSnowballAimMeshFadeValue,
+		TargetFadeValue,
+		DeltaSeconds,
+		FMath::Max(0.0f, SmallSnowballAimMeshFadeInterpSpeed));
+	ApplySmallSnowballAimMeshFade(SmallSnowballAimMeshFadeValue);
+}
+
+void ASnowRumbleCharacter::CacheSmallSnowballAimFadeMaterials()
+{
+	SmallSnowballAimFadeMaterials.Reset();
+	if (SmallSnowballAimMeshFadeParameterName.IsNone())
+	{
+		return;
+	}
+
+	TArray<UMeshComponent*> MeshComponents;
+	GetComponents(MeshComponents);
+	for (UMeshComponent* MeshComponent : MeshComponents)
+	{
+		// UWidgetComponent also derives from UMeshComponent. Keep overhead and HUD
+		// widget render materials outside the aim fade path.
+		if (!MeshComponent || Cast<UWidgetComponent>(MeshComponent))
+		{
+			continue;
+		}
+
+		for (int32 MaterialIndex = 0;
+			MaterialIndex < MeshComponent->GetNumMaterials();
+			++MaterialIndex)
+		{
+			UMaterialInstanceDynamic* DynamicMaterial =
+				Cast<UMaterialInstanceDynamic>(
+					MeshComponent->GetMaterial(MaterialIndex));
+			if (!DynamicMaterial)
+			{
+				DynamicMaterial =
+					MeshComponent->CreateAndSetMaterialInstanceDynamic(
+						MaterialIndex);
+			}
+			if (!DynamicMaterial)
+			{
+				continue;
+			}
+
+			SmallSnowballAimFadeMaterials.AddUnique(DynamicMaterial);
+			if (MeshComponent == GetMesh())
+			{
+				CustomizationMaterialInstance = DynamicMaterial;
+			}
+			else if (MeshComponent == ScarfMeshComponent
+				&& MaterialIndex == 0)
+			{
+				ScarfDynamicMaterial = DynamicMaterial;
+			}
+		}
+	}
+}
+
+void ASnowRumbleCharacter::ApplySmallSnowballAimMeshFade(float FadeValue)
+{
+	if (SmallSnowballAimMeshFadeParameterName.IsNone())
+	{
+		return;
+	}
+
+	for (UMaterialInstanceDynamic* DynamicMaterial
+		: SmallSnowballAimFadeMaterials)
+	{
+		if (DynamicMaterial)
+		{
+			DynamicMaterial->SetScalarParameterValue(
+				SmallSnowballAimMeshFadeParameterName,
+				FMath::Clamp(FadeValue, 0.0f, 1.0f));
+		}
 	}
 }
 
@@ -5852,6 +6256,71 @@ void ASnowRumbleCharacter::MulticastPlayDamageSound_Implementation(
 		DamageSoundAttenuation);
 }
 
+void ASnowRumbleCharacter::MulticastRequestDamageText_Implementation(
+	float AppliedDamage,
+	FVector_NetQuantize DamageTextWorldLocation,
+	ESnowRumbleDamageTextType DamageTextType)
+{
+	if (AppliedDamage <= 0.0f)
+	{
+		return;
+	}
+
+	TSubclassOf<UDamageTextWidget> WidgetClass = DamageTextWidgetClass;
+	if (DamageTextType == ESnowRumbleDamageTextType::Headshot
+		&& HeadshotDamageTextWidgetClass)
+	{
+		WidgetClass = HeadshotDamageTextWidgetClass;
+	}
+	if (WidgetClass)
+	{
+		UWidgetComponent* DamageTextComponent =
+			NewObject<UWidgetComponent>(this);
+		if (DamageTextComponent)
+		{
+			DamageTextComponent->SetWidgetClass(WidgetClass);
+			DamageTextComponent->SetWidgetSpace(EWidgetSpace::Screen);
+			DamageTextComponent->SetDrawAtDesiredSize(false);
+			DamageTextComponent->SetDrawSize(DamageTextWidgetDrawSize);
+			DamageTextComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			DamageTextComponent->RegisterComponent();
+			DamageTextComponent->SetWorldLocation(DamageTextWorldLocation);
+			DamageTextComponent->InitWidget();
+			if (UDamageTextWidget* DamageTextWidget =
+				Cast<UDamageTextWidget>(DamageTextComponent->GetUserWidgetObject()))
+			{
+				DamageTextWidget->InitializeDamageText(
+					AppliedDamage,
+					DamageTextType);
+			}
+
+			if (UWorld* World = GetWorld())
+			{
+				FTimerHandle DestroyTimerHandle;
+				TWeakObjectPtr<UWidgetComponent> WeakDamageTextComponent =
+					DamageTextComponent;
+				World->GetTimerManager().SetTimer(
+					DestroyTimerHandle,
+					[WeakDamageTextComponent]()
+					{
+						if (UWidgetComponent* Component =
+							WeakDamageTextComponent.Get())
+						{
+							Component->DestroyComponent();
+						}
+					},
+					FMath::Max(0.01f, DamageTextWidgetLifeSeconds),
+					false);
+			}
+		}
+	}
+
+	OnDamageTextRequested(
+		AppliedDamage,
+		DamageTextWorldLocation,
+		DamageTextType);
+}
+
 FVector ASnowRumbleCharacter::CalculateLocalDamageCameraShakeOffset() const
 {
 	const UWorld* World = GetWorld();
@@ -6026,9 +6495,12 @@ void ASnowRumbleCharacter::ApplyMovementSpeed()
 				? 0.0f
 				: HealthComponent && HealthComponent->IsDead()
 				? 0.0f
-				: bIsPickingUpItem
+			: bIsPickingUpItem
 					|| bIsInteractingWithItem
 				? 0.0f
+				: PlayerGrabComponent
+					&& PlayerGrabComponent->IsCarryingOpposingFrozenCharacter()
+				? OpposingFrozenCarryWalkSpeed
 				: SnowballEquipmentComponent
 					&& SnowballEquipmentComponent->IsRollingSnowball()
 					? SnowballEquipmentComponent->GetRollingWalkSpeed()

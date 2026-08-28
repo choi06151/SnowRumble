@@ -7,7 +7,11 @@
 #include "PlayerGrabComponent_C.generated.h"
 
 class ASnowRumbleCharacter;
+class AGrabbablePhysicsObject;
+class ASnowballItem;
 class UPhysicsConstraintComponent;
+class UPrimitiveComponent;
+class USphereComponent;
 class USkeletalMeshComponent;
 class USoundAttenuation;
 class USoundBase;
@@ -24,7 +28,8 @@ enum class ESnowRumbleGrabAttachmentType : uint8
 {
 	None,
 	Character,
-	World
+	World,
+	PhysicsObject
 };
 
 UCLASS(ClassGroup = (SnowRumble), meta = (BlueprintSpawnableComponent))
@@ -51,9 +56,16 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
 	bool IsGrabbingCharacter() const;
 
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	bool IsCarryingOpposingFrozenCharacter() const;
+
 	/** 현재 손이 캐릭터나 월드 지형에 붙은 상태인지 확인한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
 	bool IsGrabAttached() const;
+
+	/** 현재 Grabable 물건을 잡고 있는지 확인한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
+	bool IsGrabbingPhysicsObject() const;
 
 	/** 현재 손이 벽이나 월드 오브젝트에 붙어 매달린 상태인지 확인한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab")
@@ -115,6 +127,9 @@ protected:
 	bool FindGrabCandidate(
 		ASnowRumbleCharacter*& OutCharacter,
 		USkeletalMeshComponent*& OutMesh,
+		AGrabbablePhysicsObject*& OutPhysicsObject,
+		UPrimitiveComponent*& OutPhysicsComponent,
+		ASnowballItem*& OutSnowball,
 		FName& OutBoneName,
 		FVector& OutAttachedWorldLocation,
 		ESnowRumbleGrabAttachmentType& OutAttachmentType,
@@ -125,6 +140,11 @@ protected:
 		ASnowRumbleCharacter* TargetCharacter,
 		USkeletalMeshComponent* TargetMesh,
 		FName TargetBoneName,
+		FVector AttachedWorldLocation);
+
+	void AttachPhysicsObject(
+		AGrabbablePhysicsObject* TargetObject,
+		UPrimitiveComponent* TargetComponent,
 		FVector AttachedWorldLocation);
 
 	/** 서버가 현재 손을 월드 표면에 붙은 상태로 확정한다. */
@@ -139,11 +159,26 @@ protected:
 	/** 서버가 벽에 붙은 손 위치 기준으로 소유 캐릭터 몸을 매달린 위치에 유지한다. */
 	void UpdateWorldGrabTether(float DeltaTime);
 
+	/** 서버가 물리 물건 전용 앵커를 손 위치로 갱신한다. */
+	void UpdatePhysicsObjectGrabTether(float DeltaTime);
+
+	/** 물리 물건 Grab 중 플레이어가 카메라 Yaw를 따라 회전하도록 전환한다. */
+	void ApplyPhysicsObjectRotationMode();
+
+	/** 물리 물건 Grab 전 회전 설정을 복원한다. */
+	void ClearPhysicsObjectRotationMode();
+
 	/** 팔 뻗기 목표 위치를 캐릭터 기준으로 계산한다. */
 	FVector BuildHandGrabTargetLocation(ESnowRumbleGrabHand Hand) const;
 
 	/** 실제 Mesh 손 bone/socket 위치를 우선 사용해 잡힌 대상을 끌 기준점을 계산한다. */
 	FVector BuildHandGrabAnchorLocation(ESnowRumbleGrabHand Hand) const;
+
+	/** 좌클릭 Grab reach 중 카메라 Yaw를 따라 캐릭터가 회전하도록 설정한다. */
+	void ApplyGrabReachRotationMode();
+
+	/** Grab reach 종료 시 기존 캐릭터 회전 설정을 복원한다. */
+	void ClearGrabReachRotationMode();
 
 	ASnowRumbleCharacter* GetOwnerCharacter() const;
 
@@ -156,9 +191,15 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_GrabbedCharacter, Category = "SnowRumble|Grab")
 	TObjectPtr<ASnowRumbleCharacter> GrabbedCharacter;
 
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_GrabbedPhysicsObject, Category = "SnowRumble|Grab")
+	TObjectPtr<AGrabbablePhysicsObject> GrabbedPhysicsObject;
+
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_GrabAttachmentType, Category = "SnowRumble|Grab")
 	ESnowRumbleGrabAttachmentType GrabAttachmentType =
 		ESnowRumbleGrabAttachmentType::None;
+
+	UFUNCTION()
+	void OnRep_GrabbedPhysicsObject();
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Grab")
 	FVector GrabAttachedWorldLocation = FVector::ZeroVector;
@@ -259,7 +300,7 @@ protected:
 	TObjectPtr<USoundAttenuation> GrabSoundAttenuation;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0"))
-	float GrabTetherSlackDistance = 18.0f;
+	float GrabTetherSlackDistance = 10.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0"))
 	float GrabTetherPullStrength = 7.0f;
@@ -272,6 +313,14 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float GrabbedCharacterInputVelocityRetention = 0.55f;
+
+	/** 잡힌 캐릭터 당김 속도가 순간적으로 바뀌지 않도록 보간하는 속도다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0"))
+	float GrabbedCharacterTetherVelocityInterpSpeed = 8.0f;
+
+	/** 잡힌 캐릭터가 손 위치를 따라갈 때 사용할 위치 보간 속도다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0"))
+	float GrabbedCharacterLocationInterpSpeed = 14.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0"))
 	float GrabbedCharacterFacingInterpSpeed = 14.0f;
@@ -302,6 +351,49 @@ protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPhysicsConstraintComponent> GrabConstraintComponent;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UPhysicsConstraintComponent> GrabCollisionConstraintComponent;
+
+	UPROPERTY(Transient)
+	TObjectPtr<USphereComponent> GrabPhysicsAnchorComponent;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UPrimitiveComponent> GrabbedPhysicsComponent;
+
+	UPROPERTY(Transient)
+	bool bGrabbedPhysicsWasSimulating = false;
+
+	UPROPERTY(Transient)
+	bool bGrabbedPhysicsGravityEnabled = true;
+
+	UPROPERTY(Transient)
+	FVector LastGrabbedPhysicsLocation = FVector::ZeroVector;
+
+	UPROPERTY(Transient)
+	FTransform GrabbedPhysicsRelativeTransform = FTransform::Identity;
+
+	/** 물리 물건을 잡은 순간의 시점 Pitch다. 이후 Pitch 변화만 물건에 적용한다. */
+	UPROPERTY(Transient)
+	float GrabbedPhysicsGrabViewPitchDegrees = 0.0f;
+
+	UPROPERTY(Transient)
+	bool bHasPhysicsObjectRotationOverride = false;
+
+	UPROPERTY(Transient)
+	bool bHasGrabReachRotationOverride = false;
+
+	UPROPERTY(Transient)
+	bool bUseControllerRotationYawBeforeGrabReach = false;
+
+	UPROPERTY(Transient)
+	bool bOrientRotationToMovementBeforeGrabReach = true;
+
+	UPROPERTY(Transient)
+	bool bUseControllerRotationYawBeforePhysicsObjectGrab = false;
+
+	UPROPERTY(Transient)
+	bool bOrientRotationToMovementBeforePhysicsObjectGrab = true;
 
 	UPROPERTY(Transient)
 	float CurrentGrabReachAlpha = 0.0f;

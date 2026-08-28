@@ -10,6 +10,8 @@
 ## 현재 집중 Task
 
 - [C-18](C-18_steam_session_integration.md) Steam 세션 최종 통합
+- [C-34](C-34_grabbable_physics_object_foundation.md) Grab 물리 상호작용 물건 베이스 (사용자 승인, 진행중)
+- [C-35](C-35_damage_text_feedback_contract.md) 피격 데미지 텍스트 표시 계약 (진행중)
 
 ## 개발 스타일
 
@@ -55,12 +57,49 @@
 | 30 | [C-29](C-29_travel_url_and_loading_stability.md) | 전환 URL과 PvP 로딩 안정화 | C-04, C-05, C-17 | 진행중 |
 | 31 | [C-31](C-31_pvp_loading_ready_and_pso.md) | PvP 로딩 Ready 핸드셰이크와 PSO 안정화 | C-29 | 진행중 |
 | 32 | [C-32](C-32_jukebox_interaction.md) | 주크박스 상호작용 | C-15, C-22, C-30 | 진행중 |
+| 33 | [C-35](C-35_damage_text_feedback_contract.md) | 피격 데미지 텍스트 표시 계약 | C-09 | 진행중 |
 
 ## 통합 변경 요청
 
 - 없음
 
 ## 계획 변경 기록
+
+- 2026-08-27: 사용자 요청으로 C-18의 기본 검증 기준을 LAN에서 Steam으로 전환했다. 패키지/Standalone은 `OnlineSubsystemSteam`을 기본 사용하고, 기존 `HostLanSession` 등 Blueprint API 이름은 호환을 위해 유지한다.
+- 2026-08-27: 사용자 승인으로 C-34를 추가했다. 기존 C-28 Grab과 C-09 눈덩이 충돌을 확장해 여러 물건 Blueprint가 재사용할 물리 Actor 베이스를 제공한다.
+- 2026-08-27: C-34 QA 오류를 수정했다. 태그 치환 물건의 Static Mesh와 Material을 복제해 클라이언트의 물리 컴포넌트에 적용하도록 보강했다.
+- 2026-08-27: C-18 Steam 연동 전제에 맞춰 로비 선택 모드의 세션 광고값 갱신과 로비 외부 초대 거절 가드를 추가했다.
+- 2026-08-27: C-04/C-18 연계로 눈사람 모드 전용 `SnowmanLevelCandidates` 맵 슬롯을 추가했다. 비어 있을 때만 기존 PvP 후보로 fallback한다.
+- 2026-08-27: C-04/C-29 연계로 눈사람 모드 전용 `SnowmanLoadingScreenWidgetClass` 슬롯을 추가했다. 서버가 모드 플래그를 전달하면 클라이언트가 PvP 또는 눈사람 로딩 WBP를 선택한다.
+- 2026-08-27: 눈사람 모드에서 플레이어 카메라에 붙은 `LocalSnowEffect` 눈 내림 VFX를 숨기도록 표시 조건을 분리했다. 눈덩이 생성·투척 기능은 유지한다.
+- 2026-08-27: 눈사람 모드 전용 `SnowmanModeHUDWidgetClass` 슬롯을 추가했다. `UMainHUDWidget` 부모 WBP를 지정하면 눈사람 모드에서만 별도 HUD를 생성하고 조준점 공용 기능은 유지한다.
+- 2026-08-27: 눈사람 감염 검사 대상을 월드 Pawn 순회가 아닌 GameState PlayerState 목록과 현재 소유 Pawn 매칭 기준으로 변경해, 클라이언트 눈사람 Pawn이 서버 검사에서 누락되지 않도록 보강했다.
+- 2026-08-27: 눈사람 모드 시작 흐름을 PvP와 맞췄다. 첫 라운드에는 기존 팀 소개 카메라 인트로 후 카운트다운이 이어지고, 다중 라운드의 후속 라운드는 동일하게 인트로를 생략한다.
+- 2026-08-27: 눈사람 모드 역할/Pawn 초기화 직후 모든 플레이어에게 기존 아이템 획득과 동일한 `Boots`·`Gloves` 효과를 서버에서 적용하도록 추가했다.
+- 2026-08-27: C-34 C++ 베이스 Actor, Grab 연결, 플레이어 밀침과 눈덩이 파괴 충돌을 구현했다. 기본 실행 확인 모드가 수동 실행 확인이므로 Unreal 빌드와 멀티플레이 결과 확인은 사용자 확인으로 남겼다.
+- 2026-08-27: C-34 Grab trace에 `ECC_PhysicsBody`를 추가해 물리 시뮬레이션 물건이 Grab 후보에서 누락되는 오류를 수정했다.
+- 2026-08-27: C-34 물리 물건 Grab 중에는 게이지가 항상 최대 상태이고 자동 해제되지 않도록 조정했다.
+- 2026-08-27: C-34 물리 물건 Grab Constraint에 선형 위치 드라이브를 추가해 손을 따라오는 힘을 강화했다.
+- 2026-08-27: C-34 물리 물건 Grab Constraint의 Swing/Twist 회전을 잠가 나풀거림을 제거했다.
+- 2026-08-27: C-34 Grab 중인 플레이어와 물리 물건의 충돌을 개별 차단하고 놓을 때 원복하도록 조정했다.
+- 2026-08-27: C-34 물리 접촉까지 차단하도록 플레이어 Capsule과 물건 사이에 자유도 제한 없는 collision-only Constraint를 추가했다.
+- 2026-08-27: C-34 물리 물건 Constraint가 캐릭터 손 bone을 직접 당겨 팔이 늘어나는 회귀를 수정했다. 손 위치를 따라가는 숨김 PhysicsOnly 앵커를 만들고 물건은 앵커에 연결한다.
+- 2026-08-27: C-34 물리 물건 Grab 기준점을 캐릭터 상대 목표 위치로 고정하고, 회전 중 벌어짐을 줄이는 전용 slack·속도 보정을 추가했다.
+- 2026-08-27: C-34 물리 물건 Grab 중 플레이어 Pawn이 카메라 Yaw를 따라 회전하고, 해제 시 이전 회전 모드로 복원되도록 조정했다.
+- 2026-08-27: C-34 물리 물건 Grab 방식을 고정 이동으로 변경했다. 잡힌 동안 물건 시뮬레이션은 잠시 끄고 손 위치에 직접 고정하며, 상대 플레이어 밀침은 서버 overlap으로 별도 처리한다.
+- 2026-08-27: C-34 물리 물건 Grab 시작 시 손 목표점으로 순간 이동하지 않고, 잡힌 순간의 캐릭터 상대 Transform을 유지하며 따라오도록 조정했다.
+- 2026-08-27: C-34 잡힌 물리 물건의 상대 플레이어 밀침 판정을 Sphere radius 대신 실제 PrimitiveComponent collision shape overlap으로 변경했다.
+- 2026-08-27: C-34 눈덩이가 Grab 물리 물건에 맞으면 반사되지 않고 충돌 이펙트 후 부서지도록 변경했다.
+- 2026-08-27: C-34 Grab 물건 자식 기믹 확장을 위해 Grab 시작·해제·Tick 훅을 추가하고, `ATambourineGrabbableObject`가 잡힌 상태에서 플레이어 `ControlRotation` 회전속도·누적 회전량 기준으로 위치 기반 찰랑 사운드를 멀티캐스트 재생하도록 추가했다.
+- 2026-08-27: C-34 Grab 물건의 눈덩이 피격과 플레이어 밀침을 공통 상호작용 카운터로 합산하고, 5회 도달 시 지정 Niagara VFX 재생 후 액터를 제거하도록 확장했다.
+- 2026-08-27: C-34 태그 기반 StaticMesh 런타임 치환을 추가했다. 맵에 `AGrabbableStaticMeshBootstrapActor`를 배치하고 Actor 또는 StaticMeshComponent에 `grabbable`/`grabable` 태그를 달면 서버가 `AGrabbablePhysicsObject`를 스폰하고 원본 Static Mesh는 각 로컬에서 숨김·충돌 해제한다.
+- 2026-08-27: C-34 테스트 기본값을 조정했다. `AGrabbablePhysicsObject`의 기본 상호작용 파괴 횟수는 1회, 기본 플레이어 밀침 힘은 3000으로 변경했다.
+- 2026-08-27: C-34 태그 치환 물건의 밀침 힘, 파괴 횟수, 파괴 Niagara 이펙트를 `AGrabbableStaticMeshBootstrapActor`에서 지정해 스폰 직후 주입하도록 확장했다.
+- 2026-08-27: 사용자 요청으로 입력을 좌클릭 Grab, `Q` 눈 만들기, `E` 눈덩이 굴리기, `F` 일반 상호작용으로 분리했다. 바닥 눈덩이는 Grab trace 적중 시 기존 손 위치에 장착하며, 제작·굴리기 InputAction 슬롯과 옵션 재설정 항목을 추가했다.
+- 2026-08-27: C-28 얼음 Grab 제한을 확장했다. 상대팀의 얼은 플레이어도 Grab할 수 있고, 상대팀 운반 중인 Grabber는 `OpposingFrozenCarryWalkSpeed`로 매우 느리게 이동한다.
+- 2026-08-27: C-35를 추가했다. `ASnowRumbleCharacter::TakeDamage()`에서 실제 적용 피해량이 0보다 클 때 모든 클라이언트에 `OnDamageTextRequested` 이벤트를 전달한다.
+- 2026-08-27: C-35에 `UDamageTextWidget` 부모와 일반/헤드샷 WBP 슬롯을 추가했다. 일반 피해는 `DamageTextWidgetClass`, 향후 헤드샷은 `HeadshotDamageTextWidgetClass`를 사용한다.
+- 2026-08-27: C-35 직접 투척 눈덩이 헤드샷 판정을 추가했다. `HeadshotBoneNames`에 맞은 bone이 들어오면 `HeadshotDamageMultiplier`와 `HeadshotDamageTextWidgetClass` 타입을 적용한다.
 
 - 2026-08-07: 새 GDD와 4인 구조를 기준으로 최초 대기열 작성.
 - 2026-08-07: Task 분할 재검토에 따라 C-07을 기본 효과 계약으로 축소하고, 핫팩 부활은 C-13, 팀 스폰·시작 연출은 C-14로 분리.
@@ -377,7 +416,10 @@
 - 2026-08-27: C-28 후속 요청을 반영했다. 캐릭터에게 잡힌 대상은 `CanPerformGameplayAction()`과 `Move()`에서 입력을 차단하고, 월드 그랩 이동 예외는 유지했다.
 - 2026-08-27: C-17 후속 요청을 반영했다. PvP 팀 인트로 RPC 진입 즉시 `SetPvpIntroWidgetsHidden(true)`를 호출해 MainHUD와 보조 위젯이 첫 프레임부터 숨겨지도록 보강했다.
 - 2026-08-27: C-30 후속 요청을 반영했다. 포디움 컨트롤러가 자체 음악 슬롯으로 기존 BGM을 중단하지 않도록 제거하고, `APodiumGameMode`의 클라이언트 브로드캐스트를 단일 재생 경로로 유지했다.
+- 2026-08-27: 눈사람 모드 로딩 종료 후 PvP와 같은 시작 대기 흐름을 추가했다. `SnowmanModeStartCountdownDelaySeconds` 기본값 5초가 지난 뒤 역할 초기화·팀 인트로·시작 카운트다운을 순서대로 진행한다.
 - 2026-08-27: C-30 추가 오류 대응을 반영했다. 포디움 BGM을 서버 `USoundBase*` RPC 전달 대신 `FSoftObjectPath`로 전달하고, 각 클라이언트가 로컬 로드 후 1회 재생하도록 변경했다.
 - 2026-08-27: C-29 서버 종료·호스트 이탈 후 메인 메뉴에 남는 원격 기본 외형 캐릭터를 정리했다. 메인 메뉴 진입 시 로컬 프리뷰 Pawn을 제외한 잔류 캐릭터를 제거한다.
 - 2026-08-27: C-09의 CDO 스케일 기준이 작은 눈을 크게 만드는 회귀를 수정했다. 서버가 눈덩이 생성 시점의 초기 스케일을 복제하고 클라이언트가 이를 성장 기준으로 사용한다.
 - 2026-08-27: C-33 진동벨 부모 액터를 추가했다. 눈덩이 피격을 서버에서 확정하고, 모든 클라이언트에서 `PlaySoundAtLocation`과 Static Mesh 좌우 흔들림을 재생한다.
+- 2026-08-27: 눈덩이 안내와 내려놓기 입력을 보정했다. 작은 눈덩이는 `E - 굴리기 / F - 줍기`를 표시하고, 장비·눈덩이 내려놓기 기본 키를 `Enter`로 변경했다.
+- 2026-08-27: 눈사람 모드 점프음과 감염음을 PvP 위치 기반 사운드 패턴으로 추가했다. 점프는 서버 RPC 후 눈사람 위치에서 Multicast하고, 감염은 새 눈사람 Pawn 빙의 성공 직후 위치에서 Multicast한다. 사운드와 감쇠 자산은 `ASnowmanModeSnowmanCharacter`의 Blueprint 슬롯으로 지정한다.
