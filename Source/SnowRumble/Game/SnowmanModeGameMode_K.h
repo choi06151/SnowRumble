@@ -129,11 +129,13 @@ protected:
 	float InfectionPendingSeconds = 0.0f;
 
 	/** 눈사람으로 확정된 플레이어의 이동 속도 배율이다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Movement", meta = (ClampMin = "1.0"))
-	float SnowmanMovementSpeedMultiplier = 1.25f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SnowRumble|Snowman|Tuning|Movement",
+		meta = (ClampMin = "1.0", DisplayName = "Snowman Movement Speed Multiplier"))
+	float SnowmanMovementSpeedMultiplier = 2.3f;
 
 	/** 눈사람 속도 배율 계산에 사용할 일반 플레이어 기준 이동 속도다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Movement", meta = (ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SnowRumble|Snowman|Tuning|Movement",
+		meta = (ClampMin = "0.0", DisplayName = "Normal Player Reference Walk Speed"))
 	float NormalPlayerReferenceWalkSpeed = 500.0f;
 
 	/** 눈사람으로 전환될 때 스폰할 전용 캐릭터 클래스다. */

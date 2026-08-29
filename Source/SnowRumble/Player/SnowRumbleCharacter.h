@@ -80,7 +80,8 @@ enum class ESnowRumbleTimedActionState : uint8
 	CreatingSnowball,
 	RollingSnowball,
 	Frozen,
-	RevivingTeammate
+	RevivingTeammate,
+	LaunchCooldown
 };
 
 UENUM(BlueprintType)
@@ -288,6 +289,18 @@ public:
 	/** UI에서 현재 머리 위 행동의 0~1 정규화된 진행도를 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI")
 	float GetTimedActionProgress() const;
+
+	/** 눈사람 전용 카메라 방향 Launch를 서버에 요청한다. */
+	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snowman|Launch")
+	void RequestDirectionalLaunchFromCamera();
+
+	/** 눈사람 방향성 Launch 쿨다운이 진행 중인지 확인한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowman|Launch")
+	bool IsDirectionalLaunchOnCooldown() const;
+
+	/** 눈사람 방향성 Launch 쿨다운의 남은 비율을 1에서 0으로 반환한다. */
+	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snowman|Launch")
+	float GetDirectionalLaunchCooldownProgress() const;
 
 	/** UI에서 선택한 이모션 인덱스를 서버에 요청한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Emote")
@@ -876,6 +889,10 @@ protected:
 	/** 서버가 소유 클라이언트의 이모션 선택을 검사하고 확정한다. */
 	UFUNCTION(Server, Reliable)
 	void ServerRequestPlayEmote(int32 EmoteIndex);
+
+	/** 서버가 눈사람 방향성 Launch 요청을 경기 상태·쿨다운과 함께 검증한다. */
+	UFUNCTION(Server, Reliable)
+	void ServerRequestDirectionalLaunchFromCamera();
 
 	/** 서버가 확정한 이모션 몽타주를 모든 화면에서 재생한다. */
 	UFUNCTION(NetMulticast, Reliable)
@@ -1717,6 +1734,18 @@ public:
 	/** 이 캐릭터를 관찰하는 timed-action 위젯 인스턴스다. */
 	UPROPERTY(Transient)
 	TObjectPtr<UOverheadTimedActionWidget> OverheadTimedActionWidget;
+
+	/** 눈사람 Launch의 속도다. 서버가 최종 방향과 함께 사용한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Launch", meta = (ClampMin = "0.0"))
+	float DirectionalLaunchSpeed = 1200.0f;
+
+	/** 눈사람 Launch 성공 후 다시 사용할 수 있을 때까지의 시간이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Launch", meta = (ClampMin = "0.0"))
+	float DirectionalLaunchCooldownSeconds = 3.0f;
+
+	/** 서버가 확정한 다음 방향성 Launch 가능 시각이다. */
+	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Launch")
+	float DirectionalLaunchCooldownEndServerTime = 0.0f;
 
 	/** 얼음·사망 상태에서 로컬 관전 화면에 생성할 WBP 클래스다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Spectator|UI")
