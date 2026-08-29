@@ -1158,7 +1158,9 @@ ESnowRumbleTimedActionState ASnowRumbleCharacter::GetTimedActionState() const
 
 	return IsCreatingSnowball()
 		? ESnowRumbleTimedActionState::CreatingSnowball
-		: ESnowRumbleTimedActionState::None;
+		: IsDirectionalLaunchOnCooldown()
+			? ESnowRumbleTimedActionState::LaunchCooldown
+			: ESnowRumbleTimedActionState::None;
 }
 
 float ASnowRumbleCharacter::GetTimedActionProgress() const
@@ -1202,9 +1204,66 @@ float ASnowRumbleCharacter::GetTimedActionProgress() const
 		}
 		return 0.0f;
 
+	case ESnowRumbleTimedActionState::LaunchCooldown:
+		return GetDirectionalLaunchCooldownProgress();
+
 	default:
 		return 0.0f;
 	}
+}
+
+void ASnowRumbleCharacter::RequestDirectionalLaunchFromCamera()
+{
+	if (!CanPerformGameplayAction() || IsDirectionalLaunchOnCooldown())
+	{
+		return;
+	}
+
+	if (HasAuthority())
+	{
+		ServerRequestDirectionalLaunchFromCamera_Implementation();
+	}
+	else
+	{
+		ServerRequestDirectionalLaunchFromCamera();
+	}
+}
+
+bool ASnowRumbleCharacter::IsDirectionalLaunchOnCooldown() const
+{
+	if (DirectionalLaunchCooldownEndServerTime <= 0.0f)
+	{
+		return false;
+	}
+
+	const UWorld* World = GetWorld();
+	const AGameStateBase* GameState = World ? World->GetGameState() : nullptr;
+	const double CurrentServerTime = GameState
+		? GameState->GetServerWorldTimeSeconds()
+		: (World ? World->GetTimeSeconds() : 0.0);
+	return DirectionalLaunchCooldownEndServerTime > CurrentServerTime;
+}
+
+float ASnowRumbleCharacter::GetDirectionalLaunchCooldownProgress() const
+{
+	if (DirectionalLaunchCooldownSeconds <= 0.0f
+		|| DirectionalLaunchCooldownEndServerTime <= 0.0f)
+	{
+		return 0.0f;
+	}
+
+	const UWorld* World = GetWorld();
+	const AGameStateBase* GameState = World ? World->GetGameState() : nullptr;
+	const double CurrentServerTime = GameState
+		? GameState->GetServerWorldTimeSeconds()
+		: (World ? World->GetTimeSeconds() : 0.0);
+	const double RemainingSeconds =
+		FMath::Max(0.0, static_cast<double>(DirectionalLaunchCooldownEndServerTime)
+			- CurrentServerTime);
+	return FMath::Clamp(
+		static_cast<float>(RemainingSeconds / DirectionalLaunchCooldownSeconds),
+		0.0f,
+		1.0f);
 }
 
 void ASnowRumbleCharacter::RequestPlayEmote(int32 EmoteIndex)
@@ -2721,6 +2780,9 @@ void ASnowRumbleCharacter::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ASnowRumbleCharacter, ReplicatedSpectatorCameraRotation);
 	DOREPLIFETIME(ASnowRumbleCharacter, ReplicatedSpectatorCameraFieldOfView);
 	DOREPLIFETIME(ASnowRumbleCharacter, bHasReplicatedSpectatorCameraView);
+	DOREPLIFETIME(
+		ASnowRumbleCharacter,
+		DirectionalLaunchCooldownEndServerTime);
 }
 
 void ASnowRumbleCharacter::PossessedBy(AController* NewController)
@@ -6416,6 +6478,45 @@ void ASnowRumbleCharacter::ServerRequestPlayEmote_Implementation(int32 EmoteInde
 	}
 
 	MulticastPlayEmote(EmoteIndex);
+}
+
+void ASnowRumbleCharacter::ServerRequestDirectionalLaunchFromCamera_Implementation()
+{
+	const ASnowmanModeGameState* SnowmanGameState =
+		GetWorld() ? GetWorld()->GetGameState<ASnowmanModeGameState>() : nullptr;
+	if (!HasAuthority()
+		|| !SnowmanGameState
+		|| SnowmanGameState->IsSnowmanModeEnded()
+		|| !SnowmanGameState->IsSnowmanModeTimerActive()
+		|| !CanPerformGameplayAction()
+		|| IsDirectionalLaunchOnCooldown()
+		|| !Controller)
+	{
+		return;
+	}
+
+	const FVector LaunchDirection =
+		Controller->GetControlRotation().Vector().GetSafeNormal();
+	if (LaunchDirection.IsNearlyZero() || DirectionalLaunchSpeed <= 0.0f)
+	{
+		return;
+	}
+
+	LaunchCharacter(
+		LaunchDirection * DirectionalLaunchSpeed,
+		true,
+		true);
+
+	if (DirectionalLaunchCooldownSeconds > 0.0f)
+	{
+		const double CurrentServerTime =
+			GetWorld()->GetGameState()
+				? GetWorld()->GetGameState()->GetServerWorldTimeSeconds()
+				: GetWorld()->GetTimeSeconds();
+		DirectionalLaunchCooldownEndServerTime =
+			static_cast<float>(CurrentServerTime + DirectionalLaunchCooldownSeconds);
+		ForceNetUpdate();
+	}
 }
 
 void ASnowRumbleCharacter::MulticastPlayEmote_Implementation(int32 EmoteIndex)

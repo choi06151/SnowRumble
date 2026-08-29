@@ -12,6 +12,8 @@
 - [C-18](C-18_steam_session_integration.md) Steam 세션 최종 통합
 - [C-34](C-34_grabbable_physics_object_foundation.md) Grab 물리 상호작용 물건 베이스 (사용자 승인, 진행중)
 - [C-35](C-35_damage_text_feedback_contract.md) 피격 데미지 텍스트 표시 계약 (진행중)
+- [C-36](C-36_snowman_falling_grabbable_objects.md) 눈사람 모드 랜덤 낙하 Grab 물체 (진행중)
+- [C-37](C-37_snowman_directional_launch_contract.md) 눈사람 방향성 캐릭터 Launch 계약 (진행중)
 
 ## 개발 스타일
 
@@ -58,12 +60,23 @@
 | 31 | [C-31](C-31_pvp_loading_ready_and_pso.md) | PvP 로딩 Ready 핸드셰이크와 PSO 안정화 | C-29 | 진행중 |
 | 32 | [C-32](C-32_jukebox_interaction.md) | 주크박스 상호작용 | C-15, C-22, C-30 | 진행중 |
 | 33 | [C-35](C-35_damage_text_feedback_contract.md) | 피격 데미지 텍스트 표시 계약 | C-09 | 진행중 |
+| 34 | [C-36](C-36_snowman_falling_grabbable_objects.md) | 눈사람 모드 랜덤 낙하 Grab 물체 | C-34, 눈사람 모드 | 진행중 |
+| 35 | [C-37](C-37_snowman_directional_launch_contract.md) | 눈사람 방향성 캐릭터 Launch 계약 | 눈사람 Pawn 입력 소유권 확인 | 진행중 |
 
 ## 통합 변경 요청
 
-- 없음
+- K-14에 눈사람 `ActionAction` 좌클릭을 C-37 서버 Launch 계약에 연결해 달라는 요청. K 소유 `SnowmanModeSnowmanCharacter_K.*`의 입력 바인딩 변경과 Launch 성공 시 쿨다운 시작 호출이 필요하다.
 
 ## 계획 변경 기록
+
+- 2026-08-29: 사용자 요청으로 C-36 눈사람 모드 NavMesh 랜덤 위치 기반 낙하 Grab 물체 Task를 추가했다. K 소유 Snowman GameMode를 직접 수정하지 않고 C 소유 독립 스포너 Actor를 맵에 배치하는 방식으로 후보 Static Mesh 연결과 낙하 수명주기를 제공한다.
+- 2026-08-29: 사용자 승인을 받아 C-36 구현을 시작했다. 독립 스포너 Actor가 눈사람 GameState의 실제 경기 시작·종료 상태를 감지하도록 구현한다.
+- 2026-08-29: C-36 `ASnowmanFallingGrabbableSpawner`를 추가했다. 후보 Static Mesh를 NavMesh 랜덤 위치 상공에서 반복 낙하하고, 눈사람 모드 실제 시작·종료 상태에 따라 서버 타이머를 시작·중단한다. Unreal Editor Development 빌드가 성공했다.
+- 2026-08-29: 사용자 요청으로 C-37 눈사람 좌클릭 카메라 방향 Launch 계약을 추가했다. 서버 검증·실행은 C가 제공하고, 눈사람 Pawn 좌클릭 입력 연결은 K 인계로 분리한다.
+- 2026-08-29: C-37을 구현했다. `ASnowRumbleCharacter`가 서버 Controller 시점 기준 Launch와 복제 쿨다운 진행도를 제공하고, `ASnowmanModeSnowmanCharacter`가 `ActionAction` 좌클릭을 연결한다. 기존 timed-action ProgressBar를 재사용한다.
+- 2026-08-29: C-37 Unreal Engine 5.8 Development 빌드가 성공했다. UHT, `SnowRumbleCharacter.cpp`, `SnowmanModeSnowmanCharacter_K.cpp` 컴파일과 Editor DLL 링크를 통과했으며, 결과 확인은 눈사람 Listen Server 수동 테스트로 남겼다.
+- 2026-08-29: C-37 후속 피드백으로 눈사람 이동 속도 튜닝값 노출을 보강했다. `BP_SnowmanModeGameMode_K` Class Defaults에서 `Snowman Movement Speed Multiplier`와 `Normal Player Reference Walk Speed`를 찾기 쉽도록 카테고리와 표시 이름을 조정했고, Unreal Engine 5.8 Development 빌드가 성공했다.
+- 2026-08-29: 사용자 요청으로 눈사람 이동 속도 기본 배율을 2.0으로 변경한 뒤, 부츠 Blueprint 배율 1.5 기준 스프린트 1125보다 조금 빠른 1150이 되도록 눈사람 기본 배율을 2.3으로 조정했다. Unreal Engine 5.8 Development 빌드가 성공했다.
 
 - 2026-08-28: C-28 Character Grab의 기존 게이지 제한을 복구했다. 플레이어를 잡은 상태도 `MaximumGrabHoldSeconds`가 지나면 자동 해제되고, 게이지가 남아 있는 동안은 카메라 Yaw 회전 보정과 tether를 유지한다.
 - 2026-08-28: C 통합 경로로 K 눈사람 모드 라운드 HUD 계약을 보강했다. `ASnowmanModeGameState`가 현재/전체 라운드를 복제하고, `UMainHUDWidget::CurrentRoundText`가 눈사람 모드에서도 PvP처럼 `{현재} / {전체}` 형식을 표시한다.

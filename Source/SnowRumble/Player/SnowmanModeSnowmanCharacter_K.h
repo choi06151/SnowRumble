@@ -41,8 +41,9 @@ protected:
 	virtual void SetupPlayerInputComponent(
 		UInputComponent* PlayerInputComponent) override;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Movement", meta = (ClampMin = "0.0"))
-	float SnowmanWalkSpeed = 625.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SnowRumble|Snowman|Tuning|Movement",
+		meta = (ClampMin = "0.0", DisplayName = "Snowman Walk Speed"))
+	float SnowmanWalkSpeed = 1150.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Hit", meta = (ClampMin = "0.0"))
 	float SnowballHitStunSeconds = 10.0f;
@@ -66,6 +67,9 @@ protected:
 	TObjectPtr<USoundAttenuation> SnowmanInfectionSoundAttenuation;
 
 private:
+	/** 눈사람 전용 좌클릭을 방향성 Launch 요청으로 전달한다. */
+	void HandleSnowmanLaunchStarted();
+
 	void HandleSnowmanDropEquipment();
 	void StartSnowmanJump();
 	void StopSnowmanJump();

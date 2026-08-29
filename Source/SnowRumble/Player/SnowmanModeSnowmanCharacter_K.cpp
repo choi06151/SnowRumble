@@ -254,6 +254,14 @@ void ASnowmanModeSnowmanCharacter::SetupPlayerInputComponent(
 			this,
 			&ASnowmanModeSnowmanCharacter::StopSnowmanJump);
 	}
+	if (ActionAction)
+	{
+		EnhancedInputComponent->BindAction(
+			ActionAction,
+			ETriggerEvent::Started,
+			this,
+			&ASnowmanModeSnowmanCharacter::HandleSnowmanLaunchStarted);
+	}
 	if (DropEquipmentAction)
 	{
 		EnhancedInputComponent->BindAction(
@@ -275,6 +283,11 @@ void ASnowmanModeSnowmanCharacter::SetupPlayerInputComponent(
 			this,
 			&ASnowmanModeSnowmanCharacter::HandleEmoteCompleted);
 	}
+}
+
+void ASnowmanModeSnowmanCharacter::HandleSnowmanLaunchStarted()
+{
+	RequestDirectionalLaunchFromCamera();
 }
 
 void ASnowmanModeSnowmanCharacter::HandleSnowmanDropEquipment()

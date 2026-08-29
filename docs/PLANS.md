@@ -46,6 +46,8 @@
 | I-19 눈사람 모드 | K-12~K-14 | C-04, C-05, C-09, S/J 맵 담당, 사용자 | 기존 PvP 맵 재사용, 환경 축소 비활성, 10분 제한시간, 랜덤 눈사람 시작, 감염·전환·승패 결과 | 예정 |
 | I-20 Grab 물리 물건 | C-34 | S·후속 물건 Blueprint, C-09 | 물리 물건 부모 Actor, Grab 연결, 플레이어 밀침, 작은·큰 눈 파괴 충돌 | 진행중 |
 | I-21 데미지 텍스트 표시 | C-35 | S·후속 HUD/캐릭터 Blueprint | `UDamageTextWidget`, 일반/헤드샷 WBP 슬롯, 직접 투척 눈덩이 `HeadshotBoneNames` 판정 제공 | 진행중 |
+| I-22 눈사람 낙하 Grab 물체 | C-36 | K-12~K-14, S·사용자 | 독립 스포너 Actor가 후보 Static Mesh를 NavMesh 위 랜덤 위치에 서버 스폰하고 눈사람 모드 수명주기 동안 복제·Grab 가능 | 사용자 승인 대기 |
+| I-23 눈사람 방향성 Launch | C-37 | K-14, 사용자/S | 눈사람 Pawn 좌클릭이 서버 검증된 카메라 방향 Launch를 요청하고 CharacterMovement 복제 결과를 공유 | 사용자 승인 대기 |
 
 ## 세션 개발 정책
 
@@ -137,6 +139,9 @@
 - 2026-08-27: C-35 피격 데미지 텍스트 표시 계약을 추가했다. 서버가 실제 적용 피해량을 확정한 뒤 모든 클라이언트에 `OnDamageTextRequested`를 호출한다.
 - 2026-08-27: C-35 일반/헤드샷 데미지 텍스트 WBP 슬롯을 분리했다. `UDamageTextWidget` 기반 WBP의 `DamageText` TextBlock은 C++가 자동으로 피해량을 입력한다.
 - 2026-08-27: C-35 직접 투척 눈덩이 헤드샷 판정을 추가했다. 머리 bone 충돌 시 피해 배율과 헤드샷 데미지 텍스트 타입을 적용한다.
+- 2026-08-29: C-36 `ASnowmanFallingGrabbableSpawner`를 추가했다. 맵에 배치한 스포너의 후보 Static Mesh를 NavMesh 랜덤 위치 상공에서 서버 스폰하고, 눈사람 모드 GameState의 실제 시작·종료 상태에 맞춰 반복 낙하를 운영한다.
+- 2026-08-29: C-37 눈사람 방향성 Launch 계약을 구현했다. 서버가 Controller 시점으로 Launch를 확정하고, 복제 쿨다운을 기존 timed-action ProgressBar에 연결하며, K 눈사람 Pawn의 좌클릭 입력에서 호출한다.
+- 2026-08-29: C-37 Unreal Engine 5.8 Development 빌드가 성공했다. 눈사람 좌클릭 Launch와 쿨다운 ProgressBar 계약의 C++/K 연결을 검증했다.
 - 2026-08-27: 사용자 결정으로 세션 개발 정책을 LAN 기준에서 Steam 기준으로 전환했다. `DefaultPlatformService=Steam`을 기본으로 사용하고 NULL/LAN은 Steam 초기화 불가 환경의 fallback으로만 유지한다.
 
 - 2026-08-24: C-09 공중 작은 눈덩이 투척 보정을 추가했다. 서버 release 시점에 공중이면 기존 `ThrowSmallSnowballInAir` 모션과 맞춰 피해 1.5배와 속도 기본 1.2배를 적용한다.
