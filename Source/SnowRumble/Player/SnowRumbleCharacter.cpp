@@ -216,6 +216,7 @@ ASnowRumbleCharacter::ASnowRumbleCharacter(
 	GetCharacterMovement()->JumpZVelocity = 700.0f;
 	GetCharacterMovement()->AirControl = 0.35f;
 	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+	JumpMaxCount = 2;
 	SetNetUpdateFrequency(60.0f);
 	SetMinNetUpdateFrequency(30.0f);
 
