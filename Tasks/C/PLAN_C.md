@@ -62,6 +62,7 @@
 | 33 | [C-35](C-35_damage_text_feedback_contract.md) | 피격 데미지 텍스트 표시 계약 | C-09 | 진행중 |
 | 34 | [C-36](C-36_snowman_falling_grabbable_objects.md) | 눈사람 모드 랜덤 낙하 Grab 물체 | C-34, 눈사람 모드 | 진행중 |
 | 35 | [C-37](C-37_snowman_directional_launch_contract.md) | 눈사람 방향성 캐릭터 Launch 계약 | 눈사람 Pawn 입력 소유권 확인 | 진행중 |
+| 36 | [C-38](C-38_double_jump_movement.md) | 플레이어 더블 점프 | 기존 플레이어 이동 | 진행중 |
 
 ## 통합 변경 요청
 
@@ -77,6 +78,8 @@
 - 2026-08-29: C-37 Unreal Engine 5.8 Development 빌드가 성공했다. UHT, `SnowRumbleCharacter.cpp`, `SnowmanModeSnowmanCharacter_K.cpp` 컴파일과 Editor DLL 링크를 통과했으며, 결과 확인은 눈사람 Listen Server 수동 테스트로 남겼다.
 - 2026-08-29: C-37 후속 피드백으로 눈사람 이동 속도 튜닝값 노출을 보강했다. `BP_SnowmanModeGameMode_K` Class Defaults에서 `Snowman Movement Speed Multiplier`와 `Normal Player Reference Walk Speed`를 찾기 쉽도록 카테고리와 표시 이름을 조정했고, Unreal Engine 5.8 Development 빌드가 성공했다.
 - 2026-08-29: 사용자 요청으로 눈사람 이동 속도 기본 배율을 2.0으로 변경한 뒤, 부츠 Blueprint 배율 1.5 기준 스프린트 1125보다 조금 빠른 1150이 되도록 눈사람 기본 배율을 2.3으로 조정했다. Unreal Engine 5.8 Development 빌드가 성공했다.
+- 2026-08-30: 사용자 요청으로 눈사람 이동 속도 기본값을 장화 장착 스프린트 기준의 1.1배로 낮췄다. 현재 기준 스프린트 500, 장화 배율 1.7을 반영해 눈사람 기본 속도는 935, 기본 배율은 1.87이다.
+- 2026-08-30: 사용자 요청으로 C-38 플레이어 더블 점프 Task를 추가하고 구현했다. 일반 `ASnowRumbleCharacter` 기본 `JumpMaxCount`를 2로 설정하고, 눈사람 전용 `ASnowmanModeSnowmanCharacter`는 1로 유지해 일반 플레이어만 공중에서 한 번 더 점프할 수 있게 했다.
 
 - 2026-08-28: C-28 Character Grab의 기존 게이지 제한을 복구했다. 플레이어를 잡은 상태도 `MaximumGrabHoldSeconds`가 지나면 자동 해제되고, 게이지가 남아 있는 동안은 카메라 Yaw 회전 보정과 tether를 유지한다.
 - 2026-08-28: C 통합 경로로 K 눈사람 모드 라운드 HUD 계약을 보강했다. `ASnowmanModeGameState`가 현재/전체 라운드를 복제하고, `UMainHUDWidget::CurrentRoundText`가 눈사람 모드에서도 PvP처럼 `{현재} / {전체}` 형식을 표시한다.

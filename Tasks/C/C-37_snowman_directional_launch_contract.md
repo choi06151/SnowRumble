@@ -55,12 +55,13 @@
 - 2026-08-29: 사용자 요청으로 눈사람 좌클릭 카메라 방향 Launch 계약 Task를 추가했다. 눈사람 Pawn 소유권은 K에 있어 입력 연결은 K 인계로 분리한다.
 - 2026-08-29: 눈사람 이동 속도 값을 에디터에서 찾기 어렵다는 피드백을 반영해 GameMode와 Snowman Pawn의 이동 속도 튜닝 UPROPERTY를 `SnowRumble|Snowman|Tuning|Movement` 카테고리와 명시적 표시 이름으로 보강했다.
 - 2026-08-29: 사용자 요청으로 눈사람 이동 속도 기본 배율을 2.0으로 변경했다. 이후 부츠 Blueprint 배율 1.5를 기준으로 부츠 스프린트 1125보다 조금 빠른 1150이 되도록 눈사람 기본 배율을 2.3으로 조정했다.
+- 2026-08-30: 사용자 요청으로 눈사람 이동 속도 기본값을 장화 장착 스프린트 기준의 1.1배로 낮췄다. 현재 기준 스프린트 500, 장화 배율 1.7을 반영해 눈사람 기본 속도는 935, 기본 배율은 1.87이다.
 
 ## 수동 작업 (구현 후 구체화)
 
 - `BP_SnowmanCharacter_K`가 `ActionAction`에 좌클릭 입력을 유지하고 있는지 확인한다. C++가 해당 액션을 눈사람 전용 Launch로 사용한다.
 - `BP_SnowmanCharacter_K` 또는 공용 캐릭터 Blueprint에서 `DirectionalLaunchSpeed`와 `DirectionalLaunchCooldownSeconds`를 조정한다. 기본값은 각각 1200, 3초다.
-- 눈사람 이동 속도는 기본값 기준 1150이다. `BP_SnowmanModeGameMode_K`에서 값이 보이지 않아도 C++ 기본값 `Normal Player Reference Walk Speed` 500과 `Snowman Movement Speed Multiplier` 2.3으로 계산된다.
+- 눈사람 이동 속도는 기본값 기준 935다. `BP_SnowmanModeGameMode_K`에서 값이 보이지 않아도 C++ 기본값 `Normal Player Reference Walk Speed` 500과 `Snowman Movement Speed Multiplier` 1.87로 계산된다. 이는 장화 장착 스프린트 기준 850의 1.1배다.
 - 눈사람 HUD의 기존 `UOverheadTimedActionWidget` WBP에 `TimedActionProgressBar`가 연결되어 있는지 확인한다. 별도 ProgressBar는 추가하지 않는다.
 - 눈사람 모드에서 호스트 1명과 클라이언트 1명을 실행한 뒤 양쪽에서 좌클릭한다. Launch 방향은 각 플레이어의 현재 Controller 시점 기준이다.
 

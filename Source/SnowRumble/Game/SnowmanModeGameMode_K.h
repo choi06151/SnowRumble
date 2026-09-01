@@ -131,7 +131,7 @@ protected:
 	/** 눈사람으로 확정된 플레이어의 이동 속도 배율이다. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SnowRumble|Snowman|Tuning|Movement",
 		meta = (ClampMin = "1.0", DisplayName = "Snowman Movement Speed Multiplier"))
-	float SnowmanMovementSpeedMultiplier = 2.3f;
+	float SnowmanMovementSpeedMultiplier = 1.87f;
 
 	/** 눈사람 속도 배율 계산에 사용할 일반 플레이어 기준 이동 속도다. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SnowRumble|Snowman|Tuning|Movement",
