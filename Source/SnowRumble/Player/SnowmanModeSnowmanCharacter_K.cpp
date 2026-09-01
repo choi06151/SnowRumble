@@ -57,6 +57,7 @@ ASnowmanModeSnowmanCharacter::ASnowmanModeSnowmanCharacter()
 	WalkSpeed = SnowmanWalkSpeed;
 	SprintSpeed = SnowmanWalkSpeed;
 	AimWalkSpeed = SnowmanWalkSpeed;
+	JumpMaxCount = 1;
 
 	if (UCharacterMovementComponent* MovementComponent = GetCharacterMovement())
 	{

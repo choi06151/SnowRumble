@@ -55,5 +55,6 @@
 - [C-30 오디오 피드백과 보이스 믹싱 계약](C-30_audio_feedback_and_voice_mix.md)
 - [C-31 PvP 로딩 Ready 핸드셰이크와 PSO 안정화](C-31_pvp_loading_ready_and_pso.md)
 - [C-32 주크박스 상호작용](C-32_jukebox_interaction.md)
+- [C-38 플레이어 더블 점프](C-38_double_jump_movement.md)
 
 역할 내부 상태와 우선순위는 `PLAN_C.md`, 파트 간 계약·선점과 통합 상태는 `docs/PLANS.md`를 기준으로 판단합니다.
