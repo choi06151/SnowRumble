@@ -106,6 +106,7 @@
 | C-26 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), AnimNotify·Niagara·Decal·Sound 연결: 사용자/S 인계 | `Tasks/C/C-26_snow_footstep_effect.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Content/Characters/BP_SnowRumbleCharacter.uasset`, `Content/Characters/BP_SnowmanCharacter_K.uasset`, `Content/Maps/L_IceGlacier_J.umap`, `Content/Maps/L_Lobby.umap`, `Content/Models/GiftBox/MI_GiftBox.uasset`, `Content/Models/M_MasterMaterial.uasset`, `Content/VFX/NS_WeaponBurst.uasset`, `Content/A_Surface_Footstep/` | 완료 |
 | C-27 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 지형 머티리얼·Stamp 머티리얼·맵 배치: 사용자/S/J 인계 | `Tasks/C/C-27_snow_trail_render_target.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `docs/ARCHITECTURE.md`, `docs/PENDING_ISSUES.md`, `Source/SnowRumble/Environment/SnowTrailRenderTargetManager_C.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*` | 진행중 |
 | C-28 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), Control Rig·AnimBP·Physics Asset·HUD ProgressBar 연결: 사용자/S 인계 | `Tasks/C/C-28_player_grab_control_rig_foundation.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `Source/SnowRumble/Player/PlayerGrabComponent_C.*`, `Source/SnowRumble/Player/SnowRumbleCharacter.*`, `Source/SnowRumble/Player/SnowRumbleCharacterAnimInstance_C.*`, `Source/SnowRumble/UI/MainHUDWidget.*` | 진행중 |
+| C-38 | C | 최재원(C) | 최재원(C) | C++·문서: 최재원(C), 캐릭터 BP 기본값 확인: 사용자/S 인계 | `Tasks/C/C-38_double_jump_movement.md`, `Tasks/C/PLAN_C.md`, `docs/PLANS.md`, `docs/GDD/Game_GDD.md`, `Source/SnowRumble/Player/SnowRumbleCharacter.cpp`, `Source/SnowRumble/Player/SnowmanModeSnowmanCharacter_K.cpp` | 진행중 |
 | K-12 | K | 강혜원(K) | 강혜원(K), 공용 로딩·플레이어 계약: 최재원(C) | 문서·C++·Blueprint: 강혜원(K), 기존 PvP 맵 자산 수정 없음 | `Tasks/K/K-12_snowman_mode_foundation.md`, `Tasks/K/PLAN_K.md`, 눈사람 모드 GameMode/GameState/PlayerController 후보는 구현 승인 전 확정 | 예정 |
 | K-13 | K | 강혜원(K) | 강혜원(K), 공용 플레이어·눈 전투 계약: 최재원(C) | 문서·C++·Blueprint: 강혜원(K) | `Tasks/K/K-13_snowman_infection_flow.md`, `Tasks/K/PLAN_K.md`, 눈사람 이동·감염 관련 생성 후보는 구현 승인 전 확정 | 예정 |
 | K-14 | K | 강혜원(K) | 강혜원(K), 공용 경기 결과 계약: 최재원(C) | 문서·C++·Blueprint: 강혜원(K), UI 표현 자산은 사용자/S 인계 | `Tasks/K/K-14_snowman_mode_integration.md`, `Tasks/K/PLAN_K.md`, 눈사람 모드 승패·HUD 인계 후보는 구현 승인 전 확정 | 예정 |
@@ -120,6 +121,7 @@
 
 ## 최근 통합 로그
 
+- 2026-08-30: C-38 플레이어 더블 점프 계약을 추가했다. 일반 `ASnowRumbleCharacter` 기본 `JumpMaxCount`를 2로 설정하고, 눈사람 전용 `ASnowmanModeSnowmanCharacter`는 1로 유지해 일반 플레이어만 공중에서 한 번 더 점프할 수 있게 했다.
 - 2026-08-28: C 통합 경로로 K-12 눈사람 모드 라운드 HUD 계약을 보강했다. `ASnowmanModeGameState`가 현재/전체 라운드를 복제하고, `UMainHUDWidget::CurrentRoundText`가 PvP와 같은 `{현재} / {전체}` 형식으로 표시한다.
 - 2026-08-28: C-26 눈/일반 바닥 발걸음 Niagara 계약과 자산 연결을 완료했다. `ASnowRumbleCharacter`가 `SnowFootstepEffect`/`NormalFootstepEffect`를 발밑 위치에 직접 스폰하고, 관련 발걸음 VFX 자산을 포함해 게시한다.
 - 2026-08-27: C-34 물리 상호작용 물건 계약을 추가했다. `AGrabbablePhysicsObject`를 기반으로 여러 물건 Blueprint가 서버 복제 물리, Grab 연결, 플레이어 밀침과 눈덩이 파괴 동작을 재사용할 수 있게 했다.

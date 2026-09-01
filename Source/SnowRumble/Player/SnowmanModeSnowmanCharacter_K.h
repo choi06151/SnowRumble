@@ -43,7 +43,7 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SnowRumble|Snowman|Tuning|Movement",
 		meta = (ClampMin = "0.0", DisplayName = "Snowman Walk Speed"))
-	float SnowmanWalkSpeed = 1150.0f;
+	float SnowmanWalkSpeed = 935.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowman|Hit", meta = (ClampMin = "0.0"))
 	float SnowballHitStunSeconds = 10.0f;
