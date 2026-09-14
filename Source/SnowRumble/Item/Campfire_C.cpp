@@ -12,15 +12,13 @@
 #include "Net/UnrealNetwork.h"
 #include "NiagaraComponent.h"
 
-ACampfire::ACampfire()
-{
+ACampfire::ACampfire() {
 	PrimaryActorTick.bCanEverTick = true;
 
 	bReplicates = true;
 	SetReplicateMovement(true);
 
-	HealRadiusComponent =
-		CreateDefaultSubobject<USphereComponent>(TEXT("HealRadiusComponent"));
+	HealRadiusComponent = CreateDefaultSubobject<USphereComponent>(TEXT("HealRadiusComponent"));
 	SetRootComponent(HealRadiusComponent);
 	HealRadiusComponent->InitSphereRadius(HealRadius);
 	HealRadiusComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
@@ -29,52 +27,42 @@ ACampfire::ACampfire()
 	HealRadiusComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 	HealRadiusComponent->SetGenerateOverlapEvents(true);
 
-	CampfireMeshComponent =
-		CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CampfireMeshComponent"));
+	CampfireMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CampfireMeshComponent"));
 	CampfireMeshComponent->SetupAttachment(HealRadiusComponent);
 	CampfireMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	CampfireMeshComponent->SetCollisionObjectType(ECC_WorldDynamic);
 	CampfireMeshComponent->SetCollisionResponseToAllChannels(ECR_Block);
 
-	FireVfxComponent =
-		CreateDefaultSubobject<UNiagaraComponent>(TEXT("FireVfxComponent"));
+	FireVfxComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("FireVfxComponent"));
 	FireVfxComponent->SetupAttachment(CampfireMeshComponent);
 	FireVfxComponent->SetAutoActivate(true);
 
-	HealRadiusVfxComponent =
-		CreateDefaultSubobject<UNiagaraComponent>(TEXT("HealRadiusVfxComponent"));
+	HealRadiusVfxComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("HealRadiusVfxComponent"));
 	HealRadiusVfxComponent->SetupAttachment(HealRadiusComponent);
 	HealRadiusVfxComponent->SetAutoActivate(true);
 }
 
-void ACampfire::BeginPlay()
-{
+void ACampfire::BeginPlay() {
 	Super::BeginPlay();
 
 	RemainingHitPoints = FMath::Max(1, MaximumHitPoints);
-	if (HealRadiusComponent)
-	{
+	if (HealRadiusComponent) {
 		HealRadiusComponent->SetSphereRadius(FMath::Max(0.0f, HealRadius));
 	}
 	RefreshCampfirePresentation();
 	OnCampfireStateChanged(RemainingHitPoints, false);
 }
 
-void ACampfire::Tick(float DeltaSeconds)
-{
+void ACampfire::Tick(float DeltaSeconds) {
 	Super::Tick(DeltaSeconds);
 
-	if (HasAuthority() && RemainingHitPoints > 0)
-	{
+	if (HasAuthority() && RemainingHitPoints > 0) {
 		HealOverlappingCharacters(DeltaSeconds);
 	}
 }
 
-void ACampfire::InitializeCampfireFromServer(
-	ASnowRumbleCharacter* NewInstaller)
-{
-	if (!HasAuthority())
-	{
+void ACampfire::InitializeCampfireFromServer(ASnowRumbleCharacter* NewInstaller) {
+	if (!HasAuthority()) {
 		return;
 	}
 
@@ -82,47 +70,32 @@ void ACampfire::InitializeCampfireFromServer(
 	ForceNetUpdate();
 }
 
-void ACampfire::ExtinguishFromWater()
-{
-	if (!HasAuthority() || RemainingHitPoints <= 0)
-	{
+void ACampfire::ExtinguishFromWater() {
+	if (!HasAuthority() || RemainingHitPoints <= 0) {
 		return;
 	}
 
 	ExtinguishCampfire();
 }
 
-float ACampfire::TakeDamage(
-	float DamageAmount,
-	FDamageEvent const& DamageEvent,
-	AController* EventInstigator,
-	AActor* DamageCauser)
-{
-	const float AppliedDamage = Super::TakeDamage(
-		DamageAmount,
-		DamageEvent,
-		EventInstigator,
-		DamageCauser);
+float ACampfire::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
+							AActor* DamageCauser) {
+	const float AppliedDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 
-	if (!HasAuthority() || DamageAmount <= 0.0f || RemainingHitPoints <= 0)
-	{
+	if (!HasAuthority() || DamageAmount <= 0.0f || RemainingHitPoints <= 0) {
 		return AppliedDamage;
 	}
 
 	const ASnowballItem* DamageSnowball = Cast<ASnowballItem>(DamageCauser);
-	if (DamageSnowball && DamageSnowball->IsFullyGrown())
-	{
+	if (DamageSnowball && DamageSnowball->IsFullyGrown()) {
 		ExtinguishCampfire();
 		return AppliedDamage;
 	}
 
 	--RemainingHitPoints;
-	if (RemainingHitPoints <= 0)
-	{
+	if (RemainingHitPoints <= 0) {
 		ExtinguishCampfire();
-	}
-	else
-	{
+	} else {
 		OnRep_RemainingHitPoints();
 		ForceNetUpdate();
 	}
@@ -130,31 +103,25 @@ float ACampfire::TakeDamage(
 	return AppliedDamage;
 }
 
-void ACampfire::GetLifetimeReplicatedProps(
-	TArray<FLifetimeProperty>& OutLifetimeProps) const
-{
+void ACampfire::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ACampfire, RemainingHitPoints);
 	DOREPLIFETIME(ACampfire, Installer);
 }
 
-void ACampfire::HealOverlappingCharacters(float DeltaSeconds)
-{
-	if (HealPerSecond <= 0.0f || DeltaSeconds <= 0.0f)
-	{
+void ACampfire::HealOverlappingCharacters(float DeltaSeconds) {
+	if (HealPerSecond <= 0.0f || DeltaSeconds <= 0.0f) {
 		return;
 	}
 
 	UWorld* World = GetWorld();
-	if (!World)
-	{
+	if (!World) {
 		return;
 	}
 
 	const float EffectiveHealRadius = FMath::Max(0.0f, HealRadius);
-	if (EffectiveHealRadius <= 0.0f)
-	{
+	if (EffectiveHealRadius <= 0.0f) {
 		return;
 	}
 
@@ -162,43 +129,28 @@ void ACampfire::HealOverlappingCharacters(float DeltaSeconds)
 	FCollisionObjectQueryParams ObjectQueryParams;
 	ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
 
-	FCollisionQueryParams QueryParams(
-		SCENE_QUERY_STAT(CampfireHealOverlap),
-		false,
-		this);
-	World->OverlapMultiByObjectType(
-		OverlapResults,
-		GetActorLocation(),
-		FQuat::Identity,
-		ObjectQueryParams,
-		FCollisionShape::MakeSphere(EffectiveHealRadius),
-		QueryParams);
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(CampfireHealOverlap), false, this);
+	World->OverlapMultiByObjectType(OverlapResults, GetActorLocation(), FQuat::Identity, ObjectQueryParams,
+									FCollisionShape::MakeSphere(EffectiveHealRadius), QueryParams);
 
 	TSet<USnowRumbleHealthComponent*> HealedComponents;
-	for (const FOverlapResult& OverlapResult : OverlapResults)
-	{
-		ASnowRumbleCharacter* Character =
-			Cast<ASnowRumbleCharacter>(OverlapResult.GetActor());
-		USnowRumbleHealthComponent* HealthComponent = Character
-			? Character->FindComponentByClass<USnowRumbleHealthComponent>()
-			: nullptr;
-		if (HealthComponent && !HealedComponents.Contains(HealthComponent))
-		{
+	for (const FOverlapResult& OverlapResult : OverlapResults) {
+		ASnowRumbleCharacter* Character = Cast<ASnowRumbleCharacter>(OverlapResult.GetActor());
+		USnowRumbleHealthComponent* HealthComponent =
+			Character ? Character->FindComponentByClass<USnowRumbleHealthComponent>() : nullptr;
+		if (HealthComponent && !HealedComponents.Contains(HealthComponent)) {
 			HealedComponents.Add(HealthComponent);
 			HealthComponent->ApplyHealing(HealPerSecond * DeltaSeconds);
 		}
 	}
 }
 
-void ACampfire::ExtinguishCampfire()
-{
+void ACampfire::ExtinguishCampfire() {
 	RemainingHitPoints = 0;
-	if (HealRadiusComponent)
-	{
+	if (HealRadiusComponent) {
 		HealRadiusComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
-	if (CampfireMeshComponent)
-	{
+	if (CampfireMeshComponent) {
 		CampfireMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
 
@@ -206,23 +158,18 @@ void ACampfire::ExtinguishCampfire()
 	ForceNetUpdate();
 }
 
-void ACampfire::RefreshCampfirePresentation()
-{
+void ACampfire::RefreshCampfirePresentation() {
 	const bool bExtinguished = RemainingHitPoints <= 0;
-	if (FireVfxComponent)
-	{
+	if (FireVfxComponent) {
 		FireVfxComponent->SetActive(!bExtinguished, true);
 	}
-	if (HealRadiusVfxComponent)
-	{
+	if (HealRadiusVfxComponent) {
 		HealRadiusVfxComponent->SetActive(!bExtinguished, true);
-		HealRadiusVfxComponent->SetWorldScale3D(
-			FVector::OneVector * FMath::Max(0.0f, HealRadius) / 100.0f);
+		HealRadiusVfxComponent->SetWorldScale3D(FVector::OneVector * FMath::Max(0.0f, HealRadius) / 100.0f);
 	}
 }
 
-void ACampfire::OnRep_RemainingHitPoints()
-{
+void ACampfire::OnRep_RemainingHitPoints() {
 	RefreshCampfirePresentation();
 	OnCampfireStateChanged(RemainingHitPoints, RemainingHitPoints <= 0);
 }

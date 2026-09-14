@@ -17,11 +17,10 @@ class UStaticMeshComponent;
 class UNiagaraComponent;
 
 UCLASS(Blueprintable)
-class SNOWRUMBLE_API AJukeboxActor : public AActor
-{
+class SNOWRUMBLE_API AJukeboxActor : public AActor {
 	GENERATED_BODY()
 
-public:
+	public:
 	AJukeboxActor();
 	virtual void Tick(float DeltaSeconds) override;
 
@@ -41,7 +40,7 @@ public:
 
 	bool IsJukeboxMeshComponent(const UPrimitiveComponent* Component) const;
 
-protected:
+	protected:
 	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
@@ -97,7 +96,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Jukebox|Animation", meta = (ClampMin = "0.0"))
 	float BounceFrequency = 5.0f;
 
-private:
+	private:
 	void ApplyJumpPulse();
 	void FinishPlayback();
 	void CycleSpotlight();

@@ -17,31 +17,16 @@ class UTextBlock;
 class UWidgetAnimation;
 
 UENUM(BlueprintType)
-enum class ELobbyBoardTeamColor : uint8
-{
-	Red,
-	Sky,
-	Green,
-	Yellow,
-	Purple,
-	Pink,
-	Blue,
-	Orange
-};
+enum class ELobbyBoardTeamColor : uint8 { Red, Sky, Green, Yellow, Purple, Pink, Blue, Orange };
 
 UENUM(BlueprintType)
-enum class ELobbyBoardGameMode : uint8
-{
-	Pvp,
-	Snowman
-};
+enum class ELobbyBoardGameMode : uint8 { Pvp, Snowman };
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API ULobbyBoardWidget : public USnowRumbleAudioUserWidget
-{
+class SNOWRUMBLE_API ULobbyBoardWidget : public USnowRumbleAudioUserWidget {
 	GENERATED_BODY()
 
-public:
+	public:
 	/** 게시판 액터가 위젯 생성 후 자신을 연결한다. */
 	void SetOwningBoard(ALobbyInteractionBoard* NewOwningBoard);
 
@@ -56,11 +41,10 @@ public:
 	void SubmitTeamColorFromBlueprint(ELobbyBoardTeamColor TeamColor);
 
 	/** 지정된 로컬 PlayerController가 포커스한 게시판에 외부 설정 변경 피드백을 표시한다. */
-	void ShowInvalidActionFeedbackForController(
-		ALobbyPlayerController* RequestingPlayerController,
-		const FText& ReasonText);
+	void ShowInvalidActionFeedbackForController(ALobbyPlayerController* RequestingPlayerController,
+												const FText& ReasonText);
 
-protected:
+	protected:
 	/** 위젯 생성 시 선택 버튼과 닫기 버튼을 연결한다. */
 	virtual void NativeConstruct() override;
 
@@ -68,9 +52,7 @@ protected:
 	virtual void NativeDestruct() override;
 
 	/** 팀 색 인원 수 표시를 최신 로비 상태에 맞춰 갱신한다. */
-	virtual void NativeTick(
-		const FGeometry& MyGeometry,
-		float InDeltaTime) override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	/** WBP에서 같은 이름으로 만든 0번 게시판 액션 버튼에 자동 연결된다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
@@ -236,7 +218,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> InvalidActionReasonText;
 
-private:
+	private:
 	/** WBP 내부에서 이름이 일치하는 버튼을 직접 찾아 C++ 변수에 보관한다. */
 	void ResolveBoardButtons();
 

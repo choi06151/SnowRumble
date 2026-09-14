@@ -9,29 +9,20 @@
 class UTextBlock;
 
 UENUM(BlueprintType)
-enum class ESnowRumbleDamageTextType : uint8
-{
-	Normal,
-	Headshot
-};
+enum class ESnowRumbleDamageTextType : uint8 { Normal, Headshot };
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API UDamageTextWidget : public UUserWidget
-{
+class SNOWRUMBLE_API UDamageTextWidget : public UUserWidget {
 	GENERATED_BODY()
 
-public:
+	public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Damage Text")
-	void InitializeDamageText(
-		float AppliedDamage,
-		ESnowRumbleDamageTextType DamageTextType);
+	void InitializeDamageText(float AppliedDamage, ESnowRumbleDamageTextType DamageTextType);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Damage Text")
-	void OnDamageTextInitialized(
-		float AppliedDamage,
-		ESnowRumbleDamageTextType DamageTextType);
+	void OnDamageTextInitialized(float AppliedDamage, ESnowRumbleDamageTextType DamageTextType);
 
-protected:
+	protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> DamageText;
 };

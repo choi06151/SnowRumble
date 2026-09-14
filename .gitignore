@@ -9,6 +9,9 @@ DerivedDataCache/
 Intermediate/
 Saved/
 
+# Node tooling dependencies
+node_modules/
+
 # Generated folders inside project plugins
 Plugins/*/Binaries/
 Plugins/*/Intermediate/

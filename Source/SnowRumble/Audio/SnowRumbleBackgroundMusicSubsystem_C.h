@@ -11,21 +11,17 @@ class UAudioComponent;
 class USoundBase;
 
 UCLASS()
-class SNOWRUMBLE_API USnowRumbleBackgroundMusicSubsystem
-	: public UGameInstanceSubsystem
-{
+class SNOWRUMBLE_API USnowRumbleBackgroundMusicSubsystem : public UGameInstanceSubsystem {
 	GENERATED_BODY()
 
-public:
+	public:
 	virtual void Deinitialize() override;
 
-	void PlayBackgroundMusic(
-		USoundBase* BackgroundMusicSound,
-		bool bShouldLoop = true);
+	void PlayBackgroundMusic(USoundBase* BackgroundMusicSound, bool bShouldLoop = true);
 	void StopBackgroundMusic();
 	void SetBackgroundMusicPreviewVolume(float MasterVolume, float BgmVolume);
 
-private:
+	private:
 	UFUNCTION()
 	void HandleBackgroundMusicFinished();
 

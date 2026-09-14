@@ -12,11 +12,10 @@ class UImage;
 class UTextBlock;
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API UOverheadNameplateWidget : public UUserWidget
-{
+class SNOWRUMBLE_API UOverheadNameplateWidget : public UUserWidget {
 	GENERATED_BODY()
 
-public:
+	public:
 	/** 이름표가 표시할 캐릭터를 지정하고 즉시 표시를 갱신한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Nameplate")
 	void SetObservedCharacter(ASnowRumbleCharacter* NewCharacter);
@@ -41,11 +40,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI|Nameplate")
 	bool ShouldShowHostImage() const;
 
-protected:
+	protected:
 	virtual void NativeConstruct() override;
-	virtual void NativeTick(
-		const FGeometry& MyGeometry,
-		float InDeltaTime) override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	/** 있으면 C++ 부모가 닉네임을 자동 표시한다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Nameplate")
@@ -63,7 +60,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Nameplate")
 	TObjectPtr<UImage> HostStateImage;
 
-private:
+	private:
 	void RefreshNameplatePresentation();
 
 	UPROPERTY(Transient)

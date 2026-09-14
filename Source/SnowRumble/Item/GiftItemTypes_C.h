@@ -6,8 +6,7 @@
 #include "GiftItemTypes_C.generated.h"
 
 UENUM(BlueprintType)
-enum class ESnowRumbleGiftItemType : uint8
-{
+enum class ESnowRumbleGiftItemType : uint8 {
 	None,
 	HotPack,
 	HotChocolate,

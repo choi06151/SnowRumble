@@ -23,8 +23,7 @@ class UTextBlock;
 class UWidgetSwitcher;
 
 USTRUCT(BlueprintType)
-struct FSnowRumbleKeyBindingViewData
-{
+struct FSnowRumbleKeyBindingViewData {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SnowRumble|UI|Options")
@@ -41,20 +40,13 @@ struct FSnowRumbleKeyBindingViewData
 };
 
 UENUM(BlueprintType)
-enum class ESnowRumbleOptionsCategory : uint8
-{
-	Sensitivity,
-	Audio,
-	KeyBinding,
-	Microphone
-};
+enum class ESnowRumbleOptionsCategory : uint8 { Sensitivity, Audio, KeyBinding, Microphone };
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API UOptionsWidget : public USnowRumbleAudioUserWidget
-{
+class SNOWRUMBLE_API UOptionsWidget : public USnowRumbleAudioUserWidget {
 	GENERATED_BODY()
 
-public:
+	public:
 	UOptionsWidget(const FObjectInitializer& ObjectInitializer);
 
 	/** C++ 소유 메뉴가 옵션 닫기 요청을 받을 때 사용하는 델리게이트다. */
@@ -84,18 +76,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Options")
 	void DiscardPendingOptionChanges();
 
-protected:
+	protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
-	virtual void NativeTick(
-		const FGeometry& MyGeometry,
-		float InDeltaTime) override;
-	virtual FReply NativeOnPreviewKeyDown(
-		const FGeometry& InGeometry,
-		const FKeyEvent& InKeyEvent) override;
-	virtual FReply NativeOnMouseButtonDown(
-		const FGeometry& InGeometry,
-		const FPointerEvent& InMouseEvent) override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+	virtual FReply NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
 	/** 카테고리가 바뀔 때 Blueprint가 버튼 상태와 패널 표현을 갱신할 수 있다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Options")
@@ -119,8 +105,7 @@ protected:
 
 	/** 키 설정 행 목록이 갱신될 때 Blueprint 표현을 보강할 수 있다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Options|Key Binding")
-	void OnKeyBindingRowsRefreshed(
-		const TArray<FSnowRumbleKeyBindingViewData>& Rows);
+	void OnKeyBindingRowsRefreshed(const TArray<FSnowRumbleKeyBindingViewData>& Rows);
 
 	/** 키 변경 버튼이 눌려 다음 키 입력 대기 상태가 됐을 때 호출된다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Options|Key Binding")
@@ -147,11 +132,7 @@ protected:
 
 	/** 마이크 테스트 상태와 현재 입력 레벨을 Blueprint가 표시할 수 있는 이벤트다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Options|Microphone")
-	void OnMicrophoneTestStateChanged(
-		bool bIsTesting,
-		bool bInputDetected,
-		float InputLevel,
-		const FText& StatusText);
+	void OnMicrophoneTestStateChanged(bool bIsTesting, bool bInputDetected, float InputLevel, const FText& StatusText);
 
 	/** 상단 감도 카테고리 버튼이다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options")
@@ -289,7 +270,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Options|Key Binding")
 	TSubclassOf<UOptionsKeyBindingRowWidget> KeyBindingRowWidgetClass;
 
-private:
+	private:
 	UFUNCTION()
 	void HandleSensitivityCategoryButtonClicked();
 
@@ -336,17 +317,13 @@ private:
 	void HandleMicrophoneAlwaysOnButtonClicked();
 
 	UFUNCTION()
-	void HandleMicrophoneDeviceSelectionChanged(
-		FString SelectedItem,
-		ESelectInfo::Type SelectionType);
+	void HandleMicrophoneDeviceSelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType);
 
 	UFUNCTION()
 	void HandleMicrophoneTestButtonClicked();
 
 	UFUNCTION()
-	void HandleLanguageSelectionChanged(
-		FString SelectedItem,
-		ESelectInfo::Type SelectionType);
+	void HandleLanguageSelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType);
 
 	void HandleKeyRowRebindRequested(FName BindingId);
 	void HandleKeyRowResetRequested(FName BindingId);
@@ -386,13 +363,8 @@ private:
 	void StopMicrophoneTest();
 
 	/** 오디오 캡처 콜백에서 입력 레벨을 축적한다. */
-	void HandleMicrophoneCapture(
-		const void* AudioData,
-		int32 NumFrames,
-		int32 NumChannels,
-		int32 SampleRate,
-		double StreamTime,
-		bool bOverFlow);
+	void HandleMicrophoneCapture(const void* AudioData, int32 NumFrames, int32 NumChannels, int32 SampleRate,
+								 double StreamTime, bool bOverFlow);
 
 	/** 테스트 버튼과 상태 텍스트·레벨 표시를 갱신한다. */
 	void RefreshMicrophoneTestDisplay(float InDeltaTime);
@@ -485,8 +457,7 @@ private:
 	/** 입력 캡처 대상으로 쓸 수 있는 키인지 확인한다. */
 	bool IsBindableKey(FKey Key) const;
 
-	ESnowRumbleOptionsCategory CurrentOptionsCategory =
-		ESnowRumbleOptionsCategory::Sensitivity;
+	ESnowRumbleOptionsCategory CurrentOptionsCategory = ESnowRumbleOptionsCategory::Sensitivity;
 
 	UPROPERTY(Transient)
 	TArray<FSnowRumbleKeyBindingViewData> KeyBindingRows;
@@ -505,8 +476,7 @@ private:
 
 	float PendingMicrophoneVolume = 1.0f;
 
-	ESnowRumbleMicrophoneMode PendingMicrophoneMode =
-		ESnowRumbleMicrophoneMode::PushToTalk;
+	ESnowRumbleMicrophoneMode PendingMicrophoneMode = ESnowRumbleMicrophoneMode::PushToTalk;
 
 	FString PendingMicrophoneDeviceId;
 	FString PendingMicrophoneDeviceName;
@@ -548,5 +518,4 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> LanguageComboBoxTextBlocks;
-
 };

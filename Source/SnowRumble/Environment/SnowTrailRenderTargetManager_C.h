@@ -14,8 +14,7 @@ class UMaterialInstanceDynamic;
 class UPrimitiveComponent;
 
 USTRUCT(BlueprintType)
-struct FSnowTrailStampData
-{
+struct FSnowTrailStampData {
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Snow Trail")
@@ -41,18 +40,16 @@ struct FSnowTrailStampData
 };
 
 UCLASS()
-class SNOWRUMBLE_API ASnowTrailRenderTargetManager : public AActor
-{
+class SNOWRUMBLE_API ASnowTrailRenderTargetManager : public AActor {
 	GENERATED_BODY()
 
-public:
+	public:
 	ASnowTrailRenderTargetManager();
 
 	virtual void BeginPlay() override;
 
 	/** 월드에서 사용할 첫 번째 눈길 RenderTarget 매니저를 찾는다. */
-	static ASnowTrailRenderTargetManager* FindSnowTrailManager(
-		const UObject* WorldContextObject);
+	static ASnowTrailRenderTargetManager* FindSnowTrailManager(const UObject* WorldContextObject);
 
 	/** 눈길 마스크 RenderTarget이 없으면 생성하고 반환한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snow Trail")
@@ -72,18 +69,12 @@ public:
 
 	/** 월드 좌표를 눈길 RenderTarget UV로 변환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snow Trail")
-	bool ConvertWorldLocationToTrailUV(
-		FVector WorldLocation,
-		FVector2D& OutTrailUV) const;
+	bool ConvertWorldLocationToTrailUV(FVector WorldLocation, FVector2D& OutTrailUV) const;
 
 	/** 서버에서 복제된 발 위치를 현재 클라이언트의 눈길 RenderTarget stamp로 전달한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snow Trail")
-	bool StampSnowTrailAtWorldLocation(
-		FVector WorldLocation,
-		FVector WorldNormal,
-		float RadiusWorld,
-		FName FootSocketName,
-		ASnowRumbleCharacter* SourceCharacter);
+	bool StampSnowTrailAtWorldLocation(FVector WorldLocation, FVector WorldNormal, float RadiusWorld,
+									   FName FootSocketName, ASnowRumbleCharacter* SourceCharacter);
 
 	/** 현재까지 누적된 눈길 stamp 목록을 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snow Trail")
@@ -97,7 +88,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Snow Trail|Debug")
 	bool ShouldLogSnowTrailDebug() const;
 
-protected:
+	protected:
 	/** 눈길 마스크 RenderTarget을 에디터 지정 없이 런타임에 만들지 여부다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail")
 	bool bAutoCreateRenderTarget = true;
@@ -107,7 +98,8 @@ protected:
 	bool bClearRenderTargetOnBeginPlay = true;
 
 	/** 런타임 생성 RenderTarget 한 변의 픽셀 크기다. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail", meta = (ClampMin = "64", ClampMax = "4096"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail",
+			  meta = (ClampMin = "64", ClampMax = "4096"))
 	int32 RenderTargetSize = 2048;
 
 	/** 눈길 RenderTarget이 덮는 월드 중심 XY 좌표다. */
@@ -127,11 +119,13 @@ protected:
 	bool bInterpolateTrailBetweenStamps = true;
 
 	/** 보간 stamp 사이의 목표 간격(cm)이다. 작을수록 촘촘하지만 비용이 늘어난다. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Interpolation", meta = (ClampMin = "1.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Interpolation",
+			  meta = (ClampMin = "1.0"))
 	float InterpolatedStampSpacingWorld = 42.0f;
 
 	/** 이전 stamp와 현재 stamp 거리가 이 값보다 크면 순간이동으로 보고 연결하지 않는다. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Interpolation", meta = (ClampMin = "1.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snow Trail|Interpolation",
+			  meta = (ClampMin = "1.0"))
 	float MaxInterpolatedStampDistanceWorld = 220.0f;
 
 	/** RenderTarget 갱신 중 C++가 stamp material을 직접 그릴지 정한다. */
@@ -224,40 +218,23 @@ protected:
 
 	/** Blueprint가 stamp 요청 시 지형 머티리얼 파라미터 갱신 같은 부가 작업을 수행한다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Snow Trail")
-	void OnSnowTrailStampRequested(
-		UCanvasRenderTarget2D* TargetRenderTarget,
-		FVector WorldLocation,
-		FVector WorldNormal,
-		FVector2D TrailUV,
-		float RadiusWorld,
-		float RadiusPixels,
-		FName FootSocketName,
-		ASnowRumbleCharacter* SourceCharacter);
+	void OnSnowTrailStampRequested(UCanvasRenderTarget2D* TargetRenderTarget, FVector WorldLocation,
+								   FVector WorldNormal, FVector2D TrailUV, float RadiusWorld, float RadiusPixels,
+								   FName FootSocketName, ASnowRumbleCharacter* SourceCharacter);
 
 	/** BeginPlay 이후 지형 머티리얼 인스턴스에 RenderTarget과 월드 범위 파라미터를 다시 연결한다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Snow Trail")
-	void OnSnowTrailRenderTargetReady(
-		UCanvasRenderTarget2D* TargetRenderTarget,
-		FVector2D WorldCenter,
-		float WorldSize);
+	void OnSnowTrailRenderTargetReady(UCanvasRenderTarget2D* TargetRenderTarget, FVector2D WorldCenter,
+									  float WorldSize);
 
 	/** RenderTarget 갱신 중 누적 stamp 하나를 Canvas에 그린다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Snow Trail")
-	void OnDrawSnowTrailStamp(
-		UCanvas* Canvas,
-		int32 Width,
-		int32 Height,
-		const FSnowTrailStampData& StampData);
+	void OnDrawSnowTrailStamp(UCanvas* Canvas, int32 Width, int32 Height, const FSnowTrailStampData& StampData);
 
-private:
+	private:
 	/** 실제 stamp 하나를 누적 배열에 추가한다. */
-	bool AddSnowTrailStamp(
-		FVector WorldLocation,
-		FVector WorldNormal,
-		float RadiusWorld,
-		FName FootSocketName,
-		ASnowRumbleCharacter* SourceCharacter,
-		FSnowTrailStampData& OutStampData);
+	bool AddSnowTrailStamp(FVector WorldLocation, FVector WorldNormal, float RadiusWorld, FName FootSocketName,
+						   ASnowRumbleCharacter* SourceCharacter, FSnowTrailStampData& OutStampData);
 
 	/** 게임 시작 시 RenderTarget을 런타임 상태에 맞게 준비한다. */
 	void InitializeSnowTrailRenderTargetForPlay();
@@ -266,29 +243,20 @@ private:
 	bool UpdateTrailWorldAreaFromMaterialBounds();
 
 	/** 자동 범위 계산에 사용할 컴포넌트 Bounds를 누적한다. */
-	bool AccumulateTrailMaterialComponentBounds(
-		UPrimitiveComponent* TargetComponent,
-		FBox& InOutBounds) const;
+	bool AccumulateTrailMaterialComponentBounds(UPrimitiveComponent* TargetComponent, FBox& InOutBounds) const;
 
 	/** 에디터 지정 또는 런타임 생성 RenderTarget에 Canvas 갱신 콜백을 연결한다. */
 	void BindSnowTrailRenderTargetUpdate();
 
 	/** 지정한 지형/메쉬 머티리얼에 RenderTarget, 중심, 크기 파라미터를 반영한다. */
-	void ApplySnowTrailMaterialParameters(
-		UCanvasRenderTarget2D* TargetRenderTarget);
+	void ApplySnowTrailMaterialParameters(UCanvasRenderTarget2D* TargetRenderTarget);
 
 	UFUNCTION()
-	void HandleSnowTrailCanvasUpdate(
-		UCanvas* Canvas,
-		int32 Width,
-		int32 Height);
+	void HandleSnowTrailCanvasUpdate(UCanvas* Canvas, int32 Width, int32 Height);
 
 	/** C++ 기본 경로로 stamp material을 Canvas에 그린다. */
-	void DrawSnowTrailStampInCpp(
-		UCanvas* Canvas,
-		int32 Width,
-		int32 Height,
-		const FSnowTrailStampData& StampData) const;
+	void DrawSnowTrailStampInCpp(UCanvas* Canvas, int32 Width, int32 Height,
+								 const FSnowTrailStampData& StampData) const;
 
 	TMap<TWeakObjectPtr<ASnowRumbleCharacter>, FVector> LastStampLocationByCharacter;
 

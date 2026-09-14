@@ -14,11 +14,10 @@ class ASnowRumbleCharacter;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGiftItemEffectsChanged);
 
 UCLASS(ClassGroup = (SnowRumble), meta = (BlueprintSpawnableComponent))
-class SNOWRUMBLE_API UGiftItemEffectComponent : public UActorComponent
-{
+class SNOWRUMBLE_API UGiftItemEffectComponent : public UActorComponent {
 	GENERATED_BODY()
 
-public:
+	public:
 	UGiftItemEffectComponent();
 
 	/** 서버가 선물상자 아이템 획득 결과를 실제 플레이어 효과로 적용한다. */
@@ -82,9 +81,8 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "SnowRumble|Item|Effect")
 	FOnGiftItemEffectsChanged OnGiftItemEffectsChanged;
 
-protected:
-	virtual void GetLifetimeReplicatedProps(
-		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	protected:
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UFUNCTION()
 	void OnRep_ItemEffects();
@@ -116,28 +114,35 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Heal", meta = (ClampMin = "0.0"))
 	float InstantHealAmount = 35.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Energy Drink", meta = (ClampMin = "0.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Energy Drink",
+			  meta = (ClampMin = "0.0"))
 	float EnergyDrinkInvulnerabilitySeconds = 5.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Boots", meta = (ClampMin = "1.0"))
 	float BootsMovementSpeedMultiplier = 1.1f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Padding", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Padding",
+			  meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float PaddingIncomingDamageMultiplier = 0.9f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Gloves", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Gloves",
+			  meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float GlovesCreationDurationMultiplier = 0.85f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Duck Maker", meta = (ClampMin = "1.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Duck Maker",
+			  meta = (ClampMin = "1.0"))
 	float SnowDuckMakerDamageMultiplier = 1.1f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Duck Maker", meta = (ClampMin = "1.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Duck Maker",
+			  meta = (ClampMin = "1.0"))
 	float GoldenSnowDuckMakerDamageMultiplier = 1.25f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Golden Fish Bread", meta = (ClampMin = "0.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Golden Fish Bread",
+			  meta = (ClampMin = "0.0"))
 	float GoldenFishBreadHealPerSecond = 10.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Golden Fish Bread", meta = (ClampMin = "0.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Golden Fish Bread",
+			  meta = (ClampMin = "0.0"))
 	float GoldenFishBreadDurationSeconds = 30.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Shovel", meta = (ClampMin = "0"))
@@ -152,40 +157,52 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Campfire")
 	TSubclassOf<ACampfire> CampfireClass;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Campfire", meta = (ClampMin = "0.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Campfire",
+			  meta = (ClampMin = "0.0"))
 	float CampfireSpawnForwardDistance = 150.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Campfire", meta = (ClampMin = "0.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Effect|Campfire",
+			  meta = (ClampMin = "0.0"))
 	float CampfireSpawnGroundTraceDistance = 500.0f;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemEffects, Category = "SnowRumble|Item|Effect")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemEffects,
+			  Category = "SnowRumble|Item|Effect")
 	bool bHasBoots = false;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemEffects, Category = "SnowRumble|Item|Effect")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemEffects,
+			  Category = "SnowRumble|Item|Effect")
 	bool bHasPadding = false;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemEffects, Category = "SnowRumble|Item|Effect")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemEffects,
+			  Category = "SnowRumble|Item|Effect")
 	bool bHasGloves = false;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemEffects, Category = "SnowRumble|Item|Effect")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemEffects,
+			  Category = "SnowRumble|Item|Effect")
 	bool bHasSnowDuckMaker = false;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemEffects, Category = "SnowRumble|Item|Effect")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemEffects,
+			  Category = "SnowRumble|Item|Effect")
 	bool bHasGoldenSnowDuckMaker = false;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemEffects, Category = "SnowRumble|Item|Effect")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemEffects,
+			  Category = "SnowRumble|Item|Effect")
 	bool bInvulnerable = false;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemEffects, Category = "SnowRumble|Item|Effect")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemEffects,
+			  Category = "SnowRumble|Item|Effect")
 	bool bHasHotPack = false;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemEffects, Category = "SnowRumble|Item|Effect")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemEffects,
+			  Category = "SnowRumble|Item|Effect")
 	bool bHasGoldenHotPack = false;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemEffects, Category = "SnowRumble|Item|Effect")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemEffects,
+			  Category = "SnowRumble|Item|Effect")
 	int32 SnowShovelDurability = 0;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemEffects, Category = "SnowRumble|Item|Effect")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_ItemEffects,
+			  Category = "SnowRumble|Item|Effect")
 	ESnowRumbleGiftItemType EquippedShovelType = ESnowRumbleGiftItemType::None;
 
 	FTimerHandle InvulnerabilityTimerHandle;

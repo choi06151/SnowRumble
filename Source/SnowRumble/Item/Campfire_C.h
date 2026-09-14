@@ -12,11 +12,10 @@ class USphereComponent;
 class UStaticMeshComponent;
 
 UCLASS(Blueprintable)
-class SNOWRUMBLE_API ACampfire : public AActor
-{
+class SNOWRUMBLE_API ACampfire : public AActor {
 	GENERATED_BODY()
 
-public:
+	public:
 	ACampfire();
 
 	/** 서버가 설치자를 기록하고 모닥불 수명을 시작한다. */
@@ -26,17 +25,13 @@ public:
 	void ExtinguishFromWater();
 
 	/** 눈덩이 등 공격을 받으면 서버가 모닥불 내구도를 감소시킨다. */
-	virtual float TakeDamage(
-		float DamageAmount,
-		FDamageEvent const& DamageEvent,
-		AController* EventInstigator,
-		AActor* DamageCauser) override;
+	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
+							 AActor* DamageCauser) override;
 
-protected:
+	protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
-	virtual void GetLifetimeReplicatedProps(
-		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	/** 서버 상태 변화에 맞춰 Blueprint가 불꽃 크기와 꺼짐 표현을 연결한다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Item|Campfire")
@@ -75,7 +70,8 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Campfire", meta = (ClampMin = "1"))
 	int32 MaximumHitPoints = 2;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_RemainingHitPoints, Category = "SnowRumble|Item|Campfire")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_RemainingHitPoints,
+			  Category = "SnowRumble|Item|Campfire")
 	int32 RemainingHitPoints = 2;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "SnowRumble|Item|Campfire")

@@ -13,20 +13,16 @@ class USphereComponent;
 class UStaticMeshComponent;
 
 UCLASS(Blueprintable)
-class SNOWRUMBLE_API AGiftBoxItemPickup : public AActor
-{
+class SNOWRUMBLE_API AGiftBoxItemPickup : public AActor {
 	GENERATED_BODY()
 
-public:
+	public:
 	AGiftBoxItemPickup();
 
 	virtual void Tick(float DeltaSeconds) override;
 
 	/** 서버가 선물상자에서 나온 아이템 정보를 초기화한다. */
-	void InitializePickupFromServer(
-		ESnowRumbleGiftItemType NewItemType,
-		FName NewItemId,
-		const FText& NewDisplayName);
+	void InitializePickupFromServer(ESnowRumbleGiftItemType NewItemType, FName NewItemId, const FText& NewDisplayName);
 
 	/** 캐릭터가 현재 아이템을 획득할 수 있는지 로컬 후보 탐색과 서버 검증에서 확인한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Item|Pickup")
@@ -47,10 +43,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Item|Pickup")
 	ESnowRumbleGiftItemType GetItemType() const;
 
-protected:
+	protected:
 	virtual void BeginPlay() override;
-	virtual void GetLifetimeReplicatedProps(
-		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UFUNCTION()
 	void OnRep_ItemData();
@@ -60,10 +55,7 @@ protected:
 
 	/** 아이템 정보가 정해졌을 때 Blueprint가 모델·색·텍스트를 연결한다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Item|Pickup")
-	void OnItemDataChanged(
-		ESnowRumbleGiftItemType NewItemType,
-		FName NewItemId,
-		const FText& NewDisplayName);
+	void OnItemDataChanged(ESnowRumbleGiftItemType NewItemType, FName NewItemId, const FText& NewDisplayName);
 
 	/** 서버가 획득을 확정했을 때 Blueprint가 획득 연출을 연결한다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Item|Pickup")
@@ -107,7 +99,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Pickup|Float", meta = (ClampMin = "0.0"))
 	float FloatSpeed = 5.0f;
 
-private:
+	private:
 	void InitializePlacedPickupFromDefaults();
 	FText GetFallbackDisplayNameForItemType() const;
 	void NotifyPickedUp(ASnowRumbleCharacter* Character) const;

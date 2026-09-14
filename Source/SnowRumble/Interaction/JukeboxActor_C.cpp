@@ -17,8 +17,7 @@
 #include "Sound/SoundBase.h"
 #include "TimerManager.h"
 
-AJukeboxActor::AJukeboxActor()
-{
+AJukeboxActor::AJukeboxActor() {
 	PrimaryActorTick.bCanEverTick = true;
 	bReplicates = true;
 
@@ -41,103 +40,76 @@ AJukeboxActor::AJukeboxActor()
 	JukeboxNiagaraComponent->SetAutoActivate(false);
 }
 
-void AJukeboxActor::BeginPlay()
-{
+void AJukeboxActor::BeginPlay() {
 	Super::BeginPlay();
 	SetReplicateMovement(false);
-	JukeboxMeshBaseRelativeLocation = JukeboxMeshComponent
-		? JukeboxMeshComponent->GetRelativeLocation()
-		: FVector::ZeroVector;
+	JukeboxMeshBaseRelativeLocation =
+		JukeboxMeshComponent ? JukeboxMeshComponent->GetRelativeLocation() : FVector::ZeroVector;
 	RefreshPlaybackPresentation();
 
-	for (ASpotLight* Spotlight : JukeboxSpotlights)
-	{
-		if (Spotlight && Spotlight->GetLightComponent())
-		{
+	for (ASpotLight* Spotlight : JukeboxSpotlights) {
+		if (Spotlight && Spotlight->GetLightComponent()) {
 			Spotlight->GetLightComponent()->SetVisibility(false);
 		}
 	}
 }
 
-bool AJukeboxActor::IsJukeboxMeshComponent(const UPrimitiveComponent* Component) const
-{
+bool AJukeboxActor::IsJukeboxMeshComponent(const UPrimitiveComponent* Component) const {
 	return Component && Component == JukeboxMeshComponent;
 }
 
-void AJukeboxActor::Tick(float DeltaSeconds)
-{
+void AJukeboxActor::Tick(float DeltaSeconds) {
 	Super::Tick(DeltaSeconds);
 
-	if (!JukeboxMeshComponent)
-	{
+	if (!JukeboxMeshComponent) {
 		return;
 	}
 
-	if (bIsPlaying && BounceAmplitude > 0.0f && BounceFrequency > 0.0f)
-	{
+	if (bIsPlaying && BounceAmplitude > 0.0f && BounceFrequency > 0.0f) {
 		BounceTime += DeltaSeconds * BounceFrequency * UE_TWO_PI;
-		JukeboxMeshComponent->SetRelativeLocation(
-			JukeboxMeshBaseRelativeLocation
-			+ FVector(0.0f, 0.0f, FMath::Sin(BounceTime) * BounceAmplitude));
-	}
-	else
-	{
+		JukeboxMeshComponent->SetRelativeLocation(JukeboxMeshBaseRelativeLocation +
+												  FVector(0.0f, 0.0f, FMath::Sin(BounceTime) * BounceAmplitude));
+	} else {
 		BounceTime = 0.0f;
 		JukeboxMeshComponent->SetRelativeLocation(JukeboxMeshBaseRelativeLocation);
 	}
 }
 
-void AJukeboxActor::OnRep_IsPlaying()
-{
+void AJukeboxActor::OnRep_IsPlaying() {
 	RefreshPlaybackPresentation();
 }
 
-void AJukeboxActor::RefreshPlaybackPresentation()
-{
-	if (!JukeboxNiagaraComponent)
-	{
+void AJukeboxActor::RefreshPlaybackPresentation() {
+	if (!JukeboxNiagaraComponent) {
 		return;
 	}
 
-	if (bIsPlaying)
-	{
+	if (bIsPlaying) {
 		JukeboxNiagaraComponent->Activate(true);
-	}
-	else
-	{
+	} else {
 		JukeboxNiagaraComponent->Deactivate();
 	}
 }
 
-bool AJukeboxActor::CanInteractWith(const ASnowRumbleCharacter* Character) const
-{
-	if (!IsValid(Character)
-		|| (!bIsPlaying && JukeboxSounds.IsEmpty())
-		|| InteractionRadius <= 0.0f)
-	{
+bool AJukeboxActor::CanInteractWith(const ASnowRumbleCharacter* Character) const {
+	if (!IsValid(Character) || (!bIsPlaying && JukeboxSounds.IsEmpty()) || InteractionRadius <= 0.0f) {
 		return false;
 	}
 
-	return FVector::DistSquared2D(GetActorLocation(), Character->GetActorLocation())
-		<= FMath::Square(InteractionRadius);
+	return FVector::DistSquared2D(GetActorLocation(), Character->GetActorLocation()) <=
+		   FMath::Square(InteractionRadius);
 }
 
-void AJukeboxActor::Interact(ASnowRumbleCharacter* Character)
-{
-	if (!HasAuthority() || !CanInteractWith(Character))
-	{
+void AJukeboxActor::Interact(ASnowRumbleCharacter* Character) {
+	if (!HasAuthority() || !CanInteractWith(Character)) {
 		return;
 	}
 
-	if (bIsPlaying)
-	{
-		if (OptedOutCharacters.Contains(Character))
-		{
+	if (bIsPlaying) {
+		if (OptedOutCharacters.Contains(Character)) {
 			OptedOutCharacters.Remove(Character);
 			ApplyJumpPulse();
-		}
-		else
-		{
+		} else {
 			OptedOutCharacters.Add(Character);
 		}
 
@@ -146,23 +118,19 @@ void AJukeboxActor::Interact(ASnowRumbleCharacter* Character)
 	}
 
 	TArray<int32> ValidSoundIndices;
-	for (int32 SoundIndex = 0; SoundIndex < JukeboxSounds.Num(); ++SoundIndex)
-	{
-		if (JukeboxSounds[SoundIndex])
-		{
+	for (int32 SoundIndex = 0; SoundIndex < JukeboxSounds.Num(); ++SoundIndex) {
+		if (JukeboxSounds[SoundIndex]) {
 			ValidSoundIndices.Add(SoundIndex);
 		}
 	}
-	if (ValidSoundIndices.IsEmpty())
-	{
+	if (ValidSoundIndices.IsEmpty()) {
 		return;
 	}
 
 	ActiveSoundIndex = ValidSoundIndices[FMath::RandRange(0, ValidSoundIndices.Num() - 1)];
 	USoundBase* ActiveSound = JukeboxSounds[ActiveSoundIndex];
 	const float SoundDuration = ActiveSound->GetDuration();
-	if (SoundDuration <= 0.0f)
-	{
+	if (SoundDuration <= 0.0f) {
 		return;
 	}
 
@@ -172,65 +140,38 @@ void AJukeboxActor::Interact(ASnowRumbleCharacter* Character)
 	OnJukeboxStarted(Character);
 	MulticastPlayJukeboxSound(ActiveSoundIndex);
 	CycleSpotlight();
-	GetWorldTimerManager().SetTimer(
-		SpotlightTimerHandle,
-		this,
-		&AJukeboxActor::CycleSpotlight,
-		FMath::Max(0.05f, SpotlightChangeInterval),
-		true,
-		FMath::Max(0.05f, SpotlightChangeInterval));
+	GetWorldTimerManager().SetTimer(SpotlightTimerHandle, this, &AJukeboxActor::CycleSpotlight,
+									FMath::Max(0.05f, SpotlightChangeInterval), true,
+									FMath::Max(0.05f, SpotlightChangeInterval));
 
 	ApplyJumpPulse();
-	GetWorldTimerManager().SetTimer(
-		JumpTimerHandle,
-		this,
-		&AJukeboxActor::ApplyJumpPulse,
-		FMath::Max(0.05f, JumpInterval),
-		true,
-		FMath::Max(0.05f, JumpInterval));
-	GetWorldTimerManager().SetTimer(
-		PlaybackTimerHandle,
-		this,
-		&AJukeboxActor::FinishPlayback,
-		SoundDuration,
-		false);
+	GetWorldTimerManager().SetTimer(JumpTimerHandle, this, &AJukeboxActor::ApplyJumpPulse,
+									FMath::Max(0.05f, JumpInterval), true, FMath::Max(0.05f, JumpInterval));
+	GetWorldTimerManager().SetTimer(PlaybackTimerHandle, this, &AJukeboxActor::FinishPlayback, SoundDuration, false);
 }
 
-float AJukeboxActor::GetInteractionRadius() const
-{
+float AJukeboxActor::GetInteractionRadius() const {
 	return InteractionRadius;
 }
 
-bool AJukeboxActor::IsPlaying() const
-{
+bool AJukeboxActor::IsPlaying() const {
 	return bIsPlaying;
 }
 
-bool AJukeboxActor::IsCharacterParticipating(
-	const ASnowRumbleCharacter* Character) const
-{
-	return bIsPlaying
-		&& IsValid(Character)
-		&& !OptedOutCharacters.Contains(Character);
+bool AJukeboxActor::IsCharacterParticipating(const ASnowRumbleCharacter* Character) const {
+	return bIsPlaying && IsValid(Character) && !OptedOutCharacters.Contains(Character);
 }
 
-void AJukeboxActor::ApplyJumpPulse()
-{
-	if (!HasAuthority() || !bIsPlaying || !JumpBoxComponent)
-	{
+void AJukeboxActor::ApplyJumpPulse() {
+	if (!HasAuthority() || !bIsPlaying || !JumpBoxComponent) {
 		return;
 	}
 
 	TArray<AActor*> OverlappingActors;
 	JumpBoxComponent->GetOverlappingActors(OverlappingActors, ASnowRumbleCharacter::StaticClass());
-	for (AActor* OverlappingActor : OverlappingActors)
-	{
+	for (AActor* OverlappingActor : OverlappingActors) {
 		ASnowRumbleCharacter* Character = Cast<ASnowRumbleCharacter>(OverlappingActor);
-		if (!Character
-			|| !IsCharacterParticipating(Character)
-			|| Character->IsDead()
-			|| Character->IsFrozen())
-		{
+		if (!Character || !IsCharacterParticipating(Character) || Character->IsDead() || Character->IsFrozen()) {
 			continue;
 		}
 
@@ -238,10 +179,8 @@ void AJukeboxActor::ApplyJumpPulse()
 	}
 }
 
-void AJukeboxActor::FinishPlayback()
-{
-	if (!HasAuthority())
-	{
+void AJukeboxActor::FinishPlayback() {
+	if (!HasAuthority()) {
 		return;
 	}
 
@@ -251,10 +190,8 @@ void AJukeboxActor::FinishPlayback()
 	OptedOutCharacters.Reset();
 	RefreshPlaybackPresentation();
 	ActiveSoundIndex = INDEX_NONE;
-	for (ASpotLight* Spotlight : JukeboxSpotlights)
-	{
-		if (Spotlight && Spotlight->GetLightComponent())
-		{
+	for (ASpotLight* Spotlight : JukeboxSpotlights) {
+		if (Spotlight && Spotlight->GetLightComponent()) {
 			Spotlight->GetLightComponent()->SetVisibility(false);
 		}
 	}
@@ -263,53 +200,36 @@ void AJukeboxActor::FinishPlayback()
 	OnJukeboxFinished();
 }
 
-void AJukeboxActor::CycleSpotlight()
-{
-	if (!HasAuthority() || !bIsPlaying || JukeboxSpotlights.IsEmpty())
-	{
+void AJukeboxActor::CycleSpotlight() {
+	if (!HasAuthority() || !bIsPlaying || JukeboxSpotlights.IsEmpty()) {
 		return;
 	}
 
 	int32 NewSpotlightIndex = FMath::RandRange(0, JukeboxSpotlights.Num() - 1);
-	if (JukeboxSpotlights.Num() > 1 && NewSpotlightIndex == ActiveSpotlightIndex)
-	{
+	if (JukeboxSpotlights.Num() > 1 && NewSpotlightIndex == ActiveSpotlightIndex) {
 		NewSpotlightIndex = (NewSpotlightIndex + 1) % JukeboxSpotlights.Num();
 	}
 
 	const FLinearColor NewLightColor = SpotlightColors.IsEmpty()
-		? FLinearColor::MakeRandomColor()
-		: SpotlightColors[FMath::RandRange(0, SpotlightColors.Num() - 1)];
+										   ? FLinearColor::MakeRandomColor()
+										   : SpotlightColors[FMath::RandRange(0, SpotlightColors.Num() - 1)];
 	ActiveSpotlightIndex = NewSpotlightIndex;
 	MulticastSetActiveSpotlight(NewSpotlightIndex, NewLightColor);
 }
 
-void AJukeboxActor::MulticastPlayJukeboxSound_Implementation(int32 SoundIndex)
-{
-	if (!JukeboxSounds.IsValidIndex(SoundIndex) || !JukeboxSounds[SoundIndex])
-	{
+void AJukeboxActor::MulticastPlayJukeboxSound_Implementation(int32 SoundIndex) {
+	if (!JukeboxSounds.IsValidIndex(SoundIndex) || !JukeboxSounds[SoundIndex]) {
 		return;
 	}
 
-	SnowRumbleAudio::PlaySoundAtLocation(
-		this,
-		JukeboxSounds[SoundIndex],
-		ESnowRumbleAudioMixChannel::Gameplay,
-		GetActorLocation(),
-		1.0f,
-		1.0f,
-		JukeboxSoundAttenuation);
+	SnowRumbleAudio::PlaySoundAtLocation(this, JukeboxSounds[SoundIndex], ESnowRumbleAudioMixChannel::Gameplay,
+										 GetActorLocation(), 1.0f, 1.0f, JukeboxSoundAttenuation);
 }
 
-void AJukeboxActor::MulticastSetActiveSpotlight_Implementation(
-	int32 SpotlightIndex,
-	FLinearColor LightColor)
-{
-	for (int32 Index = 0; Index < JukeboxSpotlights.Num(); ++Index)
-	{
-		if (ASpotLight* Spotlight = JukeboxSpotlights[Index])
-		{
-			if (Spotlight->GetLightComponent())
-			{
+void AJukeboxActor::MulticastSetActiveSpotlight_Implementation(int32 SpotlightIndex, FLinearColor LightColor) {
+	for (int32 Index = 0; Index < JukeboxSpotlights.Num(); ++Index) {
+		if (ASpotLight* Spotlight = JukeboxSpotlights[Index]) {
+			if (Spotlight->GetLightComponent()) {
 				Spotlight->GetLightComponent()->SetLightColor(LightColor);
 				Spotlight->GetLightComponent()->SetVisibility(Index == SpotlightIndex);
 			}
@@ -317,9 +237,7 @@ void AJukeboxActor::MulticastSetActiveSpotlight_Implementation(
 	}
 }
 
-void AJukeboxActor::GetLifetimeReplicatedProps(
-	TArray<FLifetimeProperty>& OutLifetimeProps) const
-{
+void AJukeboxActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AJukeboxActor, bIsPlaying);
 	DOREPLIFETIME(AJukeboxActor, OptedOutCharacters);

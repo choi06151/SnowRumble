@@ -13,17 +13,16 @@ class USoundAttenuation;
 class USoundBase;
 
 UCLASS(Blueprintable)
-class SNOWRUMBLE_API ASnowmanFallingGrabbableSpawner : public AActor
-{
+class SNOWRUMBLE_API ASnowmanFallingGrabbableSpawner : public AActor {
 	GENERATED_BODY()
 
-public:
+	public:
 	ASnowmanFallingGrabbableSpawner();
 
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-protected:
+	protected:
 	/** 눈사람 모드에서 낙하시킬 Static Mesh 후보 목록이다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowman|Falling Grab")
 	TArray<TObjectPtr<UStaticMesh>> CandidateStaticMeshes;
@@ -49,11 +48,13 @@ protected:
 	float DropHeightOffset = 1200.0f;
 
 	/** 변환 물체에 적용할 플레이어 밀침 힘이다. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowman|Falling Grab|Interaction", meta = (ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowman|Falling Grab|Interaction",
+			  meta = (ClampMin = "0.0"))
 	float PlayerPushStrength = 3000.0f;
 
 	/** 이 횟수만큼 눈덩이 피격·플레이어 밀침이 누적되면 물체를 제거한다. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowman|Falling Grab|Interaction", meta = (ClampMin = "1"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowman|Falling Grab|Interaction",
+			  meta = (ClampMin = "1"))
 	int32 InteractionsToBreak = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Snowman|Falling Grab|Interaction")

@@ -10,19 +10,13 @@
 DECLARE_MULTICAST_DELEGATE(FSnowRumbleUserSettingsChanged);
 
 UENUM(BlueprintType)
-enum class ESnowRumbleMicrophoneMode : uint8
-{
-	PushToTalk,
-	AlwaysOn
-};
+enum class ESnowRumbleMicrophoneMode : uint8 { PushToTalk, AlwaysOn };
 
 UCLASS(Config = GameUserSettings)
-class SNOWRUMBLE_API USnowRumbleUserSettingsSubsystem
-	: public UGameInstanceSubsystem
-{
+class SNOWRUMBLE_API USnowRumbleUserSettingsSubsystem : public UGameInstanceSubsystem {
 	GENERATED_BODY()
 
-public:
+	public:
 	FSnowRumbleUserSettingsChanged OnKeyBindingsChanged;
 	FSnowRumbleUserSettingsChanged OnMicrophoneSettingsChanged;
 
@@ -137,7 +131,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|User Settings|Language")
 	FString GetLanguageCulture() const;
 
-private:
+	private:
 	void ApplyLanguageCulture(const FString& Culture);
 	void AddSnowRumbleLocalizationPath(TArray<FString>& LocalizationPaths);
 	static void LogLanguageProbe(const FString& Culture);
@@ -164,8 +158,7 @@ private:
 	float MicrophoneVolume = DefaultMicrophoneVolume;
 
 	UPROPERTY(Config)
-	ESnowRumbleMicrophoneMode MicrophoneMode =
-		ESnowRumbleMicrophoneMode::PushToTalk;
+	ESnowRumbleMicrophoneMode MicrophoneMode = ESnowRumbleMicrophoneMode::PushToTalk;
 
 	UPROPERTY(Config)
 	FString MicrophoneDeviceId;
@@ -181,6 +174,5 @@ private:
 	static constexpr float MaxMicrophoneVolume = 2.0f;
 	static constexpr float DefaultVoiceVolume = 1.5f;
 	static constexpr float DefaultMicrophoneVolume = 1.5f;
-	static constexpr ESnowRumbleMicrophoneMode DefaultMicrophoneMode =
-		ESnowRumbleMicrophoneMode::PushToTalk;
+	static constexpr ESnowRumbleMicrophoneMode DefaultMicrophoneMode = ESnowRumbleMicrophoneMode::PushToTalk;
 };

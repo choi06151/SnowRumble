@@ -2,11 +2,8 @@
 
 #include "SnowRumbleMatchSubsystem_C.h"
 
-void USnowRumbleMatchSubsystem::BeginPvPMatch(
-	int32 InRoundLimit,
-	ESnowRumbleGameSpeed InGameSpeed,
-	const TArray<FString>& InPvPLevelPaths)
-{
+void USnowRumbleMatchSubsystem::BeginPvPMatch(int32 InRoundLimit, ESnowRumbleGameSpeed InGameSpeed,
+											  const TArray<FString>& InPvPLevelPaths) {
 	bPvPMatchActive = true;
 	bMatchComplete = false;
 	bTiebreakerActive = false;
@@ -18,17 +15,14 @@ void USnowRumbleMatchSubsystem::BeginPvPMatch(
 	PvPLevelPaths.Empty();
 	LastSelectedPvPLevelPath.Empty();
 
-	for (const FString& LevelPath : InPvPLevelPaths)
-	{
-		if (!LevelPath.IsEmpty())
-		{
+	for (const FString& LevelPath : InPvPLevelPaths) {
+		if (!LevelPath.IsEmpty()) {
 			PvPLevelPaths.AddUnique(LevelPath);
 		}
 	}
 }
 
-void USnowRumbleMatchSubsystem::ResetPvPMatch()
-{
+void USnowRumbleMatchSubsystem::ResetPvPMatch() {
 	bPvPMatchActive = false;
 	bMatchComplete = false;
 	bTiebreakerActive = false;
@@ -41,41 +35,31 @@ void USnowRumbleMatchSubsystem::ResetPvPMatch()
 	TeamRoundWins.Empty();
 }
 
-FString USnowRumbleMatchSubsystem::SelectNextPvPLevelPath(
-	const FString& FallbackLevelPath)
-{
+FString USnowRumbleMatchSubsystem::SelectNextPvPLevelPath(const FString& FallbackLevelPath) {
 	TArray<FString> CandidateLevelPaths = PvPLevelPaths;
-	if (CandidateLevelPaths.IsEmpty() && !FallbackLevelPath.IsEmpty())
-	{
+	if (CandidateLevelPaths.IsEmpty() && !FallbackLevelPath.IsEmpty()) {
 		CandidateLevelPaths.Add(FallbackLevelPath);
 	}
-	if (CandidateLevelPaths.IsEmpty())
-	{
+	if (CandidateLevelPaths.IsEmpty()) {
 		return FString();
 	}
 
-	if (CandidateLevelPaths.Num() > 1)
-	{
+	if (CandidateLevelPaths.Num() > 1) {
 		CandidateLevelPaths.Remove(LastSelectedPvPLevelPath);
 	}
 
-	const FString SelectedLevelPath = CandidateLevelPaths[
-		FMath::RandRange(0, CandidateLevelPaths.Num() - 1)];
+	const FString SelectedLevelPath = CandidateLevelPaths[FMath::RandRange(0, CandidateLevelPaths.Num() - 1)];
 	LastSelectedPvPLevelPath = SelectedLevelPath;
 	return SelectedLevelPath;
 }
 
-bool USnowRumbleMatchSubsystem::RecordRoundWin(ESnowRumbleTeam WinningTeam)
-{
-	if (!bPvPMatchActive || !IsValidTeam(WinningTeam))
-	{
+bool USnowRumbleMatchSubsystem::RecordRoundWin(ESnowRumbleTeam WinningTeam) {
+	if (!bPvPMatchActive || !IsValidTeam(WinningTeam)) {
 		return bMatchComplete;
 	}
 
-	if (bTiebreakerActive)
-	{
-		if (!TiebreakerTeams.Contains(WinningTeam))
-		{
+	if (bTiebreakerActive) {
+		if (!TiebreakerTeams.Contains(WinningTeam)) {
 			return bMatchComplete;
 		}
 
@@ -87,33 +71,28 @@ bool USnowRumbleMatchSubsystem::RecordRoundWin(ESnowRumbleTeam WinningTeam)
 		return bMatchComplete;
 	}
 
-	if (bMatchComplete)
-	{
+	if (bMatchComplete) {
 		return bMatchComplete;
 	}
 
 	int32& RoundWins = TeamRoundWins.FindOrAdd(WinningTeam);
 	++RoundWins;
 
-	if (CurrentRoundNumber >= RoundLimit)
-	{
+	if (CurrentRoundNumber >= RoundLimit) {
 		bMatchComplete = true;
 	}
 
 	return bMatchComplete;
 }
 
-bool USnowRumbleMatchSubsystem::StartTiebreakerForLeadingTie()
-{
-	if (!bPvPMatchActive || !bMatchComplete || bTiebreakerActive)
-	{
+bool USnowRumbleMatchSubsystem::StartTiebreakerForLeadingTie() {
+	if (!bPvPMatchActive || !bMatchComplete || bTiebreakerActive) {
 		return false;
 	}
 
 	TArray<ESnowRumbleTeam> LeadingTiedTeams;
 	GetLeadingTiedTeams(LeadingTiedTeams);
-	if (LeadingTiedTeams.Num() < 2)
-	{
+	if (LeadingTiedTeams.Num() < 2) {
 		return false;
 	}
 
@@ -124,44 +103,32 @@ bool USnowRumbleMatchSubsystem::StartTiebreakerForLeadingTie()
 	return true;
 }
 
-void USnowRumbleMatchSubsystem::AdvanceToNextRound()
-{
-	if (!bPvPMatchActive || bMatchComplete)
-	{
+void USnowRumbleMatchSubsystem::AdvanceToNextRound() {
+	if (!bPvPMatchActive || bMatchComplete) {
 		return;
 	}
 
-	CurrentRoundNumber = FMath::Clamp(
-		CurrentRoundNumber + 1,
-		1,
-		RoundLimit);
+	CurrentRoundNumber = FMath::Clamp(CurrentRoundNumber + 1, 1, RoundLimit);
 }
 
-bool USnowRumbleMatchSubsystem::IsPvPMatchActive() const
-{
+bool USnowRumbleMatchSubsystem::IsPvPMatchActive() const {
 	return bPvPMatchActive;
 }
 
-int32 USnowRumbleMatchSubsystem::GetCurrentRoundNumber() const
-{
+int32 USnowRumbleMatchSubsystem::GetCurrentRoundNumber() const {
 	return CurrentRoundNumber;
 }
 
-int32 USnowRumbleMatchSubsystem::GetRoundLimit() const
-{
+int32 USnowRumbleMatchSubsystem::GetRoundLimit() const {
 	return RoundLimit;
 }
 
-ESnowRumbleGameSpeed USnowRumbleMatchSubsystem::GetGameSpeed() const
-{
+ESnowRumbleGameSpeed USnowRumbleMatchSubsystem::GetGameSpeed() const {
 	return GameSpeed;
 }
 
-float USnowRumbleMatchSubsystem::GetMapShrinkIntervalSeconds(
-	ESnowRumbleGameSpeed InGameSpeed)
-{
-	switch (InGameSpeed)
-	{
+float USnowRumbleMatchSubsystem::GetMapShrinkIntervalSeconds(ESnowRumbleGameSpeed InGameSpeed) {
+	switch (InGameSpeed) {
 	case ESnowRumbleGameSpeed::Slow:
 		return 30.0f;
 	case ESnowRumbleGameSpeed::Fast:
@@ -172,50 +139,37 @@ float USnowRumbleMatchSubsystem::GetMapShrinkIntervalSeconds(
 	}
 }
 
-int32 USnowRumbleMatchSubsystem::GetTeamRoundWinCount(
-	ESnowRumbleTeam Team) const
-{
-	if (const int32* RoundWins = TeamRoundWins.Find(Team))
-	{
+int32 USnowRumbleMatchSubsystem::GetTeamRoundWinCount(ESnowRumbleTeam Team) const {
+	if (const int32* RoundWins = TeamRoundWins.Find(Team)) {
 		return *RoundWins;
 	}
 
 	return 0;
 }
 
-bool USnowRumbleMatchSubsystem::IsMatchComplete() const
-{
+bool USnowRumbleMatchSubsystem::IsMatchComplete() const {
 	return bMatchComplete;
 }
 
-bool USnowRumbleMatchSubsystem::IsTiebreakerActive() const
-{
+bool USnowRumbleMatchSubsystem::IsTiebreakerActive() const {
 	return bTiebreakerActive;
 }
 
-bool USnowRumbleMatchSubsystem::IsTiebreakerTeam(
-	ESnowRumbleTeam Team) const
-{
+bool USnowRumbleMatchSubsystem::IsTiebreakerTeam(ESnowRumbleTeam Team) const {
 	return bTiebreakerActive && TiebreakerTeams.Contains(Team);
 }
 
-ESnowRumbleTeam USnowRumbleMatchSubsystem::GetLeadingTeam() const
-{
+ESnowRumbleTeam USnowRumbleMatchSubsystem::GetLeadingTeam() const {
 	ESnowRumbleTeam LeadingTeam = ESnowRumbleTeam::None;
 	int32 HighestRoundWins = 0;
 	bool bHasTie = false;
 
-	for (const TPair<ESnowRumbleTeam, int32>& TeamRoundWin : TeamRoundWins)
-	{
-		if (TeamRoundWin.Value > HighestRoundWins)
-		{
+	for (const TPair<ESnowRumbleTeam, int32>& TeamRoundWin : TeamRoundWins) {
+		if (TeamRoundWin.Value > HighestRoundWins) {
 			HighestRoundWins = TeamRoundWin.Value;
 			LeadingTeam = TeamRoundWin.Key;
 			bHasTie = false;
-		}
-		else if (TeamRoundWin.Value == HighestRoundWins
-			&& HighestRoundWins > 0)
-		{
+		} else if (TeamRoundWin.Value == HighestRoundWins && HighestRoundWins > 0) {
 			bHasTie = true;
 		}
 	}
@@ -223,42 +177,31 @@ ESnowRumbleTeam USnowRumbleMatchSubsystem::GetLeadingTeam() const
 	return bHasTie ? ESnowRumbleTeam::None : LeadingTeam;
 }
 
-void USnowRumbleMatchSubsystem::GetLeadingTiedTeams(
-	TArray<ESnowRumbleTeam>& OutTeams) const
-{
+void USnowRumbleMatchSubsystem::GetLeadingTiedTeams(TArray<ESnowRumbleTeam>& OutTeams) const {
 	OutTeams.Reset();
 
 	int32 HighestRoundWins = 0;
-	for (const TPair<ESnowRumbleTeam, int32>& TeamRoundWin : TeamRoundWins)
-	{
-		if (TeamRoundWin.Value > HighestRoundWins)
-		{
+	for (const TPair<ESnowRumbleTeam, int32>& TeamRoundWin : TeamRoundWins) {
+		if (TeamRoundWin.Value > HighestRoundWins) {
 			HighestRoundWins = TeamRoundWin.Value;
 			OutTeams.Reset();
 			OutTeams.Add(TeamRoundWin.Key);
-		}
-		else if (TeamRoundWin.Value == HighestRoundWins
-			&& HighestRoundWins > 0)
-		{
+		} else if (TeamRoundWin.Value == HighestRoundWins && HighestRoundWins > 0) {
 			OutTeams.AddUnique(TeamRoundWin.Key);
 		}
 	}
 }
 
-int32 USnowRumbleMatchSubsystem::NormalizeRoundLimit(int32 InRoundLimit) const
-{
-	if (InRoundLimit <= 1)
-	{
+int32 USnowRumbleMatchSubsystem::NormalizeRoundLimit(int32 InRoundLimit) const {
+	if (InRoundLimit <= 1) {
 		return 1;
 	}
-	if (InRoundLimit <= 3)
-	{
+	if (InRoundLimit <= 3) {
 		return 3;
 	}
 	return 5;
 }
 
-bool USnowRumbleMatchSubsystem::IsValidTeam(ESnowRumbleTeam Team) const
-{
+bool USnowRumbleMatchSubsystem::IsValidTeam(ESnowRumbleTeam Team) const {
 	return Team != ESnowRumbleTeam::None;
 }

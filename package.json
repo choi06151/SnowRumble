@@ -1,0 +1,11 @@
+{
+  "name": "snowrumble-code-conventions",
+  "private": true,
+  "scripts": {
+    "prepare": "husky",
+    "format:check": "node Scripts/check-clang-format.mjs"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}

@@ -5,83 +5,61 @@
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 
-void UOptionsKeyBindingRowWidget::SetKeyBindingData(
-	const FSnowRumbleKeyBindingViewData& NewData)
-{
+void UOptionsKeyBindingRowWidget::SetKeyBindingData(const FSnowRumbleKeyBindingViewData& NewData) {
 	Data = NewData;
 	RefreshDisplayedText();
 	OnKeyBindingDataChanged(Data);
 }
 
-FName UOptionsKeyBindingRowWidget::GetBindingId() const
-{
+FName UOptionsKeyBindingRowWidget::GetBindingId() const {
 	return Data.BindingId;
 }
 
-void UOptionsKeyBindingRowWidget::NativeConstruct()
-{
+void UOptionsKeyBindingRowWidget::NativeConstruct() {
 	Super::NativeConstruct();
 
 	BindRowButtons();
 	RefreshDisplayedText();
 }
 
-void UOptionsKeyBindingRowWidget::NativeDestruct()
-{
+void UOptionsKeyBindingRowWidget::NativeDestruct() {
 	UnbindRowButtons();
 
 	Super::NativeDestruct();
 }
 
-void UOptionsKeyBindingRowWidget::HandleRebindButtonClicked()
-{
+void UOptionsKeyBindingRowWidget::HandleRebindButtonClicked() {
 	OnRebindRequestedNative.Broadcast(Data.BindingId);
 }
 
-void UOptionsKeyBindingRowWidget::HandleResetButtonClicked()
-{
+void UOptionsKeyBindingRowWidget::HandleResetButtonClicked() {
 	OnResetRequestedNative.Broadcast(Data.BindingId);
 }
 
-void UOptionsKeyBindingRowWidget::BindRowButtons()
-{
-	if (RebindButton)
-	{
-		RebindButton->OnClicked.AddUniqueDynamic(
-			this,
-			&UOptionsKeyBindingRowWidget::HandleRebindButtonClicked);
+void UOptionsKeyBindingRowWidget::BindRowButtons() {
+	if (RebindButton) {
+		RebindButton->OnClicked.AddUniqueDynamic(this, &UOptionsKeyBindingRowWidget::HandleRebindButtonClicked);
 	}
-	if (ResetButton)
-	{
-		ResetButton->OnClicked.AddUniqueDynamic(
-			this,
-			&UOptionsKeyBindingRowWidget::HandleResetButtonClicked);
+	if (ResetButton) {
+		ResetButton->OnClicked.AddUniqueDynamic(this, &UOptionsKeyBindingRowWidget::HandleResetButtonClicked);
 	}
 }
 
-void UOptionsKeyBindingRowWidget::UnbindRowButtons()
-{
-	if (RebindButton)
-	{
+void UOptionsKeyBindingRowWidget::UnbindRowButtons() {
+	if (RebindButton) {
 		RebindButton->OnClicked.RemoveAll(this);
 	}
-	if (ResetButton)
-	{
+	if (ResetButton) {
 		ResetButton->OnClicked.RemoveAll(this);
 	}
 }
 
-void UOptionsKeyBindingRowWidget::RefreshDisplayedText()
-{
-	if (ActionNameText)
-	{
+void UOptionsKeyBindingRowWidget::RefreshDisplayedText() {
+	if (ActionNameText) {
 		ActionNameText->SetText(Data.DisplayName);
 	}
-	if (CurrentKeyText)
-	{
-		CurrentKeyText->SetText(
-			Data.CurrentKey.IsValid()
-				? Data.CurrentKey.GetDisplayName()
-				: NSLOCTEXT("SnowRumble", "KeyBindingUnassigned", "미할당"));
+	if (CurrentKeyText) {
+		CurrentKeyText->SetText(Data.CurrentKey.IsValid() ? Data.CurrentKey.GetDisplayName()
+														  : NSLOCTEXT("SnowRumble", "KeyBindingUnassigned", "미할당"));
 	}
 }

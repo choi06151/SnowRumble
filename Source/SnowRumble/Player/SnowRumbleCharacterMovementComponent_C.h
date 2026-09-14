@@ -7,8 +7,7 @@
 #include "SnowRumbleCharacterMovementComponent_C.generated.h"
 
 USTRUCT(BlueprintType)
-struct FEnvironmentalDriftState_C
-{
+struct FEnvironmentalDriftState_C {
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Movement|Environmental Drift")
@@ -43,12 +42,10 @@ struct FEnvironmentalDriftState_C
 };
 
 UCLASS()
-class SNOWRUMBLE_API USnowRumbleCharacterMovementComponent_C
-	: public UCharacterMovementComponent
-{
+class SNOWRUMBLE_API USnowRumbleCharacterMovementComponent_C : public UCharacterMovementComponent {
 	GENERATED_BODY()
 
-public:
+	public:
 	/** 현재 캐릭터 이동 계산에 반영할 범용 환경 드리프트를 설정한다. */
 	void SetEnvironmentalDrift(const FEnvironmentalDriftState_C& NewDriftState);
 
@@ -62,19 +59,14 @@ public:
 	float GetServerWorldTimeSeconds() const;
 
 	/** SavedMove 재시뮬레이션 직전에 당시 환경 드리프트 상태와 시간을 복원한다. */
-	void RestoreEnvironmentalDriftForSavedMove(
-		const FEnvironmentalDriftState_C& SavedDriftState,
-		float SavedServerTimeSeconds);
+	void RestoreEnvironmentalDriftForSavedMove(const FEnvironmentalDriftState_C& SavedDriftState,
+											   float SavedServerTimeSeconds);
 
-	virtual void CalcVelocity(
-		float DeltaTime,
-		float Friction,
-		bool bFluid,
-		float BrakingDeceleration) override;
+	virtual void CalcVelocity(float DeltaTime, float Friction, bool bFluid, float BrakingDeceleration) override;
 	virtual void PerformMovement(float DeltaTime) override;
 	virtual FNetworkPredictionData_Client* GetPredictionData_Client() const override;
 
-private:
+	private:
 	/** 현재 환경 드리프트 상태가 이동 계산에 사용할 수 있는 값인지 확인한다. */
 	bool HasValidEnvironmentalDrift() const;
 

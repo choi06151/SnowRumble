@@ -4,29 +4,21 @@
 
 #include "Components/TextBlock.h"
 
-void UInteractionPromptWidget::NativeConstruct()
-{
+void UInteractionPromptWidget::NativeConstruct() {
 	Super::NativeConstruct();
 
 	ClearPrompt();
 }
 
-void UInteractionPromptWidget::SetPromptText(const FText& NewPromptText)
-{
-	if (PromptText)
-	{
+void UInteractionPromptWidget::SetPromptText(const FText& NewPromptText) {
+	if (PromptText) {
 		PromptText->SetText(NewPromptText);
 	}
-	SetVisibility(
-		NewPromptText.IsEmpty()
-			? ESlateVisibility::Collapsed
-			: ESlateVisibility::SelfHitTestInvisible);
+	SetVisibility(NewPromptText.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
 }
 
-void UInteractionPromptWidget::ClearPrompt()
-{
-	if (PromptText)
-	{
+void UInteractionPromptWidget::ClearPrompt() {
+	if (PromptText) {
 		PromptText->SetText(FText::GetEmpty());
 	}
 	SetVisibility(ESlateVisibility::Collapsed);

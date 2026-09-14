@@ -10,25 +10,19 @@ class USoundAttenuation;
 class USoundBase;
 
 UCLASS(Blueprintable)
-class SNOWRUMBLE_API ATambourineGrabbableObject : public AGrabbablePhysicsObject
-{
+class SNOWRUMBLE_API ATambourineGrabbableObject : public AGrabbablePhysicsObject {
 	GENERATED_BODY()
 
-public:
+	public:
 	ATambourineGrabbableObject();
 
 	virtual void HandleGrabbedByCharacter(ACharacter* Grabber) override;
 	virtual void HandleReleasedByCharacter(ACharacter* Grabber) override;
-	virtual void TickGrabbedByCharacter(
-		ACharacter* Grabber,
-		FVector HeldMotion,
-		float DeltaTime) override;
+	virtual void TickGrabbedByCharacter(ACharacter* Grabber, FVector HeldMotion, float DeltaTime) override;
 
-protected:
+	protected:
 	UFUNCTION(NetMulticast, Unreliable)
-	void MulticastPlayJingle(
-		FVector_NetQuantize Location,
-		float PitchMultiplier);
+	void MulticastPlayJingle(FVector_NetQuantize Location, float PitchMultiplier);
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Tambourine|Audio")
 	TObjectPtr<USoundBase> JingleSound;
@@ -51,7 +45,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Tambourine|Audio", meta = (ClampMin = "0.1"))
 	float MaximumJinglePitch = 1.08f;
 
-private:
+	private:
 	float AccumulatedHeldRotationDegrees = 0.0f;
 	FRotator PreviousGrabberControlRotation = FRotator::ZeroRotator;
 	bool bHasPreviousGrabberControlRotation = false;

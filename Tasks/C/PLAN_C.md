@@ -9,6 +9,8 @@
 
 ## 현재 집중 Task
 
+- [C-40](C-40_husky_code_convention_check.md) Husky·GitHub Actions 코드 컨벤션 검사 (완료)
+- [C-39](C-39_code_convention_normalization.md) UE5 코드 컨벤션 정리 (완료)
 - [C-18](C-18_steam_session_integration.md) Steam 세션 최종 통합
 - [C-34](C-34_grabbable_physics_object_foundation.md) Grab 물리 상호작용 물건 베이스 (사용자 승인, 진행중)
 - [C-35](C-35_damage_text_feedback_contract.md) 피격 데미지 텍스트 표시 계약 (진행중)
@@ -63,6 +65,7 @@
 | 34 | [C-36](C-36_snowman_falling_grabbable_objects.md) | 눈사람 모드 랜덤 낙하 Grab 물체 | C-34, 눈사람 모드 | 진행중 |
 | 35 | [C-37](C-37_snowman_directional_launch_contract.md) | 눈사람 방향성 캐릭터 Launch 계약 | 눈사람 Pawn 입력 소유권 확인 | 진행중 |
 | 36 | [C-38](C-38_double_jump_movement.md) | 플레이어 더블 점프 | 기존 플레이어 이동 | 진행중 |
+| 37 | [C-39](C-39_code_convention_normalization.md) | UE5 코드 컨벤션 정리 | 사용자 승인 | 진행중 |
 
 ## 통합 변경 요청
 
@@ -70,6 +73,9 @@
 
 ## 계획 변경 기록
 
+- 2026-09-14: C-40 승인 후 Husky pre-commit, 공통 `Scripts/check-clang-format.mjs`, Push/PR GitHub Actions를 추가했다. `npm install`, Node 구문 검사, 로컬 포맷 검사와 실제 C++ 파일 검사에 성공했다.
+- 2026-09-14: C-39·C-40 완료 결과를 확인했다. C 소유 코드 포맷·빌드와 Husky pre-commit 검사를 통과한 변경을 역할 브랜치와 `master`에 게시한다.
+- 2026-09-14: C-39 승인 후 C 소유 C++ 83개 파일에 `.clang-format` 기준을 적용하고, 누락된 저작권 헤더를 보완했다. `clang-format --dry-run --Werror`, `git diff --check`, `SnowRumbleEditor Win64 Development` 빌드가 성공했다. K 10개·J 6개·소유자 미표기 68개 파일은 다른 담당자 인계 범위로 남겼다.
 - 2026-08-29: 사용자 요청으로 C-36 눈사람 모드 NavMesh 랜덤 위치 기반 낙하 Grab 물체 Task를 추가했다. K 소유 Snowman GameMode를 직접 수정하지 않고 C 소유 독립 스포너 Actor를 맵에 배치하는 방식으로 후보 Static Mesh 연결과 낙하 수명주기를 제공한다.
 - 2026-08-29: 사용자 승인을 받아 C-36 구현을 시작했다. 독립 스포너 Actor가 눈사람 GameState의 실제 경기 시작·종료 상태를 감지하도록 구현한다.
 - 2026-08-29: C-36 `ASnowmanFallingGrabbableSpawner`를 추가했다. 후보 Static Mesh를 NavMesh 랜덤 위치 상공에서 반복 낙하하고, 눈사람 모드 실제 시작·종료 상태에 따라 서버 타이머를 시작·중단한다. Unreal Editor Development 빌드가 성공했다.

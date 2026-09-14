@@ -5,29 +5,21 @@
 #include "Net/UnrealNetwork.h"
 #include "SnowRumbleMatchSubsystem_C.h"
 
-void ASnowRumbleGameState::StartMatchCountdownFromServer(
-	float CountdownSeconds)
-{
-	if (!HasAuthority())
-	{
+void ASnowRumbleGameState::StartMatchCountdownFromServer(float CountdownSeconds) {
+	if (!HasAuthority()) {
 		return;
 	}
 
 	MatchStartCountdownSeconds = FMath::Max(0.0f, CountdownSeconds);
-	MatchStartServerTime =
-		GetServerWorldTimeSeconds() + MatchStartCountdownSeconds;
+	MatchStartServerTime = GetServerWorldTimeSeconds() + MatchStartCountdownSeconds;
 	RoundStartServerTime = MatchStartServerTime;
-	NextMapShrinkServerTime = RoundStartServerTime
-		+ MapShrinkWaitDurationSeconds;
+	NextMapShrinkServerTime = RoundStartServerTime + MapShrinkWaitDurationSeconds;
 	bStartCountdownActive = true;
 	ForceNetUpdate();
 }
 
-void ASnowRumbleGameState::StartMapShrinkFromServer(
-	float ShrinkDurationSeconds)
-{
-	if (!HasAuthority() || bRoundEnded || bMapShrinkInProgress)
-	{
+void ASnowRumbleGameState::StartMapShrinkFromServer(float ShrinkDurationSeconds) {
+	if (!HasAuthority() || bRoundEnded || bMapShrinkInProgress) {
 		return;
 	}
 
@@ -38,44 +30,34 @@ void ASnowRumbleGameState::StartMapShrinkFromServer(
 	ForceNetUpdate();
 }
 
-void ASnowRumbleGameState::CompleteMapShrinkFromServer()
-{
-	if (!HasAuthority() || bRoundEnded || !bMapShrinkInProgress)
-	{
+void ASnowRumbleGameState::CompleteMapShrinkFromServer() {
+	if (!HasAuthority() || bRoundEnded || !bMapShrinkInProgress) {
 		return;
 	}
 
 	bMapShrinkInProgress = false;
-	NextMapShrinkServerTime =
-		GetServerWorldTimeSeconds() + MapShrinkWaitDurationSeconds;
+	NextMapShrinkServerTime = GetServerWorldTimeSeconds() + MapShrinkWaitDurationSeconds;
 	ForceNetUpdate();
 }
 
-void ASnowRumbleGameState::EndRoundFromServer(
-	ESnowRumbleTeam WinningTeam,
-	const USnowRumbleMatchSubsystem* MatchSubsystem)
-{
-	if (!HasAuthority() || bRoundEnded || WinningTeam == ESnowRumbleTeam::None)
-	{
+void ASnowRumbleGameState::EndRoundFromServer(ESnowRumbleTeam WinningTeam,
+											  const USnowRumbleMatchSubsystem* MatchSubsystem) {
+	if (!HasAuthority() || bRoundEnded || WinningTeam == ESnowRumbleTeam::None) {
 		return;
 	}
 
 	bRoundEnded = true;
 	RoundWinningTeam = WinningTeam;
 	ApplyMatchStateFromServer(MatchSubsystem);
-	if (bMatchEnded && MatchWinningTeam == ESnowRumbleTeam::None)
-	{
+	if (bMatchEnded && MatchWinningTeam == ESnowRumbleTeam::None) {
 		MatchWinningTeam = WinningTeam;
 	}
 	OnRep_RoundResult();
 	ForceNetUpdate();
 }
 
-void ASnowRumbleGameState::ApplyMatchStateFromServer(
-	const USnowRumbleMatchSubsystem* MatchSubsystem)
-{
-	if (!HasAuthority() || !MatchSubsystem)
-	{
+void ASnowRumbleGameState::ApplyMatchStateFromServer(const USnowRumbleMatchSubsystem* MatchSubsystem) {
+	if (!HasAuthority() || !MatchSubsystem) {
 		return;
 	}
 
@@ -84,35 +66,25 @@ void ASnowRumbleGameState::ApplyMatchStateFromServer(
 	GameSpeed = MatchSubsystem->GetGameSpeed();
 	bMatchEnded = MatchSubsystem->IsMatchComplete();
 	bTiebreakerRound = MatchSubsystem->IsTiebreakerActive();
-	MatchWinningTeam = bMatchEnded
-		? MatchSubsystem->GetLeadingTeam()
-		: ESnowRumbleTeam::None;
+	MatchWinningTeam = bMatchEnded ? MatchSubsystem->GetLeadingTeam() : ESnowRumbleTeam::None;
 	CopyRoundWinsFromMatchSubsystem(MatchSubsystem);
 	ForceNetUpdate();
 }
 
-bool ASnowRumbleGameState::IsMatchInputLocked() const
-{
-	return bRoundEnded
-		|| !bStartCountdownActive
-		|| GetSecondsUntilMatchStart() > 0.0f;
+bool ASnowRumbleGameState::IsMatchInputLocked() const {
+	return bRoundEnded || !bStartCountdownActive || GetSecondsUntilMatchStart() > 0.0f;
 }
 
-bool ASnowRumbleGameState::IsRoundEnded() const
-{
+bool ASnowRumbleGameState::IsRoundEnded() const {
 	return bRoundEnded;
 }
 
-ESnowRumbleTeam ASnowRumbleGameState::GetRoundWinningTeam() const
-{
+ESnowRumbleTeam ASnowRumbleGameState::GetRoundWinningTeam() const {
 	return RoundWinningTeam;
 }
 
-int32 ASnowRumbleGameState::GetTeamRoundWinCount(
-	ESnowRumbleTeam Team) const
-{
-	switch (Team)
-	{
+int32 ASnowRumbleGameState::GetTeamRoundWinCount(ESnowRumbleTeam Team) const {
+	switch (Team) {
 	case ESnowRumbleTeam::Red:
 		return RedTeamRoundWins;
 	case ESnowRumbleTeam::Sky:
@@ -134,35 +106,28 @@ int32 ASnowRumbleGameState::GetTeamRoundWinCount(
 	}
 }
 
-int32 ASnowRumbleGameState::GetCurrentRoundNumber() const
-{
+int32 ASnowRumbleGameState::GetCurrentRoundNumber() const {
 	return CurrentRoundNumber;
 }
 
-int32 ASnowRumbleGameState::GetRoundLimit() const
-{
+int32 ASnowRumbleGameState::GetRoundLimit() const {
 	return RoundLimit;
 }
 
-bool ASnowRumbleGameState::IsMatchEnded() const
-{
+bool ASnowRumbleGameState::IsMatchEnded() const {
 	return bMatchEnded;
 }
 
-bool ASnowRumbleGameState::IsTiebreakerRound() const
-{
+bool ASnowRumbleGameState::IsTiebreakerRound() const {
 	return bTiebreakerRound;
 }
 
-ESnowRumbleTeam ASnowRumbleGameState::GetMatchWinningTeam() const
-{
+ESnowRumbleTeam ASnowRumbleGameState::GetMatchWinningTeam() const {
 	return MatchWinningTeam;
 }
 
-bool ASnowRumbleGameState::ShouldShowStartCountdown() const
-{
-	if (!bStartCountdownActive)
-	{
+bool ASnowRumbleGameState::ShouldShowStartCountdown() const {
+	if (!bStartCountdownActive) {
 		return false;
 	}
 
@@ -170,84 +135,59 @@ bool ASnowRumbleGameState::ShouldShowStartCountdown() const
 	return SecondsUntilStart > -1.0f;
 }
 
-FText ASnowRumbleGameState::GetStartCountdownText() const
-{
+FText ASnowRumbleGameState::GetStartCountdownText() const {
 	const float SecondsUntilStart = GetSecondsUntilMatchStart();
-	if (SecondsUntilStart <= 0.0f)
-	{
+	if (SecondsUntilStart <= 0.0f) {
 		return NSLOCTEXT("SnowRumble", "MatchStartCountdownGo", "시작!");
 	}
 
-	const int32 DisplaySeconds =
-		FMath::Clamp(FMath::CeilToInt(SecondsUntilStart), 1, 3);
+	const int32 DisplaySeconds = FMath::Clamp(FMath::CeilToInt(SecondsUntilStart), 1, 3);
 	return FText::AsNumber(DisplaySeconds);
 }
 
-float ASnowRumbleGameState::GetRoundElapsedSeconds() const
-{
-	if (!bStartCountdownActive || RoundStartServerTime <= 0.0f)
-	{
+float ASnowRumbleGameState::GetRoundElapsedSeconds() const {
+	if (!bStartCountdownActive || RoundStartServerTime <= 0.0f) {
 		return 0.0f;
 	}
 
-	return FMath::Max(
-		0.0f,
-		GetServerWorldTimeSeconds() - RoundStartServerTime);
+	return FMath::Max(0.0f, GetServerWorldTimeSeconds() - RoundStartServerTime);
 }
 
-FText ASnowRumbleGameState::GetRoundElapsedTimeText() const
-{
+FText ASnowRumbleGameState::GetRoundElapsedTimeText() const {
 	return FormatSecondsAsClock(GetRoundElapsedSeconds());
 }
 
-float ASnowRumbleGameState::GetSecondsUntilNextMapShrink() const
-{
-	if (bMapShrinkInProgress)
-	{
+float ASnowRumbleGameState::GetSecondsUntilNextMapShrink() const {
+	if (bMapShrinkInProgress) {
 		return 0.0f;
 	}
-	if (!bStartCountdownActive || NextMapShrinkServerTime <= 0.0f)
-	{
+	if (!bStartCountdownActive || NextMapShrinkServerTime <= 0.0f) {
 		return MapShrinkWaitDurationSeconds;
 	}
 
-	return FMath::Max(
-		0.0f,
-		NextMapShrinkServerTime - GetServerWorldTimeSeconds());
+	return FMath::Max(0.0f, NextMapShrinkServerTime - GetServerWorldTimeSeconds());
 }
 
-FText ASnowRumbleGameState::GetMapShrinkCountdownText() const
-{
-	const int32 DisplaySeconds =
-		FMath::Max(0, FMath::CeilToInt(GetSecondsUntilNextMapShrink()));
-	return FText::Format(
-		NSLOCTEXT(
-			"SnowRumble",
-			"MapShrinkCountdownFormat",
-			"{0}초 후"),
-		FText::AsNumber(DisplaySeconds));
+FText ASnowRumbleGameState::GetMapShrinkCountdownText() const {
+	const int32 DisplaySeconds = FMath::Max(0, FMath::CeilToInt(GetSecondsUntilNextMapShrink()));
+	return FText::Format(NSLOCTEXT("SnowRumble", "MapShrinkCountdownFormat", "{0}초 후"),
+						 FText::AsNumber(DisplaySeconds));
 }
 
-bool ASnowRumbleGameState::IsMapShrinkInProgress() const
-{
+bool ASnowRumbleGameState::IsMapShrinkInProgress() const {
 	return bMapShrinkInProgress;
 }
 
-ESnowRumbleGameSpeed ASnowRumbleGameState::GetGameSpeed() const
-{
+ESnowRumbleGameSpeed ASnowRumbleGameState::GetGameSpeed() const {
 	return GameSpeed;
 }
 
-float ASnowRumbleGameState::GetMapShrinkIntervalSeconds() const
-{
+float ASnowRumbleGameState::GetMapShrinkIntervalSeconds() const {
 	return FMath::Max(1.0f, MapShrinkIntervalSeconds);
 }
 
-void ASnowRumbleGameState::SetMapShrinkIntervalSecondsFromServer(
-	float IntervalSeconds)
-{
-	if (!HasAuthority())
-	{
+void ASnowRumbleGameState::SetMapShrinkIntervalSecondsFromServer(float IntervalSeconds) {
+	if (!HasAuthority()) {
 		return;
 	}
 
@@ -255,11 +195,8 @@ void ASnowRumbleGameState::SetMapShrinkIntervalSecondsFromServer(
 	ForceNetUpdate();
 }
 
-void ASnowRumbleGameState::SetMapShrinkWaitDurationSecondsFromServer(
-	float WaitDurationSeconds)
-{
-	if (!HasAuthority())
-	{
+void ASnowRumbleGameState::SetMapShrinkWaitDurationSecondsFromServer(float WaitDurationSeconds) {
+	if (!HasAuthority()) {
 		return;
 	}
 
@@ -267,9 +204,7 @@ void ASnowRumbleGameState::SetMapShrinkWaitDurationSecondsFromServer(
 	ForceNetUpdate();
 }
 
-void ASnowRumbleGameState::GetLifetimeReplicatedProps(
-	TArray<FLifetimeProperty>& OutLifetimeProps) const
-{
+void ASnowRumbleGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ASnowRumbleGameState, bStartCountdownActive);
@@ -300,49 +235,32 @@ void ASnowRumbleGameState::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ASnowRumbleGameState, MatchWinningTeam);
 }
 
-float ASnowRumbleGameState::GetSecondsUntilMatchStart() const
-{
+float ASnowRumbleGameState::GetSecondsUntilMatchStart() const {
 	return MatchStartServerTime - GetServerWorldTimeSeconds();
 }
 
-FText ASnowRumbleGameState::FormatSecondsAsClock(float Seconds) const
-{
+FText ASnowRumbleGameState::FormatSecondsAsClock(float Seconds) const {
 	const int32 TotalSeconds = FMath::Max(0, FMath::FloorToInt(Seconds));
 	const int32 Minutes = TotalSeconds / 60;
 	const int32 RemainingSeconds = TotalSeconds % 60;
-	return FText::FromString(FString::Printf(
-		TEXT("%d:%02d"),
-		Minutes,
-		RemainingSeconds));
+	return FText::FromString(FString::Printf(TEXT("%d:%02d"), Minutes, RemainingSeconds));
 }
 
-void ASnowRumbleGameState::OnRep_RoundResult()
-{
+void ASnowRumbleGameState::OnRep_RoundResult() {
 	OnRoundResultChanged.Broadcast();
 }
 
-void ASnowRumbleGameState::CopyRoundWinsFromMatchSubsystem(
-	const USnowRumbleMatchSubsystem* MatchSubsystem)
-{
-	if (!HasAuthority() || !MatchSubsystem)
-	{
+void ASnowRumbleGameState::CopyRoundWinsFromMatchSubsystem(const USnowRumbleMatchSubsystem* MatchSubsystem) {
+	if (!HasAuthority() || !MatchSubsystem) {
 		return;
 	}
 
-	RedTeamRoundWins =
-		MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Red);
-	SkyTeamRoundWins =
-		MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Sky);
-	GreenTeamRoundWins =
-		MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Green);
-	YellowTeamRoundWins =
-		MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Yellow);
-	PurpleTeamRoundWins =
-		MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Purple);
-	PinkTeamRoundWins =
-		MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Pink);
-	BlueTeamRoundWins =
-		MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Blue);
-	WhiteTeamRoundWins =
-		MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Orange);
+	RedTeamRoundWins = MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Red);
+	SkyTeamRoundWins = MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Sky);
+	GreenTeamRoundWins = MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Green);
+	YellowTeamRoundWins = MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Yellow);
+	PurpleTeamRoundWins = MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Purple);
+	PinkTeamRoundWins = MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Pink);
+	BlueTeamRoundWins = MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Blue);
+	WhiteTeamRoundWins = MatchSubsystem->GetTeamRoundWinCount(ESnowRumbleTeam::Orange);
 }

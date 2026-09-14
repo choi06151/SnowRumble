@@ -11,11 +11,10 @@ class UCameraComponent;
 class UStaticMeshComponent;
 
 UCLASS(Blueprintable)
-class SNOWRUMBLE_API APhotoInteractionActor : public AActor
-{
+class SNOWRUMBLE_API APhotoInteractionActor : public AActor {
 	GENERATED_BODY()
 
-public:
+	public:
 	APhotoInteractionActor();
 
 	/** 캐릭터가 사진 촬영 액터와 상호작용할 수 있는지 확인한다. */
@@ -35,7 +34,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Photo")
 	float GetInteractionRadius() const;
 
-protected:
+	protected:
 	virtual void BeginPlay() override;
 
 	/** 사진 촬영 상호작용이 서버에서 확정됐을 때 Blueprint 연출을 연결한다. */
@@ -51,6 +50,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Photo", meta = (ClampMin = "0.0"))
 	float InteractionRadius = 320.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Photo|Camera", meta = (ClampMin = "1.0", ClampMax = "89.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Photo|Camera",
+			  meta = (ClampMin = "1.0", ClampMax = "89.0"))
 	float CameraPitchLimit = 80.0f;
 };

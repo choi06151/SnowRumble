@@ -12,20 +12,13 @@ class UStaticMeshComponent;
 class UWidgetComponent;
 
 UENUM(BlueprintType)
-enum class ELobbyBoardAction : uint8
-{
-	Action0,
-	Action1,
-	Action2,
-	Action3
-};
+enum class ELobbyBoardAction : uint8 { Action0, Action1, Action2, Action3 };
 
 UCLASS(Blueprintable)
-class SNOWRUMBLE_API ALobbyInteractionBoard : public AActor
-{
+class SNOWRUMBLE_API ALobbyInteractionBoard : public AActor {
 	GENERATED_BODY()
 
-public:
+	public:
 	ALobbyInteractionBoard();
 
 	/** 캐릭터가 현재 게시판과 상호작용할 수 있는지 서버와 로컬 후보 탐색에서 확인한다. */
@@ -36,9 +29,7 @@ public:
 	void Interact(ASnowRumbleCharacter* Character);
 
 	/** 서버가 게시판 UI 버튼 액션을 검증한 뒤 Blueprint 이벤트로 전달한다. */
-	void HandleBoardAction(
-		ASnowRumbleCharacter* Character,
-		ELobbyBoardAction BoardAction);
+	void HandleBoardAction(ASnowRumbleCharacter* Character, ELobbyBoardAction BoardAction);
 
 	/** 게시판 상호작용 허용 거리다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Lobby|Board")
@@ -57,7 +48,7 @@ public:
 	/** 로컬 포커스 상태에 맞춰 게시판 위젯이 요청을 보낼 캐릭터를 갱신한다. */
 	void SetFocusedCharacter(ASnowRumbleCharacter* Character);
 
-protected:
+	protected:
 	virtual void BeginPlay() override;
 
 	/** 게시판 상호작용이 서버에서 확정됐을 때 Blueprint가 UI나 연출을 연결한다. */
@@ -66,9 +57,7 @@ protected:
 
 	/** 게시판 UI 버튼 액션이 서버에서 확정됐을 때 Blueprint가 실제 동작을 연결한다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Lobby|Board")
-	void OnBoardActionRequested(
-		ASnowRumbleCharacter* Character,
-		ELobbyBoardAction BoardAction);
+	void OnBoardActionRequested(ASnowRumbleCharacter* Character, ELobbyBoardAction BoardAction);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Lobby|Board")
 	TObjectPtr<UStaticMeshComponent> BoardMeshComponent;
@@ -82,6 +71,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Lobby|Board", meta = (ClampMin = "0.0"))
 	float InteractionRadius = 320.0f;
 
-private:
+	private:
 	void InitializeBoardWidget();
 };

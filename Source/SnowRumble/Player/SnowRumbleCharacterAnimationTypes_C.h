@@ -6,8 +6,7 @@
 #include "SnowRumbleCharacterAnimationTypes_C.generated.h"
 
 UENUM(BlueprintType)
-enum class ESnowRumbleCharacterAnimTrigger : uint8
-{
+enum class ESnowRumbleCharacterAnimTrigger : uint8 {
 	None,
 	PickupSmallSnowball,
 	PickupLargeSnowball,

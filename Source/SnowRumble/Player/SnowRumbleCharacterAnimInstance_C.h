@@ -9,17 +9,10 @@
 #include "SnowRumbleCharacterAnimInstance_C.generated.h"
 
 UENUM(BlueprintType)
-enum class ESnowRumbleLocomotionAnimState : uint8
-{
-	Idle,
-	Walk,
-	Sprint,
-	InAir
-};
+enum class ESnowRumbleLocomotionAnimState : uint8 { Idle, Walk, Sprint, InAir };
 
 UENUM(BlueprintType)
-enum class ESnowRumbleUpperBodyAnimState : uint8
-{
+enum class ESnowRumbleUpperBodyAnimState : uint8 {
 	None,
 	SmallSnowball,
 	SmallSnowballAim,
@@ -36,8 +29,7 @@ enum class ESnowRumbleUpperBodyAnimState : uint8
 };
 
 UENUM(BlueprintType)
-enum class ESnowRumbleFullBodyAnimState : uint8
-{
+enum class ESnowRumbleFullBodyAnimState : uint8 {
 	None,
 	CreateSnowball,
 	RollSnowball,
@@ -49,12 +41,10 @@ enum class ESnowRumbleFullBodyAnimState : uint8
 };
 
 UCLASS(Blueprintable)
-class SNOWRUMBLE_API USnowRumbleCharacterAnimInstance
-	: public UAnimInstance
-{
+class SNOWRUMBLE_API USnowRumbleCharacterAnimInstance : public UAnimInstance {
 	GENERATED_BODY()
 
-public:
+	public:
 	virtual void NativeInitializeAnimation() override;
 	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 
@@ -160,15 +150,13 @@ public:
 	ESnowballCarryState SnowballCarryState = ESnowballCarryState::Normal;
 
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|State")
-	ESnowRumbleHeldAnimationState HeldAnimationState =
-		ESnowRumbleHeldAnimationState::BareHands;
+	ESnowRumbleHeldAnimationState HeldAnimationState = ESnowRumbleHeldAnimationState::BareHands;
 
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|State")
 	ESnowballActionState SnowballActionState = ESnowballActionState::None;
 
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|State")
-	ESnowRumbleTimedActionState TimedActionState =
-		ESnowRumbleTimedActionState::None;
+	ESnowRumbleTimedActionState TimedActionState = ESnowRumbleTimedActionState::None;
 
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|State")
 	float SnowballChargeProgress = 0.0f;
@@ -177,18 +165,15 @@ public:
 	float SnowballCreationProgress = 0.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Derived State")
-	ESnowRumbleLocomotionAnimState LocomotionAnimState =
-		ESnowRumbleLocomotionAnimState::Idle;
+	ESnowRumbleLocomotionAnimState LocomotionAnimState = ESnowRumbleLocomotionAnimState::Idle;
 
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Derived State")
-	ESnowRumbleUpperBodyAnimState UpperBodyAnimState =
-		ESnowRumbleUpperBodyAnimState::None;
+	ESnowRumbleUpperBodyAnimState UpperBodyAnimState = ESnowRumbleUpperBodyAnimState::None;
 
 	UPROPERTY(BlueprintReadOnly, Category = "SnowRumble|Animation|Derived State")
-	ESnowRumbleFullBodyAnimState FullBodyAnimState =
-		ESnowRumbleFullBodyAnimState::None;
+	ESnowRumbleFullBodyAnimState FullBodyAnimState = ESnowRumbleFullBodyAnimState::None;
 
-protected:
+	protected:
 	void RefreshFromOwnerCharacter(float DeltaSeconds = 0.0f);
 	void RefreshDerivedAnimationStates();
 	void ResetAnimationState();
