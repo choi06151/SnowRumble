@@ -17,15 +17,13 @@ class USoundAttenuation;
 class USoundBase;
 
 UCLASS(Blueprintable)
-class SNOWRUMBLE_API AGrabbablePhysicsObject : public AActor
-{
+class SNOWRUMBLE_API AGrabbablePhysicsObject : public AActor {
 	GENERATED_BODY()
 
-public:
+	public:
 	AGrabbablePhysicsObject();
 
-	virtual void GetLifetimeReplicatedProps(
-		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab|Physics")
 	UPrimitiveComponent* GetPhysicsComponent() const;
@@ -33,9 +31,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Grab|Physics")
 	bool CanBeGrabbed() const;
 
-	void PushCharacterFromGrabMotion(
-		ACharacter* Character,
-		FVector MotionDirection);
+	void PushCharacterFromGrabMotion(ACharacter* Character, FVector MotionDirection);
 
 	void RegisterInteraction();
 
@@ -43,26 +39,18 @@ public:
 	int32 GetInteractionCount() const;
 
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Grab|Interaction")
-	void ConfigureInteractionSettings(
-		float NewPlayerPushStrength,
-		int32 NewInteractionsToBreak,
-		UNiagaraSystem* NewInteractionBreakEffect,
-		USoundBase* NewInteractionBreakSound,
-		USoundAttenuation* NewInteractionBreakSoundAttenuation);
+	void ConfigureInteractionSettings(float NewPlayerPushStrength, int32 NewInteractionsToBreak,
+									  UNiagaraSystem* NewInteractionBreakEffect, USoundBase* NewInteractionBreakSound,
+									  USoundAttenuation* NewInteractionBreakSoundAttenuation);
 
 	/** 서버가 변환한 Mesh와 Material을 복제 상태로 설정하고 로컬 물리 컴포넌트에 적용한다. */
-	void ConfigureReplicatedVisuals(
-		UStaticMesh* NewStaticMesh,
-		const TArray<UMaterialInterface*>& NewMaterials);
+	void ConfigureReplicatedVisuals(UStaticMesh* NewStaticMesh, const TArray<UMaterialInterface*>& NewMaterials);
 
 	virtual void HandleGrabbedByCharacter(ACharacter* Grabber);
 	virtual void HandleReleasedByCharacter(ACharacter* Grabber);
-	virtual void TickGrabbedByCharacter(
-		ACharacter* Grabber,
-		FVector HeldMotion,
-		float DeltaTime);
+	virtual void TickGrabbedByCharacter(ACharacter* Grabber, FVector HeldMotion, float DeltaTime);
 
-protected:
+	protected:
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastPlayInteractionBreakEffect(FVector_NetQuantize Location);
 
@@ -74,12 +62,8 @@ protected:
 	void OnInteractionBreak();
 
 	UFUNCTION()
-	void HandleComponentHit(
-		UPrimitiveComponent* HitComponent,
-		AActor* OtherActor,
-		UPrimitiveComponent* OtherComponent,
-		FVector NormalImpulse,
-		const FHitResult& Hit);
+	void HandleComponentHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComponent,
+							FVector NormalImpulse, const FHitResult& Hit);
 
 	UFUNCTION()
 	void OnRep_ReplicatedStaticMesh();

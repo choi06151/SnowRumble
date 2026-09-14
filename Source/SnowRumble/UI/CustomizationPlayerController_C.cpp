@@ -31,65 +31,43 @@
 #include "../Player/SnowRumbleCustomizationSubsystem_C.h"
 #include "Sound/SoundBase.h"
 
-namespace
-{
-constexpr EMouseCursor::Type CustomizationCursorTypes[] =
-{
-	EMouseCursor::Default,
-	EMouseCursor::TextEditBeam,
-	EMouseCursor::ResizeLeftRight,
-	EMouseCursor::ResizeUpDown,
-	EMouseCursor::ResizeSouthEast,
-	EMouseCursor::ResizeSouthWest,
-	EMouseCursor::CardinalCross,
-	EMouseCursor::Crosshairs,
-	EMouseCursor::Hand,
-	EMouseCursor::GrabHand,
-	EMouseCursor::GrabHandClosed,
-	EMouseCursor::SlashedCircle,
-	EMouseCursor::EyeDropper
-};
+namespace {
+constexpr EMouseCursor::Type CustomizationCursorTypes[] = {
+	EMouseCursor::Default,		 EMouseCursor::TextEditBeam,	EMouseCursor::ResizeLeftRight,
+	EMouseCursor::ResizeUpDown,	 EMouseCursor::ResizeSouthEast, EMouseCursor::ResizeSouthWest,
+	EMouseCursor::CardinalCross, EMouseCursor::Crosshairs,		EMouseCursor::Hand,
+	EMouseCursor::GrabHand,		 EMouseCursor::GrabHandClosed,	EMouseCursor::SlashedCircle,
+	EMouseCursor::EyeDropper};
 
-void DisableCustomizationActorShadowCasting(AActor* Actor)
-{
-	if (!Actor)
-	{
+void DisableCustomizationActorShadowCasting(AActor* Actor) {
+	if (!Actor) {
 		return;
 	}
 
 	TArray<UPrimitiveComponent*> PrimitiveComponents;
 	Actor->GetComponents(PrimitiveComponents);
-	for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
-	{
-		if (PrimitiveComponent)
-		{
+	for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents) {
+		if (PrimitiveComponent) {
 			PrimitiveComponent->SetCastShadow(false);
 		}
 	}
 }
 
-void SetCustomizationCursorWidget(
-	APlayerController* PlayerController,
-	UUserWidget* CursorWidget)
-{
-	if (!PlayerController)
-	{
+void SetCustomizationCursorWidget(APlayerController* PlayerController, UUserWidget* CursorWidget) {
+	if (!PlayerController) {
 		return;
 	}
 
-	for (const EMouseCursor::Type CursorType : CustomizationCursorTypes)
-	{
+	for (const EMouseCursor::Type CursorType : CustomizationCursorTypes) {
 		PlayerController->SetMouseCursorWidget(CursorType, CursorWidget);
 	}
 }
-}
+} // namespace
 
-void ACustomizationPlayerController::BeginPlay()
-{
+void ACustomizationPlayerController::BeginPlay() {
 	Super::BeginPlay();
 
-	if (IsLocalController())
-	{
+	if (IsLocalController()) {
 		EnsurePreviewCharacter();
 		ApplyPreviewCharacterMeshScale();
 		ApplyPreviewCharacterZOffset();
@@ -103,11 +81,8 @@ void ACustomizationPlayerController::BeginPlay()
 	}
 }
 
-void ACustomizationPlayerController::EndPlay(
-	const EEndPlayReason::Type EndPlayReason)
-{
-	if (CustomizationWidget)
-	{
+void ACustomizationPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason) {
+	if (CustomizationWidget) {
 		CustomizationWidget->RemoveFromParent();
 		CustomizationWidget = nullptr;
 	}
@@ -117,40 +92,33 @@ void ACustomizationPlayerController::EndPlay(
 	Super::EndPlay(EndPlayReason);
 }
 
-void ACustomizationPlayerController::PlayerTick(float DeltaTime)
-{
+void ACustomizationPlayerController::PlayerTick(float DeltaTime) {
 	Super::PlayerTick(DeltaTime);
 
-	if (IsLocalController())
-	{
+	if (IsLocalController()) {
 		ApplyCustomizationInputLock();
 		UpdatePreviewRotation(DeltaTime);
 		UpdatePaintUndoInput();
 		UpdatePaintInput();
 		UpdatePaintMouseCursorPresentation();
 		// 슬라이더 드래그 중에도 Slate가 선택한 다른 커서가 남지 않게 페인트 커서를 유지한다.
-		if (bIsPaintCursorActive)
-		{
+		if (bIsPaintCursorActive) {
 			ApplyCurrentMouseCursorWidget();
 		}
 	}
 }
 
-void ACustomizationPlayerController::ShowCustomizationMenu()
-{
-	if (!IsLocalController())
-	{
+void ACustomizationPlayerController::ShowCustomizationMenu() {
+	if (!IsLocalController()) {
 		return;
 	}
 
 	UCustomizationWidget* Widget = EnsureCustomizationWidget();
-	if (!Widget)
-	{
+	if (!Widget) {
 		return;
 	}
 
-	if (!Widget->IsInViewport())
-	{
+	if (!Widget->IsInViewport()) {
 		Widget->AddToViewport(100);
 	}
 	Widget->SetKeyboardFocus();
@@ -167,76 +135,57 @@ void ACustomizationPlayerController::ShowCustomizationMenu()
 	ApplyCurrentMouseCursorWidget();
 }
 
-void ACustomizationPlayerController::ReturnToMainMenu()
-{
-	if (!IsLocalController() || MainMenuTravelUrl.IsEmpty())
-	{
+void ACustomizationPlayerController::ReturnToMainMenu() {
+	if (!IsLocalController() || MainMenuTravelUrl.IsEmpty()) {
 		return;
 	}
 
 	ClientTravel(MainMenuTravelUrl, TRAVEL_Absolute);
 }
 
-void ACustomizationPlayerController::SetPreviewBodyColor(
-	FLinearColor NewBodyColor)
-{
+void ACustomizationPlayerController::SetPreviewBodyColor(FLinearColor NewBodyColor) {
 	FSnowRumbleCustomizationData NewData = PreviewCustomizationData;
 	NewData.BodyColor = NewBodyColor;
-	PreviewCustomizationData =
-		USnowRumbleCustomizationSubsystem::SanitizeCustomizationData(NewData);
+	PreviewCustomizationData = USnowRumbleCustomizationSubsystem::SanitizeCustomizationData(NewData);
 	ApplyPreviewDataToCharacter();
 }
 
-void ACustomizationPlayerController::OpenPaintBrushColorPicker()
-{
-	if (!IsLocalController())
-	{
+void ACustomizationPlayerController::OpenPaintBrushColorPicker() {
+	if (!IsLocalController()) {
 		return;
 	}
 
 	FColorPickerArgs PickerArgs;
 	PickerArgs.DisplayGamma =
-		TAttribute<float>::Create(TAttribute<float>::FGetter::CreateUObject(
-			GEngine,
-			&UEngine::GetDisplayGamma));
+		TAttribute<float>::Create(TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma));
 	PickerArgs.InitialColor = PaintBrushColor;
 	PickerArgs.bUseAlpha = false;
 	PickerArgs.bOnlyRefreshOnMouseUp = false;
 	PickerArgs.bOnlyRefreshOnOk = false;
 	PickerArgs.bClampValue = true;
 	PickerArgs.OnColorCommitted =
-		FOnLinearColorValueChanged::CreateUObject(
-			this,
-			&ACustomizationPlayerController::HandlePaintBrushColorPicked);
+		FOnLinearColorValueChanged::CreateUObject(this, &ACustomizationPlayerController::HandlePaintBrushColorPicked);
 	OpenColorPicker(PickerArgs);
 }
 
-void ACustomizationPlayerController::OpenPaintBrushColorPickerOnLeft(
-	const FVector2D& AnchorScreenPosition)
-{
-	if (!IsLocalController())
-	{
+void ACustomizationPlayerController::OpenPaintBrushColorPickerOnLeft(const FVector2D& AnchorScreenPosition) {
+	if (!IsLocalController()) {
 		return;
 	}
 
 	FSlateApplication& SlateApplication = FSlateApplication::Get();
 	const FVector2D OriginalCursorPosition = SlateApplication.GetCursorPos();
-	const FVector2D ColorPickerWindowSizeEstimate =
-		SColorPicker::DEFAULT_WINDOW_SIZE + FVector2D(0.0f, 130.0f);
-	const FVector2D PickerAnchorPosition(
-		AnchorScreenPosition.X
-			- ColorPickerWindowSizeEstimate.X
-			- PaintBrushColorPickerLeftPadding,
-		AnchorScreenPosition.Y);
+	const FVector2D ColorPickerWindowSizeEstimate = SColorPicker::DEFAULT_WINDOW_SIZE + FVector2D(0.0f, 130.0f);
+	const FVector2D PickerAnchorPosition(AnchorScreenPosition.X - ColorPickerWindowSizeEstimate.X -
+											 PaintBrushColorPickerLeftPadding,
+										 AnchorScreenPosition.Y);
 
 	SlateApplication.SetCursorPos(PickerAnchorPosition);
 	OpenPaintBrushColorPicker();
 	SlateApplication.SetCursorPos(OriginalCursorPosition);
 }
 
-void ACustomizationPlayerController::SetPaintBrushColor(
-	FLinearColor NewBrushColor)
-{
+void ACustomizationPlayerController::SetPaintBrushColor(FLinearColor NewBrushColor) {
 	NewBrushColor.R = FMath::Clamp(NewBrushColor.R, 0.0f, 1.0f);
 	NewBrushColor.G = FMath::Clamp(NewBrushColor.G, 0.0f, 1.0f);
 	NewBrushColor.B = FMath::Clamp(NewBrushColor.B, 0.0f, 1.0f);
@@ -245,101 +194,72 @@ void ACustomizationPlayerController::SetPaintBrushColor(
 	UpdatePaintMouseCursorPresentation();
 }
 
-FLinearColor ACustomizationPlayerController::GetPaintBrushColor() const
-{
+FLinearColor ACustomizationPlayerController::GetPaintBrushColor() const {
 	return PaintBrushColor;
 }
 
-void ACustomizationPlayerController::FillPreviewBodyWithBrushColor()
-{
+void ACustomizationPlayerController::FillPreviewBodyWithBrushColor() {
 	SetPreviewBodyColor(PaintBrushColor);
 	SavePreviewCustomizationData();
 }
 
-void ACustomizationPlayerController::StartAdjustPaintBrushSize()
-{
+void ACustomizationPlayerController::StartAdjustPaintBrushSize() {
 	bIsAdjustingPaintBrushSize = true;
 }
 
-void ACustomizationPlayerController::StopAdjustPaintBrushSize()
-{
+void ACustomizationPlayerController::StopAdjustPaintBrushSize() {
 	bIsAdjustingPaintBrushSize = false;
 }
 
-void ACustomizationPlayerController::AdjustPaintBrushSizeFromWheel(
-	float WheelDelta)
-{
-	if (!bIsAdjustingPaintBrushSize || FMath::IsNearlyZero(WheelDelta))
-	{
+void ACustomizationPlayerController::AdjustPaintBrushSizeFromWheel(float WheelDelta) {
+	if (!bIsAdjustingPaintBrushSize || FMath::IsNearlyZero(WheelDelta)) {
 		return;
 	}
 
 	const float SafeMinSize = FMath::Max(1.0f, MinPaintBrushSize);
 	const float SafeMaxSize = FMath::Max(SafeMinSize, MaxPaintBrushSize);
-	PaintStrokeThickness = FMath::Clamp(
-		PaintStrokeThickness + WheelDelta * PaintBrushWheelStep,
-		SafeMinSize,
-		SafeMaxSize);
+	PaintStrokeThickness =
+		FMath::Clamp(PaintStrokeThickness + WheelDelta * PaintBrushWheelStep, SafeMinSize, SafeMaxSize);
 	UpdatePaintMouseCursorPresentation();
 }
 
-void ACustomizationPlayerController::SetPaintBrushSizeFromNormalizedValue(
-	float NormalizedValue)
-{
+void ACustomizationPlayerController::SetPaintBrushSizeFromNormalizedValue(float NormalizedValue) {
 	const float SafeMinSize = FMath::Max(1.0f, MinPaintBrushSize);
 	const float SafeMaxSize = FMath::Max(SafeMinSize, MaxPaintBrushSize);
 	const float SafeNormalizedValue = FMath::Clamp(NormalizedValue, 0.0f, 1.0f);
-	PaintStrokeThickness = FMath::Lerp(
-		SafeMinSize,
-		SafeMaxSize,
-		SafeNormalizedValue);
+	PaintStrokeThickness = FMath::Lerp(SafeMinSize, SafeMaxSize, SafeNormalizedValue);
 	UpdatePaintMouseCursorPresentation();
 }
 
-float ACustomizationPlayerController::GetPaintBrushSizeNormalizedValue() const
-{
+float ACustomizationPlayerController::GetPaintBrushSizeNormalizedValue() const {
 	const float SafeMinSize = FMath::Max(1.0f, MinPaintBrushSize);
 	const float SafeMaxSize = FMath::Max(SafeMinSize, MaxPaintBrushSize);
-	return FMath::Clamp(FMath::GetRangePct(
-		SafeMinSize,
-		SafeMaxSize,
-		PaintStrokeThickness),
-		0.0f,
-		1.0f);
+	return FMath::Clamp(FMath::GetRangePct(SafeMinSize, SafeMaxSize, PaintStrokeThickness), 0.0f, 1.0f);
 }
 
-float ACustomizationPlayerController::GetPaintBrushSize() const
-{
+float ACustomizationPlayerController::GetPaintBrushSize() const {
 	return PaintStrokeThickness;
 }
 
-void ACustomizationPlayerController::ApplyPreviewCustomization()
-{
-	if (!IsLocalController())
-	{
+void ACustomizationPlayerController::ApplyPreviewCustomization() {
+	if (!IsLocalController()) {
 		return;
 	}
 
 	UGameInstance* GameInstance = GetGameInstance();
-	USnowRumbleCustomizationSubsystem* CustomizationSubsystem = GameInstance
-		? GameInstance->GetSubsystem<USnowRumbleCustomizationSubsystem>()
-		: nullptr;
-	if (CustomizationSubsystem)
-	{
+	USnowRumbleCustomizationSubsystem* CustomizationSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<USnowRumbleCustomizationSubsystem>() : nullptr;
+	if (CustomizationSubsystem) {
 		CustomizationSubsystem->SetCustomizationData(PreviewCustomizationData);
 	}
 }
 
-void ACustomizationPlayerController::ResetPreviewCustomization()
-{
-	PreviewCustomizationData =
-		USnowRumbleCustomizationSubsystem::GetDefaultCustomizationData();
+void ACustomizationPlayerController::ResetPreviewCustomization() {
+	PreviewCustomizationData = USnowRumbleCustomizationSubsystem::GetDefaultCustomizationData();
 
-	if (UGameInstance* GameInstance = GetGameInstance())
-	{
+	if (UGameInstance* GameInstance = GetGameInstance()) {
 		if (USnowRumbleCustomizationSubsystem* CustomizationSubsystem =
-			GameInstance->GetSubsystem<USnowRumbleCustomizationSubsystem>())
-		{
+				GameInstance->GetSubsystem<USnowRumbleCustomizationSubsystem>()) {
 			CustomizationSubsystem->ResetCustomizationData();
 		}
 	}
@@ -352,28 +272,18 @@ void ACustomizationPlayerController::ResetPreviewCustomization()
 	ApplyPreviewDataToCharacter();
 }
 
-FSnowRumbleCustomizationData
-ACustomizationPlayerController::GetPreviewCustomizationData() const
-{
+FSnowRumbleCustomizationData ACustomizationPlayerController::GetPreviewCustomizationData() const {
 	return PreviewCustomizationData;
 }
 
-void ACustomizationPlayerController::SetPreviewHatMeshIndex(
-	int32 NewHatMeshIndex)
-{
+void ACustomizationPlayerController::SetPreviewHatMeshIndex(int32 NewHatMeshIndex) {
 	FSnowRumbleCustomizationData NewData = PreviewCustomizationData;
 	NewData.HatMeshIndex = NewHatMeshIndex;
 
-	if (ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter())
-	{
-		NewData.HatMeshIndex =
-			PreviewCharacter->NormalizeCustomizationHatMeshIndex(
-				NewData.HatMeshIndex);
-	}
-	else
-	{
-		NewData = USnowRumbleCustomizationSubsystem::SanitizeCustomizationData(
-			NewData);
+	if (ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter()) {
+		NewData.HatMeshIndex = PreviewCharacter->NormalizeCustomizationHatMeshIndex(NewData.HatMeshIndex);
+	} else {
+		NewData = USnowRumbleCustomizationSubsystem::SanitizeCustomizationData(NewData);
 	}
 
 	PreviewCustomizationData = NewData;
@@ -381,70 +291,52 @@ void ACustomizationPlayerController::SetPreviewHatMeshIndex(
 	SavePreviewCustomizationData();
 }
 
-void ACustomizationPlayerController::SelectPreviousPreviewHat()
-{
+void ACustomizationPlayerController::SelectPreviousPreviewHat() {
 	ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter();
-	if (!PreviewCharacter)
-	{
+	if (!PreviewCharacter) {
 		SetPreviewHatMeshIndex(INDEX_NONE);
 		return;
 	}
 
-	const int32 HatOptionCount =
-		PreviewCharacter->GetCustomizationHatOptionCount();
-	if (HatOptionCount <= 0)
-	{
+	const int32 HatOptionCount = PreviewCharacter->GetCustomizationHatOptionCount();
+	if (HatOptionCount <= 0) {
 		SetPreviewHatMeshIndex(INDEX_NONE);
 		return;
 	}
 
 	const int32 CurrentHatIndex =
-		PreviewCharacter->NormalizeCustomizationHatMeshIndex(
-			PreviewCustomizationData.HatMeshIndex);
-	const int32 NewHatIndex = CurrentHatIndex == INDEX_NONE
-		? HatOptionCount - 1
-		: CurrentHatIndex - 1;
+		PreviewCharacter->NormalizeCustomizationHatMeshIndex(PreviewCustomizationData.HatMeshIndex);
+	const int32 NewHatIndex = CurrentHatIndex == INDEX_NONE ? HatOptionCount - 1 : CurrentHatIndex - 1;
 	SetPreviewHatMeshIndex(NewHatIndex);
 }
 
-void ACustomizationPlayerController::SelectNextPreviewHat()
-{
+void ACustomizationPlayerController::SelectNextPreviewHat() {
 	ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter();
-	if (!PreviewCharacter)
-	{
+	if (!PreviewCharacter) {
 		SetPreviewHatMeshIndex(INDEX_NONE);
 		return;
 	}
 
-	const int32 HatOptionCount =
-		PreviewCharacter->GetCustomizationHatOptionCount();
-	if (HatOptionCount <= 0)
-	{
+	const int32 HatOptionCount = PreviewCharacter->GetCustomizationHatOptionCount();
+	if (HatOptionCount <= 0) {
 		SetPreviewHatMeshIndex(INDEX_NONE);
 		return;
 	}
 
 	const int32 CurrentHatIndex =
-		PreviewCharacter->NormalizeCustomizationHatMeshIndex(
-			PreviewCustomizationData.HatMeshIndex);
-	const int32 NewHatIndex = CurrentHatIndex >= HatOptionCount - 1
-		? INDEX_NONE
-		: CurrentHatIndex + 1;
+		PreviewCharacter->NormalizeCustomizationHatMeshIndex(PreviewCustomizationData.HatMeshIndex);
+	const int32 NewHatIndex = CurrentHatIndex >= HatOptionCount - 1 ? INDEX_NONE : CurrentHatIndex + 1;
 	SetPreviewHatMeshIndex(NewHatIndex);
 }
 
-int32 ACustomizationPlayerController::GetPreviewHatMeshIndex() const
-{
+int32 ACustomizationPlayerController::GetPreviewHatMeshIndex() const {
 	return PreviewCustomizationData.HatMeshIndex;
 }
 
-void ACustomizationPlayerController::SetPreviewAccessoryMeshIndex(
-	ESnowRumbleCustomizationAccessory Accessory,
-	int32 NewMeshIndex)
-{
+void ACustomizationPlayerController::SetPreviewAccessoryMeshIndex(ESnowRumbleCustomizationAccessory Accessory,
+																  int32 NewMeshIndex) {
 	FSnowRumbleCustomizationData NewData = PreviewCustomizationData;
-	switch (Accessory)
-	{
+	switch (Accessory) {
 	case ESnowRumbleCustomizationAccessory::Hat:
 		NewData.HatMeshIndex = NewMeshIndex;
 		break;
@@ -461,19 +353,13 @@ void ACustomizationPlayerController::SetPreviewAccessoryMeshIndex(
 		return;
 	}
 
-	if (ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter())
-	{
-		NewMeshIndex = PreviewCharacter->NormalizeCustomizationAccessoryMeshIndex(
-			Accessory,
-			NewMeshIndex);
-	}
-	else
-	{
+	if (ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter()) {
+		NewMeshIndex = PreviewCharacter->NormalizeCustomizationAccessoryMeshIndex(Accessory, NewMeshIndex);
+	} else {
 		NewMeshIndex = FMath::Clamp(NewMeshIndex, INDEX_NONE, 255);
 	}
 
-	switch (Accessory)
-	{
+	switch (Accessory) {
 	case ESnowRumbleCustomizationAccessory::Hat:
 		NewData.HatMeshIndex = NewMeshIndex;
 		break;
@@ -495,61 +381,40 @@ void ACustomizationPlayerController::SetPreviewAccessoryMeshIndex(
 	SavePreviewCustomizationData();
 }
 
-void ACustomizationPlayerController::SelectPreviousPreviewAccessory(
-	ESnowRumbleCustomizationAccessory Accessory)
-{
+void ACustomizationPlayerController::SelectPreviousPreviewAccessory(ESnowRumbleCustomizationAccessory Accessory) {
 	ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter();
-	if (!PreviewCharacter)
-	{
+	if (!PreviewCharacter) {
 		SetPreviewAccessoryMeshIndex(Accessory, INDEX_NONE);
 		return;
 	}
-	const int32 OptionCount =
-		PreviewCharacter->GetCustomizationAccessoryOptionCount(Accessory);
-	if (OptionCount <= 0)
-	{
+	const int32 OptionCount = PreviewCharacter->GetCustomizationAccessoryOptionCount(Accessory);
+	if (OptionCount <= 0) {
 		SetPreviewAccessoryMeshIndex(Accessory, INDEX_NONE);
 		return;
 	}
 	const int32 CurrentIndex =
-		PreviewCharacter->NormalizeCustomizationAccessoryMeshIndex(
-			Accessory,
-			GetPreviewAccessoryMeshIndex(Accessory));
-	SetPreviewAccessoryMeshIndex(
-		Accessory,
-		CurrentIndex == INDEX_NONE ? OptionCount - 1 : CurrentIndex - 1);
+		PreviewCharacter->NormalizeCustomizationAccessoryMeshIndex(Accessory, GetPreviewAccessoryMeshIndex(Accessory));
+	SetPreviewAccessoryMeshIndex(Accessory, CurrentIndex == INDEX_NONE ? OptionCount - 1 : CurrentIndex - 1);
 }
 
-void ACustomizationPlayerController::SelectNextPreviewAccessory(
-	ESnowRumbleCustomizationAccessory Accessory)
-{
+void ACustomizationPlayerController::SelectNextPreviewAccessory(ESnowRumbleCustomizationAccessory Accessory) {
 	ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter();
-	if (!PreviewCharacter)
-	{
+	if (!PreviewCharacter) {
 		SetPreviewAccessoryMeshIndex(Accessory, INDEX_NONE);
 		return;
 	}
-	const int32 OptionCount =
-		PreviewCharacter->GetCustomizationAccessoryOptionCount(Accessory);
-	if (OptionCount <= 0)
-	{
+	const int32 OptionCount = PreviewCharacter->GetCustomizationAccessoryOptionCount(Accessory);
+	if (OptionCount <= 0) {
 		SetPreviewAccessoryMeshIndex(Accessory, INDEX_NONE);
 		return;
 	}
 	const int32 CurrentIndex =
-		PreviewCharacter->NormalizeCustomizationAccessoryMeshIndex(
-			Accessory,
-			GetPreviewAccessoryMeshIndex(Accessory));
-	SetPreviewAccessoryMeshIndex(
-		Accessory,
-		CurrentIndex >= OptionCount - 1 ? INDEX_NONE : CurrentIndex + 1);
+		PreviewCharacter->NormalizeCustomizationAccessoryMeshIndex(Accessory, GetPreviewAccessoryMeshIndex(Accessory));
+	SetPreviewAccessoryMeshIndex(Accessory, CurrentIndex >= OptionCount - 1 ? INDEX_NONE : CurrentIndex + 1);
 }
 
-int32 ACustomizationPlayerController::GetPreviewAccessoryMeshIndex(
-	ESnowRumbleCustomizationAccessory Accessory) const
-{
-	switch (Accessory)
-	{
+int32 ACustomizationPlayerController::GetPreviewAccessoryMeshIndex(ESnowRumbleCustomizationAccessory Accessory) const {
+	switch (Accessory) {
 	case ESnowRumbleCustomizationAccessory::Hat:
 		return PreviewCustomizationData.HatMeshIndex;
 	case ESnowRumbleCustomizationAccessory::Glasses:
@@ -563,10 +428,8 @@ int32 ACustomizationPlayerController::GetPreviewAccessoryMeshIndex(
 	}
 }
 
-void ACustomizationPlayerController::UndoLastPaintStroke()
-{
-	if (bIsPaintingStroke || !ActivePaintStroke.Points.IsEmpty())
-	{
+void ACustomizationPlayerController::UndoLastPaintStroke() {
+	if (bIsPaintingStroke || !ActivePaintStroke.Points.IsEmpty()) {
 		ActivePaintStroke.Points.Reset();
 		bIsPaintingStroke = false;
 		bWasPaintMouseDown = false;
@@ -576,8 +439,7 @@ void ACustomizationPlayerController::UndoLastPaintStroke()
 		return;
 	}
 
-	if (!PaintStrokes.IsEmpty())
-	{
+	if (!PaintStrokes.IsEmpty()) {
 		PaintStrokes.Pop();
 		SyncPaintStrokesToPreviewData();
 		SavePreviewCustomizationData();
@@ -585,8 +447,7 @@ void ACustomizationPlayerController::UndoLastPaintStroke()
 	}
 }
 
-void ACustomizationPlayerController::ResetPaintStrokes()
-{
+void ACustomizationPlayerController::ResetPaintStrokes() {
 	PaintStrokes.Reset();
 	ActivePaintStroke.Points.Reset();
 	bIsPaintingStroke = false;
@@ -596,32 +457,24 @@ void ACustomizationPlayerController::ResetPaintStrokes()
 	RedrawPaintRenderTarget();
 }
 
-UCanvasRenderTarget2D*
-ACustomizationPlayerController::GetPaintRenderTarget() const
-{
+UCanvasRenderTarget2D* ACustomizationPlayerController::GetPaintRenderTarget() const {
 	return PaintRenderTarget;
 }
 
-void ACustomizationPlayerController::StartRotatePreviewLeft()
-{
+void ACustomizationPlayerController::StartRotatePreviewLeft() {
 	PreviewRotationInput = 1.0f;
 }
 
-void ACustomizationPlayerController::StartRotatePreviewRight()
-{
+void ACustomizationPlayerController::StartRotatePreviewRight() {
 	PreviewRotationInput = -1.0f;
 }
 
-void ACustomizationPlayerController::StopRotatePreview()
-{
+void ACustomizationPlayerController::StopRotatePreview() {
 	PreviewRotationInput = 0.0f;
 }
 
-void ACustomizationPlayerController::SetPaintCursorActive(
-	bool bNewPaintCursorActive)
-{
-	if (bIsPaintCursorActive == bNewPaintCursorActive)
-	{
+void ACustomizationPlayerController::SetPaintCursorActive(bool bNewPaintCursorActive) {
+	if (bIsPaintCursorActive == bNewPaintCursorActive) {
 		return;
 	}
 
@@ -629,88 +482,63 @@ void ACustomizationPlayerController::SetPaintCursorActive(
 	ApplyCurrentMouseCursorWidget();
 }
 
-void ACustomizationPlayerController::RefreshCustomizationMouseCursor()
-{
+void ACustomizationPlayerController::RefreshCustomizationMouseCursor() {
 	ApplyCurrentMouseCursorWidget();
 }
 
-void ACustomizationPlayerController::SetBackgroundMusicPreviewVolume(
-	float MasterVolume,
-	float BgmVolume)
-{
-	if (UGameInstance* GameInstance = GetGameInstance())
-	{
+void ACustomizationPlayerController::SetBackgroundMusicPreviewVolume(float MasterVolume, float BgmVolume) {
+	if (UGameInstance* GameInstance = GetGameInstance()) {
 		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
-			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
-		{
-			BackgroundMusicSubsystem->SetBackgroundMusicPreviewVolume(
-				MasterVolume,
-				BgmVolume);
+				GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>()) {
+			BackgroundMusicSubsystem->SetBackgroundMusicPreviewVolume(MasterVolume, BgmVolume);
 		}
 	}
 }
 
-void ACustomizationPlayerController::ApplyCustomizationCameraView()
-{
-	if (CustomizationCameraTag.IsNone())
-	{
+void ACustomizationPlayerController::ApplyCustomizationCameraView() {
+	if (CustomizationCameraTag.IsNone()) {
 		return;
 	}
 
 	UWorld* World = GetWorld();
-	if (!World)
-	{
+	if (!World) {
 		return;
 	}
 
-	for (TActorIterator<AActor> It(World); It; ++It)
-	{
+	for (TActorIterator<AActor> It(World); It; ++It) {
 		AActor* Candidate = *It;
-		if (Candidate && Candidate->ActorHasTag(CustomizationCameraTag))
-		{
+		if (Candidate && Candidate->ActorHasTag(CustomizationCameraTag)) {
 			SetViewTargetWithBlend(Candidate, 0.0f);
 			return;
 		}
 	}
 }
 
-ASnowRumbleCharacter*
-ACustomizationPlayerController::GetPreviewCharacter() const
-{
-	if (ASnowRumbleCharacter* PossessedPreviewCharacter =
-		GetPawn<ASnowRumbleCharacter>())
-	{
+ASnowRumbleCharacter* ACustomizationPlayerController::GetPreviewCharacter() const {
+	if (ASnowRumbleCharacter* PossessedPreviewCharacter = GetPawn<ASnowRumbleCharacter>()) {
 		return PossessedPreviewCharacter;
 	}
 
 	return CachedPreviewCharacter;
 }
 
-ASnowRumbleCharacter*
-ACustomizationPlayerController::EnsurePreviewCharacter()
-{
-	if (ASnowRumbleCharacter* ExistingPreviewCharacter = GetPreviewCharacter())
-	{
+ASnowRumbleCharacter* ACustomizationPlayerController::EnsurePreviewCharacter() {
+	if (ASnowRumbleCharacter* ExistingPreviewCharacter = GetPreviewCharacter()) {
 		CachedPreviewCharacter = ExistingPreviewCharacter;
 		return ExistingPreviewCharacter;
 	}
 
 	UWorld* World = GetWorld();
-	if (!World)
-	{
+	if (!World) {
 		return nullptr;
 	}
 
-	if (!PreviewCharacterTag.IsNone())
-	{
-		for (TActorIterator<ASnowRumbleCharacter> It(World); It; ++It)
-		{
+	if (!PreviewCharacterTag.IsNone()) {
+		for (TActorIterator<ASnowRumbleCharacter> It(World); It; ++It) {
 			ASnowRumbleCharacter* Candidate = *It;
-			if (Candidate && Candidate->ActorHasTag(PreviewCharacterTag))
-			{
+			if (Candidate && Candidate->ActorHasTag(PreviewCharacterTag)) {
 				CachedPreviewCharacter = Candidate;
-				if (HasAuthority() && !Candidate->GetController())
-				{
+				if (HasAuthority() && !Candidate->GetController()) {
 					Possess(Candidate);
 					ApplyCustomizationInputLock();
 				}
@@ -719,14 +547,11 @@ ACustomizationPlayerController::EnsurePreviewCharacter()
 		}
 	}
 
-	for (TActorIterator<ASnowRumbleCharacter> It(World); It; ++It)
-	{
+	for (TActorIterator<ASnowRumbleCharacter> It(World); It; ++It) {
 		ASnowRumbleCharacter* Candidate = *It;
-		if (Candidate)
-		{
+		if (Candidate) {
 			CachedPreviewCharacter = Candidate;
-			if (HasAuthority() && !Candidate->GetController())
-			{
+			if (HasAuthority() && !Candidate->GetController()) {
 				Possess(Candidate);
 				ApplyCustomizationInputLock();
 			}
@@ -734,80 +559,58 @@ ACustomizationPlayerController::EnsurePreviewCharacter()
 		}
 	}
 
-	if (!HasAuthority())
-	{
+	if (!HasAuthority()) {
 		return nullptr;
 	}
 
 	TSubclassOf<ASnowRumbleCharacter> CharacterClass = PreviewCharacterClass;
-	if (!CharacterClass)
-	{
+	if (!CharacterClass) {
 		CharacterClass = ASnowRumbleCharacter::StaticClass();
 	}
-	ASnowRumbleCharacter* SpawnedPreviewCharacter =
-		World->SpawnActorDeferred<ASnowRumbleCharacter>(
-			CharacterClass,
-			GetPreviewCharacterSpawnTransform(),
-			nullptr,
-			nullptr,
-			ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
-	if (!SpawnedPreviewCharacter)
-	{
+	ASnowRumbleCharacter* SpawnedPreviewCharacter = World->SpawnActorDeferred<ASnowRumbleCharacter>(
+		CharacterClass, GetPreviewCharacterSpawnTransform(), nullptr, nullptr,
+		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
+	if (!SpawnedPreviewCharacter) {
 		return nullptr;
 	}
 
-	if (!PreviewCharacterTag.IsNone())
-	{
+	if (!PreviewCharacterTag.IsNone()) {
 		SpawnedPreviewCharacter->Tags.AddUnique(PreviewCharacterTag);
 	}
 
-	UGameplayStatics::FinishSpawningActor(
-		SpawnedPreviewCharacter,
-		GetPreviewCharacterSpawnTransform());
+	UGameplayStatics::FinishSpawningActor(SpawnedPreviewCharacter, GetPreviewCharacterSpawnTransform());
 	CachedPreviewCharacter = SpawnedPreviewCharacter;
 	Possess(SpawnedPreviewCharacter);
 	ApplyCustomizationInputLock();
 	return SpawnedPreviewCharacter;
 }
 
-FTransform ACustomizationPlayerController::GetPreviewCharacterSpawnTransform()
-	const
-{
+FTransform ACustomizationPlayerController::GetPreviewCharacterSpawnTransform() const {
 	UWorld* World = GetWorld();
-	if (World)
-	{
-		for (TActorIterator<APlayerStart> It(World); It; ++It)
-		{
+	if (World) {
+		for (TActorIterator<APlayerStart> It(World); It; ++It) {
 			const APlayerStart* PlayerStart = *It;
-			if (PlayerStart)
-			{
+			if (PlayerStart) {
 				return PlayerStart->GetActorTransform();
 			}
 		}
 	}
 
-	return FTransform(
-		FRotator::ZeroRotator,
-		FVector(0.0f, 0.0f, 100.0f),
-		FVector::OneVector);
+	return FTransform(FRotator::ZeroRotator, FVector(0.0f, 0.0f, 100.0f), FVector::OneVector);
 }
 
-void ACustomizationPlayerController::ApplyPreviewCharacterZOffset()
-{
-	if (FMath::IsNearlyZero(PreviewCharacterZOffset))
-	{
+void ACustomizationPlayerController::ApplyPreviewCharacterZOffset() {
+	if (FMath::IsNearlyZero(PreviewCharacterZOffset)) {
 		return;
 	}
 
 	ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter();
-	if (!PreviewCharacter)
-	{
+	if (!PreviewCharacter) {
 		return;
 	}
 
 	USkeletalMeshComponent* PreviewMesh = PreviewCharacter->GetMesh();
-	if (!PreviewMesh)
-	{
+	if (!PreviewMesh) {
 		return;
 	}
 
@@ -816,17 +619,14 @@ void ACustomizationPlayerController::ApplyPreviewCharacterZOffset()
 	PreviewMesh->SetRelativeLocation(AdjustedRelativeLocation);
 }
 
-void ACustomizationPlayerController::ApplyPreviewCharacterMeshScale()
-{
+void ACustomizationPlayerController::ApplyPreviewCharacterMeshScale() {
 	ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter();
-	if (!PreviewCharacter)
-	{
+	if (!PreviewCharacter) {
 		return;
 	}
 
 	USkeletalMeshComponent* PreviewMesh = PreviewCharacter->GetMesh();
-	if (!PreviewMesh)
-	{
+	if (!PreviewMesh) {
 		return;
 	}
 
@@ -834,11 +634,9 @@ void ACustomizationPlayerController::ApplyPreviewCharacterMeshScale()
 	PreviewMesh->SetRelativeScale3D(FVector(SafeMeshScale));
 }
 
-void ACustomizationPlayerController::ApplyPreviewAnimationSettings()
-{
+void ACustomizationPlayerController::ApplyPreviewAnimationSettings() {
 	ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter();
-	if (!PreviewCharacter)
-	{
+	if (!PreviewCharacter) {
 		return;
 	}
 
@@ -846,15 +644,12 @@ void ACustomizationPlayerController::ApplyPreviewAnimationSettings()
 
 	TArray<USkeletalMeshComponent*> MeshComponents;
 	PreviewCharacter->GetComponents(MeshComponents);
-	for (USkeletalMeshComponent* MeshComponent : MeshComponents)
-	{
-		if (!MeshComponent || !MeshComponent->GetSkinnedAsset())
-		{
+	for (USkeletalMeshComponent* MeshComponent : MeshComponents) {
+		if (!MeshComponent || !MeshComponent->GetSkinnedAsset()) {
 			continue;
 		}
 
-		if (PreviewAnimationAsset)
-		{
+		if (PreviewAnimationAsset) {
 			MeshComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 			MeshComponent->SetAnimation(PreviewAnimationAsset);
 			MeshComponent->SetPosition(PreviewAnimationPositionSeconds, false);
@@ -864,15 +659,13 @@ void ACustomizationPlayerController::ApplyPreviewAnimationSettings()
 	}
 }
 
-void ACustomizationPlayerController::LoadSavedCustomizationForPreview()
-{
+void ACustomizationPlayerController::LoadSavedCustomizationForPreview() {
 	UGameInstance* GameInstance = GetGameInstance();
-	const USnowRumbleCustomizationSubsystem* CustomizationSubsystem = GameInstance
-		? GameInstance->GetSubsystem<USnowRumbleCustomizationSubsystem>()
-		: nullptr;
+	const USnowRumbleCustomizationSubsystem* CustomizationSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<USnowRumbleCustomizationSubsystem>() : nullptr;
 	PreviewCustomizationData = CustomizationSubsystem
-		? CustomizationSubsystem->GetCustomizationData()
-		: USnowRumbleCustomizationSubsystem::GetDefaultCustomizationData();
+								   ? CustomizationSubsystem->GetCustomizationData()
+								   : USnowRumbleCustomizationSubsystem::GetDefaultCustomizationData();
 	PaintStrokes = PreviewCustomizationData.PaintStrokes;
 	ActivePaintStroke.Points.Reset();
 	bIsPaintingStroke = false;
@@ -882,61 +675,47 @@ void ACustomizationPlayerController::LoadSavedCustomizationForPreview()
 	ApplyPreviewDataToCharacter();
 }
 
-void ACustomizationPlayerController::ApplyPreviewDataToCharacter()
-{
-	if (ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter())
-	{
+void ACustomizationPlayerController::ApplyPreviewDataToCharacter() {
+	if (ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter()) {
 		PreviewCharacter->ApplyCustomizationData(PreviewCustomizationData);
-		if (PaintRenderTarget)
-		{
+		if (PaintRenderTarget) {
 			PreviewCharacter->SetCustomizationPaintTexture(PaintRenderTarget);
 		}
 	}
 }
 
-void ACustomizationPlayerController::PlayBackgroundMusic()
-{
-	if (!IsLocalController())
-	{
+void ACustomizationPlayerController::PlayBackgroundMusic() {
+	if (!IsLocalController()) {
 		return;
 	}
 
-	if (UGameInstance* GameInstance = GetGameInstance())
-	{
+	if (UGameInstance* GameInstance = GetGameInstance()) {
 		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
-			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
-		{
+				GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>()) {
 			BackgroundMusicSubsystem->PlayBackgroundMusic(BackgroundMusicSound);
 		}
 	}
 }
 
-void ACustomizationPlayerController::StopBackgroundMusic()
-{
-	if (UGameInstance* GameInstance = GetGameInstance())
-	{
+void ACustomizationPlayerController::StopBackgroundMusic() {
+	if (UGameInstance* GameInstance = GetGameInstance()) {
 		if (USnowRumbleBackgroundMusicSubsystem* BackgroundMusicSubsystem =
-			GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>())
-		{
+				GameInstance->GetSubsystem<USnowRumbleBackgroundMusicSubsystem>()) {
 			BackgroundMusicSubsystem->StopBackgroundMusic();
 		}
 	}
 }
 
-void ACustomizationPlayerController::ConfigurePreviewCharacterForPainting()
-{
+void ACustomizationPlayerController::ConfigurePreviewCharacterForPainting() {
 	ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter();
-	if (!PreviewCharacter)
-	{
+	if (!PreviewCharacter) {
 		return;
 	}
 
 	TArray<USkeletalMeshComponent*> MeshComponents;
 	PreviewCharacter->GetComponents(MeshComponents);
-	for (USkeletalMeshComponent* MeshComponent : MeshComponents)
-	{
-		if (!MeshComponent || !MeshComponent->GetSkinnedAsset())
-		{
+	for (USkeletalMeshComponent* MeshComponent : MeshComponents) {
+		if (!MeshComponent || !MeshComponent->GetSkinnedAsset()) {
 			continue;
 		}
 
@@ -947,22 +726,14 @@ void ACustomizationPlayerController::ConfigurePreviewCharacterForPainting()
 		MeshComponent->RecreatePhysicsState();
 	}
 
-	if (UCapsuleComponent* CapsuleComponent =
-		PreviewCharacter->GetCapsuleComponent())
-	{
-		CapsuleComponent->SetCollisionResponseToChannel(
-			ECC_Visibility,
-			ECR_Ignore);
+	if (UCapsuleComponent* CapsuleComponent = PreviewCharacter->GetCapsuleComponent()) {
+		CapsuleComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Ignore);
 	}
 
 	TArray<UWidgetComponent*> WidgetComponents;
 	PreviewCharacter->GetComponents(WidgetComponents);
-	for (UWidgetComponent* WidgetComponent : WidgetComponents)
-	{
-		if (WidgetComponent
-			&& WidgetComponent->GetFName()
-				== TEXT("OverheadNameplateComponent"))
-		{
+	for (UWidgetComponent* WidgetComponent : WidgetComponents) {
+		if (WidgetComponent && WidgetComponent->GetFName() == TEXT("OverheadNameplateComponent")) {
 			WidgetComponent->SetVisibility(false, true);
 			WidgetComponent->SetHiddenInGame(true, true);
 			WidgetComponent->SetComponentTickEnabled(false);
@@ -970,62 +741,44 @@ void ACustomizationPlayerController::ConfigurePreviewCharacterForPainting()
 	}
 }
 
-void ACustomizationPlayerController::EnsurePaintRenderTarget()
-{
-	if (PaintRenderTarget)
-	{
+void ACustomizationPlayerController::EnsurePaintRenderTarget() {
+	if (PaintRenderTarget) {
 		ApplyPreviewDataToCharacter();
 		return;
 	}
 
-	const int32 SafeRenderTargetSize =
-		FMath::Clamp(PaintRenderTargetSize, 64, 4096);
-	PaintRenderTarget = UCanvasRenderTarget2D::CreateCanvasRenderTarget2D(
-		this,
-		UCanvasRenderTarget2D::StaticClass(),
-		SafeRenderTargetSize,
-		SafeRenderTargetSize);
-	if (!PaintRenderTarget)
-	{
+	const int32 SafeRenderTargetSize = FMath::Clamp(PaintRenderTargetSize, 64, 4096);
+	PaintRenderTarget = UCanvasRenderTarget2D::CreateCanvasRenderTarget2D(this, UCanvasRenderTarget2D::StaticClass(),
+																		  SafeRenderTargetSize, SafeRenderTargetSize);
+	if (!PaintRenderTarget) {
 		return;
 	}
 
 	PaintRenderTarget->ClearColor = FLinearColor::Transparent;
 	PaintRenderTarget->OnCanvasRenderTargetUpdate.AddUniqueDynamic(
-		this,
-		&ACustomizationPlayerController::HandlePaintCanvasUpdate);
+		this, &ACustomizationPlayerController::HandlePaintCanvasUpdate);
 	RedrawPaintRenderTarget();
 	ApplyPreviewDataToCharacter();
 }
 
-bool ACustomizationPlayerController::GetPaintUvUnderCursor(
-	FVector2D& OutPaintUv,
-	FName& OutMeshComponentName,
-	int32& OutMaterialIndex)
-{
+bool ACustomizationPlayerController::GetPaintUvUnderCursor(FVector2D& OutPaintUv, FName& OutMeshComponentName,
+														   int32& OutMaterialIndex) {
 	const ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter();
-	if (!PreviewCharacter)
-	{
+	if (!PreviewCharacter) {
 		ShowPaintDebugMessage(TEXT("Paint failed: preview character not found"));
 		return false;
 	}
 
 	float MouseX = 0.0f;
 	float MouseY = 0.0f;
-	if (!GetPaintCursorScreenPosition(MouseX, MouseY))
-	{
+	if (!GetPaintCursorScreenPosition(MouseX, MouseY)) {
 		ShowPaintDebugMessage(TEXT("Paint failed: mouse position not found"));
 		return false;
 	}
 
 	FVector WorldLocation;
 	FVector WorldDirection;
-	if (!DeprojectScreenPositionToWorld(
-		MouseX,
-		MouseY,
-		WorldLocation,
-		WorldDirection))
-	{
+	if (!DeprojectScreenPositionToWorld(MouseX, MouseY, WorldLocation, WorldDirection)) {
 		ShowPaintDebugMessage(TEXT("Paint failed: mouse deproject failed"));
 		return false;
 	}
@@ -1038,57 +791,36 @@ bool ACustomizationPlayerController::GetPaintUvUnderCursor(
 	TArray<USkeletalMeshComponent*> MeshComponents;
 	PreviewCharacter->GetComponents(MeshComponents);
 	bool bHitAnyPreviewMesh = false;
-	for (USkeletalMeshComponent* MeshComponent : MeshComponents)
-	{
-		if (!MeshComponent || !MeshComponent->GetSkinnedAsset())
-		{
+	for (USkeletalMeshComponent* MeshComponent : MeshComponents) {
+		if (!MeshComponent || !MeshComponent->GetSkinnedAsset()) {
 			continue;
 		}
 
 		FHitResult HitResult;
-		if (!MeshComponent->LineTraceComponent(
-			HitResult,
-			WorldLocation,
-			TraceEnd,
-			QueryParams))
-		{
+		if (!MeshComponent->LineTraceComponent(HitResult, WorldLocation, TraceEnd, QueryParams)) {
 			continue;
 		}
 
 		bHitAnyPreviewMesh = true;
-		if (FindPaintUvOnSkinnedRenderData(
-			MeshComponent,
-			WorldLocation,
-			TraceEnd,
-			OutPaintUv,
-			OutMaterialIndex))
-		{
-			if (!IsPaintMaterialIndexAllowed(OutMaterialIndex))
-			{
-				ShowPaintDebugMessage(FString::Printf(
-					TEXT("Paint skipped: material slot %d is not allowed"),
-					OutMaterialIndex));
+		if (FindPaintUvOnSkinnedRenderData(MeshComponent, WorldLocation, TraceEnd, OutPaintUv, OutMaterialIndex)) {
+			if (!IsPaintMaterialIndexAllowed(OutMaterialIndex)) {
+				ShowPaintDebugMessage(
+					FString::Printf(TEXT("Paint skipped: material slot %d is not allowed"), OutMaterialIndex));
 				return false;
 			}
 
 			OutMeshComponentName = MeshComponent->GetFName();
-			if (bShowPaintHitDebug)
-			{
-				ShowPaintDebugMessage(FString::Printf(
-					TEXT("Paint hit: %s, material %d, UV %.3f %.3f"),
-					*OutMeshComponentName.ToString(),
-					OutMaterialIndex,
-					OutPaintUv.X,
-					OutPaintUv.Y));
+			if (bShowPaintHitDebug) {
+				ShowPaintDebugMessage(FString::Printf(TEXT("Paint hit: %s, material %d, UV %.3f %.3f"),
+													  *OutMeshComponentName.ToString(), OutMaterialIndex, OutPaintUv.X,
+													  OutPaintUv.Y));
 			}
 			return true;
 		}
 
-		if (!UGameplayStatics::FindCollisionUV(HitResult, 0, OutPaintUv))
-		{
-			ShowPaintDebugMessage(FString::Printf(
-				TEXT("Paint failed: mesh hit but UV unavailable, FaceIndex=%d"),
-				HitResult.FaceIndex));
+		if (!UGameplayStatics::FindCollisionUV(HitResult, 0, OutPaintUv)) {
+			ShowPaintDebugMessage(
+				FString::Printf(TEXT("Paint failed: mesh hit but UV unavailable, FaceIndex=%d"), HitResult.FaceIndex));
 			return false;
 		}
 
@@ -1096,57 +828,34 @@ bool ACustomizationPlayerController::GetPaintUvUnderCursor(
 		OutPaintUv.Y = FMath::Clamp(OutPaintUv.Y, 0.0f, 1.0f);
 		OutMeshComponentName = MeshComponent->GetFName();
 		OutMaterialIndex = INDEX_NONE;
-		if (!IsPaintMaterialIndexAllowed(OutMaterialIndex))
-		{
-			ShowPaintDebugMessage(
-				TEXT("Paint skipped: material slot is unknown"));
+		if (!IsPaintMaterialIndexAllowed(OutMaterialIndex)) {
+			ShowPaintDebugMessage(TEXT("Paint skipped: material slot is unknown"));
 			return false;
 		}
-		if (bShowPaintHitDebug)
-		{
-			ShowPaintDebugMessage(FString::Printf(
-				TEXT("Paint hit: %s, material unknown, UV %.3f %.3f"),
-				*OutMeshComponentName.ToString(),
-				OutPaintUv.X,
-				OutPaintUv.Y));
+		if (bShowPaintHitDebug) {
+			ShowPaintDebugMessage(FString::Printf(TEXT("Paint hit: %s, material unknown, UV %.3f %.3f"),
+												  *OutMeshComponentName.ToString(), OutPaintUv.X, OutPaintUv.Y));
 		}
 		return true;
 	}
 
-	if (bHitAnyPreviewMesh)
-	{
+	if (bHitAnyPreviewMesh) {
 		ShowPaintDebugMessage(TEXT("Paint failed: preview mesh hit rejected"));
-	}
-	else
-	{
-		for (USkeletalMeshComponent* MeshComponent : MeshComponents)
-		{
-			if (MeshComponent
-				&& MeshComponent->GetSkinnedAsset()
-				&& FindPaintUvOnSkinnedRenderData(
-					MeshComponent,
-					WorldLocation,
-					TraceEnd,
-					OutPaintUv,
-					OutMaterialIndex))
-			{
-				if (!IsPaintMaterialIndexAllowed(OutMaterialIndex))
-				{
-					ShowPaintDebugMessage(FString::Printf(
-						TEXT("Paint skipped: material slot %d is not allowed"),
-						OutMaterialIndex));
+	} else {
+		for (USkeletalMeshComponent* MeshComponent : MeshComponents) {
+			if (MeshComponent && MeshComponent->GetSkinnedAsset() &&
+				FindPaintUvOnSkinnedRenderData(MeshComponent, WorldLocation, TraceEnd, OutPaintUv, OutMaterialIndex)) {
+				if (!IsPaintMaterialIndexAllowed(OutMaterialIndex)) {
+					ShowPaintDebugMessage(
+						FString::Printf(TEXT("Paint skipped: material slot %d is not allowed"), OutMaterialIndex));
 					return false;
 				}
 
 				OutMeshComponentName = MeshComponent->GetFName();
-				if (bShowPaintHitDebug)
-				{
-					ShowPaintDebugMessage(FString::Printf(
-						TEXT("Paint hit: %s, material %d, UV %.3f %.3f"),
-						*OutMeshComponentName.ToString(),
-						OutMaterialIndex,
-						OutPaintUv.X,
-						OutPaintUv.Y));
+				if (bShowPaintHitDebug) {
+					ShowPaintDebugMessage(FString::Printf(TEXT("Paint hit: %s, material %d, UV %.3f %.3f"),
+														  *OutMeshComponentName.ToString(), OutMaterialIndex,
+														  OutPaintUv.X, OutPaintUv.Y));
 				}
 				return true;
 			}
@@ -1157,26 +866,19 @@ bool ACustomizationPlayerController::GetPaintUvUnderCursor(
 	return false;
 }
 
-bool ACustomizationPlayerController::GetPaintCursorScreenPosition(
-	float& OutMouseX,
-	float& OutMouseY)
-{
-	if (!GetMousePosition(OutMouseX, OutMouseY))
-	{
+bool ACustomizationPlayerController::GetPaintCursorScreenPosition(float& OutMouseX, float& OutMouseY) {
+	if (!GetMousePosition(OutMouseX, OutMouseY)) {
 		return false;
 	}
 
 	const float ViewportScale = UWidgetLayoutLibrary::GetViewportScale(this);
-	if (ViewportScale > UE_KINDA_SMALL_NUMBER)
-	{
-		const FVector2D SlateMousePosition =
-			UWidgetLayoutLibrary::GetMousePositionOnViewport(this);
+	if (ViewportScale > UE_KINDA_SMALL_NUMBER) {
+		const FVector2D SlateMousePosition = UWidgetLayoutLibrary::GetMousePositionOnViewport(this);
 		OutMouseX = SlateMousePosition.X * ViewportScale;
 		OutMouseY = SlateMousePosition.Y * ViewportScale;
 	}
 
-	if (bUsePaintCursorCenterTraceOffset)
-	{
+	if (bUsePaintCursorCenterTraceOffset) {
 		OutMouseX += PaintCursorCenterTraceOffset.X;
 		OutMouseY += PaintCursorCenterTraceOffset.Y;
 	}
@@ -1186,54 +888,33 @@ bool ACustomizationPlayerController::GetPaintCursorScreenPosition(
 	return true;
 }
 
-float ACustomizationPlayerController::GetPaintCursorDiameter() const
-{
+float ACustomizationPlayerController::GetPaintCursorDiameter() const {
 	const float SafeMinDiameter = FMath::Max(1.0f, MinPaintCursorDiameter);
 	const float SafeMinBrushSize = FMath::Max(1.0f, MinPaintBrushSize);
-	const float SafeMaxBrushSize =
-		FMath::Max(SafeMinBrushSize, MaxPaintBrushSize);
-	const float SafeMaxDiameter = FMath::Max(
-		SafeMinDiameter,
-		FMath::Max(MaxPaintCursorDiameter,
-			SafeMaxBrushSize * PaintCursorBrushSizeScale));
-	return FMath::Clamp(
-		PaintStrokeThickness * PaintCursorBrushSizeScale,
-		SafeMinDiameter,
-		SafeMaxDiameter);
+	const float SafeMaxBrushSize = FMath::Max(SafeMinBrushSize, MaxPaintBrushSize);
+	const float SafeMaxDiameter =
+		FMath::Max(SafeMinDiameter, FMath::Max(MaxPaintCursorDiameter, SafeMaxBrushSize * PaintCursorBrushSizeScale));
+	return FMath::Clamp(PaintStrokeThickness * PaintCursorBrushSizeScale, SafeMinDiameter, SafeMaxDiameter);
 }
 
-bool ACustomizationPlayerController::FindPaintUvOnSkinnedRenderData(
-	const USkeletalMeshComponent* MeshComponent,
-	const FVector& TraceStart,
-	const FVector& TraceEnd,
-	FVector2D& OutPaintUv,
-	int32& OutMaterialIndex) const
-{
-	const USkinnedAsset* SkinnedAsset = MeshComponent
-		? MeshComponent->GetSkinnedAsset()
-		: nullptr;
-	const FSkeletalMeshRenderData* RenderData = SkinnedAsset
-		? SkinnedAsset->GetResourceForRendering()
-		: nullptr;
-	if (!MeshComponent
-		|| !RenderData
-		|| !RenderData->LODRenderData.IsValidIndex(0))
-	{
+bool ACustomizationPlayerController::FindPaintUvOnSkinnedRenderData(const USkeletalMeshComponent* MeshComponent,
+																	const FVector& TraceStart, const FVector& TraceEnd,
+																	FVector2D& OutPaintUv,
+																	int32& OutMaterialIndex) const {
+	const USkinnedAsset* SkinnedAsset = MeshComponent ? MeshComponent->GetSkinnedAsset() : nullptr;
+	const FSkeletalMeshRenderData* RenderData = SkinnedAsset ? SkinnedAsset->GetResourceForRendering() : nullptr;
+	if (!MeshComponent || !RenderData || !RenderData->LODRenderData.IsValidIndex(0)) {
 		return false;
 	}
 
 	const FSkeletalMeshLODRenderData& LODData = RenderData->LODRenderData[0];
-	if (!LODData.IsDataReady()
-		|| LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords()
-			<= 0)
-	{
+	if (!LODData.IsDataReady() || LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() <= 0) {
 		return false;
 	}
 
 	TArray<uint32> IndexBuffer;
 	LODData.MultiSizeIndexContainer.GetIndexBuffer(IndexBuffer);
-	if (IndexBuffer.IsEmpty())
-	{
+	if (IndexBuffer.IsEmpty()) {
 		return false;
 	}
 
@@ -1243,91 +924,55 @@ bool ACustomizationPlayerController::FindPaintUvOnSkinnedRenderData(
 	int32 ClosestMaterialIndex = INDEX_NONE;
 	bool bFoundHit = false;
 
-	for (const FSkelMeshRenderSection& Section : LODData.RenderSections)
-	{
-		if (!Section.IsValid())
-		{
+	for (const FSkelMeshRenderSection& Section : LODData.RenderSections) {
+		if (!Section.IsValid()) {
 			continue;
 		}
 
-		const int32 LastSectionIndex =
-			Section.BaseIndex + Section.NumTriangles * 3;
-		for (int32 Index = Section.BaseIndex;
-			Index + 2 < LastSectionIndex && Index + 2 < IndexBuffer.Num();
-			Index += 3)
-		{
+		const int32 LastSectionIndex = Section.BaseIndex + Section.NumTriangles * 3;
+		for (int32 Index = Section.BaseIndex; Index + 2 < LastSectionIndex && Index + 2 < IndexBuffer.Num();
+			 Index += 3) {
 			const int32 Index0 = static_cast<int32>(IndexBuffer[Index]);
 			const int32 Index1 = static_cast<int32>(IndexBuffer[Index + 1]);
 			const int32 Index2 = static_cast<int32>(IndexBuffer[Index + 2]);
-			if (Index0 < 0 || Index1 < 0 || Index2 < 0
-				|| Index0 >= static_cast<int32>(LODData.GetNumVertices())
-				|| Index1 >= static_cast<int32>(LODData.GetNumVertices())
-				|| Index2 >= static_cast<int32>(LODData.GetNumVertices()))
-			{
+			if (Index0 < 0 || Index1 < 0 || Index2 < 0 || Index0 >= static_cast<int32>(LODData.GetNumVertices()) ||
+				Index1 >= static_cast<int32>(LODData.GetNumVertices()) ||
+				Index2 >= static_cast<int32>(LODData.GetNumVertices())) {
 				continue;
 			}
 
 			const FVector Vertex0 = ComponentTransform.TransformPosition(
-				FVector(LODData.StaticVertexBuffers.PositionVertexBuffer
-					.VertexPosition(Index0)));
+				FVector(LODData.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(Index0)));
 			const FVector Vertex1 = ComponentTransform.TransformPosition(
-				FVector(LODData.StaticVertexBuffers.PositionVertexBuffer
-					.VertexPosition(Index1)));
+				FVector(LODData.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(Index1)));
 			const FVector Vertex2 = ComponentTransform.TransformPosition(
-				FVector(LODData.StaticVertexBuffers.PositionVertexBuffer
-					.VertexPosition(Index2)));
+				FVector(LODData.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(Index2)));
 
 			FVector HitLocation;
 			FVector HitNormal;
-			if (!FMath::SegmentTriangleIntersection(
-				TraceStart,
-				TraceEnd,
-				Vertex0,
-				Vertex1,
-				Vertex2,
-				HitLocation,
-				HitNormal))
-			{
+			if (!FMath::SegmentTriangleIntersection(TraceStart, TraceEnd, Vertex0, Vertex1, Vertex2, HitLocation,
+													HitNormal)) {
 				continue;
 			}
 
-			const float TraceDistance =
-				FVector::DistSquared(TraceStart, HitLocation);
-			if (TraceDistance >= ClosestTraceDistance)
-			{
+			const float TraceDistance = FVector::DistSquared(TraceStart, HitLocation);
+			if (TraceDistance >= ClosestTraceDistance) {
 				continue;
 			}
 
-			const FVector Barycentric =
-				FMath::ComputeBaryCentric2D(
-					HitLocation,
-					Vertex0,
-					Vertex1,
-					Vertex2);
-			const FVector2D Uv0(
-				LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(
-					Index0,
-					0));
-			const FVector2D Uv1(
-				LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(
-					Index1,
-					0));
-			const FVector2D Uv2(
-				LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(
-					Index2,
-					0));
+			const FVector Barycentric = FMath::ComputeBaryCentric2D(HitLocation, Vertex0, Vertex1, Vertex2);
+			const FVector2D Uv0(LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index0, 0));
+			const FVector2D Uv1(LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index1, 0));
+			const FVector2D Uv2(LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index2, 0));
 
 			ClosestTraceDistance = TraceDistance;
-			ClosestUv = Uv0 * Barycentric.X
-				+ Uv1 * Barycentric.Y
-				+ Uv2 * Barycentric.Z;
+			ClosestUv = Uv0 * Barycentric.X + Uv1 * Barycentric.Y + Uv2 * Barycentric.Z;
 			ClosestMaterialIndex = Section.MaterialIndex;
 			bFoundHit = true;
 		}
 	}
 
-	if (!bFoundHit)
-	{
+	if (!bFoundHit) {
 		return false;
 	}
 
@@ -1337,46 +982,30 @@ bool ACustomizationPlayerController::FindPaintUvOnSkinnedRenderData(
 	return true;
 }
 
-bool ACustomizationPlayerController::IsPaintMaterialIndexAllowed(
-	int32 MaterialIndex) const
-{
-	return PaintAllowedMaterialIndex < 0
-		|| MaterialIndex == PaintAllowedMaterialIndex;
+bool ACustomizationPlayerController::IsPaintMaterialIndexAllowed(int32 MaterialIndex) const {
+	return PaintAllowedMaterialIndex < 0 || MaterialIndex == PaintAllowedMaterialIndex;
 }
 
-void ACustomizationPlayerController::ShowPaintDebugMessage(
-	const FString& Message)
-{
+void ACustomizationPlayerController::ShowPaintDebugMessage(const FString& Message) {
 	UWorld* World = GetWorld();
 	const double CurrentTime = World ? World->GetTimeSeconds() : 0.0;
-	if (CurrentTime - LastPaintDebugMessageTime < 0.5)
-	{
+	if (CurrentTime - LastPaintDebugMessageTime < 0.5) {
 		return;
 	}
 
 	LastPaintDebugMessageTime = CurrentTime;
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(
-			static_cast<uint64>(GetUniqueID()),
-			0.6f,
-			FColor::Yellow,
-			Message);
+	if (GEngine) {
+		GEngine->AddOnScreenDebugMessage(static_cast<uint64>(GetUniqueID()), 0.6f, FColor::Yellow, Message);
 	}
 }
 
-void ACustomizationPlayerController::HandlePaintBrushColorPicked(
-	FLinearColor NewBrushColor)
-{
+void ACustomizationPlayerController::HandlePaintBrushColorPicked(FLinearColor NewBrushColor) {
 	SetPaintBrushColor(NewBrushColor);
 }
 
-void ACustomizationPlayerController::UpdatePaintInput()
-{
-	if (!CustomizationWidget
-		|| CustomizationWidget->GetCurrentCustomizationPage()
-			!= ESnowRumbleCustomizationPage::PaintMode)
-	{
+void ACustomizationPlayerController::UpdatePaintInput() {
+	if (!CustomizationWidget ||
+		CustomizationWidget->GetCurrentCustomizationPage() != ESnowRumbleCustomizationPage::PaintMode) {
 		FinishPaintStroke();
 		bWasPaintMouseDown = false;
 		return;
@@ -1386,85 +1015,59 @@ void ACustomizationPlayerController::UpdatePaintInput()
 	FVector2D PaintUv;
 	FName MeshComponentName;
 	int32 MaterialIndex = INDEX_NONE;
-	const bool bHasPaintUv =
-		GetPaintUvUnderCursor(PaintUv, MeshComponentName, MaterialIndex);
+	const bool bHasPaintUv = GetPaintUvUnderCursor(PaintUv, MeshComponentName, MaterialIndex);
 
-	if (bPaintMouseDown && bHasPaintUv)
-	{
-		if (!bIsPaintingStroke)
-		{
+	if (bPaintMouseDown && bHasPaintUv) {
+		if (!bIsPaintingStroke) {
 			BeginPaintStroke(PaintUv, MeshComponentName, MaterialIndex);
-		}
-		else
-		{
+		} else {
 			AddPaintPoint(PaintUv, MeshComponentName, MaterialIndex);
 		}
-	}
-	else if (!bPaintMouseDown && bWasPaintMouseDown)
-	{
+	} else if (!bPaintMouseDown && bWasPaintMouseDown) {
 		FinishPaintStroke();
 	}
 
 	bWasPaintMouseDown = bPaintMouseDown;
 }
 
-void ACustomizationPlayerController::UpdatePaintUndoInput()
-{
-	if (!CustomizationWidget
-		|| CustomizationWidget->GetCurrentCustomizationPage()
-			!= ESnowRumbleCustomizationPage::PaintMode)
-	{
+void ACustomizationPlayerController::UpdatePaintUndoInput() {
+	if (!CustomizationWidget ||
+		CustomizationWidget->GetCurrentCustomizationPage() != ESnowRumbleCustomizationPage::PaintMode) {
 		return;
 	}
 
-	const bool bControlDown =
-		IsInputKeyDown(EKeys::LeftControl)
-		|| IsInputKeyDown(EKeys::RightControl);
-	if (bControlDown && WasInputKeyJustPressed(EKeys::Z))
-	{
+	const bool bControlDown = IsInputKeyDown(EKeys::LeftControl) || IsInputKeyDown(EKeys::RightControl);
+	if (bControlDown && WasInputKeyJustPressed(EKeys::Z)) {
 		UndoLastPaintStroke();
 	}
 }
 
-void ACustomizationPlayerController::UpdatePreviewRotation(float DeltaTime)
-{
+void ACustomizationPlayerController::UpdatePreviewRotation(float DeltaTime) {
 	// 커스터마이징 화면에서는 이동 대신 A/D를 프리뷰 회전 입력으로 사용한다.
 	float PreviewYawInput = PreviewRotationInput;
-	if (IsInputKeyDown(EKeys::A))
-	{
+	if (IsInputKeyDown(EKeys::A)) {
 		PreviewYawInput = 1.0f;
-	}
-	else if (IsInputKeyDown(EKeys::D))
-	{
+	} else if (IsInputKeyDown(EKeys::D)) {
 		PreviewYawInput = -1.0f;
 	}
 
-	if (FMath::IsNearlyZero(PreviewYawInput))
-	{
+	if (FMath::IsNearlyZero(PreviewYawInput)) {
 		return;
 	}
 
 	ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter();
-	if (!PreviewCharacter)
-	{
+	if (!PreviewCharacter) {
 		return;
 	}
 
 	const FRotator CurrentRotation = PreviewCharacter->GetActorRotation();
-	const float DeltaYaw =
-		PreviewYawInput * PreviewRotationSpeedDegrees * DeltaTime;
+	const float DeltaYaw = PreviewYawInput * PreviewRotationSpeedDegrees * DeltaTime;
 	PreviewCharacter->SetActorRotation(
-		FRotator(
-			CurrentRotation.Pitch,
-			CurrentRotation.Yaw + DeltaYaw,
-			CurrentRotation.Roll));
+		FRotator(CurrentRotation.Pitch, CurrentRotation.Yaw + DeltaYaw, CurrentRotation.Roll));
 }
 
-void ACustomizationPlayerController::BeginPaintStroke(
-	const FVector2D& PaintUv,
-	FName MeshComponentName,
-	int32 MaterialIndex)
-{
+void ACustomizationPlayerController::BeginPaintStroke(const FVector2D& PaintUv, FName MeshComponentName,
+													  int32 MaterialIndex) {
 	ActivePaintStroke.Points.Reset();
 	ActivePaintStroke.MeshComponentName = MeshComponentName;
 	ActivePaintStroke.MaterialIndex = MaterialIndex;
@@ -1474,35 +1077,24 @@ void ACustomizationPlayerController::BeginPaintStroke(
 	AddPaintPoint(PaintUv, MeshComponentName, MaterialIndex);
 }
 
-void ACustomizationPlayerController::AddPaintPoint(
-	const FVector2D& PaintUv,
-	FName MeshComponentName,
-	int32 MaterialIndex)
-{
-	if (!bIsPaintingStroke)
-	{
+void ACustomizationPlayerController::AddPaintPoint(const FVector2D& PaintUv, FName MeshComponentName,
+												   int32 MaterialIndex) {
+	if (!bIsPaintingStroke) {
 		return;
 	}
-	if (ActivePaintStroke.MeshComponentName != MeshComponentName)
-	{
+	if (ActivePaintStroke.MeshComponentName != MeshComponentName) {
 		return;
 	}
-	if (ActivePaintStroke.MaterialIndex != MaterialIndex)
-	{
+	if (ActivePaintStroke.MaterialIndex != MaterialIndex) {
 		return;
 	}
 
-	if (!ActivePaintStroke.Points.IsEmpty())
-	{
-		const float PointDistance =
-			FVector2D::Distance(ActivePaintStroke.Points.Last(), PaintUv);
-		if (PointDistance < PaintPointMinDistance)
-		{
+	if (!ActivePaintStroke.Points.IsEmpty()) {
+		const float PointDistance = FVector2D::Distance(ActivePaintStroke.Points.Last(), PaintUv);
+		if (PointDistance < PaintPointMinDistance) {
 			return;
 		}
-		if (PaintPointMaxDistance > 0.0f
-			&& PointDistance > PaintPointMaxDistance)
-		{
+		if (PaintPointMaxDistance > 0.0f && PointDistance > PaintPointMaxDistance) {
 			FinishPaintStroke();
 			BeginPaintStroke(PaintUv, MeshComponentName, MaterialIndex);
 			return;
@@ -1515,16 +1107,13 @@ void ACustomizationPlayerController::AddPaintPoint(
 	RedrawPaintRenderTarget();
 }
 
-void ACustomizationPlayerController::FinishPaintStroke()
-{
-	if (!bIsPaintingStroke)
-	{
+void ACustomizationPlayerController::FinishPaintStroke() {
+	if (!bIsPaintingStroke) {
 		return;
 	}
 
 	bIsPaintingStroke = false;
-	if (!ActivePaintStroke.Points.IsEmpty())
-	{
+	if (!ActivePaintStroke.Points.IsEmpty()) {
 		PaintStrokes.Add(ActivePaintStroke);
 	}
 	ActivePaintStroke.Points.Reset();
@@ -1533,161 +1122,109 @@ void ACustomizationPlayerController::FinishPaintStroke()
 	RedrawPaintRenderTarget();
 }
 
-void ACustomizationPlayerController::SyncPaintStrokesToPreviewData()
-{
+void ACustomizationPlayerController::SyncPaintStrokesToPreviewData() {
 	FSnowRumbleCustomizationData NewData = PreviewCustomizationData;
 	NewData.PaintStrokes = PaintStrokes;
 	NewData.bFlipPaintUvY = bFlipPaintUvY;
-	if (bIsPaintingStroke && !ActivePaintStroke.Points.IsEmpty())
-	{
+	if (bIsPaintingStroke && !ActivePaintStroke.Points.IsEmpty()) {
 		NewData.PaintStrokes.Add(ActivePaintStroke);
 	}
 
-	PreviewCustomizationData =
-		USnowRumbleCustomizationSubsystem::SanitizeCustomizationData(NewData);
+	PreviewCustomizationData = USnowRumbleCustomizationSubsystem::SanitizeCustomizationData(NewData);
 	PaintStrokes = PreviewCustomizationData.PaintStrokes;
-	if (bIsPaintingStroke && !PaintStrokes.IsEmpty())
-	{
+	if (bIsPaintingStroke && !PaintStrokes.IsEmpty()) {
 		ActivePaintStroke = PaintStrokes.Pop();
 	}
 }
 
-void ACustomizationPlayerController::SavePreviewCustomizationData()
-{
-	if (!IsLocalController())
-	{
+void ACustomizationPlayerController::SavePreviewCustomizationData() {
+	if (!IsLocalController()) {
 		return;
 	}
 
 	UGameInstance* GameInstance = GetGameInstance();
-	USnowRumbleCustomizationSubsystem* CustomizationSubsystem = GameInstance
-		? GameInstance->GetSubsystem<USnowRumbleCustomizationSubsystem>()
-		: nullptr;
-	if (CustomizationSubsystem)
-	{
+	USnowRumbleCustomizationSubsystem* CustomizationSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<USnowRumbleCustomizationSubsystem>() : nullptr;
+	if (CustomizationSubsystem) {
 		CustomizationSubsystem->SetCustomizationData(PreviewCustomizationData);
 	}
 }
 
-void ACustomizationPlayerController::RedrawPaintRenderTarget()
-{
+void ACustomizationPlayerController::RedrawPaintRenderTarget() {
 	EnsurePaintRenderTarget();
-	if (PaintRenderTarget)
-	{
+	if (PaintRenderTarget) {
 		PaintRenderTarget->UpdateResource();
 	}
 }
 
-void ACustomizationPlayerController::HandlePaintCanvasUpdate(
-	UCanvas* Canvas,
-	int32 Width,
-	int32 Height)
-{
-	if (!Canvas)
-	{
+void ACustomizationPlayerController::HandlePaintCanvasUpdate(UCanvas* Canvas, int32 Width, int32 Height) {
+	if (!Canvas) {
 		return;
 	}
 
-	for (const FSnowRumblePaintStroke& Stroke : PaintStrokes)
-	{
+	for (const FSnowRumblePaintStroke& Stroke : PaintStrokes) {
 		DrawStrokeToCanvas(Canvas, Stroke, Width, Height);
 	}
-	if (bIsPaintingStroke)
-	{
+	if (bIsPaintingStroke) {
 		DrawStrokeToCanvas(Canvas, ActivePaintStroke, Width, Height);
 	}
 }
 
-void ACustomizationPlayerController::DrawStrokeToCanvas(
-	UCanvas* Canvas,
-	const FSnowRumblePaintStroke& Stroke,
-	int32 Width,
-	int32 Height) const
-{
-	if (!Canvas || Stroke.Points.IsEmpty())
-	{
+void ACustomizationPlayerController::DrawStrokeToCanvas(UCanvas* Canvas, const FSnowRumblePaintStroke& Stroke,
+														int32 Width, int32 Height) const {
+	if (!Canvas || Stroke.Points.IsEmpty()) {
 		return;
 	}
 
-	auto ToCanvasPoint = [
-		Width,
-		Height,
-		bFlipY = bFlipPaintUvY](const FVector2D& PaintUv)
-	{
+	auto ToCanvasPoint = [Width, Height, bFlipY = bFlipPaintUvY](const FVector2D& PaintUv) {
 		const float PaintY = bFlipY ? PaintUv.Y : 1.0f - PaintUv.Y;
-		return FVector2D(
-			PaintUv.X * static_cast<float>(Width),
-			PaintY * static_cast<float>(Height));
+		return FVector2D(PaintUv.X * static_cast<float>(Width), PaintY * static_cast<float>(Height));
 	};
 
-	if (Stroke.Points.Num() == 1)
-	{
+	if (Stroke.Points.Num() == 1) {
 		const FVector2D Point = ToCanvasPoint(Stroke.Points[0]);
-		Canvas->K2_DrawLine(
-			Point - FVector2D(1.0f, 0.0f),
-			Point + FVector2D(1.0f, 0.0f),
-			Stroke.BrushThickness,
-			Stroke.BrushColor);
+		Canvas->K2_DrawLine(Point - FVector2D(1.0f, 0.0f), Point + FVector2D(1.0f, 0.0f), Stroke.BrushThickness,
+							Stroke.BrushColor);
 		return;
 	}
 
-	for (int32 PointIndex = 1;
-		PointIndex < Stroke.Points.Num();
-		++PointIndex)
-	{
-		Canvas->K2_DrawLine(
-			ToCanvasPoint(Stroke.Points[PointIndex - 1]),
-			ToCanvasPoint(Stroke.Points[PointIndex]),
-			Stroke.BrushThickness,
-			Stroke.BrushColor);
+	for (int32 PointIndex = 1; PointIndex < Stroke.Points.Num(); ++PointIndex) {
+		Canvas->K2_DrawLine(ToCanvasPoint(Stroke.Points[PointIndex - 1]), ToCanvasPoint(Stroke.Points[PointIndex]),
+							Stroke.BrushThickness, Stroke.BrushColor);
 	}
 }
 
-UCustomizationWidget*
-ACustomizationPlayerController::EnsureCustomizationWidget()
-{
-	if (CustomizationWidget)
-	{
+UCustomizationWidget* ACustomizationPlayerController::EnsureCustomizationWidget() {
+	if (CustomizationWidget) {
 		return CustomizationWidget;
 	}
 
-	if (!CustomizationWidgetClass)
-	{
+	if (!CustomizationWidgetClass) {
 		return nullptr;
 	}
 
-	CustomizationWidget =
-		CreateWidget<UCustomizationWidget>(this, CustomizationWidgetClass);
-	if (CustomizationWidget)
-	{
+	CustomizationWidget = CreateWidget<UCustomizationWidget>(this, CustomizationWidgetClass);
+	if (CustomizationWidget) {
 		CustomizationWidget->SetCustomizationPlayerController(this);
 	}
 	return CustomizationWidget;
 }
 
-void ACustomizationPlayerController::EnsureMouseCursorWidgets()
-{
-	if (!IsLocalController())
-	{
+void ACustomizationPlayerController::EnsureMouseCursorWidgets() {
+	if (!IsLocalController()) {
 		return;
 	}
 
-	if (!DefaultMouseCursorWidget && DefaultMouseCursorWidgetClass)
-	{
-		DefaultMouseCursorWidget =
-			CreateWidget<UUserWidget>(this, DefaultMouseCursorWidgetClass);
+	if (!DefaultMouseCursorWidget && DefaultMouseCursorWidgetClass) {
+		DefaultMouseCursorWidget = CreateWidget<UUserWidget>(this, DefaultMouseCursorWidgetClass);
 	}
-	if (!PaintMouseCursorWidget && PaintMouseCursorWidgetClass)
-	{
-		PaintMouseCursorWidget =
-			CreateWidget<UUserWidget>(this, PaintMouseCursorWidgetClass);
+	if (!PaintMouseCursorWidget && PaintMouseCursorWidgetClass) {
+		PaintMouseCursorWidget = CreateWidget<UUserWidget>(this, PaintMouseCursorWidgetClass);
 	}
 }
 
-void ACustomizationPlayerController::ApplyCurrentMouseCursorWidget()
-{
-	if (!IsLocalController())
-	{
+void ACustomizationPlayerController::ApplyCurrentMouseCursorWidget() {
+	if (!IsLocalController()) {
 		return;
 	}
 
@@ -1697,17 +1234,13 @@ void ACustomizationPlayerController::ApplyCurrentMouseCursorWidget()
 	EnsureMouseCursorWidgets();
 	UpdatePaintMouseCursorPresentation();
 
-	if (!bIsPaintCursorActive)
-	{
+	if (!bIsPaintCursorActive) {
 		SetCustomizationCursorWidget(this, nullptr);
 		return;
 	}
 
-	UUserWidget* TargetCursorWidget = bIsPaintCursorActive
-		? PaintMouseCursorWidget
-		: DefaultMouseCursorWidget;
-	if (!TargetCursorWidget)
-	{
+	UUserWidget* TargetCursorWidget = bIsPaintCursorActive ? PaintMouseCursorWidget : DefaultMouseCursorWidget;
+	if (!TargetCursorWidget) {
 		SetCustomizationCursorWidget(this, nullptr);
 		return;
 	}
@@ -1716,88 +1249,67 @@ void ACustomizationPlayerController::ApplyCurrentMouseCursorWidget()
 	UpdatePaintMouseCursorPresentation();
 }
 
-void ACustomizationPlayerController::ApplyCustomizationInputLock()
-{
-	if (!IsLocalController())
-	{
+void ACustomizationPlayerController::ApplyCustomizationInputLock() {
+	if (!IsLocalController()) {
 		return;
 	}
 
-	if (!IsMoveInputIgnored())
-	{
+	if (!IsMoveInputIgnored()) {
 		SetIgnoreMoveInput(true);
 	}
-	if (!IsLookInputIgnored())
-	{
+	if (!IsLookInputIgnored()) {
 		SetIgnoreLookInput(true);
 	}
 	bShowMouseCursor = true;
 
-	if (APawn* ControlledPawn = GetPawn())
-	{
+	if (APawn* ControlledPawn = GetPawn()) {
 		if (UCharacterMovementComponent* MovementComponent =
-			ControlledPawn->FindComponentByClass<UCharacterMovementComponent>())
-		{
+				ControlledPawn->FindComponentByClass<UCharacterMovementComponent>()) {
 			MovementComponent->StopMovementImmediately();
 			MovementComponent->Velocity = FVector::ZeroVector;
 			MovementComponent->GravityScale = 0.0f;
 			MovementComponent->MaxWalkSpeed = 0.0f;
-			if (MovementComponent->MovementMode != MOVE_None)
-			{
+			if (MovementComponent->MovementMode != MOVE_None) {
 				MovementComponent->DisableMovement();
 			}
 		}
 	}
 }
 
-void ACustomizationPlayerController::UpdatePaintMouseCursorPresentation()
-{
-	if (!bIsPaintCursorActive || !PaintMouseCursorWidget)
-	{
+void ACustomizationPlayerController::UpdatePaintMouseCursorPresentation() {
+	if (!bIsPaintCursorActive || !PaintMouseCursorWidget) {
 		return;
 	}
 
 	USizeBox* BrushCursorSizeBox = FindPaintCursorSizeBox();
-	if (BrushCursorSizeBox)
-	{
+	if (BrushCursorSizeBox) {
 		const float CursorDiameter = GetPaintCursorDiameter();
 		BrushCursorSizeBox->SetWidthOverride(CursorDiameter);
 		BrushCursorSizeBox->SetHeightOverride(CursorDiameter);
 	}
 
-	if (UBorder* BrushCursorColorBorder = FindPaintCursorColorBorder())
-	{
+	if (UBorder* BrushCursorColorBorder = FindPaintCursorColorBorder()) {
 		BrushCursorColorBorder->SetBrushColor(PaintBrushColor);
 	}
-	if (UImage* BrushCursorColorImage = FindPaintCursorColorImage())
-	{
+	if (UImage* BrushCursorColorImage = FindPaintCursorColorImage()) {
 		BrushCursorColorImage->SetColorAndOpacity(PaintBrushColor);
 	}
 }
 
-USizeBox* ACustomizationPlayerController::FindPaintCursorSizeBox() const
-{
+USizeBox* ACustomizationPlayerController::FindPaintCursorSizeBox() const {
 	return PaintMouseCursorWidget
-		? Cast<USizeBox>(
-			PaintMouseCursorWidget->GetWidgetFromName(
-				TEXT("BrushCursorSizeBox")))
-		: nullptr;
+			   ? Cast<USizeBox>(PaintMouseCursorWidget->GetWidgetFromName(TEXT("BrushCursorSizeBox")))
+			   : nullptr;
 }
 
-UBorder* ACustomizationPlayerController::FindPaintCursorColorBorder() const
-{
+UBorder* ACustomizationPlayerController::FindPaintCursorColorBorder() const {
 	return PaintMouseCursorWidget
-		? Cast<UBorder>(
-			PaintMouseCursorWidget->GetWidgetFromName(
-				TEXT("BrushCursorColorBorder")))
-		: nullptr;
+			   ? Cast<UBorder>(PaintMouseCursorWidget->GetWidgetFromName(TEXT("BrushCursorColorBorder")))
+			   : nullptr;
 }
 
-UImage* ACustomizationPlayerController::FindPaintCursorColorImage() const
-{
+UImage* ACustomizationPlayerController::FindPaintCursorColorImage() const {
 	return PaintMouseCursorWidget
-		? Cast<UImage>(
-			PaintMouseCursorWidget->GetWidgetFromName(
-				TEXT("BrushCursorColorImage")))
-		: nullptr;
+			   ? Cast<UImage>(PaintMouseCursorWidget->GetWidgetFromName(TEXT("BrushCursorColorImage")))
+			   : nullptr;
 }

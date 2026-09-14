@@ -8,12 +8,10 @@
 #include "SnowRumbleCustomizationSubsystem_C.generated.h"
 
 UCLASS()
-class SNOWRUMBLE_API USnowRumbleCustomizationSubsystem
-	: public UGameInstanceSubsystem
-{
+class SNOWRUMBLE_API USnowRumbleCustomizationSubsystem : public UGameInstanceSubsystem {
 	GENERATED_BODY()
 
-public:
+	public:
 	/** 현재 로컬 플레이어가 선택한 커스터마이징 데이터를 저장한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
 	void SetCustomizationData(const FSnowRumbleCustomizationData& NewData);
@@ -46,9 +44,8 @@ public:
 
 	/** 서버나 머티리얼에 넘기기 전에 값 범위를 정리한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization")
-	static FSnowRumbleCustomizationData SanitizeCustomizationData(
-		const FSnowRumbleCustomizationData& Data);
+	static FSnowRumbleCustomizationData SanitizeCustomizationData(const FSnowRumbleCustomizationData& Data);
 
-private:
+	private:
 	FSnowRumbleCustomizationData CustomizationData;
 };

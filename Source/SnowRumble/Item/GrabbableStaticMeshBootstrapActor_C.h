@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "CoreMinimal.h"
@@ -11,16 +13,15 @@ class USoundBase;
 class UStaticMeshComponent;
 
 UCLASS(Blueprintable)
-class SNOWRUMBLE_API AGrabbableStaticMeshBootstrapActor : public AActor
-{
+class SNOWRUMBLE_API AGrabbableStaticMeshBootstrapActor : public AActor {
 	GENERATED_BODY()
 
-public:
+	public:
 	AGrabbableStaticMeshBootstrapActor();
 
 	virtual void BeginPlay() override;
 
-protected:
+	protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Grab|Bootstrap")
 	TSubclassOf<AGrabbablePhysicsObject> GrabbableObjectClass;
 
@@ -39,7 +40,8 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Grab|Bootstrap|Converted Object")
 	float ConvertedPlayerPushStrength = 3000.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Grab|Bootstrap|Converted Object", meta = (ClampMin = "1"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Grab|Bootstrap|Converted Object",
+			  meta = (ClampMin = "1"))
 	int32 ConvertedInteractionsToBreak = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Grab|Bootstrap|Converted Object")

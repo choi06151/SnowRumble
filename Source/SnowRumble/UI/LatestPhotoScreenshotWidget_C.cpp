@@ -9,45 +9,33 @@
 #include "Misc/Paths.h"
 #include "UnrealClient.h"
 
-void ULatestPhotoScreenshotWidget::NativeConstruct()
-{
+void ULatestPhotoScreenshotWidget::NativeConstruct() {
 	Super::NativeConstruct();
 
-	if (bRefreshOnConstruct)
-	{
+	if (bRefreshOnConstruct) {
 		RefreshLatestScreenshot();
-	}
-	else
-	{
+	} else {
 		UpdateScreenshotNameText();
 	}
 
-	if (!ScreenshotProcessedDelegateHandle.IsValid())
-	{
-		ScreenshotProcessedDelegateHandle =
-			FScreenshotRequest::OnScreenshotRequestProcessed().AddUObject(
-				this,
-				&ULatestPhotoScreenshotWidget::HandleScreenshotRequestProcessed);
+	if (!ScreenshotProcessedDelegateHandle.IsValid()) {
+		ScreenshotProcessedDelegateHandle = FScreenshotRequest::OnScreenshotRequestProcessed().AddUObject(
+			this, &ULatestPhotoScreenshotWidget::HandleScreenshotRequestProcessed);
 	}
 }
 
-void ULatestPhotoScreenshotWidget::NativeDestruct()
-{
-	if (ScreenshotProcessedDelegateHandle.IsValid())
-	{
-		FScreenshotRequest::OnScreenshotRequestProcessed().Remove(
-			ScreenshotProcessedDelegateHandle);
+void ULatestPhotoScreenshotWidget::NativeDestruct() {
+	if (ScreenshotProcessedDelegateHandle.IsValid()) {
+		FScreenshotRequest::OnScreenshotRequestProcessed().Remove(ScreenshotProcessedDelegateHandle);
 		ScreenshotProcessedDelegateHandle.Reset();
 	}
 
 	Super::NativeDestruct();
 }
 
-bool ULatestPhotoScreenshotWidget::RefreshLatestScreenshot()
-{
+bool ULatestPhotoScreenshotWidget::RefreshLatestScreenshot() {
 	FString ScreenshotPath;
-	if (!FindLatestScreenshotFile(ScreenshotPath))
-	{
+	if (!FindLatestScreenshotFile(ScreenshotPath)) {
 		LatestScreenshotTexture = nullptr;
 		LatestScreenshotPath.Empty();
 		ApplyScreenshotTexture(nullptr);
@@ -55,10 +43,8 @@ bool ULatestPhotoScreenshotWidget::RefreshLatestScreenshot()
 		return false;
 	}
 
-	UTexture2D* LoadedTexture =
-		FImageUtils::ImportFileAsTexture2D(ScreenshotPath);
-	if (!LoadedTexture)
-	{
+	UTexture2D* LoadedTexture = FImageUtils::ImportFileAsTexture2D(ScreenshotPath);
+	if (!LoadedTexture) {
 		LatestScreenshotTexture = nullptr;
 		LatestScreenshotPath = ScreenshotPath;
 		ApplyScreenshotTexture(nullptr);
@@ -73,41 +59,26 @@ bool ULatestPhotoScreenshotWidget::RefreshLatestScreenshot()
 	return true;
 }
 
-const FString& ULatestPhotoScreenshotWidget::GetLatestScreenshotPath() const
-{
+const FString& ULatestPhotoScreenshotWidget::GetLatestScreenshotPath() const {
 	return LatestScreenshotPath;
 }
 
-UTexture2D* ULatestPhotoScreenshotWidget::GetLatestScreenshotTexture() const
-{
+UTexture2D* ULatestPhotoScreenshotWidget::GetLatestScreenshotTexture() const {
 	return LatestScreenshotTexture;
 }
 
-bool ULatestPhotoScreenshotWidget::FindLatestScreenshotFile(
-	FString& OutScreenshotPath) const
-{
-	const FString ScreenshotRoot =
-		FPaths::ConvertRelativePathToFull(FPaths::ScreenShotDir());
-	const FString FilenamePattern =
-		bOnlyPhotoScreenshots ? TEXT("Photo_*.png") : TEXT("*.png");
+bool ULatestPhotoScreenshotWidget::FindLatestScreenshotFile(FString& OutScreenshotPath) const {
+	const FString ScreenshotRoot = FPaths::ConvertRelativePathToFull(FPaths::ScreenShotDir());
+	const FString FilenamePattern = bOnlyPhotoScreenshots ? TEXT("Photo_*.png") : TEXT("*.png");
 
 	TArray<FString> ScreenshotFiles;
-	IFileManager::Get().FindFilesRecursive(
-		ScreenshotFiles,
-		*ScreenshotRoot,
-		*FilenamePattern,
-		true,
-		false,
-		false);
+	IFileManager::Get().FindFilesRecursive(ScreenshotFiles, *ScreenshotRoot, *FilenamePattern, true, false, false);
 
 	FDateTime LatestTimestamp = FDateTime::MinValue();
 	bool bFoundFile = false;
-	for (const FString& ScreenshotFile : ScreenshotFiles)
-	{
-		const FDateTime FileTimestamp =
-			IFileManager::Get().GetTimeStamp(*ScreenshotFile);
-		if (!bFoundFile || FileTimestamp > LatestTimestamp)
-		{
+	for (const FString& ScreenshotFile : ScreenshotFiles) {
+		const FDateTime FileTimestamp = IFileManager::Get().GetTimeStamp(*ScreenshotFile);
+		if (!bFoundFile || FileTimestamp > LatestTimestamp) {
 			LatestTimestamp = FileTimestamp;
 			OutScreenshotPath = ScreenshotFile;
 			bFoundFile = true;
@@ -117,16 +88,12 @@ bool ULatestPhotoScreenshotWidget::FindLatestScreenshotFile(
 	return bFoundFile;
 }
 
-void ULatestPhotoScreenshotWidget::ApplyScreenshotTexture(
-	UTexture2D* ScreenshotTexture)
-{
-	if (!LatestScreenshotImage)
-	{
+void ULatestPhotoScreenshotWidget::ApplyScreenshotTexture(UTexture2D* ScreenshotTexture) {
+	if (!LatestScreenshotImage) {
 		return;
 	}
 
-	if (!ScreenshotTexture)
-	{
+	if (!ScreenshotTexture) {
 		LatestScreenshotImage->SetBrushFromTexture(nullptr);
 		return;
 	}
@@ -134,20 +101,16 @@ void ULatestPhotoScreenshotWidget::ApplyScreenshotTexture(
 	LatestScreenshotImage->SetBrushFromTexture(ScreenshotTexture, true);
 }
 
-void ULatestPhotoScreenshotWidget::UpdateScreenshotNameText()
-{
-	if (!LatestScreenshotNameText)
-	{
+void ULatestPhotoScreenshotWidget::UpdateScreenshotNameText() {
+	if (!LatestScreenshotNameText) {
 		return;
 	}
 
-	LatestScreenshotNameText->SetText(
-		LatestScreenshotPath.IsEmpty()
-			? FText::GetEmpty()
-			: FText::FromString(FPaths::GetCleanFilename(LatestScreenshotPath)));
+	LatestScreenshotNameText->SetText(LatestScreenshotPath.IsEmpty()
+										  ? FText::GetEmpty()
+										  : FText::FromString(FPaths::GetCleanFilename(LatestScreenshotPath)));
 }
 
-void ULatestPhotoScreenshotWidget::HandleScreenshotRequestProcessed()
-{
+void ULatestPhotoScreenshotWidget::HandleScreenshotRequestProcessed() {
 	RefreshLatestScreenshot();
 }

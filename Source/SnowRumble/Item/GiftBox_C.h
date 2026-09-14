@@ -19,15 +19,10 @@ class AController;
 struct FDamageEvent;
 
 UENUM(BlueprintType)
-enum class ESnowRumbleGiftBoxGrade : uint8
-{
-	Red,
-	Gold
-};
+enum class ESnowRumbleGiftBoxGrade : uint8 { Red, Gold };
 
 USTRUCT(BlueprintType)
-struct FSnowRumbleGiftBoxReward
-{
+struct FSnowRumbleGiftBoxReward {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item")
@@ -44,11 +39,10 @@ struct FSnowRumbleGiftBoxReward
 };
 
 UCLASS(Blueprintable)
-class SNOWRUMBLE_API AGiftBox : public AActor
-{
+class SNOWRUMBLE_API AGiftBox : public AActor {
 	GENERATED_BODY()
 
-public:
+	public:
 	AGiftBox();
 
 	/** 서버가 상자 등급을 확정하고 해당 등급 표현을 갱신한다. */
@@ -62,11 +56,8 @@ public:
 	bool TryOpen(ASnowRumbleCharacter* Character);
 
 	/** 데미지가 들어오면 서버에서 선물상자를 연다. */
-	virtual float TakeDamage(
-		float DamageAmount,
-		FDamageEvent const& DamageEvent,
-		AController* EventInstigator,
-		AActor* DamageCauser) override;
+	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
+							 AActor* DamageCauser) override;
 
 	/** 상호작용 허용 거리다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Item|Gift Box")
@@ -80,10 +71,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Item|Gift Box")
 	FText GetOpenedRewardName() const;
 
-protected:
+	protected:
 	virtual void BeginPlay() override;
-	virtual void GetLifetimeReplicatedProps(
-		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	/** 복제된 등급에 맞춰 Blueprint 표현을 갱신한다. */
 	UFUNCTION()
@@ -103,10 +93,7 @@ protected:
 
 	/** 상자가 서버에서 개봉됐을 때 Blueprint가 개봉 연출을 연결한다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Item|Gift Box")
-	void OnGiftBoxOpened(
-		ASnowRumbleCharacter* Opener,
-		ESnowRumbleGiftBoxGrade OpenedGrade,
-		const FText& RewardName);
+	void OnGiftBoxOpened(ASnowRumbleCharacter* Opener, ESnowRumbleGiftBoxGrade OpenedGrade, const FText& RewardName);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SnowRumble|Item|Gift Box")
 	TObjectPtr<USphereComponent> CollisionComponent;
@@ -128,7 +115,8 @@ protected:
 	float OpenedDestroyDelaySeconds = 3.0f;
 
 	/** 빨간/황금 선물상자 머티리얼을 적용할 StaticMesh 머티리얼 슬롯이다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Gift Box|Material", meta = (ClampMin = "0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Gift Box|Material",
+			  meta = (ClampMin = "0"))
 	int32 GradeMaterialIndex = 0;
 
 	/** 빨간 선물상자 등급일 때 적용할 머티리얼이다. */
@@ -160,7 +148,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Item|Gift Box|Reward")
 	TSubclassOf<AGiftBoxItemPickup> DefaultPickupClass;
 
-private:
+	private:
 	UFUNCTION()
 	void HandleProjectileStopped(const FHitResult& Hit);
 

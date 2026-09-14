@@ -7,11 +7,10 @@
 #include "LocalPlayerIdentitySubsystem_C.generated.h"
 
 UCLASS()
-class SNOWRUMBLE_API ULocalPlayerIdentitySubsystem : public UGameInstanceSubsystem
-{
+class SNOWRUMBLE_API ULocalPlayerIdentitySubsystem : public UGameInstanceSubsystem {
 	GENERATED_BODY()
 
-public:
+	public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
 	/** 메인메뉴에서 입력한 로컬 플레이어 닉네임을 저장한다. */
@@ -38,7 +37,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Identity")
 	static FString SanitizePlayerName(const FString& NewName);
 
-private:
+	private:
 	/** 처음 들어온 플레이어에게 보여줄 귀엽고 가벼운 기본 닉네임을 만든다. */
 	FString GenerateDefaultPlayerName() const;
 

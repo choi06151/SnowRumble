@@ -10,16 +10,15 @@
 class UTextBlock;
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API UKeyGuideWidget : public UUserWidget
-{
+class SNOWRUMBLE_API UKeyGuideWidget : public UUserWidget {
 	GENERATED_BODY()
 
-public:
+	public:
 	/** 현재 로컬 키 설정을 읽어 키 가이드의 키 TextBlock만 갱신한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|KeyGuide")
 	void RefreshKeyGuideTexts();
 
-protected:
+	protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
@@ -60,7 +59,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|KeyGuide")
 	TObjectPtr<UTextBlock> ChatKeyText;
 
-private:
+	private:
 	FText GetKeyDisplayText(FName BindingId, FKey DefaultKey) const;
 	static FText FormatKeyDisplayText(FKey Key);
 	void SetOptionalText(UTextBlock* TextBlock, const FText& Text) const;

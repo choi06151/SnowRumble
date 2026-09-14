@@ -26,49 +26,36 @@
 #include "Sound/SoundMix.h"
 #include "AudioCaptureCore.h"
 
-namespace
-{
-	UTextBlock* FindFirstTextBlock(UWidget* RootWidget)
-	{
-		if (!RootWidget)
-		{
-			return nullptr;
-		}
-
-		if (UTextBlock* TextBlock = Cast<UTextBlock>(RootWidget))
-		{
-			return TextBlock;
-		}
-
-		if (UPanelWidget* PanelWidget = Cast<UPanelWidget>(RootWidget))
-		{
-			for (int32 ChildIndex = 0; ChildIndex < PanelWidget->GetChildrenCount(); ++ChildIndex)
-			{
-				if (UTextBlock* TextBlock = FindFirstTextBlock(PanelWidget->GetChildAt(ChildIndex)))
-				{
-					return TextBlock;
-				}
-			}
-		}
-		else if (UContentWidget* ContentWidget = Cast<UContentWidget>(RootWidget))
-		{
-			return FindFirstTextBlock(ContentWidget->GetContent());
-		}
-
+namespace {
+UTextBlock* FindFirstTextBlock(UWidget* RootWidget) {
+	if (!RootWidget) {
 		return nullptr;
 	}
-}
 
-namespace
-{
+	if (UTextBlock* TextBlock = Cast<UTextBlock>(RootWidget)) {
+		return TextBlock;
+	}
+
+	if (UPanelWidget* PanelWidget = Cast<UPanelWidget>(RootWidget)) {
+		for (int32 ChildIndex = 0; ChildIndex < PanelWidget->GetChildrenCount(); ++ChildIndex) {
+			if (UTextBlock* TextBlock = FindFirstTextBlock(PanelWidget->GetChildAt(ChildIndex))) {
+				return TextBlock;
+			}
+		}
+	} else if (UContentWidget* ContentWidget = Cast<UContentWidget>(RootWidget)) {
+		return FindFirstTextBlock(ContentWidget->GetContent());
+	}
+
+	return nullptr;
+}
+} // namespace
+
+namespace {
 constexpr float SnowRumbleMaxVoiceVolume = 2.0f;
 constexpr float SnowRumbleMaxMicrophoneVolume = 2.0f;
 
-FSnowRumbleKeyBindingViewData MakeKeyBindingRow(
-	const FName BindingId,
-	const FText& DisplayName,
-	const FKey& DefaultKey)
-{
+FSnowRumbleKeyBindingViewData MakeKeyBindingRow(const FName BindingId, const FText& DisplayName,
+												const FKey& DefaultKey) {
 	FSnowRumbleKeyBindingViewData Row;
 	Row.BindingId = BindingId;
 	Row.DisplayName = DisplayName;
@@ -77,42 +64,32 @@ FSnowRumbleKeyBindingViewData MakeKeyBindingRow(
 	return Row;
 }
 
-}
+} // namespace
 
-UOptionsWidget::UOptionsWidget(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
+UOptionsWidget::UOptionsWidget(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 	SetIsFocusable(true);
 }
 
-void UOptionsWidget::NativeConstruct()
-{
+void UOptionsWidget::NativeConstruct() {
 	Super::NativeConstruct();
 
 	SetIsFocusable(true);
 	InitializeSensitivitySetting();
 	InitializeAudioSettings();
 	InitializeMicrophoneSettings();
-	if (LanguageComboBox && !LanguageComboBox->OnGenerateWidgetEvent.IsBound())
-	{
-		DefaultLanguageComboBoxForegroundColor =
-			LanguageComboBox->GetForegroundColor();
+	if (LanguageComboBox && !LanguageComboBox->OnGenerateWidgetEvent.IsBound()) {
+		DefaultLanguageComboBoxForegroundColor = LanguageComboBox->GetForegroundColor();
 		bHasDefaultLanguageComboBoxForegroundColor = true;
-		LanguageComboBox->OnGenerateWidgetEvent.BindDynamic(
-			this,
-			&UOptionsWidget::HandleLanguageComboBoxGenerateWidget);
+		LanguageComboBox->OnGenerateWidgetEvent.BindDynamic(this,
+															&UOptionsWidget::HandleLanguageComboBoxGenerateWidget);
 	}
 	InitializeLanguageSetting();
 	RefreshMicrophoneDeviceList();
 	InitializeDefaultKeyBindingRows();
 	BindOptionButtons();
-	if (!TextRevisionChangedHandle.IsValid())
-	{
-		TextRevisionChangedHandle =
-			FTextLocalizationManager::Get()
-				.OnTextRevisionChangedEvent.AddUObject(
-					this,
-					&UOptionsWidget::HandleTextRevisionChanged);
+	if (!TextRevisionChangedHandle.IsValid()) {
+		TextRevisionChangedHandle = FTextLocalizationManager::Get().OnTextRevisionChangedEvent.AddUObject(
+			this, &UOptionsWidget::HandleTextRevisionChanged);
 	}
 	RefreshSensitivityValueText();
 	RefreshAudioValueText();
@@ -123,19 +100,15 @@ void UOptionsWidget::NativeConstruct()
 	SetHasPendingOptionChanges(false);
 }
 
-void UOptionsWidget::NativeDestruct()
-{
+void UOptionsWidget::NativeDestruct() {
 	StopMicrophoneTest();
 
-	if (TextRevisionChangedHandle.IsValid())
-	{
-		FTextLocalizationManager::Get()
-			.OnTextRevisionChangedEvent.Remove(TextRevisionChangedHandle);
+	if (TextRevisionChangedHandle.IsValid()) {
+		FTextLocalizationManager::Get().OnTextRevisionChangedEvent.Remove(TextRevisionChangedHandle);
 		TextRevisionChangedHandle.Reset();
 	}
 
-	if (LiveAudioPreviewSoundMix)
-	{
+	if (LiveAudioPreviewSoundMix) {
 		UGameplayStatics::PopSoundMixModifier(this, LiveAudioPreviewSoundMix);
 		LiveAudioPreviewSoundMix = nullptr;
 	}
@@ -145,25 +118,18 @@ void UOptionsWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
-void UOptionsWidget::NativeTick(
-	const FGeometry& MyGeometry,
-	float InDeltaTime)
-{
+void UOptionsWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime) {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 	RefreshMicrophoneTestDisplay(InDeltaTime);
 	RefreshCategoryButtonTextColors();
 }
 
-void UOptionsWidget::SetOptionsCategory(
-	ESnowRumbleOptionsCategory NewCategory)
-{
+void UOptionsWidget::SetOptionsCategory(ESnowRumbleOptionsCategory NewCategory) {
 	CurrentOptionsCategory = NewCategory;
 
-	if (OptionsContentSwitcher)
-	{
+	if (OptionsContentSwitcher) {
 		const int32 SwitcherIndex = GetSwitcherIndexForCategory(NewCategory);
-		if (OptionsContentSwitcher->GetNumWidgets() > SwitcherIndex)
-		{
+		if (OptionsContentSwitcher->GetNumWidgets() > SwitcherIndex) {
 			OptionsContentSwitcher->SetActiveWidgetIndex(SwitcherIndex);
 		}
 	}
@@ -172,31 +138,24 @@ void UOptionsWidget::SetOptionsCategory(
 	RefreshCategoryButtonSelection();
 }
 
-ESnowRumbleOptionsCategory UOptionsWidget::GetCurrentOptionsCategory() const
-{
+ESnowRumbleOptionsCategory UOptionsWidget::GetCurrentOptionsCategory() const {
 	return CurrentOptionsCategory;
 }
 
-const TArray<FSnowRumbleKeyBindingViewData>&
-UOptionsWidget::GetKeyBindingRows() const
-{
+const TArray<FSnowRumbleKeyBindingViewData>& UOptionsWidget::GetKeyBindingRows() const {
 	return KeyBindingRows;
 }
 
-void UOptionsWidget::SetHasPendingOptionChanges(
-	bool bNewHasPendingChanges)
-{
+void UOptionsWidget::SetHasPendingOptionChanges(bool bNewHasPendingChanges) {
 	bHasPendingOptionChanges = bNewHasPendingChanges;
 	RefreshApplyButtonEnabled();
 }
 
-bool UOptionsWidget::HasPendingOptionChanges() const
-{
+bool UOptionsWidget::HasPendingOptionChanges() const {
 	return bHasPendingOptionChanges;
 }
 
-void UOptionsWidget::DiscardPendingOptionChanges()
-{
+void UOptionsWidget::DiscardPendingOptionChanges() {
 	PendingKeyBindingId = NAME_None;
 	InitializeSensitivitySetting();
 	InitializeAudioSettings();
@@ -212,14 +171,9 @@ void UOptionsWidget::DiscardPendingOptionChanges()
 	SetHasPendingOptionChanges(false);
 }
 
-FReply UOptionsWidget::NativeOnPreviewKeyDown(
-	const FGeometry& InGeometry,
-	const FKeyEvent& InKeyEvent)
-{
-	if (!PendingKeyBindingId.IsNone())
-	{
-		if (InKeyEvent.GetKey() == EKeys::Escape)
-		{
+FReply UOptionsWidget::NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) {
+	if (!PendingKeyBindingId.IsNone()) {
+		if (InKeyEvent.GetKey() == EKeys::Escape) {
 			CancelKeyRebind();
 			return FReply::Handled();
 		}
@@ -231,12 +185,8 @@ FReply UOptionsWidget::NativeOnPreviewKeyDown(
 	return Super::NativeOnPreviewKeyDown(InGeometry, InKeyEvent);
 }
 
-FReply UOptionsWidget::NativeOnMouseButtonDown(
-	const FGeometry& InGeometry,
-	const FPointerEvent& InMouseEvent)
-{
-	if (!PendingKeyBindingId.IsNone())
-	{
+FReply UOptionsWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) {
+	if (!PendingKeyBindingId.IsNone()) {
 		ApplyCapturedKey(InMouseEvent.GetEffectingButton());
 		return FReply::Handled();
 	}
@@ -244,239 +194,164 @@ FReply UOptionsWidget::NativeOnMouseButtonDown(
 	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 }
 
-void UOptionsWidget::BindOptionButtons()
-{
-	if (SensitivityCategoryButton)
-	{
-		SensitivityCategoryButton->OnClicked.AddUniqueDynamic(
-			this,
-			&UOptionsWidget::HandleSensitivityCategoryButtonClicked);
+void UOptionsWidget::BindOptionButtons() {
+	if (SensitivityCategoryButton) {
+		SensitivityCategoryButton->OnClicked.AddUniqueDynamic(this,
+															  &UOptionsWidget::HandleSensitivityCategoryButtonClicked);
 	}
-	if (AudioCategoryButton)
-	{
-		AudioCategoryButton->OnClicked.AddUniqueDynamic(
-			this,
-			&UOptionsWidget::HandleAudioCategoryButtonClicked);
+	if (AudioCategoryButton) {
+		AudioCategoryButton->OnClicked.AddUniqueDynamic(this, &UOptionsWidget::HandleAudioCategoryButtonClicked);
 	}
-	if (KeyBindingCategoryButton)
-	{
-		KeyBindingCategoryButton->OnClicked.AddUniqueDynamic(
-			this,
-			&UOptionsWidget::HandleKeyBindingCategoryButtonClicked);
+	if (KeyBindingCategoryButton) {
+		KeyBindingCategoryButton->OnClicked.AddUniqueDynamic(this,
+															 &UOptionsWidget::HandleKeyBindingCategoryButtonClicked);
 	}
-	if (MicrophoneCategoryButton)
-	{
-		MicrophoneCategoryButton->OnClicked.AddUniqueDynamic(
-			this,
-			&UOptionsWidget::HandleMicrophoneCategoryButtonClicked);
+	if (MicrophoneCategoryButton) {
+		MicrophoneCategoryButton->OnClicked.AddUniqueDynamic(this,
+															 &UOptionsWidget::HandleMicrophoneCategoryButtonClicked);
 	}
-	if (CloseButton)
-	{
-		CloseButton->OnClicked.AddUniqueDynamic(
-			this,
-			&UOptionsWidget::HandleCloseButtonClicked);
+	if (CloseButton) {
+		CloseButton->OnClicked.AddUniqueDynamic(this, &UOptionsWidget::HandleCloseButtonClicked);
 	}
-	if (ApplyButton)
-	{
-		ApplyButton->OnClicked.AddUniqueDynamic(
-			this,
-			&UOptionsWidget::HandleApplyButtonClicked);
+	if (ApplyButton) {
+		ApplyButton->OnClicked.AddUniqueDynamic(this, &UOptionsWidget::HandleApplyButtonClicked);
 	}
-	if (ResetButton)
-	{
-		ResetButton->OnClicked.AddUniqueDynamic(
-			this,
-			&UOptionsWidget::HandleResetButtonClicked);
+	if (ResetButton) {
+		ResetButton->OnClicked.AddUniqueDynamic(this, &UOptionsWidget::HandleResetButtonClicked);
 	}
-	if (SensitivitySlider)
-	{
-		SensitivitySlider->OnValueChanged.AddUniqueDynamic(
-			this,
-			&UOptionsWidget::HandleSensitivitySliderValueChanged);
+	if (SensitivitySlider) {
+		SensitivitySlider->OnValueChanged.AddUniqueDynamic(this, &UOptionsWidget::HandleSensitivitySliderValueChanged);
 	}
-	if (MasterVolumeSlider)
-	{
-		MasterVolumeSlider->OnValueChanged.AddUniqueDynamic(
-			this,
-			&UOptionsWidget::HandleMasterVolumeSliderValueChanged);
+	if (MasterVolumeSlider) {
+		MasterVolumeSlider->OnValueChanged.AddUniqueDynamic(this,
+															&UOptionsWidget::HandleMasterVolumeSliderValueChanged);
 	}
-	if (BgmVolumeSlider)
-	{
-		BgmVolumeSlider->OnValueChanged.AddUniqueDynamic(
-			this,
-			&UOptionsWidget::HandleBgmVolumeSliderValueChanged);
+	if (BgmVolumeSlider) {
+		BgmVolumeSlider->OnValueChanged.AddUniqueDynamic(this, &UOptionsWidget::HandleBgmVolumeSliderValueChanged);
 	}
-	if (SfxVolumeSlider)
-	{
-		SfxVolumeSlider->OnValueChanged.AddUniqueDynamic(
-			this,
-			&UOptionsWidget::HandleSfxVolumeSliderValueChanged);
+	if (SfxVolumeSlider) {
+		SfxVolumeSlider->OnValueChanged.AddUniqueDynamic(this, &UOptionsWidget::HandleSfxVolumeSliderValueChanged);
 	}
-	if (VoiceVolumeSlider)
-	{
-		VoiceVolumeSlider->OnValueChanged.AddUniqueDynamic(
-			this,
-			&UOptionsWidget::HandleVoiceVolumeSliderValueChanged);
+	if (VoiceVolumeSlider) {
+		VoiceVolumeSlider->OnValueChanged.AddUniqueDynamic(this, &UOptionsWidget::HandleVoiceVolumeSliderValueChanged);
 	}
-	if (MicrophoneVolumeSlider)
-	{
+	if (MicrophoneVolumeSlider) {
 		MicrophoneVolumeSlider->OnValueChanged.AddUniqueDynamic(
-			this,
-			&UOptionsWidget::HandleMicrophoneVolumeSliderValueChanged);
+			this, &UOptionsWidget::HandleMicrophoneVolumeSliderValueChanged);
 	}
-	if (MicrophonePushToTalkButton)
-	{
+	if (MicrophonePushToTalkButton) {
 		MicrophonePushToTalkButton->OnClicked.AddUniqueDynamic(
-			this,
-			&UOptionsWidget::HandleMicrophonePushToTalkButtonClicked);
+			this, &UOptionsWidget::HandleMicrophonePushToTalkButtonClicked);
 	}
-	if (MicrophoneAlwaysOnButton)
-	{
-		MicrophoneAlwaysOnButton->OnClicked.AddUniqueDynamic(
-			this,
-			&UOptionsWidget::HandleMicrophoneAlwaysOnButtonClicked);
+	if (MicrophoneAlwaysOnButton) {
+		MicrophoneAlwaysOnButton->OnClicked.AddUniqueDynamic(this,
+															 &UOptionsWidget::HandleMicrophoneAlwaysOnButtonClicked);
 	}
-	if (MicrophoneDeviceComboBox)
-	{
+	if (MicrophoneDeviceComboBox) {
 		MicrophoneDeviceComboBox->OnSelectionChanged.AddUniqueDynamic(
-			this,
-			&UOptionsWidget::HandleMicrophoneDeviceSelectionChanged);
+			this, &UOptionsWidget::HandleMicrophoneDeviceSelectionChanged);
 	}
-	if (MicrophoneTestButton)
-	{
-		MicrophoneTestButton->OnClicked.AddUniqueDynamic(
-			this,
-			&UOptionsWidget::HandleMicrophoneTestButtonClicked);
+	if (MicrophoneTestButton) {
+		MicrophoneTestButton->OnClicked.AddUniqueDynamic(this, &UOptionsWidget::HandleMicrophoneTestButtonClicked);
 	}
-	if (LanguageComboBox)
-	{
-		LanguageComboBox->OnSelectionChanged.AddUniqueDynamic(
-			this,
-			&UOptionsWidget::HandleLanguageSelectionChanged);
+	if (LanguageComboBox) {
+		LanguageComboBox->OnSelectionChanged.AddUniqueDynamic(this, &UOptionsWidget::HandleLanguageSelectionChanged);
 	}
 }
 
-void UOptionsWidget::UnbindOptionButtons()
-{
-	if (SensitivityCategoryButton)
-	{
+void UOptionsWidget::UnbindOptionButtons() {
+	if (SensitivityCategoryButton) {
 		SensitivityCategoryButton->OnClicked.RemoveAll(this);
 	}
-	if (AudioCategoryButton)
-	{
+	if (AudioCategoryButton) {
 		AudioCategoryButton->OnClicked.RemoveAll(this);
 	}
-	if (KeyBindingCategoryButton)
-	{
+	if (KeyBindingCategoryButton) {
 		KeyBindingCategoryButton->OnClicked.RemoveAll(this);
 	}
-	if (MicrophoneCategoryButton)
-	{
+	if (MicrophoneCategoryButton) {
 		MicrophoneCategoryButton->OnClicked.RemoveAll(this);
 	}
-	if (CloseButton)
-	{
+	if (CloseButton) {
 		CloseButton->OnClicked.RemoveAll(this);
 	}
-	if (ApplyButton)
-	{
+	if (ApplyButton) {
 		ApplyButton->OnClicked.RemoveAll(this);
 	}
-	if (ResetButton)
-	{
+	if (ResetButton) {
 		ResetButton->OnClicked.RemoveAll(this);
 	}
-	if (SensitivitySlider)
-	{
+	if (SensitivitySlider) {
 		SensitivitySlider->OnValueChanged.RemoveAll(this);
 	}
-	if (MasterVolumeSlider)
-	{
+	if (MasterVolumeSlider) {
 		MasterVolumeSlider->OnValueChanged.RemoveAll(this);
 	}
-	if (BgmVolumeSlider)
-	{
+	if (BgmVolumeSlider) {
 		BgmVolumeSlider->OnValueChanged.RemoveAll(this);
 	}
-	if (SfxVolumeSlider)
-	{
+	if (SfxVolumeSlider) {
 		SfxVolumeSlider->OnValueChanged.RemoveAll(this);
 	}
-	if (VoiceVolumeSlider)
-	{
+	if (VoiceVolumeSlider) {
 		VoiceVolumeSlider->OnValueChanged.RemoveAll(this);
 	}
-	if (MicrophoneVolumeSlider)
-	{
+	if (MicrophoneVolumeSlider) {
 		MicrophoneVolumeSlider->OnValueChanged.RemoveAll(this);
 	}
-	if (LanguageComboBox)
-	{
+	if (LanguageComboBox) {
 		LanguageComboBox->OnSelectionChanged.RemoveAll(this);
 	}
-	if (MicrophonePushToTalkButton)
-	{
+	if (MicrophonePushToTalkButton) {
 		MicrophonePushToTalkButton->OnClicked.RemoveAll(this);
 	}
-	if (MicrophoneAlwaysOnButton)
-	{
+	if (MicrophoneAlwaysOnButton) {
 		MicrophoneAlwaysOnButton->OnClicked.RemoveAll(this);
 	}
-	if (MicrophoneDeviceComboBox)
-	{
+	if (MicrophoneDeviceComboBox) {
 		MicrophoneDeviceComboBox->OnSelectionChanged.RemoveAll(this);
 	}
-	if (MicrophoneTestButton)
-	{
+	if (MicrophoneTestButton) {
 		MicrophoneTestButton->OnClicked.RemoveAll(this);
 	}
 }
 
-void UOptionsWidget::HandleSensitivityCategoryButtonClicked()
-{
+void UOptionsWidget::HandleSensitivityCategoryButtonClicked() {
 	SetOptionsCategory(ESnowRumbleOptionsCategory::Sensitivity);
 }
 
-void UOptionsWidget::HandleAudioCategoryButtonClicked()
-{
+void UOptionsWidget::HandleAudioCategoryButtonClicked() {
 	SetOptionsCategory(ESnowRumbleOptionsCategory::Audio);
 }
 
-void UOptionsWidget::HandleKeyBindingCategoryButtonClicked()
-{
+void UOptionsWidget::HandleKeyBindingCategoryButtonClicked() {
 	SetOptionsCategory(ESnowRumbleOptionsCategory::KeyBinding);
 }
 
-void UOptionsWidget::HandleMicrophoneCategoryButtonClicked()
-{
+void UOptionsWidget::HandleMicrophoneCategoryButtonClicked() {
 	SetOptionsCategory(ESnowRumbleOptionsCategory::Microphone);
 }
 
-void UOptionsWidget::HandleCloseButtonClicked()
-{
+void UOptionsWidget::HandleCloseButtonClicked() {
 	DiscardPendingOptionChanges();
 	OnOptionsCloseRequested();
 	OnOptionsCloseRequestedNative.Broadcast();
 }
 
-void UOptionsWidget::HandleApplyButtonClicked()
-{
+void UOptionsWidget::HandleApplyButtonClicked() {
 	ApplyPendingOptionChanges();
 	OnOptionsApplyRequested();
 	SetHasPendingOptionChanges(false);
 }
 
-void UOptionsWidget::HandleResetButtonClicked()
-{
+void UOptionsWidget::HandleResetButtonClicked() {
 	ResetCurrentOptionsCategory();
 	OnOptionsResetRequested();
 	OnOptionsCategoryResetRequested(CurrentOptionsCategory);
 }
 
-void UOptionsWidget::HandleSensitivitySliderValueChanged(float NewValue)
-{
-	if (bIsUpdatingSensitivitySlider)
-	{
+void UOptionsWidget::HandleSensitivitySliderValueChanged(float NewValue) {
+	if (bIsUpdatingSensitivitySlider) {
 		return;
 	}
 
@@ -485,10 +360,8 @@ void UOptionsWidget::HandleSensitivitySliderValueChanged(float NewValue)
 	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 }
 
-void UOptionsWidget::HandleMasterVolumeSliderValueChanged(float NewValue)
-{
-	if (bIsUpdatingAudioSliders)
-	{
+void UOptionsWidget::HandleMasterVolumeSliderValueChanged(float NewValue) {
+	if (bIsUpdatingAudioSliders) {
 		return;
 	}
 
@@ -500,10 +373,8 @@ void UOptionsWidget::HandleMasterVolumeSliderValueChanged(float NewValue)
 	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 }
 
-void UOptionsWidget::HandleBgmVolumeSliderValueChanged(float NewValue)
-{
-	if (bIsUpdatingAudioSliders)
-	{
+void UOptionsWidget::HandleBgmVolumeSliderValueChanged(float NewValue) {
+	if (bIsUpdatingAudioSliders) {
 		return;
 	}
 
@@ -515,10 +386,8 @@ void UOptionsWidget::HandleBgmVolumeSliderValueChanged(float NewValue)
 	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 }
 
-void UOptionsWidget::HandleSfxVolumeSliderValueChanged(float NewValue)
-{
-	if (bIsUpdatingAudioSliders)
-	{
+void UOptionsWidget::HandleSfxVolumeSliderValueChanged(float NewValue) {
+	if (bIsUpdatingAudioSliders) {
 		return;
 	}
 
@@ -530,15 +399,12 @@ void UOptionsWidget::HandleSfxVolumeSliderValueChanged(float NewValue)
 	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 }
 
-void UOptionsWidget::HandleVoiceVolumeSliderValueChanged(float NewValue)
-{
-	if (bIsUpdatingAudioSliders)
-	{
+void UOptionsWidget::HandleVoiceVolumeSliderValueChanged(float NewValue) {
+	if (bIsUpdatingAudioSliders) {
 		return;
 	}
 
-	PendingVoiceVolume =
-		FMath::Clamp(NewValue, 0.0f, SnowRumbleMaxVoiceVolume);
+	PendingVoiceVolume = FMath::Clamp(NewValue, 0.0f, SnowRumbleMaxVoiceVolume);
 	RefreshAudioValueText();
 	ApplyAudioVolumeSettings();
 	ApplyAudioPreviewSoundMix();
@@ -546,107 +412,73 @@ void UOptionsWidget::HandleVoiceVolumeSliderValueChanged(float NewValue)
 	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 }
 
-void UOptionsWidget::HandleMicrophoneVolumeSliderValueChanged(float NewValue)
-{
-	if (bIsUpdatingMicrophoneSlider)
-	{
+void UOptionsWidget::HandleMicrophoneVolumeSliderValueChanged(float NewValue) {
+	if (bIsUpdatingMicrophoneSlider) {
 		return;
 	}
 
-	PendingMicrophoneVolume =
-		FMath::Clamp(NewValue, 0.0f, SnowRumbleMaxMicrophoneVolume);
+	PendingMicrophoneVolume = FMath::Clamp(NewValue, 0.0f, SnowRumbleMaxMicrophoneVolume);
 	RefreshMicrophoneValueText();
 	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 }
 
-void UOptionsWidget::HandleMicrophonePushToTalkButtonClicked()
-{
+void UOptionsWidget::HandleMicrophonePushToTalkButtonClicked() {
 	PendingMicrophoneMode = ESnowRumbleMicrophoneMode::PushToTalk;
 	OnMicrophoneModeChanged(PendingMicrophoneMode);
 	RefreshMicrophoneModeButtonSelection();
 	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 }
 
-void UOptionsWidget::HandleMicrophoneAlwaysOnButtonClicked()
-{
+void UOptionsWidget::HandleMicrophoneAlwaysOnButtonClicked() {
 	PendingMicrophoneMode = ESnowRumbleMicrophoneMode::AlwaysOn;
 	OnMicrophoneModeChanged(PendingMicrophoneMode);
 	RefreshMicrophoneModeButtonSelection();
 	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 }
 
-void UOptionsWidget::HandleMicrophoneDeviceSelectionChanged(
-	FString SelectedItem,
-	ESelectInfo::Type SelectionType)
-{
-	if (bIsUpdatingMicrophoneDeviceComboBox
-		|| SelectionType == ESelectInfo::Direct)
-	{
+void UOptionsWidget::HandleMicrophoneDeviceSelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType) {
+	if (bIsUpdatingMicrophoneDeviceComboBox || SelectionType == ESelectInfo::Direct) {
 		return;
 	}
 
 	PendingMicrophoneDeviceName = SelectedItem;
-	PendingMicrophoneDeviceId =
-		MicrophoneDeviceIdsByName.FindRef(SelectedItem);
-	OnMicrophoneDeviceChanged(
-		PendingMicrophoneDeviceId,
-		PendingMicrophoneDeviceName);
+	PendingMicrophoneDeviceId = MicrophoneDeviceIdsByName.FindRef(SelectedItem);
+	OnMicrophoneDeviceChanged(PendingMicrophoneDeviceId, PendingMicrophoneDeviceName);
 	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 }
 
-void UOptionsWidget::HandleMicrophoneTestButtonClicked()
-{
-	if (bIsMicrophoneTestActive)
-	{
+void UOptionsWidget::HandleMicrophoneTestButtonClicked() {
+	if (bIsMicrophoneTestActive) {
 		StopMicrophoneTest();
-	}
-	else
-	{
+	} else {
 		StartMicrophoneTest();
 	}
 }
 
-void UOptionsWidget::HandleLanguageSelectionChanged(
-	FString SelectedItem,
-	ESelectInfo::Type SelectionType)
-{
-	if (bIsUpdatingLanguageComboBox
-		|| SelectionType == ESelectInfo::Direct
-		|| SelectedItem.IsEmpty())
-	{
+void UOptionsWidget::HandleLanguageSelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType) {
+	if (bIsUpdatingLanguageComboBox || SelectionType == ESelectInfo::Direct || SelectedItem.IsEmpty()) {
 		return;
 	}
 
 	const UGameInstance* GameInstance = GetGameInstance();
-	USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem = GameInstance
-		? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>()
-		: nullptr;
-	if (UserSettingsSubsystem)
-	{
+	USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>() : nullptr;
+	if (UserSettingsSubsystem) {
 		UserSettingsSubsystem->SetLanguageCulture(
-			SelectedItem.Equals(TEXT("English"), ESearchCase::IgnoreCase)
-				? TEXT("en")
-				: TEXT("ko"));
+			SelectedItem.Equals(TEXT("English"), ESearchCase::IgnoreCase) ? TEXT("en") : TEXT("ko"));
 		RefreshLocalizedDynamicText();
 	}
 }
 
-void UOptionsWidget::HandleKeyRowRebindRequested(FName BindingId)
-{
+void UOptionsWidget::HandleKeyRowRebindRequested(FName BindingId) {
 	BeginKeyRebind(BindingId);
 }
 
-void UOptionsWidget::HandleKeyRowResetRequested(FName BindingId)
-{
-	for (FSnowRumbleKeyBindingViewData& Row : KeyBindingRows)
-	{
-		if (Row.BindingId == BindingId)
-		{
-			for (FSnowRumbleKeyBindingViewData& OtherRow : KeyBindingRows)
-			{
-				if (OtherRow.BindingId != BindingId
-					&& OtherRow.CurrentKey == Row.DefaultKey)
-				{
+void UOptionsWidget::HandleKeyRowResetRequested(FName BindingId) {
+	for (FSnowRumbleKeyBindingViewData& Row : KeyBindingRows) {
+		if (Row.BindingId == BindingId) {
+			for (FSnowRumbleKeyBindingViewData& OtherRow : KeyBindingRows) {
+				if (OtherRow.BindingId != BindingId && OtherRow.CurrentKey == Row.DefaultKey) {
 					OtherRow.CurrentKey = EKeys::Invalid;
 				}
 			}
@@ -656,35 +488,26 @@ void UOptionsWidget::HandleKeyRowResetRequested(FName BindingId)
 		}
 	}
 
-	if (PendingKeyBindingId == BindingId)
-	{
+	if (PendingKeyBindingId == BindingId) {
 		PendingKeyBindingId = NAME_None;
 	}
 
 	RefreshKeyBindingPanel();
 	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
-	if (KeyBindingStatusText)
-	{
+	if (KeyBindingStatusText) {
 		KeyBindingStatusText->SetText(FText::Format(
-			NSLOCTEXT(
-				"SnowRumble",
-				"KeyBindingResetRequested",
-				"{0} 기본값 복원"),
-			FText::FromName(BindingId)));
+			NSLOCTEXT("SnowRumble", "KeyBindingResetRequested", "{0} 기본값 복원"), FText::FromName(BindingId)));
 	}
 
 	OnKeyBindingResetRequested(BindingId);
 }
 
-void UOptionsWidget::ApplyPendingOptionChanges()
-{
+void UOptionsWidget::ApplyPendingOptionChanges() {
 	UGameInstance* GameInstance = GetGameInstance();
-	USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem = GameInstance
-		? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>()
-		: nullptr;
+	USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>() : nullptr;
 
-	if (UserSettingsSubsystem)
-	{
+	if (UserSettingsSubsystem) {
 		UserSettingsSubsystem->SetMasterVolume(PendingMasterVolume);
 		UserSettingsSubsystem->SetMouseSensitivity(PendingMouseSensitivity);
 		UserSettingsSubsystem->SetBgmVolume(PendingBgmVolume);
@@ -693,17 +516,11 @@ void UOptionsWidget::ApplyPendingOptionChanges()
 		UserSettingsSubsystem->SetMicrophoneVolume(PendingMicrophoneVolume);
 		UserSettingsSubsystem->SetMicrophoneMode(PendingMicrophoneMode);
 		UserSettingsSubsystem->SetMicrophoneDeviceId(PendingMicrophoneDeviceId);
-		for (const FSnowRumbleKeyBindingViewData& Row : KeyBindingRows)
-		{
-			if (Row.CurrentKey == Row.DefaultKey)
-			{
+		for (const FSnowRumbleKeyBindingViewData& Row : KeyBindingRows) {
+			if (Row.CurrentKey == Row.DefaultKey) {
 				UserSettingsSubsystem->ResetKeyBinding(Row.BindingId);
-			}
-			else
-			{
-				UserSettingsSubsystem->SetKeyBinding(
-					Row.BindingId,
-					Row.CurrentKey);
+			} else {
+				UserSettingsSubsystem->SetKeyBinding(Row.BindingId, Row.CurrentKey);
 			}
 		}
 		ApplyAudioVolumeSettings();
@@ -711,36 +528,26 @@ void UOptionsWidget::ApplyPendingOptionChanges()
 		ApplyBackgroundMusicPreviewVolume();
 	}
 
-	if (APlayerController* PlayerController = GetOwningPlayer())
-	{
-		if (ASnowRumbleCharacter* SnowRumbleCharacter =
-			Cast<ASnowRumbleCharacter>(PlayerController->GetPawn()))
-		{
+	if (APlayerController* PlayerController = GetOwningPlayer()) {
+		if (ASnowRumbleCharacter* SnowRumbleCharacter = Cast<ASnowRumbleCharacter>(PlayerController->GetPawn())) {
 			SnowRumbleCharacter->ApplyInputMappingContext();
 		}
 	}
 }
 
-void UOptionsWidget::ResetCurrentOptionsCategory()
-{
-	switch (CurrentOptionsCategory)
-	{
+void UOptionsWidget::ResetCurrentOptionsCategory() {
+	switch (CurrentOptionsCategory) {
 	case ESnowRumbleOptionsCategory::Sensitivity:
-		if (const UGameInstance* GameInstance = GetGameInstance())
-		{
+		if (const UGameInstance* GameInstance = GetGameInstance()) {
 			if (const USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem =
-				GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>())
-			{
-				PendingMouseSensitivity =
-					UserSettingsSubsystem->GetDefaultMouseSensitivity();
+					GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>()) {
+				PendingMouseSensitivity = UserSettingsSubsystem->GetDefaultMouseSensitivity();
 			}
 		}
 		RefreshSensitivityValueText();
-		if (SensitivitySlider)
-		{
+		if (SensitivitySlider) {
 			bIsUpdatingSensitivitySlider = true;
-			SensitivitySlider->SetValue(
-				ConvertSensitivityToSliderValue(PendingMouseSensitivity));
+			SensitivitySlider->SetValue(ConvertSensitivityToSliderValue(PendingMouseSensitivity));
 			bIsUpdatingSensitivitySlider = false;
 		}
 		SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
@@ -749,39 +556,27 @@ void UOptionsWidget::ResetCurrentOptionsCategory()
 		ResetAllKeyBindingsToDefault();
 		break;
 	case ESnowRumbleOptionsCategory::Audio:
-		if (const UGameInstance* GameInstance = GetGameInstance())
-		{
+		if (const UGameInstance* GameInstance = GetGameInstance()) {
 			if (const USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem =
-				GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>())
-			{
-				PendingMasterVolume =
-					UserSettingsSubsystem->GetDefaultAudioVolume();
-				PendingBgmVolume =
-					UserSettingsSubsystem->GetDefaultAudioVolume();
-				PendingSfxVolume =
-					UserSettingsSubsystem->GetDefaultAudioVolume();
-				PendingVoiceVolume =
-					UserSettingsSubsystem->GetDefaultVoiceVolume();
+					GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>()) {
+				PendingMasterVolume = UserSettingsSubsystem->GetDefaultAudioVolume();
+				PendingBgmVolume = UserSettingsSubsystem->GetDefaultAudioVolume();
+				PendingSfxVolume = UserSettingsSubsystem->GetDefaultAudioVolume();
+				PendingVoiceVolume = UserSettingsSubsystem->GetDefaultVoiceVolume();
 			}
 		}
-		if (MasterVolumeSlider || BgmVolumeSlider || SfxVolumeSlider
-			|| VoiceVolumeSlider)
-		{
+		if (MasterVolumeSlider || BgmVolumeSlider || SfxVolumeSlider || VoiceVolumeSlider) {
 			bIsUpdatingAudioSliders = true;
-			if (MasterVolumeSlider)
-			{
+			if (MasterVolumeSlider) {
 				MasterVolumeSlider->SetValue(PendingMasterVolume);
 			}
-			if (BgmVolumeSlider)
-			{
+			if (BgmVolumeSlider) {
 				BgmVolumeSlider->SetValue(PendingBgmVolume);
 			}
-			if (SfxVolumeSlider)
-			{
+			if (SfxVolumeSlider) {
 				SfxVolumeSlider->SetValue(PendingSfxVolume);
 			}
-			if (VoiceVolumeSlider)
-			{
+			if (VoiceVolumeSlider) {
 				VoiceVolumeSlider->SetValue(PendingVoiceVolume);
 			}
 			bIsUpdatingAudioSliders = false;
@@ -793,21 +588,16 @@ void UOptionsWidget::ResetCurrentOptionsCategory()
 		SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 		break;
 	case ESnowRumbleOptionsCategory::Microphone:
-		if (const UGameInstance* GameInstance = GetGameInstance())
-		{
+		if (const UGameInstance* GameInstance = GetGameInstance()) {
 			if (const USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem =
-				GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>())
-			{
-				PendingMicrophoneVolume =
-					UserSettingsSubsystem->GetDefaultMicrophoneVolume();
-				PendingMicrophoneMode =
-					UserSettingsSubsystem->GetDefaultMicrophoneMode();
+					GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>()) {
+				PendingMicrophoneVolume = UserSettingsSubsystem->GetDefaultMicrophoneVolume();
+				PendingMicrophoneMode = UserSettingsSubsystem->GetDefaultMicrophoneMode();
 				PendingMicrophoneDeviceId.Reset();
 				PendingMicrophoneDeviceName = TEXT("기본 장치");
 			}
 		}
-		if (MicrophoneVolumeSlider)
-		{
+		if (MicrophoneVolumeSlider) {
 			bIsUpdatingMicrophoneSlider = true;
 			MicrophoneVolumeSlider->SetValue(PendingMicrophoneVolume);
 			bIsUpdatingMicrophoneSlider = false;
@@ -815,15 +605,12 @@ void UOptionsWidget::ResetCurrentOptionsCategory()
 		RefreshMicrophoneValueText();
 		OnMicrophoneModeChanged(PendingMicrophoneMode);
 		RefreshMicrophoneModeButtonSelection();
-		if (MicrophoneDeviceComboBox)
-		{
+		if (MicrophoneDeviceComboBox) {
 			bIsUpdatingMicrophoneDeviceComboBox = true;
 			MicrophoneDeviceComboBox->SetSelectedOption(PendingMicrophoneDeviceName);
 			bIsUpdatingMicrophoneDeviceComboBox = false;
 		}
-		OnMicrophoneDeviceChanged(
-			PendingMicrophoneDeviceId,
-			PendingMicrophoneDeviceName);
+		OnMicrophoneDeviceChanged(PendingMicrophoneDeviceId, PendingMicrophoneDeviceName);
 		SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 		break;
 	default:
@@ -831,32 +618,22 @@ void UOptionsWidget::ResetCurrentOptionsCategory()
 	}
 }
 
-void UOptionsWidget::ResetAllKeyBindingsToDefault()
-{
+void UOptionsWidget::ResetAllKeyBindingsToDefault() {
 	PendingKeyBindingId = NAME_None;
 
-	for (FSnowRumbleKeyBindingViewData& Row : KeyBindingRows)
-	{
+	for (FSnowRumbleKeyBindingViewData& Row : KeyBindingRows) {
 		Row.CurrentKey = Row.DefaultKey;
 	}
 
 	RefreshKeyBindingPanel();
 	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
-	if (KeyBindingStatusText)
-	{
-		KeyBindingStatusText->SetText(
-			NSLOCTEXT(
-				"SnowRumble",
-				"KeyBindingAllResetRequested",
-				"키 설정 기본값 복원"));
+	if (KeyBindingStatusText) {
+		KeyBindingStatusText->SetText(NSLOCTEXT("SnowRumble", "KeyBindingAllResetRequested", "키 설정 기본값 복원"));
 	}
 }
 
-int32 UOptionsWidget::GetSwitcherIndexForCategory(
-	ESnowRumbleOptionsCategory Category) const
-{
-	switch (Category)
-	{
+int32 UOptionsWidget::GetSwitcherIndexForCategory(ESnowRumbleOptionsCategory Category) const {
+	switch (Category) {
 	case ESnowRumbleOptionsCategory::Audio:
 		return 1;
 	case ESnowRumbleOptionsCategory::KeyBinding:
@@ -869,16 +646,10 @@ int32 UOptionsWidget::GetSwitcherIndexForCategory(
 	}
 }
 
-void UOptionsWidget::BeginKeyRebind(FName BindingId)
-{
-	if (KeyBindingStatusText)
-	{
+void UOptionsWidget::BeginKeyRebind(FName BindingId) {
+	if (KeyBindingStatusText) {
 		KeyBindingStatusText->SetText(FText::Format(
-			NSLOCTEXT(
-				"SnowRumble",
-				"KeyBindingRebindPending",
-				"{0} 키 입력 대기 중"),
-			FText::FromName(BindingId)));
+			NSLOCTEXT("SnowRumble", "KeyBindingRebindPending", "{0} 키 입력 대기 중"), FText::FromName(BindingId)));
 	}
 
 	PendingKeyBindingId = BindingId;
@@ -886,67 +657,49 @@ void UOptionsWidget::BeginKeyRebind(FName BindingId)
 	OnKeyRebindRequested(BindingId);
 }
 
-void UOptionsWidget::CancelKeyRebind()
-{
+void UOptionsWidget::CancelKeyRebind() {
 	const FName CanceledBindingId = PendingKeyBindingId;
 	PendingKeyBindingId = NAME_None;
 
-	if (KeyBindingStatusText)
-	{
-		KeyBindingStatusText->SetText(FText::Format(
-			NSLOCTEXT(
-				"SnowRumble",
-				"KeyBindingRebindCanceled",
-				"{0} 키 변경 취소"),
-			FText::FromName(CanceledBindingId)));
+	if (KeyBindingStatusText) {
+		KeyBindingStatusText->SetText(
+			FText::Format(NSLOCTEXT("SnowRumble", "KeyBindingRebindCanceled", "{0} 키 변경 취소"),
+						  FText::FromName(CanceledBindingId)));
 	}
 
 	OnKeyRebindCanceled(CanceledBindingId);
 }
 
-bool UOptionsWidget::ApplyCapturedKey(FKey NewKey)
-{
-	if (PendingKeyBindingId.IsNone())
-	{
+bool UOptionsWidget::ApplyCapturedKey(FKey NewKey) {
+	if (PendingKeyBindingId.IsNone()) {
 		return false;
 	}
 
 	const FName BindingId = PendingKeyBindingId;
 
-	if (!IsBindableKey(NewKey))
-	{
-		if (KeyBindingStatusText)
-		{
-			KeyBindingStatusText->SetText(
-				NSLOCTEXT(
-					"SnowRumble",
-					"KeyBindingInvalidKey",
-					"사용할 수 없는 키입니다"));
+	if (!IsBindableKey(NewKey)) {
+		if (KeyBindingStatusText) {
+			KeyBindingStatusText->SetText(NSLOCTEXT("SnowRumble", "KeyBindingInvalidKey", "사용할 수 없는 키입니다"));
 		}
 		return false;
 	}
 
 	bool bApplied = false;
-	for (FSnowRumbleKeyBindingViewData& Row : KeyBindingRows)
-	{
-		if (Row.BindingId != BindingId && Row.CurrentKey == NewKey)
-		{
+	for (FSnowRumbleKeyBindingViewData& Row : KeyBindingRows) {
+		if (Row.BindingId != BindingId && Row.CurrentKey == NewKey) {
 			Row.CurrentKey = EKeys::Invalid;
 		}
 	}
 
-	for (FSnowRumbleKeyBindingViewData& Row : KeyBindingRows)
-	{
-		if (Row.BindingId == BindingId)
-		{
+	for (FSnowRumbleKeyBindingViewData& Row : KeyBindingRows) {
+		if (Row.BindingId == BindingId) {
 			Row.CurrentKey = NewKey;
 			bApplied = true;
 			break;
 		}
 	}
 
-	if (!bApplied)
-	{
+	if (!bApplied) {
 		return false;
 	}
 
@@ -955,158 +708,95 @@ bool UOptionsWidget::ApplyCapturedKey(FKey NewKey)
 	RefreshKeyBindingPanel();
 	SetHasPendingOptionChanges(HasAnyPendingOptionChanges());
 
-	if (KeyBindingStatusText)
-	{
-		KeyBindingStatusText->SetText(FText::Format(
-			NSLOCTEXT(
-				"SnowRumble",
-				"KeyBindingChanged",
-				"{0} 키를 {1}(으)로 변경"),
-			FText::FromName(BindingId),
-			NewKey.GetDisplayName()));
+	if (KeyBindingStatusText) {
+		KeyBindingStatusText->SetText(
+			FText::Format(NSLOCTEXT("SnowRumble", "KeyBindingChanged", "{0} 키를 {1}(으)로 변경"),
+						  FText::FromName(BindingId), NewKey.GetDisplayName()));
 	}
 
 	OnKeyBindingChanged(BindingId, NewKey);
 	return true;
 }
 
-bool UOptionsWidget::IsBindableKey(FKey Key) const
-{
-	return Key.IsValid()
-		&& Key != EKeys::AnyKey
-		&& Key != EKeys::Escape
-		&& Key != EKeys::F10
-		&& Key != EKeys::Tab;
+bool UOptionsWidget::IsBindableKey(FKey Key) const {
+	return Key.IsValid() && Key != EKeys::AnyKey && Key != EKeys::Escape && Key != EKeys::F10 && Key != EKeys::Tab;
 }
 
-void UOptionsWidget::InitializeDefaultKeyBindingRows()
-{
+void UOptionsWidget::InitializeDefaultKeyBindingRows() {
 	KeyBindingRows.Reset();
 
+	KeyBindingRows.Add(MakeKeyBindingRow(TEXT("MoveForward"),
+										 NSLOCTEXT("SnowRumble", "KeyBindingMoveForward", "앞으로 이동"), EKeys::W));
+	KeyBindingRows.Add(MakeKeyBindingRow(TEXT("MoveBackward"),
+										 NSLOCTEXT("SnowRumble", "KeyBindingMoveBackward", "뒤로 이동"), EKeys::S));
+	KeyBindingRows.Add(
+		MakeKeyBindingRow(TEXT("MoveLeft"), NSLOCTEXT("SnowRumble", "KeyBindingMoveLeft", "왼쪽 이동"), EKeys::A));
+	KeyBindingRows.Add(
+		MakeKeyBindingRow(TEXT("MoveRight"), NSLOCTEXT("SnowRumble", "KeyBindingMoveRight", "오른쪽 이동"), EKeys::D));
+	KeyBindingRows.Add(
+		MakeKeyBindingRow(TEXT("Jump"), NSLOCTEXT("SnowRumble", "KeyBindingJump", "점프"), EKeys::SpaceBar));
+	KeyBindingRows.Add(
+		MakeKeyBindingRow(TEXT("Sprint"), NSLOCTEXT("SnowRumble", "KeyBindingSprint", "달리기"), EKeys::LeftShift));
+	KeyBindingRows.Add(
+		MakeKeyBindingRow(TEXT("Interact"), NSLOCTEXT("SnowRumble", "KeyBindingInteract", "상호작용"), EKeys::F));
+	KeyBindingRows.Add(
+		MakeKeyBindingRow(TEXT("Aim"), NSLOCTEXT("SnowRumble", "KeyBindingAim", "조준"), EKeys::RightMouseButton));
+	KeyBindingRows.Add(
+		MakeKeyBindingRow(TEXT("Action"), NSLOCTEXT("SnowRumble", "KeyBindingAction", "행동"), EKeys::LeftMouseButton));
+	KeyBindingRows.Add(MakeKeyBindingRow(TEXT("RollSnowball"),
+										 NSLOCTEXT("SnowRumble", "KeyBindingRollSnowball", "눈덩이 굴리기"), EKeys::E));
+	KeyBindingRows.Add(MakeKeyBindingRow(TEXT("CreateSnowball"),
+										 NSLOCTEXT("SnowRumble", "KeyBindingCreateSnowball", "눈 만들기"), EKeys::Q));
 	KeyBindingRows.Add(MakeKeyBindingRow(
-		TEXT("MoveForward"),
-		NSLOCTEXT("SnowRumble", "KeyBindingMoveForward", "앞으로 이동"),
-		EKeys::W));
+		TEXT("DropEquipment"), NSLOCTEXT("SnowRumble", "KeyBindingDropEquipment", "장비 내려놓기"), EKeys::Enter));
+	KeyBindingRows.Add(
+		MakeKeyBindingRow(TEXT("Emote"), NSLOCTEXT("SnowRumble", "KeyBindingEmote", "이모션"), EKeys::Tab));
+	KeyBindingRows.Add(
+		MakeKeyBindingRow(TEXT("KeyGuide"), NSLOCTEXT("SnowRumble", "KeyBindingKeyGuide", "키 가이드"), EKeys::T));
+	KeyBindingRows.Add(
+		MakeKeyBindingRow(TEXT("Chat"), NSLOCTEXT("SnowRumble", "KeyBindingChat", "채팅"), EKeys::Enter));
+	KeyBindingRows.Add(MakeKeyBindingRow(TEXT("MicrophonePushToTalk"),
+										 NSLOCTEXT("SnowRumble", "KeyBindingMicrophonePushToTalk", "마이크 입력"),
+										 EKeys::K));
+	KeyBindingRows.Add(
+		MakeKeyBindingRow(TEXT("MicrophoneChannelToggle"),
+						  NSLOCTEXT("SnowRumble", "KeyBindingMicrophoneChannelToggle", "마이크 채널 전환"), EKeys::N));
 	KeyBindingRows.Add(MakeKeyBindingRow(
-		TEXT("MoveBackward"),
-		NSLOCTEXT("SnowRumble", "KeyBindingMoveBackward", "뒤로 이동"),
-		EKeys::S));
-	KeyBindingRows.Add(MakeKeyBindingRow(
-		TEXT("MoveLeft"),
-		NSLOCTEXT("SnowRumble", "KeyBindingMoveLeft", "왼쪽 이동"),
-		EKeys::A));
-	KeyBindingRows.Add(MakeKeyBindingRow(
-		TEXT("MoveRight"),
-		NSLOCTEXT("SnowRumble", "KeyBindingMoveRight", "오른쪽 이동"),
-		EKeys::D));
-	KeyBindingRows.Add(MakeKeyBindingRow(
-		TEXT("Jump"),
-		NSLOCTEXT("SnowRumble", "KeyBindingJump", "점프"),
-		EKeys::SpaceBar));
-	KeyBindingRows.Add(MakeKeyBindingRow(
-		TEXT("Sprint"),
-		NSLOCTEXT("SnowRumble", "KeyBindingSprint", "달리기"),
-		EKeys::LeftShift));
-	KeyBindingRows.Add(MakeKeyBindingRow(
-		TEXT("Interact"),
-		NSLOCTEXT("SnowRumble", "KeyBindingInteract", "상호작용"),
-		EKeys::F));
-	KeyBindingRows.Add(MakeKeyBindingRow(
-		TEXT("Aim"),
-		NSLOCTEXT("SnowRumble", "KeyBindingAim", "조준"),
-		EKeys::RightMouseButton));
-	KeyBindingRows.Add(MakeKeyBindingRow(
-		TEXT("Action"),
-		NSLOCTEXT("SnowRumble", "KeyBindingAction", "행동"),
-		EKeys::LeftMouseButton));
-	KeyBindingRows.Add(MakeKeyBindingRow(
-		TEXT("RollSnowball"),
-		NSLOCTEXT("SnowRumble", "KeyBindingRollSnowball", "눈덩이 굴리기"),
-		EKeys::E));
-	KeyBindingRows.Add(MakeKeyBindingRow(
-		TEXT("CreateSnowball"),
-		NSLOCTEXT("SnowRumble", "KeyBindingCreateSnowball", "눈 만들기"),
-		EKeys::Q));
-	KeyBindingRows.Add(MakeKeyBindingRow(
-		TEXT("DropEquipment"),
-		NSLOCTEXT("SnowRumble", "KeyBindingDropEquipment", "장비 내려놓기"),
-		EKeys::Enter));
-	KeyBindingRows.Add(MakeKeyBindingRow(
-		TEXT("Emote"),
-		NSLOCTEXT("SnowRumble", "KeyBindingEmote", "이모션"),
-		EKeys::Tab));
-	KeyBindingRows.Add(MakeKeyBindingRow(
-		TEXT("KeyGuide"),
-		NSLOCTEXT("SnowRumble", "KeyBindingKeyGuide", "키 가이드"),
-		EKeys::T));
-	KeyBindingRows.Add(MakeKeyBindingRow(
-		TEXT("Chat"),
-		NSLOCTEXT("SnowRumble", "KeyBindingChat", "채팅"),
-		EKeys::Enter));
-	KeyBindingRows.Add(MakeKeyBindingRow(
-		TEXT("MicrophonePushToTalk"),
-		NSLOCTEXT("SnowRumble", "KeyBindingMicrophonePushToTalk", "마이크 입력"),
-		EKeys::K));
-	KeyBindingRows.Add(MakeKeyBindingRow(
-		TEXT("MicrophoneChannelToggle"),
-		NSLOCTEXT("SnowRumble", "KeyBindingMicrophoneChannelToggle", "마이크 채널 전환"),
-		EKeys::N));
-	KeyBindingRows.Add(MakeKeyBindingRow(
-		TEXT("VoiceTargetMute"),
-		NSLOCTEXT("SnowRumble", "KeyBindingVoiceTargetMute", "플레이어 음소거"),
-		EKeys::M));
+		TEXT("VoiceTargetMute"), NSLOCTEXT("SnowRumble", "KeyBindingVoiceTargetMute", "플레이어 음소거"), EKeys::M));
 
 	UGameInstance* GameInstance = GetGameInstance();
 	const USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem =
-		GameInstance
-			? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>()
-			: nullptr;
-	if (!UserSettingsSubsystem)
-	{
+		GameInstance ? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>() : nullptr;
+	if (!UserSettingsSubsystem) {
 		return;
 	}
 
-	for (FSnowRumbleKeyBindingViewData& Row : KeyBindingRows)
-	{
-		Row.CurrentKey = UserSettingsSubsystem->GetKeyBinding(
-			Row.BindingId,
-			Row.DefaultKey);
+	for (FSnowRumbleKeyBindingViewData& Row : KeyBindingRows) {
+		Row.CurrentKey = UserSettingsSubsystem->GetKeyBinding(Row.BindingId, Row.DefaultKey);
 	}
 }
 
-void UOptionsWidget::RefreshKeyBindingPanel()
-{
-	if (KeyBindingListBox)
-	{
+void UOptionsWidget::RefreshKeyBindingPanel() {
+	if (KeyBindingListBox) {
 		KeyBindingListBox->ClearChildren();
 
-		if (KeyBindingRowWidgetClass)
-		{
-			for (const FSnowRumbleKeyBindingViewData& RowData : KeyBindingRows)
-			{
+		if (KeyBindingRowWidgetClass) {
+			for (const FSnowRumbleKeyBindingViewData& RowData : KeyBindingRows) {
 				UOptionsKeyBindingRowWidget* RowWidget =
-					CreateWidget<UOptionsKeyBindingRowWidget>(
-						GetOwningPlayer(),
-						KeyBindingRowWidgetClass);
-				if (!RowWidget)
-				{
+					CreateWidget<UOptionsKeyBindingRowWidget>(GetOwningPlayer(), KeyBindingRowWidgetClass);
+				if (!RowWidget) {
 					continue;
 				}
 
 				RowWidget->SetKeyBindingData(RowData);
-				RowWidget->OnRebindRequestedNative.AddUObject(
-					this,
-					&UOptionsWidget::HandleKeyRowRebindRequested);
-				RowWidget->OnResetRequestedNative.AddUObject(
-					this,
-					&UOptionsWidget::HandleKeyRowResetRequested);
+				RowWidget->OnRebindRequestedNative.AddUObject(this, &UOptionsWidget::HandleKeyRowRebindRequested);
+				RowWidget->OnResetRequestedNative.AddUObject(this, &UOptionsWidget::HandleKeyRowResetRequested);
 				KeyBindingListBox->AddChild(RowWidget);
 			}
 		}
 	}
 
-	if (KeyBindingStatusText)
-	{
+	if (KeyBindingStatusText) {
 		KeyBindingStatusText->SetText(FText::GetEmpty());
 	}
 
@@ -1114,66 +804,42 @@ void UOptionsWidget::RefreshKeyBindingPanel()
 	RefreshApplyButtonEnabled();
 }
 
-void UOptionsWidget::InitializeSensitivitySetting()
-{
+void UOptionsWidget::InitializeSensitivitySetting() {
 	const UGameInstance* GameInstance = GetGameInstance();
 	const USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem =
-		GameInstance
-			? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>()
-			: nullptr;
+		GameInstance ? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>() : nullptr;
 
-	PendingMouseSensitivity = UserSettingsSubsystem
-		? UserSettingsSubsystem->GetMouseSensitivity()
-		: 1.0f;
+	PendingMouseSensitivity = UserSettingsSubsystem ? UserSettingsSubsystem->GetMouseSensitivity() : 1.0f;
 
-	if (SensitivitySlider)
-	{
+	if (SensitivitySlider) {
 		bIsUpdatingSensitivitySlider = true;
-		SensitivitySlider->SetValue(
-			ConvertSensitivityToSliderValue(PendingMouseSensitivity));
+		SensitivitySlider->SetValue(ConvertSensitivityToSliderValue(PendingMouseSensitivity));
 		bIsUpdatingSensitivitySlider = false;
 	}
 }
 
-void UOptionsWidget::InitializeAudioSettings()
-{
+void UOptionsWidget::InitializeAudioSettings() {
 	const UGameInstance* GameInstance = GetGameInstance();
 	const USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem =
-		GameInstance
-			? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>()
-			: nullptr;
+		GameInstance ? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>() : nullptr;
 
-	PendingMasterVolume = UserSettingsSubsystem
-		? UserSettingsSubsystem->GetMasterVolume()
-		: 1.0f;
-	PendingBgmVolume = UserSettingsSubsystem
-		? UserSettingsSubsystem->GetBgmVolume()
-		: 1.0f;
-	PendingSfxVolume = UserSettingsSubsystem
-		? UserSettingsSubsystem->GetSfxVolume()
-		: 1.0f;
-	PendingVoiceVolume = UserSettingsSubsystem
-		? UserSettingsSubsystem->GetVoiceVolume()
-		: 1.0f;
+	PendingMasterVolume = UserSettingsSubsystem ? UserSettingsSubsystem->GetMasterVolume() : 1.0f;
+	PendingBgmVolume = UserSettingsSubsystem ? UserSettingsSubsystem->GetBgmVolume() : 1.0f;
+	PendingSfxVolume = UserSettingsSubsystem ? UserSettingsSubsystem->GetSfxVolume() : 1.0f;
+	PendingVoiceVolume = UserSettingsSubsystem ? UserSettingsSubsystem->GetVoiceVolume() : 1.0f;
 
-	if (MasterVolumeSlider || BgmVolumeSlider || SfxVolumeSlider
-		|| VoiceVolumeSlider)
-	{
+	if (MasterVolumeSlider || BgmVolumeSlider || SfxVolumeSlider || VoiceVolumeSlider) {
 		bIsUpdatingAudioSliders = true;
-		if (MasterVolumeSlider)
-		{
+		if (MasterVolumeSlider) {
 			MasterVolumeSlider->SetValue(PendingMasterVolume);
 		}
-		if (BgmVolumeSlider)
-		{
+		if (BgmVolumeSlider) {
 			BgmVolumeSlider->SetValue(PendingBgmVolume);
 		}
-		if (SfxVolumeSlider)
-		{
+		if (SfxVolumeSlider) {
 			SfxVolumeSlider->SetValue(PendingSfxVolume);
 		}
-		if (VoiceVolumeSlider)
-		{
+		if (VoiceVolumeSlider) {
 			VoiceVolumeSlider->SetMinValue(0.0f);
 			VoiceVolumeSlider->SetMaxValue(SnowRumbleMaxVoiceVolume);
 			VoiceVolumeSlider->SetValue(PendingVoiceVolume);
@@ -1186,27 +852,18 @@ void UOptionsWidget::InitializeAudioSettings()
 	ApplyBackgroundMusicPreviewVolume();
 }
 
-void UOptionsWidget::InitializeMicrophoneSettings()
-{
+void UOptionsWidget::InitializeMicrophoneSettings() {
 	const UGameInstance* GameInstance = GetGameInstance();
 	const USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem =
-		GameInstance
-			? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>()
-			: nullptr;
+		GameInstance ? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>() : nullptr;
 
-	PendingMicrophoneVolume = UserSettingsSubsystem
-		? UserSettingsSubsystem->GetMicrophoneVolume()
-		: 1.0f;
-	PendingMicrophoneMode = UserSettingsSubsystem
-		? UserSettingsSubsystem->GetMicrophoneMode()
-		: ESnowRumbleMicrophoneMode::PushToTalk;
-	PendingMicrophoneDeviceId = UserSettingsSubsystem
-		? UserSettingsSubsystem->GetMicrophoneDeviceId()
-		: FString();
+	PendingMicrophoneVolume = UserSettingsSubsystem ? UserSettingsSubsystem->GetMicrophoneVolume() : 1.0f;
+	PendingMicrophoneMode =
+		UserSettingsSubsystem ? UserSettingsSubsystem->GetMicrophoneMode() : ESnowRumbleMicrophoneMode::PushToTalk;
+	PendingMicrophoneDeviceId = UserSettingsSubsystem ? UserSettingsSubsystem->GetMicrophoneDeviceId() : FString();
 	PendingMicrophoneDeviceName = TEXT("기본 장치");
 
-	if (MicrophoneVolumeSlider)
-	{
+	if (MicrophoneVolumeSlider) {
 		bIsUpdatingMicrophoneSlider = true;
 		MicrophoneVolumeSlider->SetMinValue(0.0f);
 		MicrophoneVolumeSlider->SetMaxValue(SnowRumbleMaxMicrophoneVolume);
@@ -1218,35 +875,25 @@ void UOptionsWidget::InitializeMicrophoneSettings()
 	RefreshMicrophoneModeButtonSelection();
 }
 
-void UOptionsWidget::InitializeLanguageSetting()
-{
-	if (!LanguageComboBox)
-	{
+void UOptionsWidget::InitializeLanguageSetting() {
+	if (!LanguageComboBox) {
 		return;
 	}
 
 	const UGameInstance* GameInstance = GetGameInstance();
-	const USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem = GameInstance
-		? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>()
-		: nullptr;
-	const FString Culture = UserSettingsSubsystem
-		? UserSettingsSubsystem->GetLanguageCulture()
-		: TEXT("ko");
-	const FString SelectedLanguage = Culture.Equals(
-		TEXT("en"),
-		ESearchCase::IgnoreCase)
-		? TEXT("English")
-		: TEXT("한국어");
+	const USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>() : nullptr;
+	const FString Culture = UserSettingsSubsystem ? UserSettingsSubsystem->GetLanguageCulture() : TEXT("ko");
+	const FString SelectedLanguage =
+		Culture.Equals(TEXT("en"), ESearchCase::IgnoreCase) ? TEXT("English") : TEXT("한국어");
 
 	bIsUpdatingLanguageComboBox = true;
 	LanguageComboBox->SetSelectedOption(SelectedLanguage);
 	bIsUpdatingLanguageComboBox = false;
 }
 
-void UOptionsWidget::RefreshMicrophoneDeviceList()
-{
-	if (!MicrophoneDeviceComboBox)
-	{
+void UOptionsWidget::RefreshMicrophoneDeviceList() {
+	if (!MicrophoneDeviceComboBox) {
 		return;
 	}
 
@@ -1263,21 +910,15 @@ void UOptionsWidget::RefreshMicrophoneDeviceList()
 	Audio::FAudioCapture AudioCapture;
 	TArray<Audio::FCaptureDeviceInfo> Devices;
 	AudioCapture.GetCaptureDevicesAvailable(Devices);
-	for (int32 DeviceIndex = 0; DeviceIndex < Devices.Num(); ++DeviceIndex)
-	{
+	for (int32 DeviceIndex = 0; DeviceIndex < Devices.Num(); ++DeviceIndex) {
 		const Audio::FCaptureDeviceInfo& Device = Devices[DeviceIndex];
-		if (Device.DeviceName.IsEmpty())
-		{
+		if (Device.DeviceName.IsEmpty()) {
 			continue;
 		}
 
 		FString DisplayName = Device.DeviceName;
-		if (MicrophoneDeviceIdsByName.Contains(DisplayName))
-		{
-			DisplayName = FString::Printf(
-				TEXT("%s (%s)"),
-				*Device.DeviceName,
-				*Device.DeviceId);
+		if (MicrophoneDeviceIdsByName.Contains(DisplayName)) {
+			DisplayName = FString::Printf(TEXT("%s (%s)"), *Device.DeviceName, *Device.DeviceId);
 		}
 		MicrophoneDeviceComboBox->AddOption(DisplayName);
 		MicrophoneDeviceIdsByName.Add(DisplayName, Device.DeviceId);
@@ -1285,10 +926,8 @@ void UOptionsWidget::RefreshMicrophoneDeviceList()
 	}
 
 	PendingMicrophoneDeviceName = DefaultDeviceName;
-	for (const TPair<FString, FString>& Device : MicrophoneDeviceIdsByName)
-	{
-		if (Device.Value == PendingMicrophoneDeviceId)
-		{
+	for (const TPair<FString, FString>& Device : MicrophoneDeviceIdsByName) {
+		if (Device.Value == PendingMicrophoneDeviceId) {
 			PendingMicrophoneDeviceName = Device.Key;
 			break;
 		}
@@ -1297,46 +936,27 @@ void UOptionsWidget::RefreshMicrophoneDeviceList()
 	bIsUpdatingMicrophoneDeviceComboBox = false;
 }
 
-void UOptionsWidget::StartMicrophoneTest()
-{
+void UOptionsWidget::StartMicrophoneTest() {
 	StopMicrophoneTest();
 
 	MicrophoneTestCapture = MakeUnique<Audio::FAudioCapture>();
 	Audio::FAudioCaptureDeviceParams CaptureParams;
-	CaptureParams.DeviceIndex = MicrophoneDeviceIndicesByName.FindRef(
-		PendingMicrophoneDeviceName);
+	CaptureParams.DeviceIndex = MicrophoneDeviceIndicesByName.FindRef(PendingMicrophoneDeviceName);
 
 	const bool bStreamOpened = MicrophoneTestCapture->OpenAudioCaptureStream(
 		CaptureParams,
-		[this](
-			const void* AudioData,
-			int32 NumFrames,
-			int32 NumChannels,
-			int32 SampleRate,
-			double StreamTime,
-			bool bOverFlow)
-		{
-			HandleMicrophoneCapture(
-				AudioData,
-				NumFrames,
-				NumChannels,
-				SampleRate,
-				StreamTime,
-				bOverFlow);
+		[this](const void* AudioData, int32 NumFrames, int32 NumChannels, int32 SampleRate, double StreamTime,
+			   bool bOverFlow) {
+			HandleMicrophoneCapture(AudioData, NumFrames, NumChannels, SampleRate, StreamTime, bOverFlow);
 		},
 		1024);
 
-	if (!bStreamOpened || !MicrophoneTestCapture->StartStream())
-	{
+	if (!bStreamOpened || !MicrophoneTestCapture->StartStream()) {
 		MicrophoneTestCapture->AbortStream();
 		MicrophoneTestCapture.Reset();
 		bIsMicrophoneTestActive = false;
-		const FText StatusText = NSLOCTEXT(
-			"SnowRumble",
-			"MicrophoneTestOpenFailed",
-			"마이크를 열 수 없습니다.");
-		if (MicrophoneTestStatusText)
-		{
+		const FText StatusText = NSLOCTEXT("SnowRumble", "MicrophoneTestOpenFailed", "마이크를 열 수 없습니다.");
+		if (MicrophoneTestStatusText) {
 			MicrophoneTestStatusText->SetText(StatusText);
 		}
 		OnMicrophoneTestStateChanged(false, false, 0.0f, StatusText);
@@ -1349,25 +969,18 @@ void UOptionsWidget::StartMicrophoneTest()
 	}
 	DisplayedMicrophoneInputLevel = 0.0f;
 	bIsMicrophoneTestActive = true;
-	const FText StatusText = NSLOCTEXT(
-		"SnowRumble",
-		"MicrophoneTestListening",
-		"마이크 입력을 확인하는 중입니다.");
-	if (MicrophoneTestStatusText)
-	{
+	const FText StatusText = NSLOCTEXT("SnowRumble", "MicrophoneTestListening", "마이크 입력을 확인하는 중입니다.");
+	if (MicrophoneTestStatusText) {
 		MicrophoneTestStatusText->SetText(StatusText);
 	}
-	if (MicrophoneTestButton)
-	{
+	if (MicrophoneTestButton) {
 		MicrophoneTestButton->SetIsEnabled(true);
 	}
 	OnMicrophoneTestStateChanged(true, false, 0.0f, StatusText);
 }
 
-void UOptionsWidget::StopMicrophoneTest()
-{
-	if (MicrophoneTestCapture)
-	{
+void UOptionsWidget::StopMicrophoneTest() {
+	if (MicrophoneTestCapture) {
 		MicrophoneTestCapture->AbortStream();
 		MicrophoneTestCapture.Reset();
 	}
@@ -1379,129 +992,83 @@ void UOptionsWidget::StopMicrophoneTest()
 		PendingMicrophoneInputLevel = 0.0f;
 	}
 
-	const FText StatusText = NSLOCTEXT(
-		"SnowRumble",
-		"MicrophoneTestStopped",
-		"마이크 테스트가 중지되었습니다.");
-	if (MicrophoneTestStatusText)
-	{
+	const FText StatusText = NSLOCTEXT("SnowRumble", "MicrophoneTestStopped", "마이크 테스트가 중지되었습니다.");
+	if (MicrophoneTestStatusText) {
 		MicrophoneTestStatusText->SetText(StatusText);
 	}
-	if (MicrophoneInputLevelProgressBar)
-	{
+	if (MicrophoneInputLevelProgressBar) {
 		MicrophoneInputLevelProgressBar->SetPercent(0.0f);
 	}
 	OnMicrophoneTestStateChanged(false, false, 0.0f, StatusText);
 }
 
-void UOptionsWidget::HandleMicrophoneCapture(
-	const void* AudioData,
-	int32 NumFrames,
-	int32 NumChannels,
-	int32 SampleRate,
-	double StreamTime,
-	bool bOverFlow)
-{
-	if (!AudioData || NumFrames <= 0 || NumChannels <= 0)
-	{
+void UOptionsWidget::HandleMicrophoneCapture(const void* AudioData, int32 NumFrames, int32 NumChannels,
+											 int32 SampleRate, double StreamTime, bool bOverFlow) {
+	if (!AudioData || NumFrames <= 0 || NumChannels <= 0) {
 		return;
 	}
 
 	const float* Samples = static_cast<const float*>(AudioData);
 	const int32 NumSamples = NumFrames * NumChannels;
 	double SumSquares = 0.0;
-	for (int32 SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
-	{
+	for (int32 SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex) {
 		const double Sample = Samples[SampleIndex];
 		SumSquares += Sample * Sample;
 	}
 
-	const float RmsLevel = FMath::Clamp(
-		static_cast<float>(FMath::Sqrt(SumSquares / NumSamples))
-			* 4.0f
-			* FMath::Max(0.0f, PendingMicrophoneVolume),
-		0.0f,
-		1.0f);
+	const float RmsLevel = FMath::Clamp(static_cast<float>(FMath::Sqrt(SumSquares / NumSamples)) * 4.0f *
+											FMath::Max(0.0f, PendingMicrophoneVolume),
+										0.0f, 1.0f);
 	FScopeLock Lock(&MicrophoneTestCaptureCriticalSection);
-	PendingMicrophoneInputLevel = FMath::Max(
-		PendingMicrophoneInputLevel * 0.35f,
-		RmsLevel);
+	PendingMicrophoneInputLevel = FMath::Max(PendingMicrophoneInputLevel * 0.35f, RmsLevel);
 }
 
-void UOptionsWidget::RefreshMicrophoneTestDisplay(float InDeltaTime)
-{
+void UOptionsWidget::RefreshMicrophoneTestDisplay(float InDeltaTime) {
 	float InputLevel = 0.0f;
 	{
 		FScopeLock Lock(&MicrophoneTestCaptureCriticalSection);
 		InputLevel = PendingMicrophoneInputLevel;
-		PendingMicrophoneInputLevel = FMath::Max(
-			0.0f,
-			PendingMicrophoneInputLevel - InDeltaTime * 1.5f);
+		PendingMicrophoneInputLevel = FMath::Max(0.0f, PendingMicrophoneInputLevel - InDeltaTime * 1.5f);
 	}
 
-	DisplayedMicrophoneInputLevel = FMath::FInterpTo(
-		DisplayedMicrophoneInputLevel,
-		InputLevel,
-		InDeltaTime,
-		12.0f);
-	if (MicrophoneInputLevelProgressBar)
-	{
-		MicrophoneInputLevelProgressBar->SetPercent(
-			DisplayedMicrophoneInputLevel);
+	DisplayedMicrophoneInputLevel = FMath::FInterpTo(DisplayedMicrophoneInputLevel, InputLevel, InDeltaTime, 12.0f);
+	if (MicrophoneInputLevelProgressBar) {
+		MicrophoneInputLevelProgressBar->SetPercent(DisplayedMicrophoneInputLevel);
 	}
 
-	if (!bIsMicrophoneTestActive)
-	{
+	if (!bIsMicrophoneTestActive) {
 		return;
 	}
 
 	const bool bInputDetected = DisplayedMicrophoneInputLevel >= 0.035f;
-	const FText StatusText = bInputDetected
-		? NSLOCTEXT(
-			"SnowRumble",
-			"MicrophoneTestInputDetected",
-			"마이크 입력이 감지되었습니다.")
-		: NSLOCTEXT(
-			"SnowRumble",
-			"MicrophoneTestWaitingForInput",
-			"마이크 입력을 기다리는 중입니다.");
-	if (MicrophoneTestStatusText)
-	{
+	const FText StatusText =
+		bInputDetected ? NSLOCTEXT("SnowRumble", "MicrophoneTestInputDetected", "마이크 입력이 감지되었습니다.")
+					   : NSLOCTEXT("SnowRumble", "MicrophoneTestWaitingForInput", "마이크 입력을 기다리는 중입니다.");
+	if (MicrophoneTestStatusText) {
 		MicrophoneTestStatusText->SetText(StatusText);
 	}
-	OnMicrophoneTestStateChanged(
-		true,
-		bInputDetected,
-		DisplayedMicrophoneInputLevel,
-		StatusText);
+	OnMicrophoneTestStateChanged(true, bInputDetected, DisplayedMicrophoneInputLevel, StatusText);
 }
 
-void UOptionsWidget::ApplyAudioVolumeSettings() const
-{
+void UOptionsWidget::ApplyAudioVolumeSettings() const {
 	const float MasterVolume = PendingMasterVolume;
-	if (BgmSoundClass)
-	{
+	if (BgmSoundClass) {
 		BgmSoundClass->Properties.Volume = MasterVolume * PendingBgmVolume;
 	}
-	if (SfxSoundClass)
-	{
+	if (SfxSoundClass) {
 		SfxSoundClass->Properties.Volume = MasterVolume * PendingSfxVolume;
 	}
-	if (VoiceSoundClass)
-	{
+	if (VoiceSoundClass) {
 		VoiceSoundClass->Properties.Volume = MasterVolume * PendingVoiceVolume;
 	}
 }
 
-void UOptionsWidget::ApplyAudioPreviewSoundMix()
-{
-	if (!GetWorld())
-	{
+void UOptionsWidget::ApplyAudioPreviewSoundMix() {
+	if (!GetWorld()) {
 		return;
 	}
 
-	if (!LiveAudioPreviewSoundMix)
-	{
+	if (!LiveAudioPreviewSoundMix) {
 		LiveAudioPreviewSoundMix = NewObject<USoundMix>(this);
 		UGameplayStatics::PushSoundMixModifier(this, LiveAudioPreviewSoundMix);
 	}
@@ -1511,103 +1078,58 @@ void UOptionsWidget::ApplyAudioPreviewSoundMix()
 	const float SfxVolume = PendingSfxVolume;
 	const float VoiceVolume = PendingVoiceVolume;
 
-	if (BgmSoundClass)
-	{
-		UGameplayStatics::SetSoundMixClassOverride(
-			this,
-			LiveAudioPreviewSoundMix,
-			BgmSoundClass,
-			MasterVolume * BgmVolume,
-			1.0f,
-			0.0f,
-			true);
+	if (BgmSoundClass) {
+		UGameplayStatics::SetSoundMixClassOverride(this, LiveAudioPreviewSoundMix, BgmSoundClass,
+												   MasterVolume * BgmVolume, 1.0f, 0.0f, true);
 	}
 
-	if (SfxSoundClass)
-	{
-		UGameplayStatics::SetSoundMixClassOverride(
-			this,
-			LiveAudioPreviewSoundMix,
-			SfxSoundClass,
-			MasterVolume * SfxVolume,
-			1.0f,
-			0.0f,
-			true);
+	if (SfxSoundClass) {
+		UGameplayStatics::SetSoundMixClassOverride(this, LiveAudioPreviewSoundMix, SfxSoundClass,
+												   MasterVolume * SfxVolume, 1.0f, 0.0f, true);
 	}
 
-	if (VoiceSoundClass)
-	{
-		UGameplayStatics::SetSoundMixClassOverride(
-			this,
-			LiveAudioPreviewSoundMix,
-			VoiceSoundClass,
-			MasterVolume * VoiceVolume,
-			1.0f,
-			0.0f,
-			true);
+	if (VoiceSoundClass) {
+		UGameplayStatics::SetSoundMixClassOverride(this, LiveAudioPreviewSoundMix, VoiceSoundClass,
+												   MasterVolume * VoiceVolume, 1.0f, 0.0f, true);
 	}
 }
 
-void UOptionsWidget::ApplyBackgroundMusicPreviewVolume() const
-{
+void UOptionsWidget::ApplyBackgroundMusicPreviewVolume() const {
 	const float MasterVolume = PendingMasterVolume;
 	const float BgmVolume = PendingBgmVolume;
 
 	if (ASnowRumblePlayerController* SnowRumblePlayerController =
-		Cast<ASnowRumblePlayerController>(GetOwningPlayer()))
-	{
-		SnowRumblePlayerController->SetBackgroundMusicPreviewVolume(
-			MasterVolume,
-			BgmVolume);
+			Cast<ASnowRumblePlayerController>(GetOwningPlayer())) {
+		SnowRumblePlayerController->SetBackgroundMusicPreviewVolume(MasterVolume, BgmVolume);
 	}
-	if (AMainMenuPlayerController* MainMenuPlayerController =
-		Cast<AMainMenuPlayerController>(GetOwningPlayer()))
-	{
-		MainMenuPlayerController->SetBackgroundMusicPreviewVolume(
-			MasterVolume,
-			BgmVolume);
+	if (AMainMenuPlayerController* MainMenuPlayerController = Cast<AMainMenuPlayerController>(GetOwningPlayer())) {
+		MainMenuPlayerController->SetBackgroundMusicPreviewVolume(MasterVolume, BgmVolume);
 	}
 	if (ACustomizationPlayerController* CustomizationPlayerController =
-		Cast<ACustomizationPlayerController>(GetOwningPlayer()))
-	{
-		CustomizationPlayerController->SetBackgroundMusicPreviewVolume(
-			MasterVolume,
-			BgmVolume);
+			Cast<ACustomizationPlayerController>(GetOwningPlayer())) {
+		CustomizationPlayerController->SetBackgroundMusicPreviewVolume(MasterVolume, BgmVolume);
 	}
-	if (APodiumPlayerController* PodiumPlayerController =
-		Cast<APodiumPlayerController>(GetOwningPlayer()))
-	{
-		PodiumPlayerController->SetBackgroundMusicPreviewVolume(
-			MasterVolume,
-			BgmVolume);
+	if (APodiumPlayerController* PodiumPlayerController = Cast<APodiumPlayerController>(GetOwningPlayer())) {
+		PodiumPlayerController->SetBackgroundMusicPreviewVolume(MasterVolume, BgmVolume);
 	}
 }
 
-void UOptionsWidget::RefreshApplyButtonEnabled()
-{
-	if (ApplyButton)
-	{
+void UOptionsWidget::RefreshApplyButtonEnabled() {
+	if (ApplyButton) {
 		ApplyButton->SetIsEnabled(bHasPendingOptionChanges);
 	}
 }
 
-bool UOptionsWidget::HasPendingKeyBindingChanges() const
-{
+bool UOptionsWidget::HasPendingKeyBindingChanges() const {
 	const UGameInstance* GameInstance = GetGameInstance();
 	const USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem =
-		GameInstance
-			? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>()
-			: nullptr;
+		GameInstance ? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>() : nullptr;
 
-	for (const FSnowRumbleKeyBindingViewData& Row : KeyBindingRows)
-	{
+	for (const FSnowRumbleKeyBindingViewData& Row : KeyBindingRows) {
 		const FKey SavedKey = UserSettingsSubsystem
-			? UserSettingsSubsystem->GetKeyBinding(
-				Row.BindingId,
-				Row.DefaultKey)
-			: Row.DefaultKey;
-		if (Row.CurrentKey != SavedKey)
-		{
+								  ? UserSettingsSubsystem->GetKeyBinding(Row.BindingId, Row.DefaultKey)
+								  : Row.DefaultKey;
+		if (Row.CurrentKey != SavedKey) {
 			return true;
 		}
 	}
@@ -1615,177 +1137,107 @@ bool UOptionsWidget::HasPendingKeyBindingChanges() const
 	return false;
 }
 
-bool UOptionsWidget::HasAnyPendingOptionChanges() const
-{
-	return HasPendingSensitivityChanges()
-		|| HasPendingAudioChanges()
-		|| HasPendingMicrophoneChanges()
-		|| HasPendingKeyBindingChanges();
+bool UOptionsWidget::HasAnyPendingOptionChanges() const {
+	return HasPendingSensitivityChanges() || HasPendingAudioChanges() || HasPendingMicrophoneChanges() ||
+		   HasPendingKeyBindingChanges();
 }
 
-bool UOptionsWidget::HasPendingSensitivityChanges() const
-{
+bool UOptionsWidget::HasPendingSensitivityChanges() const {
 	const UGameInstance* GameInstance = GetGameInstance();
 	const USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem =
-		GameInstance
-			? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>()
-			: nullptr;
-	const float SavedSensitivity = UserSettingsSubsystem
-		? UserSettingsSubsystem->GetMouseSensitivity()
-		: 1.0f;
+		GameInstance ? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>() : nullptr;
+	const float SavedSensitivity = UserSettingsSubsystem ? UserSettingsSubsystem->GetMouseSensitivity() : 1.0f;
 
-	return !FMath::IsNearlyEqual(
-		PendingMouseSensitivity,
-		SavedSensitivity,
-		0.001f);
+	return !FMath::IsNearlyEqual(PendingMouseSensitivity, SavedSensitivity, 0.001f);
 }
 
-bool UOptionsWidget::HasPendingAudioChanges() const
-{
+bool UOptionsWidget::HasPendingAudioChanges() const {
 	const UGameInstance* GameInstance = GetGameInstance();
 	const USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem =
-		GameInstance
-			? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>()
-			: nullptr;
-	const float SavedBgmVolume = UserSettingsSubsystem
-		? UserSettingsSubsystem->GetBgmVolume()
-		: 1.0f;
-	const float SavedSfxVolume = UserSettingsSubsystem
-		? UserSettingsSubsystem->GetSfxVolume()
-		: 1.0f;
-	const float SavedMasterVolume = UserSettingsSubsystem
-		? UserSettingsSubsystem->GetMasterVolume()
-		: 1.0f;
-	const float SavedVoiceVolume = UserSettingsSubsystem
-		? UserSettingsSubsystem->GetVoiceVolume()
-		: 1.0f;
+		GameInstance ? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>() : nullptr;
+	const float SavedBgmVolume = UserSettingsSubsystem ? UserSettingsSubsystem->GetBgmVolume() : 1.0f;
+	const float SavedSfxVolume = UserSettingsSubsystem ? UserSettingsSubsystem->GetSfxVolume() : 1.0f;
+	const float SavedMasterVolume = UserSettingsSubsystem ? UserSettingsSubsystem->GetMasterVolume() : 1.0f;
+	const float SavedVoiceVolume = UserSettingsSubsystem ? UserSettingsSubsystem->GetVoiceVolume() : 1.0f;
 
-	return !FMath::IsNearlyEqual(PendingMasterVolume, SavedMasterVolume, 0.001f)
-		|| !FMath::IsNearlyEqual(PendingBgmVolume, SavedBgmVolume, 0.001f)
-		|| !FMath::IsNearlyEqual(PendingSfxVolume, SavedSfxVolume, 0.001f)
-		|| !FMath::IsNearlyEqual(PendingVoiceVolume, SavedVoiceVolume, 0.001f);
+	return !FMath::IsNearlyEqual(PendingMasterVolume, SavedMasterVolume, 0.001f) ||
+		   !FMath::IsNearlyEqual(PendingBgmVolume, SavedBgmVolume, 0.001f) ||
+		   !FMath::IsNearlyEqual(PendingSfxVolume, SavedSfxVolume, 0.001f) ||
+		   !FMath::IsNearlyEqual(PendingVoiceVolume, SavedVoiceVolume, 0.001f);
 }
 
-bool UOptionsWidget::HasPendingMicrophoneChanges() const
-{
+bool UOptionsWidget::HasPendingMicrophoneChanges() const {
 	const UGameInstance* GameInstance = GetGameInstance();
 	const USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem =
-		GameInstance
-			? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>()
-			: nullptr;
-	const float SavedMicrophoneVolume = UserSettingsSubsystem
-		? UserSettingsSubsystem->GetMicrophoneVolume()
-		: 1.0f;
+		GameInstance ? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>() : nullptr;
+	const float SavedMicrophoneVolume = UserSettingsSubsystem ? UserSettingsSubsystem->GetMicrophoneVolume() : 1.0f;
 	const ESnowRumbleMicrophoneMode SavedMicrophoneMode =
-		UserSettingsSubsystem
-			? UserSettingsSubsystem->GetMicrophoneMode()
-			: ESnowRumbleMicrophoneMode::PushToTalk;
+		UserSettingsSubsystem ? UserSettingsSubsystem->GetMicrophoneMode() : ESnowRumbleMicrophoneMode::PushToTalk;
 
-	const FString SavedMicrophoneDeviceId = UserSettingsSubsystem
-		? UserSettingsSubsystem->GetMicrophoneDeviceId()
-		: FString();
+	const FString SavedMicrophoneDeviceId =
+		UserSettingsSubsystem ? UserSettingsSubsystem->GetMicrophoneDeviceId() : FString();
 
-	return !FMath::IsNearlyEqual(
-			PendingMicrophoneVolume,
-			SavedMicrophoneVolume,
-			0.001f)
-		|| PendingMicrophoneMode != SavedMicrophoneMode
-		|| PendingMicrophoneDeviceId != SavedMicrophoneDeviceId;
+	return !FMath::IsNearlyEqual(PendingMicrophoneVolume, SavedMicrophoneVolume, 0.001f) ||
+		   PendingMicrophoneMode != SavedMicrophoneMode || PendingMicrophoneDeviceId != SavedMicrophoneDeviceId;
 }
 
-float UOptionsWidget::ConvertSliderValueToSensitivity(
-	float SliderValue) const
-{
+float UOptionsWidget::ConvertSliderValueToSensitivity(float SliderValue) const {
 	const UGameInstance* GameInstance = GetGameInstance();
 	const USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem =
-		GameInstance
-			? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>()
-			: nullptr;
-	const float MinSensitivity = UserSettingsSubsystem
-		? UserSettingsSubsystem->GetMinMouseSensitivity()
-		: 0.2f;
-	const float MaxSensitivity = UserSettingsSubsystem
-		? UserSettingsSubsystem->GetMaxMouseSensitivity()
-		: 3.0f;
+		GameInstance ? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>() : nullptr;
+	const float MinSensitivity = UserSettingsSubsystem ? UserSettingsSubsystem->GetMinMouseSensitivity() : 0.2f;
+	const float MaxSensitivity = UserSettingsSubsystem ? UserSettingsSubsystem->GetMaxMouseSensitivity() : 3.0f;
 
-	return FMath::Lerp(
-		MinSensitivity,
-		MaxSensitivity,
-		FMath::Clamp(SliderValue, 0.0f, 1.0f));
+	return FMath::Lerp(MinSensitivity, MaxSensitivity, FMath::Clamp(SliderValue, 0.0f, 1.0f));
 }
 
-float UOptionsWidget::ConvertSensitivityToSliderValue(float Sensitivity) const
-{
+float UOptionsWidget::ConvertSensitivityToSliderValue(float Sensitivity) const {
 	const UGameInstance* GameInstance = GetGameInstance();
 	const USnowRumbleUserSettingsSubsystem* UserSettingsSubsystem =
-		GameInstance
-			? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>()
-			: nullptr;
-	const float MinSensitivity = UserSettingsSubsystem
-		? UserSettingsSubsystem->GetMinMouseSensitivity()
-		: 0.2f;
-	const float MaxSensitivity = UserSettingsSubsystem
-		? UserSettingsSubsystem->GetMaxMouseSensitivity()
-		: 3.0f;
+		GameInstance ? GameInstance->GetSubsystem<USnowRumbleUserSettingsSubsystem>() : nullptr;
+	const float MinSensitivity = UserSettingsSubsystem ? UserSettingsSubsystem->GetMinMouseSensitivity() : 0.2f;
+	const float MaxSensitivity = UserSettingsSubsystem ? UserSettingsSubsystem->GetMaxMouseSensitivity() : 3.0f;
 
-	return FMath::GetRangePct(
-		MinSensitivity,
-		MaxSensitivity,
-		FMath::Clamp(Sensitivity, MinSensitivity, MaxSensitivity));
+	return FMath::GetRangePct(MinSensitivity, MaxSensitivity,
+							  FMath::Clamp(Sensitivity, MinSensitivity, MaxSensitivity));
 }
 
-void UOptionsWidget::RefreshSensitivityValueText()
-{
-	if (SensitivityValueText)
-	{
-		SensitivityValueText->SetText(FText::Format(
-			NSLOCTEXT("SnowRumble", "SensitivityValuePercent", "{0}%"),
-			FText::AsNumber(FMath::RoundToInt(
-				PendingMouseSensitivity * 100.0f))));
+void UOptionsWidget::RefreshSensitivityValueText() {
+	if (SensitivityValueText) {
+		SensitivityValueText->SetText(
+			FText::Format(NSLOCTEXT("SnowRumble", "SensitivityValuePercent", "{0}%"),
+						  FText::AsNumber(FMath::RoundToInt(PendingMouseSensitivity * 100.0f))));
 	}
 }
 
-void UOptionsWidget::RefreshAudioValueText()
-{
-	if (MasterVolumeValueText)
-	{
-		MasterVolumeValueText->SetText(FText::Format(
-			NSLOCTEXT("SnowRumble", "MasterVolumeValuePercent", "{0}%"),
-			FText::AsNumber(FMath::RoundToInt(PendingMasterVolume * 100.0f))));
+void UOptionsWidget::RefreshAudioValueText() {
+	if (MasterVolumeValueText) {
+		MasterVolumeValueText->SetText(FText::Format(NSLOCTEXT("SnowRumble", "MasterVolumeValuePercent", "{0}%"),
+													 FText::AsNumber(FMath::RoundToInt(PendingMasterVolume * 100.0f))));
 	}
-	if (BgmVolumeValueText)
-	{
-		BgmVolumeValueText->SetText(FText::Format(
-			NSLOCTEXT("SnowRumble", "BgmVolumeValuePercent", "{0}%"),
-			FText::AsNumber(FMath::RoundToInt(PendingBgmVolume * 100.0f))));
+	if (BgmVolumeValueText) {
+		BgmVolumeValueText->SetText(FText::Format(NSLOCTEXT("SnowRumble", "BgmVolumeValuePercent", "{0}%"),
+												  FText::AsNumber(FMath::RoundToInt(PendingBgmVolume * 100.0f))));
 	}
-	if (SfxVolumeValueText)
-	{
-		SfxVolumeValueText->SetText(FText::Format(
-			NSLOCTEXT("SnowRumble", "SfxVolumeValuePercent", "{0}%"),
-			FText::AsNumber(FMath::RoundToInt(PendingSfxVolume * 100.0f))));
+	if (SfxVolumeValueText) {
+		SfxVolumeValueText->SetText(FText::Format(NSLOCTEXT("SnowRumble", "SfxVolumeValuePercent", "{0}%"),
+												  FText::AsNumber(FMath::RoundToInt(PendingSfxVolume * 100.0f))));
 	}
-	if (VoiceVolumeValueText)
-	{
-		VoiceVolumeValueText->SetText(FText::Format(
-			NSLOCTEXT("SnowRumble", "VoiceVolumeValuePercent", "{0}%"),
-			FText::AsNumber(FMath::RoundToInt(PendingVoiceVolume * 100.0f))));
+	if (VoiceVolumeValueText) {
+		VoiceVolumeValueText->SetText(FText::Format(NSLOCTEXT("SnowRumble", "VoiceVolumeValuePercent", "{0}%"),
+													FText::AsNumber(FMath::RoundToInt(PendingVoiceVolume * 100.0f))));
 	}
 }
 
-void UOptionsWidget::RefreshMicrophoneValueText()
-{
-	if (MicrophoneVolumeValueText)
-	{
-		MicrophoneVolumeValueText->SetText(FText::Format(
-			NSLOCTEXT("SnowRumble", "MicrophoneVolumeValuePercent", "{0}%"),
-			FText::AsNumber(FMath::RoundToInt(
-				PendingMicrophoneVolume * 100.0f))));
+void UOptionsWidget::RefreshMicrophoneValueText() {
+	if (MicrophoneVolumeValueText) {
+		MicrophoneVolumeValueText->SetText(
+			FText::Format(NSLOCTEXT("SnowRumble", "MicrophoneVolumeValuePercent", "{0}%"),
+						  FText::AsNumber(FMath::RoundToInt(PendingMicrophoneVolume * 100.0f))));
 	}
 }
 
-void UOptionsWidget::RefreshLocalizedDynamicText()
-{
+void UOptionsWidget::RefreshLocalizedDynamicText() {
 	InitializeDefaultKeyBindingRows();
 	RefreshKeyBindingPanel();
 	RefreshSensitivityValueText();
@@ -1798,31 +1250,25 @@ void UOptionsWidget::RefreshLocalizedDynamicText()
 	ForceLayoutPrepass();
 }
 
-void UOptionsWidget::HandleTextRevisionChanged()
-{
+void UOptionsWidget::HandleTextRevisionChanged() {
 	RefreshLocalizedDynamicText();
 }
 
-void UOptionsWidget::SetButtonSelectedVisual(UButton* Button, bool bSelected)
-{
-	if (!Button)
-	{
+void UOptionsWidget::SetButtonSelectedVisual(UButton* Button, bool bSelected) {
+	if (!Button) {
 		return;
 	}
 
 	FButtonStyle* CachedStyle = DefaultButtonStyles.Find(Button);
-	if (!CachedStyle)
-	{
+	if (!CachedStyle) {
 		DefaultButtonStyles.Add(Button, Button->GetStyle());
 		CachedStyle = DefaultButtonStyles.Find(Button);
 	}
-	if (!CachedStyle)
-	{
+	if (!CachedStyle) {
 		return;
 	}
 
-	if (!bSelected)
-	{
+	if (!bSelected) {
 		Button->SetStyle(*CachedStyle);
 		return;
 	}
@@ -1834,112 +1280,74 @@ void UOptionsWidget::SetButtonSelectedVisual(UButton* Button, bool bSelected)
 	Button->SetStyle(SelectedStyle);
 }
 
-void UOptionsWidget::RefreshCategoryButtonSelection()
-{
-	SetButtonSelectedVisual(
-		SensitivityCategoryButton,
-		CurrentOptionsCategory == ESnowRumbleOptionsCategory::Sensitivity);
-	SetButtonSelectedVisual(
-		AudioCategoryButton,
-		CurrentOptionsCategory == ESnowRumbleOptionsCategory::Audio);
-	SetButtonSelectedVisual(
-		KeyBindingCategoryButton,
-		CurrentOptionsCategory == ESnowRumbleOptionsCategory::KeyBinding);
-	SetButtonSelectedVisual(
-		MicrophoneCategoryButton,
-		CurrentOptionsCategory == ESnowRumbleOptionsCategory::Microphone);
+void UOptionsWidget::RefreshCategoryButtonSelection() {
+	SetButtonSelectedVisual(SensitivityCategoryButton,
+							CurrentOptionsCategory == ESnowRumbleOptionsCategory::Sensitivity);
+	SetButtonSelectedVisual(AudioCategoryButton, CurrentOptionsCategory == ESnowRumbleOptionsCategory::Audio);
+	SetButtonSelectedVisual(KeyBindingCategoryButton, CurrentOptionsCategory == ESnowRumbleOptionsCategory::KeyBinding);
+	SetButtonSelectedVisual(MicrophoneCategoryButton, CurrentOptionsCategory == ESnowRumbleOptionsCategory::Microphone);
 	RefreshCategoryButtonTextColors();
 }
 
-void UOptionsWidget::RefreshButtonTextColor(UButton* Button, bool bSelected)
-{
-	if (!Button)
-	{
+void UOptionsWidget::RefreshButtonTextColor(UButton* Button, bool bSelected) {
+	if (!Button) {
 		return;
 	}
 
 	UTextBlock* TextBlock = FindFirstTextBlock(Button->GetContent());
-	if (!TextBlock)
-	{
+	if (!TextBlock) {
 		return;
 	}
 
 	FSlateColor* DefaultColor = DefaultButtonTextColors.Find(TextBlock);
-	if (!DefaultColor)
-	{
+	if (!DefaultColor) {
 		DefaultButtonTextColors.Add(TextBlock, TextBlock->GetColorAndOpacity());
 		DefaultColor = DefaultButtonTextColors.Find(TextBlock);
 	}
 
 	const bool bShouldBeWhite = bSelected || Button->IsHovered() || Button->IsPressed();
-	TextBlock->SetColorAndOpacity(
-		bShouldBeWhite ? FSlateColor(FLinearColor::White) : *DefaultColor);
+	TextBlock->SetColorAndOpacity(bShouldBeWhite ? FSlateColor(FLinearColor::White) : *DefaultColor);
 }
 
-void UOptionsWidget::RefreshCategoryButtonTextColors()
-{
-	RefreshButtonTextColor(
-		SensitivityCategoryButton,
-		CurrentOptionsCategory == ESnowRumbleOptionsCategory::Sensitivity);
-	RefreshButtonTextColor(
-		AudioCategoryButton,
-		CurrentOptionsCategory == ESnowRumbleOptionsCategory::Audio);
-	RefreshButtonTextColor(
-		KeyBindingCategoryButton,
-		CurrentOptionsCategory == ESnowRumbleOptionsCategory::KeyBinding);
-	RefreshButtonTextColor(
-		MicrophoneCategoryButton,
-		CurrentOptionsCategory == ESnowRumbleOptionsCategory::Microphone);
-	RefreshButtonTextColor(
-		MicrophonePushToTalkButton,
-		PendingMicrophoneMode == ESnowRumbleMicrophoneMode::PushToTalk);
-	RefreshButtonTextColor(
-		MicrophoneAlwaysOnButton,
-		PendingMicrophoneMode == ESnowRumbleMicrophoneMode::AlwaysOn);
+void UOptionsWidget::RefreshCategoryButtonTextColors() {
+	RefreshButtonTextColor(SensitivityCategoryButton,
+						   CurrentOptionsCategory == ESnowRumbleOptionsCategory::Sensitivity);
+	RefreshButtonTextColor(AudioCategoryButton, CurrentOptionsCategory == ESnowRumbleOptionsCategory::Audio);
+	RefreshButtonTextColor(KeyBindingCategoryButton, CurrentOptionsCategory == ESnowRumbleOptionsCategory::KeyBinding);
+	RefreshButtonTextColor(MicrophoneCategoryButton, CurrentOptionsCategory == ESnowRumbleOptionsCategory::Microphone);
+	RefreshButtonTextColor(MicrophonePushToTalkButton, PendingMicrophoneMode == ESnowRumbleMicrophoneMode::PushToTalk);
+	RefreshButtonTextColor(MicrophoneAlwaysOnButton, PendingMicrophoneMode == ESnowRumbleMicrophoneMode::AlwaysOn);
 	RefreshButtonTextColor(ApplyButton, false);
 	RefreshButtonTextColor(ResetButton, false);
 	RefreshLanguageComboBoxTextColor();
 }
 
-void UOptionsWidget::RefreshLanguageComboBoxTextColor()
-{
-	if (!LanguageComboBox)
-	{
+void UOptionsWidget::RefreshLanguageComboBoxTextColor() {
+	if (!LanguageComboBox) {
 		return;
 	}
 
-	if (!bHasDefaultLanguageComboBoxForegroundColor)
-	{
-		DefaultLanguageComboBoxForegroundColor =
-			LanguageComboBox->GetForegroundColor();
+	if (!bHasDefaultLanguageComboBoxForegroundColor) {
+		DefaultLanguageComboBoxForegroundColor = LanguageComboBox->GetForegroundColor();
 		bHasDefaultLanguageComboBoxForegroundColor = true;
 	}
 
-	const bool bShouldBeWhite =
-		LanguageComboBox->IsHovered() || LanguageComboBox->IsOpen();
-	for (UTextBlock* TextBlock : LanguageComboBoxTextBlocks)
-	{
-		if (TextBlock)
-		{
-			TextBlock->SetColorAndOpacity(
-				bShouldBeWhite
-					? FSlateColor(FLinearColor::White)
-					: DefaultLanguageComboBoxForegroundColor);
+	const bool bShouldBeWhite = LanguageComboBox->IsHovered() || LanguageComboBox->IsOpen();
+	for (UTextBlock* TextBlock : LanguageComboBoxTextBlocks) {
+		if (TextBlock) {
+			TextBlock->SetColorAndOpacity(bShouldBeWhite ? FSlateColor(FLinearColor::White)
+														 : DefaultLanguageComboBoxForegroundColor);
 		}
 	}
 }
 
-UWidget* UOptionsWidget::HandleLanguageComboBoxGenerateWidget(FString Item)
-{
-	if (!WidgetTree)
-	{
+UWidget* UOptionsWidget::HandleLanguageComboBoxGenerateWidget(FString Item) {
+	if (!WidgetTree) {
 		return nullptr;
 	}
 
-	UTextBlock* TextBlock = WidgetTree->ConstructWidget<UTextBlock>(
-		UTextBlock::StaticClass());
-	if (!TextBlock)
-	{
+	UTextBlock* TextBlock = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+	if (!TextBlock) {
 		return nullptr;
 	}
 
@@ -1950,12 +1358,7 @@ UWidget* UOptionsWidget::HandleLanguageComboBoxGenerateWidget(FString Item)
 	return TextBlock;
 }
 
-void UOptionsWidget::RefreshMicrophoneModeButtonSelection()
-{
-	SetButtonSelectedVisual(
-		MicrophonePushToTalkButton,
-		PendingMicrophoneMode == ESnowRumbleMicrophoneMode::PushToTalk);
-	SetButtonSelectedVisual(
-		MicrophoneAlwaysOnButton,
-		PendingMicrophoneMode == ESnowRumbleMicrophoneMode::AlwaysOn);
+void UOptionsWidget::RefreshMicrophoneModeButtonSelection() {
+	SetButtonSelectedVisual(MicrophonePushToTalkButton, PendingMicrophoneMode == ESnowRumbleMicrophoneMode::PushToTalk);
+	SetButtonSelectedVisual(MicrophoneAlwaysOnButton, PendingMicrophoneMode == ESnowRumbleMicrophoneMode::AlwaysOn);
 }

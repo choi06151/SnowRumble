@@ -5,8 +5,7 @@
 #include "../Player/SnowRumbleCharacter.h"
 #include "../UI/CustomizationPlayerController_C.h"
 
-ASnowRumbleCustomizationGameMode::ASnowRumbleCustomizationGameMode()
-{
+ASnowRumbleCustomizationGameMode::ASnowRumbleCustomizationGameMode() {
 	PlayerControllerClass = ACustomizationPlayerController::StaticClass();
 	DefaultPawnClass = ASnowRumbleCharacter::StaticClass();
 }

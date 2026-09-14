@@ -11,11 +11,10 @@
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSnowRumbleRoundResultChanged);
 
 UCLASS()
-class SNOWRUMBLE_API ASnowRumbleGameState : public AGameStateBase
-{
+class SNOWRUMBLE_API ASnowRumbleGameState : public AGameStateBase {
 	GENERATED_BODY()
 
-public:
+	public:
 	/** 서버가 PvP 시작 카운트다운을 확정한다. */
 	void StartMatchCountdownFromServer(float CountdownSeconds);
 
@@ -26,13 +25,10 @@ public:
 	void CompleteMapShrinkFromServer();
 
 	/** 서버가 현재 라운드 승리 팀과 매치 누적 상태를 확정한다. */
-	void EndRoundFromServer(
-		ESnowRumbleTeam WinningTeam,
-		const class USnowRumbleMatchSubsystem* MatchSubsystem);
+	void EndRoundFromServer(ESnowRumbleTeam WinningTeam, const class USnowRumbleMatchSubsystem* MatchSubsystem);
 
 	/** 서버가 새 PvP 레벨 진입 시 현재 매치 누적 상태를 복제값에 반영한다. */
-	void ApplyMatchStateFromServer(
-		const class USnowRumbleMatchSubsystem* MatchSubsystem);
+	void ApplyMatchStateFromServer(const class USnowRumbleMatchSubsystem* MatchSubsystem);
 
 	/** PvP 시작 전 입력 잠금 중인지 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Match")
@@ -112,13 +108,12 @@ public:
 	/** 서버가 GameMode의 맵 축소 대기 시간을 설정한다. */
 	void SetMapShrinkWaitDurationSecondsFromServer(float WaitDurationSeconds);
 
-	virtual void GetLifetimeReplicatedProps(
-		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UPROPERTY(BlueprintAssignable, Category = "SnowRumble|Match")
 	FOnSnowRumbleRoundResultChanged OnRoundResultChanged;
 
-protected:
+	protected:
 	/** 복제된 라운드 결과를 UI와 표현에 알린다. */
 	UFUNCTION()
 	void OnRep_RoundResult();
@@ -201,7 +196,7 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_RoundResult)
 	ESnowRumbleTeam MatchWinningTeam = ESnowRumbleTeam::None;
 
-private:
+	private:
 	/** 서버 동기화 시간을 기준으로 시작까지 남은 시간을 반환한다. */
 	float GetSecondsUntilMatchStart() const;
 
@@ -209,6 +204,5 @@ private:
 	FText FormatSecondsAsClock(float Seconds) const;
 
 	/** 서버가 Subsystem의 누적 점수를 복제 변수에 복사한다. */
-	void CopyRoundWinsFromMatchSubsystem(
-		const class USnowRumbleMatchSubsystem* MatchSubsystem);
+	void CopyRoundWinsFromMatchSubsystem(const class USnowRumbleMatchSubsystem* MatchSubsystem);
 };

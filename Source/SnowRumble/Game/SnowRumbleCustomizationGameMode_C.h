@@ -7,10 +7,9 @@
 #include "SnowRumbleCustomizationGameMode_C.generated.h"
 
 UCLASS()
-class SNOWRUMBLE_API ASnowRumbleCustomizationGameMode : public AGameModeBase
-{
+class SNOWRUMBLE_API ASnowRumbleCustomizationGameMode : public AGameModeBase {
 	GENERATED_BODY()
 
-public:
+	public:
 	ASnowRumbleCustomizationGameMode();
 };

@@ -6,17 +6,10 @@
 #include "SnowRumbleCustomizationData_C.generated.h"
 
 UENUM(BlueprintType)
-enum class ESnowRumbleCustomizationAccessory : uint8
-{
-	Hat,
-	Glasses,
-	Nose,
-	Earmuffs
-};
+enum class ESnowRumbleCustomizationAccessory : uint8 { Hat, Glasses, Nose, Earmuffs };
 
 USTRUCT(BlueprintType)
-struct SNOWRUMBLE_API FSnowRumblePaintStroke
-{
+struct SNOWRUMBLE_API FSnowRumblePaintStroke {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SnowRumble|Customization")
@@ -34,24 +27,18 @@ struct SNOWRUMBLE_API FSnowRumblePaintStroke
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SnowRumble|Customization")
 	TArray<FVector2D> Points;
 
-	bool operator==(const FSnowRumblePaintStroke& Other) const
-	{
-		return MeshComponentName == Other.MeshComponentName
-			&& MaterialIndex == Other.MaterialIndex
-			&& BrushColor == Other.BrushColor
-			&& BrushThickness == Other.BrushThickness
-			&& Points == Other.Points;
+	bool operator==(const FSnowRumblePaintStroke& Other) const {
+		return MeshComponentName == Other.MeshComponentName && MaterialIndex == Other.MaterialIndex &&
+			   BrushColor == Other.BrushColor && BrushThickness == Other.BrushThickness && Points == Other.Points;
 	}
 
-	bool operator!=(const FSnowRumblePaintStroke& Other) const
-	{
+	bool operator!=(const FSnowRumblePaintStroke& Other) const {
 		return !(*this == Other);
 	}
 };
 
 USTRUCT(BlueprintType)
-struct SNOWRUMBLE_API FSnowRumbleCustomizationData
-{
+struct SNOWRUMBLE_API FSnowRumbleCustomizationData {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SnowRumble|Customization")
@@ -75,19 +62,14 @@ struct SNOWRUMBLE_API FSnowRumbleCustomizationData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SnowRumble|Customization")
 	int32 EarmuffsMeshIndex = INDEX_NONE;
 
-	bool operator==(const FSnowRumbleCustomizationData& Other) const
-	{
-		return BodyColor == Other.BodyColor
-			&& PaintStrokes == Other.PaintStrokes
-			&& bFlipPaintUvY == Other.bFlipPaintUvY
-			&& HatMeshIndex == Other.HatMeshIndex
-			&& GlassesMeshIndex == Other.GlassesMeshIndex
-			&& NoseMeshIndex == Other.NoseMeshIndex
-			&& EarmuffsMeshIndex == Other.EarmuffsMeshIndex;
+	bool operator==(const FSnowRumbleCustomizationData& Other) const {
+		return BodyColor == Other.BodyColor && PaintStrokes == Other.PaintStrokes &&
+			   bFlipPaintUvY == Other.bFlipPaintUvY && HatMeshIndex == Other.HatMeshIndex &&
+			   GlassesMeshIndex == Other.GlassesMeshIndex && NoseMeshIndex == Other.NoseMeshIndex &&
+			   EarmuffsMeshIndex == Other.EarmuffsMeshIndex;
 	}
 
-	bool operator!=(const FSnowRumbleCustomizationData& Other) const
-	{
+	bool operator!=(const FSnowRumbleCustomizationData& Other) const {
 		return !(*this == Other);
 	}
 };

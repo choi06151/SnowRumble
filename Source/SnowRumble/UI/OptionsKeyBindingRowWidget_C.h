@@ -13,11 +13,10 @@ class UTextBlock;
 DECLARE_MULTICAST_DELEGATE_OneParam(FSnowRumbleKeyBindingRowRequest, FName);
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API UOptionsKeyBindingRowWidget : public USnowRumbleAudioUserWidget
-{
+class SNOWRUMBLE_API UOptionsKeyBindingRowWidget : public USnowRumbleAudioUserWidget {
 	GENERATED_BODY()
 
-public:
+	public:
 	FSnowRumbleKeyBindingRowRequest OnRebindRequestedNative;
 	FSnowRumbleKeyBindingRowRequest OnResetRequestedNative;
 
@@ -29,13 +28,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI|Options|Key Binding")
 	FName GetBindingId() const;
 
-protected:
+	protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Options|Key Binding")
-	void OnKeyBindingDataChanged(
-		const FSnowRumbleKeyBindingViewData& NewData);
+	void OnKeyBindingDataChanged(const FSnowRumbleKeyBindingViewData& NewData);
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Key Binding")
 	TObjectPtr<UTextBlock> ActionNameText;
@@ -49,7 +47,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Options|Key Binding")
 	TObjectPtr<UButton> ResetButton;
 
-private:
+	private:
 	UFUNCTION()
 	void HandleRebindButtonClicked();
 

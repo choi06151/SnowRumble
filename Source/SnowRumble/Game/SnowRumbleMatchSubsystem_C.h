@@ -8,24 +8,15 @@
 #include "SnowRumbleMatchSubsystem_C.generated.h"
 
 UENUM(BlueprintType)
-enum class ESnowRumbleGameSpeed : uint8
-{
-	Slow,
-	Normal,
-	Fast
-};
+enum class ESnowRumbleGameSpeed : uint8 { Slow, Normal, Fast };
 
 UCLASS()
-class SNOWRUMBLE_API USnowRumbleMatchSubsystem : public UGameInstanceSubsystem
-{
+class SNOWRUMBLE_API USnowRumbleMatchSubsystem : public UGameInstanceSubsystem {
 	GENERATED_BODY()
 
-public:
+	public:
 	/** 로비에서 PvP 매치를 시작할 때 라운드 수와 후보 레벨을 저장한다. */
-	void BeginPvPMatch(
-		int32 InRoundLimit,
-		ESnowRumbleGameSpeed InGameSpeed,
-		const TArray<FString>& InPvPLevelPaths);
+	void BeginPvPMatch(int32 InRoundLimit, ESnowRumbleGameSpeed InGameSpeed, const TArray<FString>& InPvPLevelPaths);
 
 	/** 현재 매치 상태를 지우고 다음 로비 설정을 기다린다. */
 	void ResetPvPMatch();
@@ -72,7 +63,7 @@ public:
 	/** 현재 1등 팀을 반환한다. 동점이면 None을 반환한다. */
 	ESnowRumbleTeam GetLeadingTeam() const;
 
-private:
+	private:
 	int32 NormalizeRoundLimit(int32 InRoundLimit) const;
 	bool IsValidTeam(ESnowRumbleTeam Team) const;
 	void GetLeadingTiedTeams(TArray<ESnowRumbleTeam>& OutTeams) const;

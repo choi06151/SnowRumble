@@ -13,26 +13,22 @@ class UPanelWidget;
 class UVoiceMutePlayerRowWidget;
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API UVoiceMuteMenuWidget : public USnowRumbleAudioUserWidget
-{
+class SNOWRUMBLE_API UVoiceMuteMenuWidget : public USnowRumbleAudioUserWidget {
 	GENERATED_BODY()
 
-public:
+	public:
 	/** 이 메뉴를 소유한 로컬 플레이어 컨트롤러를 설정한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Voice Mute")
-	void SetVoicePlayerController(
-		ASnowRumblePlayerController* NewPlayerController);
+	void SetVoicePlayerController(ASnowRumblePlayerController* NewPlayerController);
 
 	/** 현재 인게임 플레이어 목록 기준으로 mute 행을 다시 만든다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Voice Mute")
 	void RefreshPlayerList();
 
-protected:
+	protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
-	virtual void NativeTick(
-		const FGeometry& MyGeometry,
-		float InDeltaTime) override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	/** 플레이어 목록이 갱신되면 Blueprint가 추가 표시를 갱신할 수 있다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Voice Mute")
@@ -50,7 +46,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Voice Mute")
 	TSubclassOf<UVoiceMutePlayerRowWidget> PlayerRowWidgetClass;
 
-private:
+	private:
 	UFUNCTION()
 	void HandleCloseButtonClicked();
 

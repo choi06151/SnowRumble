@@ -22,11 +22,10 @@ class UUserWidget;
 class USoundBase;
 
 UCLASS(Blueprintable)
-class SNOWRUMBLE_API ACustomizationPlayerController : public APlayerController
-{
+class SNOWRUMBLE_API ACustomizationPlayerController : public APlayerController {
 	GENERATED_BODY()
 
-public:
+	public:
 	/** 커스터마이징 UI를 표시하고 입력을 UI/마우스 중심으로 설정한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
 	void ShowCustomizationMenu();
@@ -108,24 +107,19 @@ public:
 
 	/** 액세서리 종류별 프리뷰 Static Mesh 선택 인덱스를 설정한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization|Accessory")
-	void SetPreviewAccessoryMeshIndex(
-		ESnowRumbleCustomizationAccessory Accessory,
-		int32 NewMeshIndex);
+	void SetPreviewAccessoryMeshIndex(ESnowRumbleCustomizationAccessory Accessory, int32 NewMeshIndex);
 
 	/** 액세서리 종류별 이전 후보를 선택한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization|Accessory")
-	void SelectPreviousPreviewAccessory(
-		ESnowRumbleCustomizationAccessory Accessory);
+	void SelectPreviousPreviewAccessory(ESnowRumbleCustomizationAccessory Accessory);
 
 	/** 액세서리 종류별 다음 후보를 선택한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization|Accessory")
-	void SelectNextPreviewAccessory(
-		ESnowRumbleCustomizationAccessory Accessory);
+	void SelectNextPreviewAccessory(ESnowRumbleCustomizationAccessory Accessory);
 
 	/** 액세서리 종류별 현재 프리뷰 선택 인덱스를 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization|Accessory")
-	int32 GetPreviewAccessoryMeshIndex(
-		ESnowRumbleCustomizationAccessory Accessory) const;
+	int32 GetPreviewAccessoryMeshIndex(ESnowRumbleCustomizationAccessory Accessory) const;
 
 	/** 마지막으로 완료한 드로잉 선 하나를 제거한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
@@ -163,7 +157,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Audio")
 	void SetBackgroundMusicPreviewVolume(float MasterVolume, float BgmVolume);
 
-protected:
+	protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void PlayerTick(float DeltaTime) override;
@@ -193,15 +187,18 @@ protected:
 	TSubclassOf<UUserWidget> PaintMouseCursorWidgetClass;
 
 	/** PaintMouseCursorWidget 안의 BrushCursorSizeBox 크기에 곱할 배율이다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Cursor", meta = (ClampMin = "0.1", ClampMax = "10.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Cursor",
+			  meta = (ClampMin = "0.1", ClampMax = "10.0"))
 	float PaintCursorBrushSizeScale = 1.0f;
 
 	/** 원형 페인트 커서의 최소 지름이다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Cursor", meta = (ClampMin = "1.0", ClampMax = "512.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Cursor",
+			  meta = (ClampMin = "1.0", ClampMax = "512.0"))
 	float MinPaintCursorDiameter = 8.0f;
 
 	/** 원형 페인트 커서의 최대 지름이다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Cursor", meta = (ClampMin = "1.0", ClampMax = "1024.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Cursor",
+			  meta = (ClampMin = "1.0", ClampMax = "1024.0"))
 	float MaxPaintCursorDiameter = 256.0f;
 
 	/** 커스터마이징 레벨에 배치한 프리뷰 캐릭터를 찾는 태그다. */
@@ -217,10 +214,12 @@ protected:
 	float PreviewCharacterZOffset = 0.0f;
 
 	/** 커스터마이징 레벨에서만 적용할 프리뷰 캐릭터 Mesh 배율이다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Preview", meta = (ClampMin = "0.1", ClampMax = "3.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Preview",
+			  meta = (ClampMin = "0.1", ClampMax = "3.0"))
 	float PreviewCharacterMeshScale = 1.15f;
 
-	/** 커스터마이징 방에서 프리뷰 캐릭터에 사용할 단일 애니메이션 에셋이다. 비워두면 현재 애니메이션을 그대로 멈춘다. */
+	/** 커스터마이징 방에서 프리뷰 캐릭터에 사용할 단일 애니메이션 에셋이다. 비워두면 현재 애니메이션을 그대로 멈춘다.
+	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Preview")
 	TObjectPtr<UAnimationAsset> PreviewAnimationAsset;
 
@@ -229,23 +228,28 @@ protected:
 	bool bPausePreviewAnimation = true;
 
 	/** PreviewAnimationAsset을 적용할 때 고정할 재생 위치다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Preview", meta = (ClampMin = "0.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Preview",
+			  meta = (ClampMin = "0.0"))
 	float PreviewAnimationPositionSeconds = 0.0f;
 
 	/** 드로잉 RenderTarget 한 변의 픽셀 크기다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "64", ClampMax = "4096"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint",
+			  meta = (ClampMin = "64", ClampMax = "4096"))
 	int32 PaintRenderTargetSize = 1024;
 
 	/** UV 좌표 변화가 이 값보다 작으면 같은 선의 다음 점으로 추가하지 않는다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "0.0001", ClampMax = "1.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint",
+			  meta = (ClampMin = "0.0001", ClampMax = "1.0"))
 	float PaintPointMinDistance = 0.0025f;
 
 	/** UV 좌표 변화가 이 값보다 크면 UV seam으로 보고 현재 선을 끊는다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint",
+			  meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float PaintPointMaxDistance = 0.08f;
 
 	/** RenderTarget에 그릴 선 두께다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "1.0", ClampMax = "256.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint",
+			  meta = (ClampMin = "1.0", ClampMax = "256.0"))
 	float PaintStrokeThickness = 12.0f;
 
 	/** 현재 브러쉬 색상이다. 컬러 피커와 전체 칠하기 버튼이 이 값을 사용한다. */
@@ -253,26 +257,31 @@ protected:
 	FLinearColor PaintBrushColor = FLinearColor::Black;
 
 	/** 브러시 색상 창을 버튼 왼쪽에 띄울 때 버튼과 창 사이에 둘 화면 픽셀 간격이다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "0.0", ClampMax = "128.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint",
+			  meta = (ClampMin = "0.0", ClampMax = "128.0"))
 	float PaintBrushColorPickerLeftPadding = 12.0f;
 
 	/** 브러시 크기 버튼을 누른 상태에서 휠 한 칸마다 바뀌는 크기다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "0.1", ClampMax = "128.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint",
+			  meta = (ClampMin = "0.1", ClampMax = "128.0"))
 	float PaintBrushWheelStep = 2.0f;
 
 	/** 브러시 크기의 최소값이다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "1.0", ClampMax = "1024.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint",
+			  meta = (ClampMin = "1.0", ClampMax = "1024.0"))
 	float MinPaintBrushSize = 5.0f;
 
 	/** 브러시 크기의 최대값이다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint", meta = (ClampMin = "1.0", ClampMax = "1024.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint",
+			  meta = (ClampMin = "1.0", ClampMax = "1024.0"))
 	float MaxPaintBrushSize = 70.0f;
 
 	/** 머티리얼 UV 방향에 맞춰 드로잉 RenderTarget Y축을 뒤집을지 정한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint")
 	bool bFlipPaintUvY = false;
 
-	/** 페인트 trace 화면 좌표에 더할 픽셀 단위 보정값이다. X가 양수면 오른쪽, Y가 양수면 아래쪽으로 trace가 이동한다. */
+	/** 페인트 trace 화면 좌표에 더할 픽셀 단위 보정값이다. X가 양수면 오른쪽, Y가 양수면 아래쪽으로 trace가 이동한다.
+	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Paint")
 	FVector2D PaintCursorScreenOffset = FVector2D::ZeroVector;
 
@@ -293,10 +302,11 @@ protected:
 	bool bShowPaintHitDebug = false;
 
 	/** 회전 버튼을 누르고 있을 때 프리뷰 캐릭터가 초당 회전하는 각도다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|View", meta = (ClampMin = "1.0", ClampMax = "720.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|View",
+			  meta = (ClampMin = "1.0", ClampMax = "720.0"))
 	float PreviewRotationSpeedDegrees = 90.0f;
 
-private:
+	private:
 	/** 커스터마이징 카메라 태그를 가진 액터를 찾아 ViewTarget으로 설정한다. */
 	void ApplyCustomizationCameraView();
 
@@ -356,10 +366,7 @@ private:
 	void EnsurePaintRenderTarget();
 
 	/** 현재 마우스 위치가 프리뷰 캐릭터 Mesh 위라면 UV를 반환한다. */
-	bool GetPaintUvUnderCursor(
-		FVector2D& OutPaintUv,
-		FName& OutMeshComponentName,
-		int32& OutMaterialIndex);
+	bool GetPaintUvUnderCursor(FVector2D& OutPaintUv, FName& OutMeshComponentName, int32& OutMaterialIndex);
 
 	/** UI DPI 스케일을 반영해 페인트 trace에 사용할 뷰포트 픽셀 좌표를 구한다. */
 	bool GetPaintCursorScreenPosition(float& OutMouseX, float& OutMouseY);
@@ -368,12 +375,8 @@ private:
 	float GetPaintCursorDiameter() const;
 
 	/** 충돌 UV를 쓸 수 없을 때 렌더 삼각형을 직접 검사해 UV를 계산한다. */
-	bool FindPaintUvOnSkinnedRenderData(
-		const USkeletalMeshComponent* MeshComponent,
-		const FVector& TraceStart,
-		const FVector& TraceEnd,
-		FVector2D& OutPaintUv,
-		int32& OutMaterialIndex) const;
+	bool FindPaintUvOnSkinnedRenderData(const USkeletalMeshComponent* MeshComponent, const FVector& TraceStart,
+										const FVector& TraceEnd, FVector2D& OutPaintUv, int32& OutMaterialIndex) const;
 
 	bool IsPaintMaterialIndexAllowed(int32 MaterialIndex) const;
 	void ShowPaintDebugMessage(const FString& Message);
@@ -388,30 +391,17 @@ private:
 	/** 누르고 있는 버튼 방향으로 프리뷰 캐릭터를 회전한다. */
 	void UpdatePreviewRotation(float DeltaTime);
 
-	void BeginPaintStroke(
-		const FVector2D& PaintUv,
-		FName MeshComponentName,
-		int32 MaterialIndex);
-	void AddPaintPoint(
-		const FVector2D& PaintUv,
-		FName MeshComponentName,
-		int32 MaterialIndex);
+	void BeginPaintStroke(const FVector2D& PaintUv, FName MeshComponentName, int32 MaterialIndex);
+	void AddPaintPoint(const FVector2D& PaintUv, FName MeshComponentName, int32 MaterialIndex);
 	void FinishPaintStroke();
 	void SyncPaintStrokesToPreviewData();
 	void SavePreviewCustomizationData();
 	void RedrawPaintRenderTarget();
 
 	UFUNCTION()
-	void HandlePaintCanvasUpdate(
-		UCanvas* Canvas,
-		int32 Width,
-		int32 Height);
+	void HandlePaintCanvasUpdate(UCanvas* Canvas, int32 Width, int32 Height);
 
-	void DrawStrokeToCanvas(
-		UCanvas* Canvas,
-		const FSnowRumblePaintStroke& Stroke,
-		int32 Width,
-		int32 Height) const;
+	void DrawStrokeToCanvas(UCanvas* Canvas, const FSnowRumblePaintStroke& Stroke, int32 Width, int32 Height) const;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UCustomizationWidget> CustomizationWidget;

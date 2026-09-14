@@ -11,11 +11,10 @@ class UTextBlock;
 class UTexture2D;
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API ULatestPhotoScreenshotWidget : public UUserWidget
-{
+class SNOWRUMBLE_API ULatestPhotoScreenshotWidget : public UUserWidget {
 	GENERATED_BODY()
 
-public:
+	public:
 	/** Saved/Screenshots 아래에서 가장 최근 사진 스크린샷을 찾아 Image에 표시한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Photo")
 	bool RefreshLatestScreenshot();
@@ -28,7 +27,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI|Photo")
 	UTexture2D* GetLatestScreenshotTexture() const;
 
-protected:
+	protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
@@ -48,7 +47,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Photo")
 	bool bOnlyPhotoScreenshots = true;
 
-private:
+	private:
 	bool FindLatestScreenshotFile(FString& OutScreenshotPath) const;
 	void ApplyScreenshotTexture(UTexture2D* ScreenshotTexture);
 	void UpdateScreenshotNameText();

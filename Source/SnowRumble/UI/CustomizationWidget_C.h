@@ -18,8 +18,7 @@ class UWidget;
 class UWidgetSwitcher;
 
 UENUM(BlueprintType)
-enum class ESnowRumbleCustomizationPage : uint8
-{
+enum class ESnowRumbleCustomizationPage : uint8 {
 	Main,
 	ViewMode,
 	PaintMode,
@@ -30,15 +29,13 @@ enum class ESnowRumbleCustomizationPage : uint8
 };
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API UCustomizationWidget : public USnowRumbleAudioUserWidget
-{
+class SNOWRUMBLE_API UCustomizationWidget : public USnowRumbleAudioUserWidget {
 	GENERATED_BODY()
 
-public:
+	public:
 	/** 커스터마이징 화면을 소유한 컨트롤러를 설정한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
-	void SetCustomizationPlayerController(
-		ACustomizationPlayerController* NewPlayerController);
+	void SetCustomizationPlayerController(ACustomizationPlayerController* NewPlayerController);
 
 	/** 커스터마이징 화면을 WidgetSwitcher 인덱스 기준으로 전환한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
@@ -71,18 +68,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
 	void RequestUndoLastPaintStroke();
 
-protected:
+	protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
-	virtual void NativeTick(
-		const FGeometry& MyGeometry,
-		float InDeltaTime) override;
-	virtual FReply NativeOnKeyDown(
-		const FGeometry& InGeometry,
-		const FKeyEvent& InKeyEvent) override;
-	virtual FReply NativeOnMouseWheel(
-		const FGeometry& InGeometry,
-		const FPointerEvent& InMouseEvent) override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply NativeOnMouseWheel(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
 	/** 화면 전환 시 Blueprint가 선택 표시나 추가 연출을 갱신할 수 있다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Customization")
@@ -251,7 +242,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
 	TObjectPtr<UButton> ResetButton;
 
-private:
+	private:
 	UFUNCTION()
 	void HandlePaintModeButtonClicked();
 
@@ -405,22 +396,14 @@ private:
 	void UnbindAccessoryItemButtons();
 	void RefreshPaintBrushPreview();
 	void RefreshPaintActionButtonTextColors();
-	void CacheButtonTextColors(
-		UButton* Button,
-		TArray<UTextBlock*>& TextBlocks);
-	void CacheButtonTextColorsRecursive(
-		UWidget* Widget,
-		TArray<UTextBlock*>& TextBlocks);
+	void CacheButtonTextColors(UButton* Button, TArray<UTextBlock*>& TextBlocks);
+	void CacheButtonTextColorsRecursive(UWidget* Widget, TArray<UTextBlock*>& TextBlocks);
 	void ApplyPaletteButtonColors();
 	void ApplyPaletteButtonColor(UButton* Button, FLinearColor Color);
 	void RefreshBrushSizeSlider();
 	void SetPaintBrushColorFromPalette(FLinearColor NewBrushColor);
-	void SetPaintBrushColorFromPaletteButton(
-		UButton* Button,
-		FLinearColor FallbackColor);
-	FLinearColor GetPaletteButtonBrushColor(
-		UButton* Button,
-		FLinearColor FallbackColor);
+	void SetPaintBrushColorFromPaletteButton(UButton* Button, FLinearColor FallbackColor);
+	FLinearColor GetPaletteButtonBrushColor(UButton* Button, FLinearColor FallbackColor);
 	void UnbindPaletteColorButton(UButton* Button);
 	void RefreshPaletteButtonSelection();
 	void RefreshAccessoryItemButtonSelection();
@@ -428,10 +411,8 @@ private:
 	void SetAccessoryButtonPressedVisual(UButton* Button, bool bSelected);
 	int32 GetSwitcherIndexForPage(ESnowRumbleCustomizationPage Page) const;
 
-	struct FAccessoryButtonBinding
-	{
-		ESnowRumbleCustomizationAccessory Accessory =
-			ESnowRumbleCustomizationAccessory::Hat;
+	struct FAccessoryButtonBinding {
+		ESnowRumbleCustomizationAccessory Accessory = ESnowRumbleCustomizationAccessory::Hat;
 		int32 MeshIndex = INDEX_NONE;
 	};
 
@@ -440,8 +421,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<ACustomizationPlayerController> CustomizationPlayerController;
 
-	ESnowRumbleCustomizationPage CurrentCustomizationPage =
-		ESnowRumbleCustomizationPage::HatMode;
+	ESnowRumbleCustomizationPage CurrentCustomizationPage = ESnowRumbleCustomizationPage::HatMode;
 
 	bool bIsBrushSizeButtonPressed = false;
 

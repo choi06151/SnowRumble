@@ -10,29 +10,20 @@
 #include "InputCoreTypes.h"
 #include "SnowRumblePlayerController.h"
 
-namespace
-{
+namespace {
 constexpr int32 SnowRumbleChatMessageFontSize = 28;
 
-void ApplySnowRumbleChatMessageFont(FSlateFontInfo& FontInfo)
-{
-	static const TCHAR* ChatMessageFontPath =
-		TEXT("/Game/Font/온글잎_박다현체_Font.온글잎_박다현체_Font");
+void ApplySnowRumbleChatMessageFont(FSlateFontInfo& FontInfo) {
+	static const TCHAR* ChatMessageFontPath = TEXT("/Game/Font/온글잎_박다현체_Font.온글잎_박다현체_Font");
 
-	if (UObject* FontObject = StaticLoadObject(
-		UObject::StaticClass(),
-		nullptr,
-		ChatMessageFontPath))
-	{
+	if (UObject* FontObject = StaticLoadObject(UObject::StaticClass(), nullptr, ChatMessageFontPath)) {
 		FontInfo.FontObject = FontObject;
 	}
 	FontInfo.Size = SnowRumbleChatMessageFontSize;
 }
 
-FText GetChatChannelText(ESnowRumbleChatChannel Channel)
-{
-	switch (Channel)
-	{
+FText GetChatChannelText(ESnowRumbleChatChannel Channel) {
+	switch (Channel) {
 	case ESnowRumbleChatChannel::Team:
 		return NSLOCTEXT("SnowRumble", "ChatChannelTeam", "팀");
 	case ESnowRumbleChatChannel::All:
@@ -40,35 +31,26 @@ FText GetChatChannelText(ESnowRumbleChatChannel Channel)
 		return NSLOCTEXT("SnowRumble", "ChatChannelAll", "전체");
 	}
 }
-}
+} // namespace
 
-UChatWidget::UChatWidget(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
+UChatWidget::UChatWidget(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 	ApplySnowRumbleChatMessageFont(ChatMessageFont);
 }
 
-void UChatWidget::SetChatPlayerController(
-	ASnowRumblePlayerController* NewPlayerController)
-{
+void UChatWidget::SetChatPlayerController(ASnowRumblePlayerController* NewPlayerController) {
 	ChatPlayerController = NewPlayerController;
 }
 
-void UChatWidget::NativeConstruct()
-{
+void UChatWidget::NativeConstruct() {
 	Super::NativeConstruct();
 
 	SetIsFocusable(true);
 	ShowChatLog();
-	if (ChatInputTextBox)
-	{
-		ChatInputTextBox->OnTextCommitted.AddUniqueDynamic(
-			this,
-			&UChatWidget::HandleChatTextCommitted);
+	if (ChatInputTextBox) {
+		ChatInputTextBox->OnTextCommitted.AddUniqueDynamic(this, &UChatWidget::HandleChatTextCommitted);
 		ChatInputTextBox->SetVisibility(ESlateVisibility::Collapsed);
 	}
-	if (ChatLogBorder)
-	{
+	if (ChatLogBorder) {
 		OriginalChatLogBorderBrushColor = ChatLogBorder->GetBrushColor();
 	}
 
@@ -78,30 +60,20 @@ void UChatWidget::NativeConstruct()
 	RefreshChannelText();
 }
 
-void UChatWidget::NativeDestruct()
-{
-	if (ChatInputTextBox)
-	{
+void UChatWidget::NativeDestruct() {
+	if (ChatInputTextBox) {
 		ChatInputTextBox->OnTextCommitted.RemoveAll(this);
 	}
 
 	Super::NativeDestruct();
 }
 
-void UChatWidget::NativeTick(
-	const FGeometry& MyGeometry,
-	float InDeltaTime)
-{
+void UChatWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime) {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
 	const bool bChatToggleKeyDown =
-		bChatInputOpen
-		&& ChatPlayerController
-		&& ChatPlayerController->IsInputKeyDown(EKeys::Tab);
-	if (bChatToggleKeyDown
-		&& !bChatChannelToggleKeyWasDown
-		&& LastChatChannelToggleFrameNumber != GFrameCounter)
-	{
+		bChatInputOpen && ChatPlayerController && ChatPlayerController->IsInputKeyDown(EKeys::Tab);
+	if (bChatToggleKeyDown && !bChatChannelToggleKeyWasDown && LastChatChannelToggleFrameNumber != GFrameCounter) {
 		ToggleChatChannel();
 	}
 	bChatChannelToggleKeyWasDown = bChatToggleKeyDown;
@@ -109,12 +81,8 @@ void UChatWidget::NativeTick(
 	RefreshChatVisibility();
 }
 
-FReply UChatWidget::NativeOnPreviewKeyDown(
-	const FGeometry& InGeometry,
-	const FKeyEvent& InKeyEvent)
-{
-	if (bChatInputOpen && InKeyEvent.GetKey() == EKeys::Tab)
-	{
+FReply UChatWidget::NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) {
+	if (bChatInputOpen && InKeyEvent.GetKey() == EKeys::Tab) {
 		ToggleChatChannel();
 		return FReply::Handled();
 	}
@@ -122,12 +90,8 @@ FReply UChatWidget::NativeOnPreviewKeyDown(
 	return Super::NativeOnPreviewKeyDown(InGeometry, InKeyEvent);
 }
 
-FReply UChatWidget::NativeOnKeyDown(
-	const FGeometry& InGeometry,
-	const FKeyEvent& InKeyEvent)
-{
-	if (bChatInputOpen && InKeyEvent.GetKey() == EKeys::Tab)
-	{
+FReply UChatWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) {
+	if (bChatInputOpen && InKeyEvent.GetKey() == EKeys::Tab) {
 		ToggleChatChannel();
 		return FReply::Handled();
 	}
@@ -135,15 +99,9 @@ FReply UChatWidget::NativeOnKeyDown(
 	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 }
 
-FReply UChatWidget::NativeOnMouseWheel(
-	const FGeometry& InGeometry,
-	const FPointerEvent& InMouseEvent)
-{
-	if (bChatInputOpen && ChatLogScrollBox)
-	{
-		const float NewScrollOffset =
-			ChatLogScrollBox->GetScrollOffset()
-			- InMouseEvent.GetWheelDelta() * 48.0f;
+FReply UChatWidget::NativeOnMouseWheel(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) {
+	if (bChatInputOpen && ChatLogScrollBox) {
+		const float NewScrollOffset = ChatLogScrollBox->GetScrollOffset() - InMouseEvent.GetWheelDelta() * 48.0f;
 		ChatLogScrollBox->SetScrollOffset(FMath::Max(0.0f, NewScrollOffset));
 		return FReply::Handled();
 	}
@@ -151,20 +109,17 @@ FReply UChatWidget::NativeOnMouseWheel(
 	return Super::NativeOnMouseWheel(InGeometry, InMouseEvent);
 }
 
-void UChatWidget::OpenChatInput(ESnowRumbleChatChannel InitialChannel)
-{
+void UChatWidget::OpenChatInput(ESnowRumbleChatChannel InitialChannel) {
 	SetActiveChatChannel(InitialChannel);
 	bChatInputOpen = true;
 	ShowChatLog();
 
-	if (ChatInputTextBox)
-	{
+	if (ChatInputTextBox) {
 		ChatInputTextBox->SetText(FText::GetEmpty());
 		ChatInputTextBox->SetVisibility(ESlateVisibility::Visible);
 		FocusChatInputTextBox();
 	}
-	if (ChatChannelText)
-	{
+	if (ChatChannelText) {
 		ChatChannelText->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	}
 	RefreshChatLogChrome();
@@ -172,36 +127,29 @@ void UChatWidget::OpenChatInput(ESnowRumbleChatChannel InitialChannel)
 	OnChatInputOpenChanged(true);
 }
 
-UWidget* UChatWidget::GetChatInputFocusWidget() const
-{
+UWidget* UChatWidget::GetChatInputFocusWidget() const {
 	return ChatInputTextBox ? ChatInputTextBox.Get() : nullptr;
 }
 
-void UChatWidget::FocusChatInputTextBox()
-{
-	if (!bChatInputOpen || !ChatInputTextBox)
-	{
+void UChatWidget::FocusChatInputTextBox() {
+	if (!bChatInputOpen || !ChatInputTextBox) {
 		return;
 	}
 
-	if (ChatPlayerController)
-	{
+	if (ChatPlayerController) {
 		ChatInputTextBox->SetUserFocus(ChatPlayerController);
 	}
 	ChatInputTextBox->SetKeyboardFocus();
 }
 
-void UChatWidget::CloseChatInput()
-{
+void UChatWidget::CloseChatInput() {
 	bChatInputOpen = false;
 
-	if (ChatInputTextBox)
-	{
+	if (ChatInputTextBox) {
 		ChatInputTextBox->SetText(FText::GetEmpty());
 		ChatInputTextBox->SetVisibility(ESlateVisibility::Collapsed);
 	}
-	if (ChatChannelText)
-	{
+	if (ChatChannelText) {
 		ChatChannelText->SetVisibility(ESlateVisibility::Collapsed);
 	}
 	RefreshChatLogChrome();
@@ -209,32 +157,23 @@ void UChatWidget::CloseChatInput()
 	OnChatInputOpenChanged(false);
 }
 
-bool UChatWidget::IsChatInputOpen() const
-{
+bool UChatWidget::IsChatInputOpen() const {
 	return bChatInputOpen;
 }
 
-void UChatWidget::AddChatMessage(
-	ESnowRumbleChatChannel Channel,
-	const FString& SenderName,
-	const FString& Message)
-{
+void UChatWidget::AddChatMessage(ESnowRumbleChatChannel Channel, const FString& SenderName, const FString& Message) {
 	ShowChatLog();
 
-	const FText DisplayText = FText::Format(
-		NSLOCTEXT("SnowRumble", "ChatMessageFormat", "[{0}] {1}: {2}"),
-		GetChatChannelText(Channel),
-		FText::FromString(SenderName),
-		FText::FromString(Message));
+	const FText DisplayText =
+		FText::Format(NSLOCTEXT("SnowRumble", "ChatMessageFormat", "[{0}] {1}: {2}"), GetChatChannelText(Channel),
+					  FText::FromString(SenderName), FText::FromString(Message));
 
-	if (!ChatLog.IsEmpty())
-	{
+	if (!ChatLog.IsEmpty()) {
 		ChatLog += LINE_TERMINATOR;
 	}
 	ChatLog += DisplayText.ToString();
 
-	if (ChatLogText)
-	{
+	if (ChatLogText) {
 		ChatLogText->SetText(FText::FromString(ChatLog));
 	}
 	AddMessageTextRow(Channel, DisplayText);
@@ -242,182 +181,129 @@ void UChatWidget::AddChatMessage(
 	OnChatMessageAdded(Channel, SenderName, Message, DisplayText);
 }
 
-void UChatWidget::SetActiveChatChannel(ESnowRumbleChatChannel NewChannel)
-{
-	ActiveChatChannel =
-		NewChannel == ESnowRumbleChatChannel::Team
-		&& ChatPlayerController
-		&& !ChatPlayerController->IsTeamChatAvailable()
-			? ESnowRumbleChatChannel::All
-			: NewChannel;
+void UChatWidget::SetActiveChatChannel(ESnowRumbleChatChannel NewChannel) {
+	ActiveChatChannel = NewChannel == ESnowRumbleChatChannel::Team && ChatPlayerController &&
+								!ChatPlayerController->IsTeamChatAvailable()
+							? ESnowRumbleChatChannel::All
+							: NewChannel;
 	RefreshChannelText();
 }
 
-ESnowRumbleChatChannel UChatWidget::GetActiveChatChannel() const
-{
+ESnowRumbleChatChannel UChatWidget::GetActiveChatChannel() const {
 	return ActiveChatChannel;
 }
 
-void UChatWidget::ToggleChatChannel()
-{
+void UChatWidget::ToggleChatChannel() {
 	LastChatChannelToggleFrameNumber = GFrameCounter;
 
-	if (!ChatPlayerController || !ChatPlayerController->IsTeamChatAvailable())
-	{
+	if (!ChatPlayerController || !ChatPlayerController->IsTeamChatAvailable()) {
 		SetActiveChatChannel(ESnowRumbleChatChannel::All);
 		return;
 	}
 
-	SetActiveChatChannel(
-		ActiveChatChannel == ESnowRumbleChatChannel::All
-			? ESnowRumbleChatChannel::Team
-			: ESnowRumbleChatChannel::All);
+	SetActiveChatChannel(ActiveChatChannel == ESnowRumbleChatChannel::All ? ESnowRumbleChatChannel::Team
+																		  : ESnowRumbleChatChannel::All);
 }
 
-void UChatWidget::HandleChatTextCommitted(
-	const FText& Text,
-	ETextCommit::Type CommitMethod)
-{
-	if (CommitMethod == ETextCommit::OnCleared)
-	{
-		if (ChatPlayerController)
-		{
+void UChatWidget::HandleChatTextCommitted(const FText& Text, ETextCommit::Type CommitMethod) {
+	if (CommitMethod == ETextCommit::OnCleared) {
+		if (ChatPlayerController) {
 			ChatPlayerController->CloseChatInput();
-		}
-		else
-		{
+		} else {
 			CloseChatInput();
 		}
 		return;
 	}
-	if (CommitMethod != ETextCommit::OnEnter)
-	{
+	if (CommitMethod != ETextCommit::OnEnter) {
 		return;
 	}
 
 	const FString Message = Text.ToString().TrimStartAndEnd();
-	if (ChatPlayerController && !Message.IsEmpty())
-	{
+	if (ChatPlayerController && !Message.IsEmpty()) {
 		ChatPlayerController->SubmitChatMessage(Message, ActiveChatChannel);
 	}
-	if (ChatPlayerController)
-	{
+	if (ChatPlayerController) {
 		ChatPlayerController->CloseChatInput();
-	}
-	else
-	{
+	} else {
 		CloseChatInput();
 	}
 }
 
-void UChatWidget::RefreshChannelText()
-{
-	if (ChatChannelText)
-	{
+void UChatWidget::RefreshChannelText() {
+	if (ChatChannelText) {
 		ChatChannelText->SetText(GetChatChannelText(ActiveChatChannel));
 	}
 }
 
-void UChatWidget::ApplyConfiguredFonts()
-{
-	if (ChatLogText)
-	{
+void UChatWidget::ApplyConfiguredFonts() {
+	if (ChatLogText) {
 		ChatLogText->SetFont(ChatMessageFont);
 	}
-	if (ChatChannelText)
-	{
+	if (ChatChannelText) {
 		ChatChannelText->SetFont(ChatChannelFont);
 		ChatChannelText->SetVisibility(ESlateVisibility::Collapsed);
 	}
 }
 
-void UChatWidget::RefreshChatLogChrome()
-{
-	if (ChatLogScrollBox)
-	{
-		ChatLogScrollBox->SetScrollBarVisibility(
-			bChatInputOpen
-				? ESlateVisibility::Visible
-				: ESlateVisibility::Collapsed);
+void UChatWidget::RefreshChatLogChrome() {
+	if (ChatLogScrollBox) {
+		ChatLogScrollBox->SetScrollBarVisibility(bChatInputOpen ? ESlateVisibility::Visible
+																: ESlateVisibility::Collapsed);
 	}
-	if (ChatLogBorder)
-	{
+	if (ChatLogBorder) {
 		FLinearColor BorderColor = OriginalChatLogBorderBrushColor;
-		if (!bChatInputOpen)
-		{
+		if (!bChatInputOpen) {
 			BorderColor.A = 0.0f;
 		}
 		ChatLogBorder->SetBrushColor(BorderColor);
 	}
 }
 
-void UChatWidget::RefreshChatVisibility()
-{
-	if (bChatInputOpen)
-	{
+void UChatWidget::RefreshChatVisibility() {
+	if (bChatInputOpen) {
 		SetRenderOpacity(1.0f);
 		return;
 	}
 
 	const UWorld* World = GetWorld();
-	if (!World)
-	{
+	if (!World) {
 		return;
 	}
 
-	const float ElapsedTime =
-		World->GetTimeSeconds() - LastChatVisibilityRefreshTime;
-	if (ElapsedTime <= ChatVisibleDuration)
-	{
+	const float ElapsedTime = World->GetTimeSeconds() - LastChatVisibilityRefreshTime;
+	if (ElapsedTime <= ChatVisibleDuration) {
 		SetRenderOpacity(1.0f);
 		return;
 	}
 
-	const float FadeAlpha = FMath::Clamp(
-		(ElapsedTime - ChatVisibleDuration) / ChatFadeOutDuration,
-		0.0f,
-		1.0f);
+	const float FadeAlpha = FMath::Clamp((ElapsedTime - ChatVisibleDuration) / ChatFadeOutDuration, 0.0f, 1.0f);
 	SetRenderOpacity(1.0f - FadeAlpha);
 }
 
-void UChatWidget::ShowChatLog()
-{
-	if (const UWorld* World = GetWorld())
-	{
+void UChatWidget::ShowChatLog() {
+	if (const UWorld* World = GetWorld()) {
 		LastChatVisibilityRefreshTime = World->GetTimeSeconds();
 	}
 	SetRenderOpacity(1.0f);
 }
 
-void UChatWidget::AddMessageTextRow(
-	ESnowRumbleChatChannel Channel,
-	const FText& DisplayText)
-{
-	if (!ChatLogScrollBox || !WidgetTree)
-	{
+void UChatWidget::AddMessageTextRow(ESnowRumbleChatChannel Channel, const FText& DisplayText) {
+	if (!ChatLogScrollBox || !WidgetTree) {
 		return;
 	}
 
-	UTextBlock* MessageTextBlock =
-		WidgetTree->ConstructWidget<UTextBlock>(
-			UTextBlock::StaticClass(),
-			NAME_None);
-	if (!MessageTextBlock)
-	{
+	UTextBlock* MessageTextBlock = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), NAME_None);
+	if (!MessageTextBlock) {
 		return;
 	}
 
 	MessageTextBlock->SetText(DisplayText);
 	MessageTextBlock->SetFont(ChatMessageFont);
 	MessageTextBlock->SetColorAndOpacity(
-		FSlateColor(
-			Channel == ESnowRumbleChatChannel::Team
-				? TeamChatMessageColor
-				: AllChatMessageColor));
+		FSlateColor(Channel == ESnowRumbleChatChannel::Team ? TeamChatMessageColor : AllChatMessageColor));
 	MessageTextBlock->SetAutoWrapText(true);
 	ChatLogScrollBox->AddChild(MessageTextBlock);
-	if (!bChatInputOpen)
-	{
+	if (!bChatInputOpen) {
 		ChatLogScrollBox->ScrollToEnd();
 	}
 }

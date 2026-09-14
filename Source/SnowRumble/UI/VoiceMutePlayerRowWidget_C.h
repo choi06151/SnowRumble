@@ -12,16 +12,13 @@ class UButton;
 class UTextBlock;
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API UVoiceMutePlayerRowWidget : public USnowRumbleAudioUserWidget
-{
+class SNOWRUMBLE_API UVoiceMutePlayerRowWidget : public USnowRumbleAudioUserWidget {
 	GENERATED_BODY()
 
-public:
+	public:
 	/** 이 행이 표시할 플레이어와 로컬 컨트롤러를 설정한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Voice Mute")
-	void SetVoiceMutePlayer(
-		ASnowRumblePlayerState* NewPlayerState,
-		ASnowRumblePlayerController* NewPlayerController);
+	void SetVoiceMutePlayer(ASnowRumblePlayerState* NewPlayerState, ASnowRumblePlayerController* NewPlayerController);
 
 	/** 현재 표시 중인 플레이어 상태를 반환한다. */
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|UI|Voice Mute")
@@ -31,15 +28,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Voice Mute")
 	void RefreshRow();
 
-protected:
+	protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
 	/** 행 데이터가 바뀌면 Blueprint가 추가 표시를 갱신할 수 있다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Voice Mute")
-	void OnVoiceMutePlayerRowChanged(
-		ASnowRumblePlayerState* NewPlayerState,
-		bool bIsMuted);
+	void OnVoiceMutePlayerRowChanged(ASnowRumblePlayerState* NewPlayerState, bool bIsMuted);
 
 	/** WBP 행 안 플레이어 이름 TextBlock에 자동 연결된다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Voice Mute")
@@ -53,7 +48,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Voice Mute")
 	TObjectPtr<UTextBlock> MuteButtonText;
 
-private:
+	private:
 	UFUNCTION()
 	void HandleMuteButtonClicked();
 
@@ -64,5 +59,4 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<ASnowRumblePlayerController> VoicePlayerController;
-
 };

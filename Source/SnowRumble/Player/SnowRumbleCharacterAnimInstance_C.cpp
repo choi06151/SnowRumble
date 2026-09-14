@@ -5,49 +5,39 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/PawnMovementComponent.h"
 
-void USnowRumbleCharacterAnimInstance::NativeInitializeAnimation()
-{
+void USnowRumbleCharacterAnimInstance::NativeInitializeAnimation() {
 	Super::NativeInitializeAnimation();
 
 	CachedCharacter = Cast<ASnowRumbleCharacter>(TryGetPawnOwner());
 	RefreshFromOwnerCharacter();
 }
 
-void USnowRumbleCharacterAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
-{
+void USnowRumbleCharacterAnimInstance::NativeUpdateAnimation(float DeltaSeconds) {
 	Super::NativeUpdateAnimation(DeltaSeconds);
 
-	if (!CachedCharacter)
-	{
+	if (!CachedCharacter) {
 		CachedCharacter = Cast<ASnowRumbleCharacter>(TryGetPawnOwner());
 	}
 
 	RefreshFromOwnerCharacter(DeltaSeconds);
 }
 
-bool USnowRumbleCharacterAnimInstance::HasUpperBodyOverride() const
-{
+bool USnowRumbleCharacterAnimInstance::HasUpperBodyOverride() const {
 	return UpperBodyAnimState != ESnowRumbleUpperBodyAnimState::None;
 }
 
-bool USnowRumbleCharacterAnimInstance::HasFullBodyOverride() const
-{
+bool USnowRumbleCharacterAnimInstance::HasFullBodyOverride() const {
 	return FullBodyAnimState != ESnowRumbleFullBodyAnimState::None;
 }
 
-void USnowRumbleCharacterAnimInstance::RefreshFromOwnerCharacter(float DeltaSeconds)
-{
-	if (!CachedCharacter)
-	{
+void USnowRumbleCharacterAnimInstance::RefreshFromOwnerCharacter(float DeltaSeconds) {
+	if (!CachedCharacter) {
 		ResetAnimationState();
 		return;
 	}
 
-	const UPawnMovementComponent* MovementComponent =
-		CachedCharacter->GetMovementComponent();
-	const FVector Velocity = MovementComponent
-		? MovementComponent->Velocity
-		: CachedCharacter->GetVelocity();
+	const UPawnMovementComponent* MovementComponent = CachedCharacter->GetMovementComponent();
+	const FVector Velocity = MovementComponent ? MovementComponent->Velocity : CachedCharacter->GetVelocity();
 
 	GroundSpeed = Velocity.Size2D();
 	bIsMoving = CachedCharacter->IsMoving();
@@ -66,173 +56,109 @@ void USnowRumbleCharacterAnimInstance::RefreshFromOwnerCharacter(float DeltaSeco
 	bIsGrabAttached = CachedCharacter->IsGrabAttached();
 	bIsHangingFromWorldGrab = CachedCharacter->IsHangingFromWorldGrab();
 	bIsGrabbedByCharacter = CachedCharacter->IsGrabbedByCharacter();
-	GrabAttachedWorldLocation =
-		CachedCharacter->GetGrabAttachedWorldLocation();
-	GrabbedByCharacterWorldLocation =
-		CachedCharacter->GetGrabbedByCharacterWorldLocation();
+	GrabAttachedWorldLocation = CachedCharacter->GetGrabAttachedWorldLocation();
+	GrabbedByCharacterWorldLocation = CachedCharacter->GetGrabbedByCharacterWorldLocation();
 	GrabbedByCharacterComponentLocation = FVector::ZeroVector;
-	if (bIsGrabbedByCharacter)
-	{
-		if (const USkeletalMeshComponent* MeshComponent = GetSkelMeshComponent())
-		{
+	if (bIsGrabbedByCharacter) {
+		if (const USkeletalMeshComponent* MeshComponent = GetSkelMeshComponent()) {
 			GrabbedByCharacterComponentLocation =
-				MeshComponent->GetComponentTransform().InverseTransformPosition(
-					GrabbedByCharacterWorldLocation);
+				MeshComponent->GetComponentTransform().InverseTransformPosition(GrabbedByCharacterWorldLocation);
 		}
 	}
-	RightHandGrabTargetLocation =
-		CachedCharacter->GetRightHandGrabTargetLocation();
-	LeftHandGrabTargetLocation =
-		CachedCharacter->GetLeftHandGrabTargetLocation();
-	GrabReachAlpha =
-		FMath::Clamp(CachedCharacter->GetGrabReachAlpha(), 0.0f, 1.0f);
+	RightHandGrabTargetLocation = CachedCharacter->GetRightHandGrabTargetLocation();
+	LeftHandGrabTargetLocation = CachedCharacter->GetLeftHandGrabTargetLocation();
+	GrabReachAlpha = FMath::Clamp(CachedCharacter->GetGrabReachAlpha(), 0.0f, 1.0f);
 	ViewPitchDegrees = CachedCharacter->GetViewPitchDegrees();
-	ViewPitchAlpha =
-		FMath::Clamp(CachedCharacter->GetViewPitchAlpha(), 0.0f, 1.0f);
+	ViewPitchAlpha = FMath::Clamp(CachedCharacter->GetViewPitchAlpha(), 0.0f, 1.0f);
 	ViewYawDegrees = CachedCharacter->GetViewYawDegrees();
-	const float TargetViewYawAlpha =
-		FMath::Clamp(CachedCharacter->GetViewYawAlpha(), -0.5f, 0.5f);
+	const float TargetViewYawAlpha = FMath::Clamp(CachedCharacter->GetViewYawAlpha(), -0.5f, 0.5f);
 	ViewYawAlpha = DeltaSeconds > 0.0f
-		? FMath::FInterpTo(
-			ViewYawAlpha,
-			TargetViewYawAlpha,
-			DeltaSeconds,
-			ViewYawAlphaInterpSpeed)
-		: TargetViewYawAlpha;
+					   ? FMath::FInterpTo(ViewYawAlpha, TargetViewYawAlpha, DeltaSeconds, ViewYawAlphaInterpSpeed)
+					   : TargetViewYawAlpha;
 	SnowballCarryState = CachedCharacter->GetSnowballCarryState();
 	HeldAnimationState = CachedCharacter->GetHeldAnimationState();
 	SnowballActionState = CachedCharacter->GetSnowballActionState();
 	TimedActionState = CachedCharacter->GetTimedActionState();
-	SnowballChargeProgress =
-		FMath::Clamp(CachedCharacter->GetSnowballChargeProgress(), 0.0f, 1.0f);
-	SnowballCreationProgress =
-		FMath::Clamp(CachedCharacter->GetSnowballCreationProgress(), 0.0f, 1.0f);
+	SnowballChargeProgress = FMath::Clamp(CachedCharacter->GetSnowballChargeProgress(), 0.0f, 1.0f);
+	SnowballCreationProgress = FMath::Clamp(CachedCharacter->GetSnowballCreationProgress(), 0.0f, 1.0f);
 	RefreshDerivedAnimationStates();
 }
 
-void USnowRumbleCharacterAnimInstance::RefreshDerivedAnimationStates()
-{
-	if (bIsInAir)
-	{
+void USnowRumbleCharacterAnimInstance::RefreshDerivedAnimationStates() {
+	if (bIsInAir) {
 		LocomotionAnimState = ESnowRumbleLocomotionAnimState::InAir;
-	}
-	else if (bIsSprinting)
-	{
+	} else if (bIsSprinting) {
 		LocomotionAnimState = ESnowRumbleLocomotionAnimState::Sprint;
-	}
-	else if (bIsMoving)
-	{
+	} else if (bIsMoving) {
 		LocomotionAnimState = ESnowRumbleLocomotionAnimState::Walk;
-	}
-	else
-	{
+	} else {
 		LocomotionAnimState = ESnowRumbleLocomotionAnimState::Idle;
 	}
 
-	if (bIsChargingSnowball)
-	{
-		switch (HeldAnimationState)
-		{
+	if (bIsChargingSnowball) {
+		switch (HeldAnimationState) {
 		case ESnowRumbleHeldAnimationState::LargeSnowball:
-			UpperBodyAnimState =
-				ESnowRumbleUpperBodyAnimState::LargeSnowballCharge;
+			UpperBodyAnimState = ESnowRumbleUpperBodyAnimState::LargeSnowballCharge;
 			break;
 		case ESnowRumbleHeldAnimationState::SnowShovel:
-			UpperBodyAnimState =
-				ESnowRumbleUpperBodyAnimState::SnowShovelCharge;
+			UpperBodyAnimState = ESnowRumbleUpperBodyAnimState::SnowShovelCharge;
 			break;
 		case ESnowRumbleHeldAnimationState::SnowDuckMaker:
-			UpperBodyAnimState =
-				ESnowRumbleUpperBodyAnimState::SnowDuckMakerCharge;
+			UpperBodyAnimState = ESnowRumbleUpperBodyAnimState::SnowDuckMakerCharge;
 			break;
 		case ESnowRumbleHeldAnimationState::SmallSnowball:
 		default:
-			UpperBodyAnimState =
-				ESnowRumbleUpperBodyAnimState::SmallSnowballCharge;
+			UpperBodyAnimState = ESnowRumbleUpperBodyAnimState::SmallSnowballCharge;
 			break;
 		}
-	}
-	else if (bIsAiming)
-	{
-		switch (HeldAnimationState)
-		{
+	} else if (bIsAiming) {
+		switch (HeldAnimationState) {
 		case ESnowRumbleHeldAnimationState::LargeSnowball:
-			UpperBodyAnimState =
-				ESnowRumbleUpperBodyAnimState::LargeSnowballAim;
+			UpperBodyAnimState = ESnowRumbleUpperBodyAnimState::LargeSnowballAim;
 			break;
 		case ESnowRumbleHeldAnimationState::SnowShovel:
-			UpperBodyAnimState =
-				ESnowRumbleUpperBodyAnimState::SnowShovelAim;
+			UpperBodyAnimState = ESnowRumbleUpperBodyAnimState::SnowShovelAim;
 			break;
 		case ESnowRumbleHeldAnimationState::SnowDuckMaker:
-			UpperBodyAnimState =
-				ESnowRumbleUpperBodyAnimState::SnowDuckMakerAim;
+			UpperBodyAnimState = ESnowRumbleUpperBodyAnimState::SnowDuckMakerAim;
 			break;
 		case ESnowRumbleHeldAnimationState::SmallSnowball:
 		default:
-			UpperBodyAnimState =
-				ESnowRumbleUpperBodyAnimState::SmallSnowballAim;
+			UpperBodyAnimState = ESnowRumbleUpperBodyAnimState::SmallSnowballAim;
 			break;
 		}
-	}
-	else if (SnowballCarryState == ESnowballCarryState::LargeSnowball)
-	{
+	} else if (SnowballCarryState == ESnowballCarryState::LargeSnowball) {
 		UpperBodyAnimState = ESnowRumbleUpperBodyAnimState::LargeSnowball;
-	}
-	else if (SnowballCarryState == ESnowballCarryState::SmallSnowball)
-	{
+	} else if (SnowballCarryState == ESnowballCarryState::SmallSnowball) {
 		UpperBodyAnimState = ESnowRumbleUpperBodyAnimState::SmallSnowball;
-	}
-	else if (HeldAnimationState == ESnowRumbleHeldAnimationState::SnowShovel)
-	{
+	} else if (HeldAnimationState == ESnowRumbleHeldAnimationState::SnowShovel) {
 		UpperBodyAnimState = ESnowRumbleUpperBodyAnimState::SnowShovel;
-	}
-	else if (
-		HeldAnimationState == ESnowRumbleHeldAnimationState::SnowDuckMaker)
-	{
+	} else if (HeldAnimationState == ESnowRumbleHeldAnimationState::SnowDuckMaker) {
 		UpperBodyAnimState = ESnowRumbleUpperBodyAnimState::SnowDuckMaker;
-	}
-	else
-	{
+	} else {
 		UpperBodyAnimState = ESnowRumbleUpperBodyAnimState::None;
 	}
 
-	if (bIsDead)
-	{
+	if (bIsDead) {
 		FullBodyAnimState = ESnowRumbleFullBodyAnimState::Dead;
-	}
-	else if (bIsFrozen)
-	{
+	} else if (bIsFrozen) {
 		FullBodyAnimState = ESnowRumbleFullBodyAnimState::Frozen;
-	}
-	else if (bIsHitReacting)
-	{
+	} else if (bIsHitReacting) {
 		FullBodyAnimState = ESnowRumbleFullBodyAnimState::HitReact;
-	}
-	else if (bIsInteractingWithItem)
-	{
+	} else if (bIsInteractingWithItem) {
 		FullBodyAnimState = ESnowRumbleFullBodyAnimState::ItemInteraction;
-	}
-	else if (bIsPickingUpItem)
-	{
+	} else if (bIsPickingUpItem) {
 		FullBodyAnimState = ESnowRumbleFullBodyAnimState::Pickup;
-	}
-	else if (SnowballActionState == ESnowballActionState::RollingSnowball)
-	{
+	} else if (SnowballActionState == ESnowballActionState::RollingSnowball) {
 		FullBodyAnimState = ESnowRumbleFullBodyAnimState::RollSnowball;
-	}
-	else if (bIsCreatingSnowball)
-	{
+	} else if (bIsCreatingSnowball) {
 		FullBodyAnimState = ESnowRumbleFullBodyAnimState::CreateSnowball;
-	}
-	else
-	{
+	} else {
 		FullBodyAnimState = ESnowRumbleFullBodyAnimState::None;
 	}
 }
 
-void USnowRumbleCharacterAnimInstance::ResetAnimationState()
-{
+void USnowRumbleCharacterAnimInstance::ResetAnimationState() {
 	GroundSpeed = 0.0f;
 	bIsMoving = false;
 	bIsInAir = false;

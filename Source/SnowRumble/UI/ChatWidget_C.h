@@ -17,18 +17,13 @@ class UTextBlock;
 class UWidget;
 
 UENUM(BlueprintType)
-enum class ESnowRumbleChatChannel : uint8
-{
-	All,
-	Team
-};
+enum class ESnowRumbleChatChannel : uint8 { All, Team };
 
 UCLASS(Abstract, Blueprintable)
-class SNOWRUMBLE_API UChatWidget : public UUserWidget
-{
+class SNOWRUMBLE_API UChatWidget : public UUserWidget {
 	GENERATED_BODY()
 
-public:
+	public:
 	UChatWidget(const FObjectInitializer& ObjectInitializer);
 
 	/** 채팅 위젯이 메시지 요청을 보낼 PlayerController를 연결한다. */
@@ -52,10 +47,7 @@ public:
 
 	/** 새 채팅 메시지를 로그에 추가한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Chat")
-	void AddChatMessage(
-		ESnowRumbleChatChannel Channel,
-		const FString& SenderName,
-		const FString& Message);
+	void AddChatMessage(ESnowRumbleChatChannel Channel, const FString& SenderName, const FString& Message);
 
 	/** 현재 채팅 채널을 바꾼다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Chat")
@@ -69,21 +61,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|UI|Chat")
 	void ToggleChatChannel();
 
-protected:
+	protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
-	virtual void NativeTick(
-		const FGeometry& MyGeometry,
-		float InDeltaTime) override;
-	virtual FReply NativeOnPreviewKeyDown(
-		const FGeometry& InGeometry,
-		const FKeyEvent& InKeyEvent) override;
-	virtual FReply NativeOnKeyDown(
-		const FGeometry& InGeometry,
-		const FKeyEvent& InKeyEvent) override;
-	virtual FReply NativeOnMouseWheel(
-		const FGeometry& InGeometry,
-		const FPointerEvent& InMouseEvent) override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+	virtual FReply NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply NativeOnMouseWheel(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
 	/** WBP에서 같은 이름으로 만든 메시지 목록 ScrollBox다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|UI|Chat")
@@ -131,21 +115,16 @@ protected:
 
 	/** 새 메시지를 Blueprint가 별도 행 UI로 표시할 때 사용한다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Chat")
-	void OnChatMessageAdded(
-		ESnowRumbleChatChannel Channel,
-		const FString& SenderName,
-		const FString& Message,
-		const FText& DisplayText);
+	void OnChatMessageAdded(ESnowRumbleChatChannel Channel, const FString& SenderName, const FString& Message,
+							const FText& DisplayText);
 
 	/** 입력창이 열리거나 닫힐 때 Blueprint 표현을 갱신한다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Chat")
 	void OnChatInputOpenChanged(bool bOpen);
 
-private:
+	private:
 	UFUNCTION()
-	void HandleChatTextCommitted(
-		const FText& Text,
-		ETextCommit::Type CommitMethod);
+	void HandleChatTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
 
 	/** 현재 채널 표시 텍스트를 갱신한다. */
 	void RefreshChannelText();
@@ -163,9 +142,7 @@ private:
 	void ShowChatLog();
 
 	/** ScrollBox에 메시지 TextBlock 행을 추가한다. */
-	void AddMessageTextRow(
-		ESnowRumbleChatChannel Channel,
-		const FText& DisplayText);
+	void AddMessageTextRow(ESnowRumbleChatChannel Channel, const FText& DisplayText);
 
 	/** 채팅 로그 TextBlock에 누적 표시할 문자열이다. */
 	FString ChatLog;
