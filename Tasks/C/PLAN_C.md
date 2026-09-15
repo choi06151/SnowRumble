@@ -9,6 +9,8 @@
 
 ## 현재 집중 Task
 
+- [C-42](C-42_cpp_access_modifier_convention.md) C++ 접근 지정자 컨벤션 (완료)
+- [C-41](C-41_editorconfig_convention.md) EditorConfig 공통 파일 컨벤션과 Husky 검사 (진행중 — 에디터 적용 확인 대기)
 - [C-40](C-40_husky_code_convention_check.md) Husky·GitHub Actions 코드 컨벤션 검사 (완료)
 - [C-39](C-39_code_convention_normalization.md) UE5 코드 컨벤션 정리 (완료)
 - [C-18](C-18_steam_session_integration.md) Steam 세션 최종 통합
@@ -73,6 +75,8 @@
 
 ## 계획 변경 기록
 
+- 2026-09-15: C-42 승인 후 `docs/STYLEGUIDE.md`에 C++ `public`·`protected`·`private` 사용 기준, 선언 순서와 Unreal Blueprint 노출 범위를 추가했다.
+- 2026-09-15: C-41 승인 후 저장소 루트에 `.editorconfig`를 추가하고 Husky pre-commit에 staged 텍스트 파일 검사(`editorconfig-checker`)를 연결했다. 일반 텍스트는 UTF-8·LF·2칸 들여쓰기, C++는 기존 `.clang-format`에 맞춘 탭·4칸 들여쓰기를 사용하며 Markdown trailing whitespace는 보존한다.
 - 2026-09-14: C-40 승인 후 Husky pre-commit, 공통 `Scripts/check-clang-format.mjs`, Push/PR GitHub Actions를 추가했다. `npm install`, Node 구문 검사, 로컬 포맷 검사와 실제 C++ 파일 검사에 성공했다.
 - 2026-09-14: C-39·C-40 완료 결과를 확인했다. C 소유 코드 포맷·빌드와 Husky pre-commit 검사를 통과한 변경을 역할 브랜치와 `master`에 게시한다.
 - 2026-09-14: C-39 승인 후 C 소유 C++ 83개 파일에 `.clang-format` 기준을 적용하고, 누락된 저작권 헤더를 보완했다. `clang-format --dry-run --Werror`, `git diff --check`, `SnowRumbleEditor Win64 Development` 빌드가 성공했다. K 10개·J 6개·소유자 미표기 68개 파일은 다른 담당자 인계 범위로 남겼다.
