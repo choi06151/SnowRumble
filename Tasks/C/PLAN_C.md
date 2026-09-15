@@ -75,6 +75,7 @@
 
 ## 계획 변경 기록
 
+- 2026-09-15: 모든 담당자의 새 커밋 제목을 `[분류] 내용` 형식으로 통일하고, 기존 역할·통합 브랜치 이력을 백업 후 `[개발]`·`[수정]`·`[통합]`으로 재작성해 원격에 반영했다.
 - 2026-09-15: C-42 승인 후 `docs/STYLEGUIDE.md`에 C++ `public`·`protected`·`private` 사용 기준, 선언 순서와 Unreal Blueprint 노출 범위를 추가했다.
 - 2026-09-15: C-41 승인 후 저장소 루트에 `.editorconfig`를 추가하고 Husky pre-commit에 staged 텍스트 파일 검사(`editorconfig-checker`)를 연결했다. 일반 텍스트는 UTF-8·LF·2칸 들여쓰기, C++는 기존 `.clang-format`에 맞춘 탭·4칸 들여쓰기를 사용하며 Markdown trailing whitespace는 보존한다.
 - 2026-09-14: C-40 승인 후 Husky pre-commit, 공통 `Scripts/check-clang-format.mjs`, Push/PR GitHub Actions를 추가했다. `npm install`, Node 구문 검사, 로컬 포맷 검사와 실제 C++ 파일 검사에 성공했다.
