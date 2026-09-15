@@ -1,3 +1,4 @@
 #!/usr/bin/env sh
 
+node Scripts/check-editorconfig.mjs
 node Scripts/check-clang-format.mjs

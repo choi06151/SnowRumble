@@ -153,3 +153,5 @@
 | `AGENTS.md`, `docs/COLLABORATION.md` | `master` 통합 기준과 담당자 이니셜 브랜치 `C`·`K`·`S`·`J` 운영 | 사용자 결정 — 네 담당자의 작업 이력과 소유 범위를 Git에서도 분리하고, 결과 확인이 끝난 변경만 메인 프로그래머가 `master`에 통합하기 위해 도입(2026-08-07) |
 | `.agents/skills/snowrumble-run-task/SKILL.md`, `AGENTS.md`, `docs/COLLABORATION.md` | 세션·Task 시작과 담당자 변경 시 Codex가 브랜치 확인·전환과 안전한 fast-forward pull을 자동 수행 | 사용자 결정 — 팀원이 직접 Git을 여는 빈도를 줄이되 로컬 변경 유실과 자동 병합 위험은 만들지 않도록 fetch와 안전한 `pull --ff-only`까지만 자동화하고, 분기·로컬 변경·인증 오류는 작업 전 보고하게 함(2026-08-07) |
 | `.agents/skills/snowrumble-run-task/SKILL.md`, `AGENTS.md`, `docs/COLLABORATION.md`, `docs/WORKFLOW.md` | 사용자의 완료·push 요청 시 역할 브랜치 commit·push와 검증된 `master` 병합·push를 Codex가 자동 수행 | 사용자 결정 — 팀원의 Git 직접 조작을 줄이면서 관계없는 변경, 공용 계약 미결정, Unreal 자산 충돌과 동시 push 위험을 막기 위해 소유 파일만 게시하고 실패 시 역할 브랜치는 보존한 채 master 통합만 보류하도록 구성(2026-08-07) |
+| `docs/COLLABORATION.md` | 모든 커밋 제목은 `[분류] 내용` 형식이며 일반 작업은 `[개발]`, 오류 수정은 `[수정]`, 병합은 `[통합]`으로 작성 | 사용자 결정 — 모든 담당자의 커밋 이력을 읽기 쉽고 일관된 형식으로 유지하기 위해 도입(2026-09-15) |
+| `docs/COLLABORATION.md` | 공개 커밋 제목 일괄 정리는 백업·전원 동의·재동기화를 거치는 일회성 마이그레이션으로만 허용 | 사용자 결정 — 기존 역할 브랜치와 `master`의 제목을 통일하되 공유 이력 손실과 협업자 로컬 분기를 예방하기 위한 예외 절차(2026-09-15) |
