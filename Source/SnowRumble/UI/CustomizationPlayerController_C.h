@@ -385,7 +385,7 @@ class SNOWRUMBLE_API ACustomizationPlayerController : public APlayerController {
 	/** 좌클릭 상태에 따라 Stroke 시작, 점 추가, 완료를 처리한다. */
 	void UpdatePaintInput();
 
-	/** 페인트 화면에서 Ctrl+Z 입력으로 마지막 완료 Stroke를 제거한다. */
+	/** 커스터마이징 UI 페이지와 관계없이 Ctrl+Z 입력으로 마지막 완료 Stroke를 제거한다. */
 	void UpdatePaintUndoInput();
 
 	/** 누르고 있는 버튼 방향으로 프리뷰 캐릭터를 회전한다. */

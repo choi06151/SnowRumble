@@ -26,7 +26,7 @@
 - 페인트 trace는 기본적으로 몸 머티리얼 slot 0만 허용하고, 다른 slot 또는 알 수 없는 slot은 stroke 생성을 막는다.
 - 페인트 trace는 소프트웨어 커서의 좌상단 기준 표시를 보정해 원형 커서 중심에서 나가도록 자동 보정한다.
 - 페인트 stroke는 UV 좌표가 갑자기 멀리 이동하면 관절/UV seam으로 보고 선을 끊어 긴 튐 선을 만들지 않는다.
-- 색칠하기 버튼은 메인 화면에서 색칠하기 화면으로 전환하고, 색칠하기 화면에서 다시 누르면 메인 화면으로 돌아간다.
+- 페인트 입력과 원형 커서는 커스터마이징 레벨 전체에서 항상 활성화한다. 색칠하기 버튼은 그리기 UI 패널 표시만 전환하며, 다른 페이지를 열어도 그리기 모드와 Ctrl+Z가 유지된다.
 - 색칠하기 화면은 36개 프리뷰 몸 색상 후보 버튼, 브러시 크기 조정 버튼, 전체 칠하기 버튼을 제공한다.
 - 모자 선택 화면은 색칠하기 버튼 옆의 모자 버튼으로 열고, 위/아래 버튼으로 현재 캐릭터 BP에 등록된 모자 StaticMesh 후보를 하나씩 순환한다.
 - 모자 선택 결과는 StaticMesh 자산 직접 참조가 아니라 `HatMeshIndex`로 저장·복제하고, 각 캐릭터 BP의 후보 배열에서 같은 인덱스를 장착한다.
@@ -41,7 +41,7 @@
 - 브러시 색 후보는 빨강·주황·노랑·초록·파랑·보라 계열의 명도 변형과 검정·회색·하양을 포함한 36개 색상으로 선택한다.
 - 현재 선택된 팔레트 버튼은 Pressed 상태 스타일로 유지한다.
 - 브러시 크기 버튼은 버튼을 누른 상태에서 마우스 휠로 선 두께를 작게 또는 크게 조정한다.
-- 게임 전체에서 기본 커서 BP 슬롯을 사용하고, 커스터마이징 색칠하기 화면에서는 BP 슬롯에 지정한 원형 커서 위젯으로 마우스 커서를 바꾼다.
+- 게임 전체에서 기본 커서 BP 슬롯을 사용하고, 커스터마이징 레벨에서는 현재 UI 페이지와 관계없이 BP 슬롯에 지정한 원형 커서 위젯을 사용한다.
 - 색칠하기 원형 커서 위젯은 현재 브러시 색으로 표시 색을 갱신할 수 있다.
 - 전체 칠하기 버튼은 현재 브러시 색을 `BodyColor`에 적용한다.
 - 드로잉, 얼굴 표정, 장비 외형 분리는 후속 범위에서 결정 후 구현한다.
@@ -73,7 +73,8 @@
 - [x] 관절/UV seam 부근에서 UV 점프가 발생하면 같은 stroke로 잇지 않고 새 stroke로 분리한다.
 - [x] 로컬 플레이어의 드로잉 결과를 저장·복제한다.
 - [x] 페인트 화면에서 `BackButton`과 `Ctrl+Z`가 마지막 완료 stroke를 하나씩 누적 undo하게 한다.
-- [x] 색칠하기 화면이 아닐 때 좌클릭으로 페인트 stroke가 생성되지 않게 한다.
+- [x] UI 페이지와 관계없이 프리뷰 캐릭터 Mesh를 좌클릭 드래그하면 페인트 stroke를 생성한다.
+- [x] 선택적인 `UndoButton`을 자동 바인딩해 UI 클릭으로 마지막 완료 stroke 하나를 취소한다.
 - [x] 색칠하기 버튼을 누를 때 액세서리용 `CustomizationContentSwitcher` 인덱스를 변경하지 않는다.
 - [x] 색칠하기 화면에서 색칠하기 버튼을 다시 누르면 `CustomizationContentSwitcher` 인덱스 0 메인 화면으로 돌아간다.
 - [x] 색칠하기 화면에서 36개 고정 색상 버튼을 C++가 이름으로 자동 바인딩한다.
@@ -88,6 +89,7 @@
 - [x] `HatItemButton_0`처럼 이름이 일치하는 WBP 버튼을 자동 탐색해 카테고리와 Mesh 인덱스를 연결한다.
 - [x] 모자·안경·코·귀마개에서 현재 장착된 마지막 선택 버튼을 카테고리별 Pressed 상태로 유지한다.
 - [x] 기존 좌우 회전 버튼을 유지하면서 커스터마이징 화면의 A/D 키를 프리뷰 캐릭터 회전에 연결한다.
+- [x] 커스터마이징 프리뷰 중 좌클릭 게임플레이 액션이 캐릭터 입력으로 전달되지 않게 차단하고, 별도 처리되는 페인트 입력은 유지한다.
 - [x] Stroke별 브러시 색과 두께를 저장·복제 데이터에 포함한다.
 - [x] 메인메뉴, 로비/PvP 계열, 커스터마이징 PlayerController BP 슬롯에 기본 커서 위젯을 지정할 수 있게 한다.
 - [x] 커스터마이징 PlayerController BP 슬롯에 색칠하기 커서 위젯을 지정할 수 있게 한다.
@@ -128,16 +130,17 @@
   - `AMainMenuPlayerController::MainMenuPreviewMeshScale`: 메인메뉴에서만 조종 중인 캐릭터 Skeletal Mesh에 곱할 스케일
   - `ASnowRumblePlayerController::DefaultMouseCursorWidgetClass`: 로비, PvP, 채팅, ESC 메뉴 등 인게임 UI에서 사용할 기본 소프트웨어 마우스 커서 위젯 클래스
   - `ACustomizationPlayerController::DefaultMouseCursorWidgetClass`: 커스터마이징 화면에서 평소에 사용할 기본 소프트웨어 마우스 커서 위젯 클래스
-  - `ACustomizationPlayerController::PaintMouseCursorWidgetClass`: 색칠하기 화면에서 사용할 원형 소프트웨어 마우스 커서 위젯 클래스
+  - `ACustomizationPlayerController::PaintMouseCursorWidgetClass`: 커스터마이징 레벨 전체에서 사용할 원형 소프트웨어 마우스 커서 위젯 클래스
   - `ACustomizationPlayerController::PaintCursorBrushSizeScale`: 현재 브러시 크기를 원형 커서 지름으로 바꿀 때 곱하는 배율
   - `ACustomizationPlayerController::MinPaintCursorDiameter`: 원형 페인트 커서 최소 지름
   - `ACustomizationPlayerController::MaxPaintCursorDiameter`: 원형 페인트 커서 최대 지름
-  - `ACustomizationPlayerController::SetPaintCursorActive(bool)`: 색칠하기 페이지 여부에 따라 기본/페인트 커서를 전환한다.
+  - `ACustomizationPlayerController::SetPaintCursorActive(bool)`: 커스터마이징 UI 페이지와 관계없이 페인트 커서를 활성화한다.
   - `ACustomizationPlayerController::PaintMouseCursorWidgetClass` 내부 `BrushCursorColorBorder`: 현재 브러시 색을 표시할 선택 Border
   - `ACustomizationPlayerController::PaintMouseCursorWidgetClass` 내부 `BrushCursorColorImage`: 현재 브러시 색을 표시할 선택 Image. Border 대신 사용할 수 있다.
   - `UCustomizationWidget`: 커스터마이징 WBP 부모
 - `UCustomizationWidget::CustomizationContentSwitcher`: 0 모자, 1 안경, 2 코, 3 귀마개 액세서리 화면을 담는 WidgetSwitcher. 색칠하기 모드는 이 스위처를 사용하지 않는다.
-  - `UCustomizationWidget::PaintModeButton`: 메인 화면에서 색칠하기 화면으로 이동
+  - `UCustomizationWidget::PaintModeButton`: 그리기 UI 패널 표시 전환. 페인트 입력 자체는 항상 활성화
+  - `UCustomizationWidget::UndoButton`: 누를 때마다 마지막 완료 페인트 stroke 하나를 취소
   - `UCustomizationWidget::RotateLeftButton`: 누르고 있는 동안 프리뷰 캐릭터를 왼쪽으로 회전
   - `UCustomizationWidget::RotateRightButton`: 누르고 있는 동안 프리뷰 캐릭터를 오른쪽으로 회전
   - `UCustomizationWidget::ReturnToLobbyButton`: 메인메뉴 URL로 복귀
@@ -241,6 +244,10 @@
 
 ## 변경 기록
 
+- 2026-10-26: `BackButton`은 PaintMode 페이지에서만 되돌리기 역할을 하고 다른 페이지에서는 메인 화면으로 이동하는 구조를 확인했다. 별도 `UndoButton` 자동 바인딩과 클릭 처리기를 추가해 모든 페이지에서 선 하나씩 되돌릴 수 있게 했다. WBP에 해당 이름 버튼 연결과 결과 확인은 수동 작업으로 남겼다.
+- 2026-10-26: Widget `NativeOnKeyDown`과 PlayerController Tick에 각각 있던 Ctrl+Z 처리를 PlayerController 입력 감지 한 곳으로 통합했다. 페이지와 포커스에 따라 입력 경로가 달라지거나 중복 처리되는 경우를 막고, 한 번의 키 입력에 stroke 하나만 사라지는지 수동 확인 대기다.
+- 2026-10-26: 사용자가 그리기 모드를 항상 켜두도록 요청해 페인트 입력, Ctrl+Z와 원형 커서를 현재 UI 페이지와 분리했다. 색칠하기 버튼은 패널 표시만 바꾸며 액세서리 페이지는 유지한다. 메인·액세서리 페이지에서 드로잉과 UI 클릭이 함께 작동하는지 수동 확인 대기다.
+- 2026-10-26: 커스터마이징 프리뷰에서 좌클릭이 공용 캐릭터 Grab/투척 입력으로 전달되지 않도록 `HandleActionStarted()`와 `HandleActionCompleted()`를 제한했다. 페인트 입력은 `ACustomizationPlayerController`의 별도 마우스 처리 경로를 유지하며, A/D 회전 후 좌클릭 회귀 확인은 수동 실행 대기다.
 - 2026-08-11: 메인메뉴에서 커스터마이징 레벨로 이동하는 첫 진입 경로를 추가했다. WBP는 `CustomizationButton` 이름의 버튼을 배치하면 C++이 자동 바인딩하고, `AMainMenuPlayerController::CustomizationLevelUrl` 기본값 또는 BP 설정값으로 `ClientTravel()`을 수행한다.
 - 2026-08-11: 커스터마이징 레벨 전용 `ASnowRumbleCustomizationGameMode`, `ACustomizationPlayerController`, `UCustomizationWidget` 부모를 추가했다. 레벨 진입 시 커스터마이징 WBP를 자동 표시하고, `CustomizationCamera` 태그가 붙은 카메라를 ViewTarget으로 설정하며, WidgetSwitcher로 메인/색칠하기 화면을 전환한다.
 - 2026-08-11: 몸 색상 커스터마이징 첫 세로 슬라이스를 추가했다. `FSnowRumbleCustomizationData`와 `USnowRumbleCustomizationSubsystem`이 로컬 저장을 맡고, 로비 입장 시 `ASnowRumblePlayerState`에 서버 제출·복제되며, `ASnowRumbleCharacter`가 `BodyColor` 머티리얼 파라미터로 적용한다. `SnowRumbleEditor Win64 Development` 빌드가 성공했다.
@@ -311,6 +318,7 @@
 - 레벨에 캐릭터와 카메라를 배치하고, 카메라 액터 태그에 `CustomizationCamera`를 추가한다.
 - 커스터마이징 WBP에 `CustomizationContentSwitcher`를 배치하고 자식 순서를 0 모자, 1 안경, 2 코, 3 귀마개로 맞춘다. 색칠하기 모드는 이 스위처의 인덱스를 변경하지 않는다.
 - 메인 화면 버튼 이름을 `PaintModeButton`, `ReturnToLobbyButton`으로 맞춘다.
+- 페인트 되돌리기 버튼을 배치하고 Widget 이름을 `UndoButton`으로 맞춘다. 누를 때마다 마지막 완료 stroke 하나가 취소된다.
 - 회전 버튼 두 개를 배치하고 이름을 `RotateLeftButton`, `RotateRightButton`으로 맞춘다.
 - 회전 속도는 커스터마이징 PlayerController BP의 `PreviewRotationSpeedDegrees`에서 조정한다.
 - 하위 화면 공통 버튼 이름을 `BackButton`, `ApplyButton`, `ResetButton`으로 맞춘다.
@@ -372,6 +380,7 @@
 - [ ] `RotateLeftButton`을 누르고 있는 동안 프리뷰 캐릭터가 왼쪽으로 회전한다.
 - [ ] `RotateRightButton`을 누르고 있는 동안 프리뷰 캐릭터가 오른쪽으로 회전한다.
 - [ ] 좌/우 회전 버튼에서 손을 떼면 프리뷰 캐릭터 회전이 멈춘다.
+- [ ] A/D로 프리뷰 캐릭터를 회전한 뒤 어느 UI 페이지에서나 좌클릭해도 캐릭터 방향과 자세가 유지되고, 캐릭터 Mesh 드로잉이 동작한다.
 - [ ] 커스터마이징 레벨 프리뷰 캐릭터 머리 위 이름표가 보이지 않는다.
 - [ ] `PaintModeButton`을 누르면 색칠하기 화면으로 전환된다.
 - [ ] 색칠하기 화면에서 `PaintModeButton`을 다시 누르면 메인 화면으로 돌아간다.
@@ -382,8 +391,7 @@
 - [ ] 모자·안경·코·귀마개 후보 버튼을 누르면 마지막으로 선택한 각 버튼이 Pressed 상태로 유지된다.
 - [ ] `ApplyButton`을 누른 뒤 로비에 들어가면 로컬 캐릭터와 다른 화면의 해당 캐릭터에 같은 모자가 보인다.
 - [ ] PvP 이동 뒤에도 같은 모자가 캐릭터에 적용된다.
-- [ ] `PaintModeButton`을 누르면 마우스 커서가 `PaintMouseCursorWidgetClass` 원형 커서로 바뀐다.
-- [ ] `BackButton`으로 메인 화면에 돌아오면 마우스 커서가 `DefaultMouseCursorWidgetClass` 기본 커서로 돌아온다.
+- [ ] `PaintModeButton`이나 `BackButton`으로 UI 패널을 전환해도 마우스 커서가 `PaintMouseCursorWidgetClass` 원형 커서로 유지된다.
 - [ ] 원형 커서 WBP의 `BrushCursorSizeBox`가 브러시 크기에 맞춰 커지거나 작아진다.
 - [ ] 36개 색상 버튼을 각각 누르면 해당 버튼 스타일 색으로 브러시 색이 바뀌고, 선택된 버튼이 Pressed 상태로 표시된다.
 - [ ] WBP에 `BrushSizeSlider`를 배치하면 Slider를 움직일 때 브러시 크기와 원형 커서 크기가 함께 바뀐다.
@@ -395,13 +403,13 @@
 - [ ] `BrushSizeButton`을 누른 상태에서 마우스 휠을 내리면 이후 그리는 선이 얇아진다.
 - [ ] 서로 다른 색과 크기로 그린 선을 저장한 뒤 로비/PvP에 들어가도 각 선의 색과 두께가 유지된다.
 - [ ] `FillBodyColorButton`을 누르면 현재 브러시 색이 캐릭터 `BodyColor`에 즉시 적용된다.
-- [ ] 색칠하기 화면이 아닌 상태에서 캐릭터 Mesh를 좌클릭해도 선이 그려지지 않는다.
+- [ ] 메인·액세서리 UI 페이지에서도 원형 페인트 커서와 그리기 입력이 계속 활성화된다.
 - [ ] `BackButton`을 누르면 메인 화면으로 돌아간다.
 - [ ] `ReturnToLobbyButton`을 누르면 메인메뉴 URL로 돌아간다.
 - [ ] 색칠하기 화면에서 `FillBodyColorButton` 또는 `SetPreviewBodyColor`를 호출하면 커마 캐릭터 색이 즉시 바뀐다.
 - [ ] `ApplyButton`을 누른 뒤 로비에 들어가면 로컬 캐릭터와 다른 화면의 해당 캐릭터 색이 유지된다.
 - [ ] PvP 이동 뒤에도 같은 `BodyColor`가 캐릭터에 적용된다.
-- [ ] 색칠하기 화면에서 캐릭터 Mesh를 좌클릭 드래그하면 현재 브러시 색과 크기로 선이 그려진다.
+- [ ] 커스터마이징의 어느 UI 페이지에서든 캐릭터 Mesh를 좌클릭 드래그하면 현재 브러시 색과 크기로 선이 그려진다.
 - [ ] 색칠하기 화면에서 커서 위치와 검정 선 시작점이 좌우로 어긋나지 않는다.
 - [ ] 브러시 크기를 바꿔도 색칠 trace가 원형 커서 중심 근처에서 시작된다.
 - [ ] 관절이나 UV seam 부근을 가로질러 칠해도 선이 멀리 떨어진 부위로 길게 튀지 않고 필요한 지점에서 끊긴다.
@@ -411,5 +419,6 @@
 - [ ] 선을 그린 뒤 로비에 들어가면 로컬 캐릭터와 다른 화면의 해당 캐릭터에 같은 선이 보인다.
 - [ ] PvP 이동 뒤에도 같은 선이 캐릭터에 적용된다.
 - [ ] 색칠하기 화면에서 `BackButton`을 누르면 마지막으로 완성한 선 하나가 사라진다.
-- [ ] 색칠하기 화면에서 `Ctrl+Z`를 누를 때마다 마지막으로 완성한 선이 하나씩 사라진다.
+- [ ] 어느 UI 페이지에서든 `Ctrl+Z`를 한 번 누를 때마다 마지막 완료 stroke가 정확히 하나씩 사라진다.
+- [ ] WBP `UndoButton`을 누를 때마다 마지막 완료 stroke가 정확히 하나씩 사라진다.
 - [ ] 색칠하기 화면에서 `ResetButton`을 누르면 모든 선이 사라진다.

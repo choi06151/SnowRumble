@@ -4035,7 +4035,8 @@ void ASnowRumbleCharacter::HandleAimCompleted()
 
 void ASnowRumbleCharacter::HandleActionStarted()
 {
-	if (!CanPerformGameplayAction())
+	if (Cast<ACustomizationPlayerController>(Controller)
+		|| !CanPerformGameplayAction())
 	{
 		return;
 	}
@@ -4062,7 +4063,8 @@ void ASnowRumbleCharacter::HandleActionStarted()
 
 void ASnowRumbleCharacter::HandleActionCompleted()
 {
-	if (bIsEmoteRadialMenuOpen)
+	if (Cast<ACustomizationPlayerController>(Controller)
+		|| bIsEmoteRadialMenuOpen)
 	{
 		return;
 	}

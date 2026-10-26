@@ -1004,8 +1004,7 @@ void ACustomizationPlayerController::HandlePaintBrushColorPicked(FLinearColor Ne
 }
 
 void ACustomizationPlayerController::UpdatePaintInput() {
-	if (!CustomizationWidget ||
-		CustomizationWidget->GetCurrentCustomizationPage() != ESnowRumbleCustomizationPage::PaintMode) {
+	if (!CustomizationWidget) {
 		FinishPaintStroke();
 		bWasPaintMouseDown = false;
 		return;
@@ -1031,8 +1030,7 @@ void ACustomizationPlayerController::UpdatePaintInput() {
 }
 
 void ACustomizationPlayerController::UpdatePaintUndoInput() {
-	if (!CustomizationWidget ||
-		CustomizationWidget->GetCurrentCustomizationPage() != ESnowRumbleCustomizationPage::PaintMode) {
+	if (!CustomizationWidget) {
 		return;
 	}
 

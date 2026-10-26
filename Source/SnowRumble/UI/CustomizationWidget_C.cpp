@@ -12,7 +12,6 @@
 #include "Components/WidgetSwitcher.h"
 #include "Blueprint/WidgetTree.h"
 #include "CustomizationPlayerController_C.h"
-#include "InputCoreTypes.h"
 #include "Input/Reply.h"
 
 void UCustomizationWidget::SetCustomizationPlayerController(ACustomizationPlayerController* NewPlayerController) {
@@ -30,7 +29,7 @@ void UCustomizationWidget::SetCustomizationPage(ESnowRumbleCustomizationPage New
 
 	OnCustomizationPageChanged(NewPage);
 	if (CustomizationPlayerController) {
-		CustomizationPlayerController->SetPaintCursorActive(NewPage == ESnowRumbleCustomizationPage::PaintMode);
+		CustomizationPlayerController->SetPaintCursorActive(true);
 	}
 }
 
@@ -62,7 +61,7 @@ int32 UCustomizationWidget::GetPreviewHatMeshIndex() const {
 }
 
 void UCustomizationWidget::RequestUndoLastPaintStroke() {
-	if (CurrentCustomizationPage == ESnowRumbleCustomizationPage::PaintMode && CustomizationPlayerController) {
+	if (CustomizationPlayerController) {
 		CustomizationPlayerController->UndoLastPaintStroke();
 	}
 }
@@ -100,19 +99,8 @@ void UCustomizationWidget::NativeTick(const FGeometry& MyGeometry, float InDelta
 	RefreshPaintActionButtonTextColors();
 }
 
-FReply UCustomizationWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) {
-	if (CurrentCustomizationPage == ESnowRumbleCustomizationPage::PaintMode && InKeyEvent.GetKey() == EKeys::Z &&
-		InKeyEvent.IsControlDown()) {
-		RequestUndoLastPaintStroke();
-		return FReply::Handled();
-	}
-
-	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
-}
-
 FReply UCustomizationWidget::NativeOnMouseWheel(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) {
-	if (CurrentCustomizationPage == ESnowRumbleCustomizationPage::PaintMode && bIsBrushSizeButtonPressed &&
-		CustomizationPlayerController) {
+	if (bIsBrushSizeButtonPressed && CustomizationPlayerController) {
 		CustomizationPlayerController->AdjustPaintBrushSizeFromWheel(InMouseEvent.GetWheelDelta());
 		return FReply::Handled();
 	}
@@ -388,6 +376,10 @@ void UCustomizationWidget::HandleBackButtonClicked() {
 	SetCustomizationPage(ESnowRumbleCustomizationPage::Main);
 }
 
+void UCustomizationWidget::HandleUndoButtonClicked() {
+	RequestUndoLastPaintStroke();
+}
+
 void UCustomizationWidget::HandleApplyButtonClicked() {
 	if (CustomizationPlayerController) {
 		CustomizationPlayerController->ApplyPreviewCustomization();
@@ -606,6 +598,9 @@ void UCustomizationWidget::BindCustomizationButtons() {
 	if (BackButton) {
 		BackButton->OnClicked.AddUniqueDynamic(this, &UCustomizationWidget::HandleBackButtonClicked);
 	}
+	if (UndoButton) {
+		UndoButton->OnClicked.AddUniqueDynamic(this, &UCustomizationWidget::HandleUndoButtonClicked);
+	}
 	if (ApplyButton) {
 		ApplyButton->OnClicked.AddUniqueDynamic(this, &UCustomizationWidget::HandleApplyButtonClicked);
 	}
@@ -751,6 +746,9 @@ void UCustomizationWidget::UnbindCustomizationButtons() {
 	}
 	if (BackButton) {
 		BackButton->OnClicked.RemoveAll(this);
+	}
+	if (UndoButton) {
+		UndoButton->OnClicked.RemoveAll(this);
 	}
 	if (ApplyButton) {
 		ApplyButton->OnClicked.RemoveAll(this);

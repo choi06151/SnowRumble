@@ -72,7 +72,6 @@ class SNOWRUMBLE_API UCustomizationWidget : public USnowRumbleAudioUserWidget {
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
-	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual FReply NativeOnMouseWheel(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
 	/** 화면 전환 시 Blueprint가 선택 표시나 추가 연출을 갱신할 수 있다. */
@@ -234,6 +233,10 @@ class SNOWRUMBLE_API UCustomizationWidget : public USnowRumbleAudioUserWidget {
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
 	TObjectPtr<UButton> BackButton;
 
+	/** 마지막으로 그린 Stroke 하나를 취소하는 버튼이다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization|Paint")
+	TObjectPtr<UButton> UndoButton;
+
 	/** 현재 하위 페이지 작업을 적용하는 버튼이다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "SnowRumble|Customization")
 	TObjectPtr<UButton> ApplyButton;
@@ -383,6 +386,9 @@ class SNOWRUMBLE_API UCustomizationWidget : public USnowRumbleAudioUserWidget {
 
 	UFUNCTION()
 	void HandleBackButtonClicked();
+
+	UFUNCTION()
+	void HandleUndoButtonClicked();
 
 	UFUNCTION()
 	void HandleApplyButtonClicked();
