@@ -213,6 +213,11 @@ class SNOWRUMBLE_API ACustomizationPlayerController : public APlayerController {
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Preview")
 	float PreviewCharacterZOffset = 0.0f;
 
+	/** 캡슐 바로 위에서 아래로 WorldStatic 바닥을 찾는 trace 길이(cm)다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Preview",
+			  meta = (ClampMin = "100.0", ClampMax = "50000.0"))
+	float PreviewGroundTraceDistance = 5000.0f;
+
 	/** 커스터마이징 레벨에서만 적용할 프리뷰 캐릭터 Mesh 배율이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Customization|Preview",
 			  meta = (ClampMin = "0.1", ClampMax = "3.0"))
@@ -345,7 +350,7 @@ class SNOWRUMBLE_API ACustomizationPlayerController : public APlayerController {
 	FTransform GetPreviewCharacterSpawnTransform() const;
 
 	/** 프리뷰 캐릭터의 최종 Z 위치를 보정한다. */
-	void ApplyPreviewCharacterZOffset();
+	bool ApplyPreviewCharacterZOffset();
 
 	/** 커스터마이징 레벨의 프리뷰 캐릭터 Mesh 크기를 적용한다. */
 	void ApplyPreviewCharacterMeshScale();
@@ -429,6 +434,9 @@ class SNOWRUMBLE_API ACustomizationPlayerController : public APlayerController {
 	bool bWasPaintMouseDown = false;
 	bool bIsAdjustingPaintBrushSize = false;
 	bool bIsPaintCursorActive = false;
+	bool bPreviewGroundAligned = false;
+	int32 PreviewGroundAlignmentAttempts = 0;
+	float AppliedPreviewCharacterZOffset = 0.0f;
 	float PreviewRotationInput = 0.0f;
 	double LastPaintDebugMessageTime = -1.0;
 };

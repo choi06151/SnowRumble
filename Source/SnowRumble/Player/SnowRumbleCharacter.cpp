@@ -2875,6 +2875,17 @@ void ASnowRumbleCharacter::RefreshOverheadNameplateComponentSettings()
 	}
 }
 
+void ASnowRumbleCharacter::SetBaseCharacterMeshRelativeLocation(
+	const FVector& NewRelativeLocation)
+{
+	// Tick은 매 프레임 Mesh를 이 기본 위치로 되돌리므로, 외부 보정은 기본값까지 함께 갱신해야 유지된다.
+	DefaultCharacterMeshRelativeLocation = NewRelativeLocation;
+	if (USkeletalMeshComponent* CharacterMesh = GetMesh())
+	{
+		CharacterMesh->SetRelativeLocation(NewRelativeLocation);
+	}
+}
+
 void ASnowRumbleCharacter::ApplyPodiumMeshScale()
 {
 	USkeletalMeshComponent* CharacterMesh = GetMesh();

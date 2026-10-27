@@ -70,8 +70,9 @@ void ACustomizationPlayerController::BeginPlay() {
 	if (IsLocalController()) {
 		EnsurePreviewCharacter();
 		ApplyPreviewCharacterMeshScale();
-		ApplyPreviewCharacterZOffset();
 		ApplyPreviewAnimationSettings();
+		bPreviewGroundAligned = ApplyPreviewCharacterZOffset();
+		PreviewGroundAlignmentAttempts = 1;
 		LoadSavedCustomizationForPreview();
 		ConfigurePreviewCharacterForPainting();
 		EnsurePaintRenderTarget();
@@ -97,6 +98,18 @@ void ACustomizationPlayerController::PlayerTick(float DeltaTime) {
 
 	if (IsLocalController()) {
 		ApplyCustomizationInputLock();
+		constexpr int32 MaxPreviewGroundAlignmentAttempts = 300;
+		if (!bPreviewGroundAligned && PreviewGroundAlignmentAttempts < MaxPreviewGroundAlignmentAttempts) {
+			++PreviewGroundAlignmentAttempts;
+			bPreviewGroundAligned = ApplyPreviewCharacterZOffset();
+			if (!bPreviewGroundAligned && PreviewGroundAlignmentAttempts == MaxPreviewGroundAlignmentAttempts) {
+				UE_LOG(LogTemp, Error,
+					   TEXT("Customization preview ground alignment failed after %d attempts. Actor=%s Location=%s"),
+					   PreviewGroundAlignmentAttempts,
+					   *GetNameSafe(GetPreviewCharacter()),
+					   GetPreviewCharacter() ? *GetPreviewCharacter()->GetActorLocation().ToString() : TEXT("None"));
+			}
+		}
 		UpdatePreviewRotation(DeltaTime);
 		UpdatePaintUndoInput();
 		UpdatePaintInput();
@@ -599,24 +612,77 @@ FTransform ACustomizationPlayerController::GetPreviewCharacterSpawnTransform() c
 	return FTransform(FRotator::ZeroRotator, FVector(0.0f, 0.0f, 100.0f), FVector::OneVector);
 }
 
-void ACustomizationPlayerController::ApplyPreviewCharacterZOffset() {
-	if (FMath::IsNearlyZero(PreviewCharacterZOffset)) {
-		return;
-	}
-
+bool ACustomizationPlayerController::ApplyPreviewCharacterZOffset() {
 	ASnowRumbleCharacter* PreviewCharacter = GetPreviewCharacter();
-	if (!PreviewCharacter) {
-		return;
-	}
-
-	USkeletalMeshComponent* PreviewMesh = PreviewCharacter->GetMesh();
-	if (!PreviewMesh) {
-		return;
+	UWorld* World = GetWorld();
+	UCapsuleComponent* Capsule = PreviewCharacter ? PreviewCharacter->GetCapsuleComponent() : nullptr;
+	USkeletalMeshComponent* PreviewMesh = PreviewCharacter ? PreviewCharacter->GetMesh() : nullptr;
+	if (!PreviewCharacter || !PreviewMesh) {
+		return false;
 	}
 
 	FVector AdjustedRelativeLocation = PreviewMesh->GetRelativeLocation();
-	AdjustedRelativeLocation.Z += PreviewCharacterZOffset;
-	PreviewMesh->SetRelativeLocation(AdjustedRelativeLocation);
+	bool bFoundGround = false;
+	if (World && Capsule) {
+		const FVector ActorLocation = PreviewCharacter->GetActorLocation();
+		const float CapsuleHalfHeight = Capsule->GetScaledCapsuleHalfHeight();
+		const float TraceDistance = FMath::Max(100.0f, PreviewGroundTraceDistance);
+		// The placed preview pawn can start below the floor in a packaged map. Start well above it
+		// so the trace can recover even when the capsule itself is already embedded.
+		const FVector TraceStart = ActorLocation + FVector(0.0f, 0.0f, TraceDistance);
+		const FVector TraceEnd = ActorLocation - FVector(0.0f, 0.0f, TraceDistance);
+		FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(CustomizationPreviewGroundTrace), true);
+		QueryParams.AddIgnoredActor(PreviewCharacter);
+
+		FCollisionObjectQueryParams ObjectQueryParams;
+		ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldStatic);
+		TArray<FHitResult> GroundHits;
+		World->LineTraceMultiByObjectType(
+			GroundHits, TraceStart, TraceEnd, ObjectQueryParams, QueryParams);
+
+		FHitResult GroundHit;
+		const float ExpectedCapsuleBottomZ = ActorLocation.Z - CapsuleHalfHeight;
+		float BestFloorDistance = TNumericLimits<float>::Max();
+		for (const FHitResult& CandidateHit : GroundHits) {
+			// Ignore walls and undersides, then prefer the walkable surface nearest the capsule bottom.
+			if (CandidateHit.ImpactNormal.Z >= 0.5f) {
+				const float FloorDistance = FMath::Abs(CandidateHit.ImpactPoint.Z - ExpectedCapsuleBottomZ);
+				if (FloorDistance >= BestFloorDistance) {
+					continue;
+				}
+				BestFloorDistance = FloorDistance;
+				GroundHit = CandidateHit;
+				bFoundGround = true;
+			}
+		}
+
+		if (bFoundGround) {
+			FVector GroundedActorLocation = ActorLocation;
+			GroundedActorLocation.Z = GroundHit.ImpactPoint.Z + CapsuleHalfHeight;
+			PreviewCharacter->SetActorLocation(
+				GroundedActorLocation, false, nullptr, ETeleportType::TeleportPhysics);
+
+			PreviewMesh->UpdateBounds();
+			const float MeshBottomZ = PreviewMesh->Bounds.GetBox().Min.Z;
+			AdjustedRelativeLocation.Z += GroundHit.ImpactPoint.Z - MeshBottomZ;
+			AdjustedRelativeLocation.Z += PreviewCharacterZOffset;
+			UE_LOG(LogTemp, Log,
+				   TEXT("Customization preview ground aligned. Actor=%s Floor=%s Normal=%s MeshBottomZ=%.2f Offset=%.2f"),
+				   *GetNameSafe(PreviewCharacter),
+				   *GroundHit.ImpactPoint.ToString(),
+				   *GroundHit.ImpactNormal.ToString(),
+				   MeshBottomZ,
+				   PreviewCharacterZOffset);
+		}
+	}
+
+	if (!bFoundGround) {
+		AdjustedRelativeLocation.Z += PreviewCharacterZOffset - AppliedPreviewCharacterZOffset;
+	}
+	// 캐릭터 Tick이 기본 Mesh 위치로 되돌리지 않도록 기본값까지 함께 갱신한다.
+	PreviewCharacter->SetBaseCharacterMeshRelativeLocation(AdjustedRelativeLocation);
+	AppliedPreviewCharacterZOffset = PreviewCharacterZOffset;
+	return bFoundGround;
 }
 
 void ACustomizationPlayerController::ApplyPreviewCharacterMeshScale() {

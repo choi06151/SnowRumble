@@ -61,8 +61,14 @@ int32 UCustomizationWidget::GetPreviewHatMeshIndex() const {
 }
 
 void UCustomizationWidget::RequestUndoLastPaintStroke() {
-	if (CustomizationPlayerController) {
-		CustomizationPlayerController->UndoLastPaintStroke();
+	ACustomizationPlayerController* PlayerController = CustomizationPlayerController;
+	if (!IsValid(PlayerController)) {
+		PlayerController = Cast<ACustomizationPlayerController>(GetOwningPlayer());
+	}
+	if (PlayerController) {
+		PlayerController->UndoLastPaintStroke();
+	} else {
+		UE_LOG(LogTemp, Warning, TEXT("Customization UndoButton has no owning customization player controller."));
 	}
 }
 
@@ -377,6 +383,7 @@ void UCustomizationWidget::HandleBackButtonClicked() {
 }
 
 void UCustomizationWidget::HandleUndoButtonClicked() {
+	UE_LOG(LogTemp, Log, TEXT("Customization UndoButton clicked."));
 	RequestUndoLastPaintStroke();
 }
 
@@ -598,8 +605,17 @@ void UCustomizationWidget::BindCustomizationButtons() {
 	if (BackButton) {
 		BackButton->OnClicked.AddUniqueDynamic(this, &UCustomizationWidget::HandleBackButtonClicked);
 	}
+	// BindWidgetOptional can be null when the WBP widget is not exposed as a variable.
+	// Look it up by its agreed widget-tree name so the package uses the same click path.
+	if (!UndoButton && WidgetTree) {
+		UndoButton = Cast<UButton>(WidgetTree->FindWidget(FName(TEXT("UndoButton"))));
+	}
 	if (UndoButton) {
 		UndoButton->OnClicked.AddUniqueDynamic(this, &UCustomizationWidget::HandleUndoButtonClicked);
+		UE_LOG(LogTemp, Log, TEXT("Customization UndoButton click handler bound."));
+	} else {
+		UE_LOG(LogTemp, Warning,
+			   TEXT("Customization WBP has no UButton named UndoButton. Set the button widget name to UndoButton."));
 	}
 	if (ApplyButton) {
 		ApplyButton->OnClicked.AddUniqueDynamic(this, &UCustomizationWidget::HandleApplyButtonClicked);

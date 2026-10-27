@@ -15,6 +15,8 @@
 - 커스터마이징 레벨에 들어오면 UI를 항상 표시하고 마우스 커서와 클릭 입력을 유지한다.
 - 커스터마이징 레벨에서는 프리뷰 캐릭터를 possess해도 WASD 이동과 카메라 룩 입력이 캐릭터 동작으로 전달되지 않고 마우스/UI 입력만 처리한다.
 - 커스터마이징 레벨의 프리뷰 캐릭터는 중력과 CharacterMovement 이동 모드를 끄고 위치가 떨어지지 않게 고정한다.
+- 커스터마이징 레벨 프리뷰 캐릭터는 PIE와 패키지에서 같은 바닥 기준 위치로 표시되며 지면 아래에 묻히지 않는다.
+- Windows 패키지는 기본 실행 해상도 1600x900 창모드를 사용해 Editor와 패키지의 UI 배율 비교 기준을 맞춘다.
 - 레벨에 배치한 태그 기반 카메라를 ViewTarget으로 삼아 캐릭터를 바라보는 구조를 제공한다.
 - 커스터마이징 UI의 액세서리 화면은 WidgetSwitcher로 전환하고, 색칠하기 모드는 액세서리 WidgetSwitcher 인덱스를 사용하지 않는다.
 - 시점변경 화면은 카메라를 돌리지 않고 프리뷰 캐릭터를 좌/우 버튼 press 동안 계속 회전한다.
@@ -53,6 +55,8 @@
 - [x] 커스터마이징 레벨 진입 시 WBP를 자동 생성하고 마우스 UI 입력을 유지한다.
 - [x] 커스터마이징 레벨에서 WASD 이동과 카메라 룩 입력이 프리뷰 캐릭터 동작으로 전달되지 않게 막는다.
 - [x] 커스터마이징 레벨 프리뷰 캐릭터가 중력을 받지 않고 제자리 고정되게 막는다.
+- [x] PIE와 패키지의 커스터마이징 레벨에서 프리뷰 캐릭터가 지면 위에 동일하게 표시되도록 바닥 충돌을 최대 300 PlayerTick 동안 재탐색하며 캡슐과 Mesh 위치를 정렬한다.
+- [x] Windows 패키지 기본 게임 사용자 설정과 현재 패키지 저장 설정을 1600x900 창모드로 지정하고, 전용 실행 배치 파일로 같은 해상도를 요청한다.
 - [x] 레벨 카메라 태그 기준으로 커스터마이징 카메라 ViewTarget을 적용한다.
 - [x] 커스터마이징 WBP의 WidgetSwitcher 기반 화면 전환 계약을 제공한다.
 - [x] 좌/우 버튼을 누르고 있는 동안 프리뷰 캐릭터를 회전한다.
@@ -121,6 +125,7 @@
   - `ACustomizationPlayerController::CustomizationCameraTag`: ViewTarget으로 삼을 레벨 카메라 태그. 기본값은 `CustomizationCamera`
   - `ACustomizationPlayerController::MainMenuTravelUrl`: 커스터마이징 화면에서 돌아갈 메인메뉴 URL
   - `ACustomizationPlayerController::PreviewAnimationAsset`: 커스터마이징 방에서 프리뷰 캐릭터에 적용할 단일 애니메이션 에셋
+  - `ACustomizationPlayerController::PreviewGroundTraceDistance`: 캡슐 바로 위에서 아래로 WorldStatic 바닥을 찾는 trace 길이(cm). 바닥을 찾지 못하면 현재 Actor 위치를 유지한다.
   - `ACustomizationPlayerController::bPausePreviewAnimation`: 커스터마이징 방에서 프리뷰 캐릭터 애니메이션을 정지 상태로 둘지 결정
   - `ACustomizationPlayerController::PreviewAnimationPositionSeconds`: 단일 애니메이션 에셋을 적용할 때 고정할 재생 위치
   - `AMainMenuPlayerController::DefaultMouseCursorWidgetClass`: 메인메뉴와 메인메뉴 옵션에서 사용할 기본 소프트웨어 마우스 커서 위젯 클래스
@@ -244,6 +249,11 @@
 
 ## 변경 기록
 
+- 2026-10-26: 사용자가 패키지에서 커스터마이징 UI 레이아웃이 다시 달라진다고 보고했다. UI 생성 C++은 viewport에 추가하는 동작만 하며, 1600x900 실행 배치와 1920x1080 DesignScreenSize·ShortestSide DPI 설정이 확인됐다. 증상 화면 기준으로 WBP 레이아웃 또는 DPI 조정 범위를 확정한다.
+- 2026-10-26: 사용자가 패키지 결과를 확인해 1600x900 해상도는 합격, 프리뷰 캐릭터 바닥 매립은 계속됨을 보고했다. 기존 trace는 캡슐 위에서 아래로만 진행해 pawn이 지면 아래에서 시작하면 지면을 놓칠 수 있어, actor 위·아래 범위의 WorldStatic 다중 trace와 위를 향하는 면 필터, 정렬 성공/최종 실패 로그를 추가했다. 새 패키지에서 재확인이 필요하다.
+- 2026-10-26: 사용자가 패키지에서 Ctrl+Z는 작동하지만 `UndoButton` 클릭은 작동하지 않는다고 확인했다. `UndoButton` C++ BindWidget 참조가 비어도 이름으로 `WidgetTree`에서 찾아 클릭 delegate를 연결하고, 일반 PlayerController 소유 경로로 fallback하며, 바인딩/클릭/컨트롤러 누락 로그를 남기도록 보강했다. WBP 버튼 이름이 정확히 `UndoButton`인지와 새 패키지 클릭 결과를 확인해야 한다.
+- 2026-10-26: 패키지에서 초기 ground trace가 실패할 수 있어 정렬을 최대 300 PlayerTick 동안 재시도하게 했다. 재시도 시 `PreviewCharacterZOffset` 적용값 차이만 반영해 오프셋 누적을 막는다. 새 패키지에서 `PreviewCharacterZOffset=0`으로 발 위치 확인이 필요하다.
+- 2026-10-26: 바닥 trace가 레벨의 Visibility 충돌을 우선 확인하고, 실패 시 WorldStatic object trace로 fallback하도록 보강했다. `PreviewCharacterZOffset`은 바닥 정렬 뒤 메쉬에 더해지는 값이므로 음수는 발을 바닥 아래로 내린다. 실제 패키지 BP 값이 0일 때 발 위치를 수동 확인해야 한다.
 - 2026-10-26: `BackButton`은 PaintMode 페이지에서만 되돌리기 역할을 하고 다른 페이지에서는 메인 화면으로 이동하는 구조를 확인했다. 별도 `UndoButton` 자동 바인딩과 클릭 처리기를 추가해 모든 페이지에서 선 하나씩 되돌릴 수 있게 했다. WBP에 해당 이름 버튼 연결과 결과 확인은 수동 작업으로 남겼다.
 - 2026-10-26: Widget `NativeOnKeyDown`과 PlayerController Tick에 각각 있던 Ctrl+Z 처리를 PlayerController 입력 감지 한 곳으로 통합했다. 페이지와 포커스에 따라 입력 경로가 달라지거나 중복 처리되는 경우를 막고, 한 번의 키 입력에 stroke 하나만 사라지는지 수동 확인 대기다.
 - 2026-10-26: 사용자가 그리기 모드를 항상 켜두도록 요청해 페인트 입력, Ctrl+Z와 원형 커서를 현재 UI 페이지와 분리했다. 색칠하기 버튼은 패널 표시만 바꾸며 액세서리 페이지는 유지한다. 메인·액세서리 페이지에서 드로잉과 UI 클릭이 함께 작동하는지 수동 확인 대기다.
@@ -312,6 +322,8 @@
 - 몸만 칠하려면 커스터마이징 PlayerController BP의 `PaintAllowedMaterialIndex`를 기본값 0으로 둔다. 모든 머티리얼 slot을 칠해야 하는 테스트에서는 -1로 바꾼다.
 - hit된 컴포넌트, 머티리얼 slot, UV를 확인해야 하면 커스터마이징 PlayerController BP의 `bShowPaintHitDebug`를 켠다.
 - 커스터마이징 PlayerController BP의 `PreviewAnimationAsset`에 커마 방에서 보여줄 포즈/애니메이션 에셋을 지정한다. 비워두면 기존 애니메이션 상태를 멈춘다.
+- 커스터마이징 PlayerController BP의 `PreviewGroundTraceDistance`는 기본 5000cm다. 바닥 탐색은 Visibility 채널을 먼저 사용하고 실패하면 WorldStatic 충돌을 확인한다. 두 trace 모두 바닥을 찾지 못하면 Actor 위치 보정은 적용되지 않으므로, 테스트 레벨 바닥 충돌을 확인한다.
+- 프리뷰 발 위치가 바닥 아래로 들어가면 먼저 `PreviewCharacterZOffset`을 0으로 설정한다. 이 값은 정렬 후 메쉬에 더해지므로 양수는 위로, 음수는 아래로 이동시킨다. 패키지는 진입 후 최대 300 PlayerTick 동안 바닥을 다시 찾는다.
 - 프리뷰를 완전히 고정하려면 `bPausePreviewAnimation`을 켜고, 특정 프레임 포즈를 쓰려면 `PreviewAnimationPositionSeconds`를 조정한다.
 - 메인메뉴 PlayerController BP의 `MainMenuPreviewAnimationAsset`에 메인메뉴에서 보여줄 포즈/애니메이션 에셋을 지정한다. 특정 프레임을 포즈로 쓰려면 `bPauseMainMenuPreviewAnimation`을 켜고 `MainMenuPreviewAnimationPositionSeconds`를 조정한다. 애니메이션을 계속 재생하려면 `bPauseMainMenuPreviewAnimation`을 끈다. 메인메뉴에서만 캐릭터 Mesh를 키우려면 `MainMenuPreviewMeshScale`을 1보다 크게 조정한다.
 - 메인메뉴 레벨에 캐릭터를 배치하거나 스폰한 뒤 메인메뉴 PlayerController가 possess하게 구성한다. C++은 possess된 Pawn에 대해서만 입력·중력 잠금과 포즈 적용을 수행한다.
@@ -370,6 +382,8 @@
 - [ ] 커스터마이징 레벨 진입 시 커스터마이징 WBP가 표시되고 마우스 커서와 클릭 입력을 사용할 수 있다.
 - [ ] 커스터마이징 레벨에서 WASD를 눌러도 프리뷰 캐릭터가 이동하지 않는다.
 - [ ] 커스터마이징 레벨에서 프리뷰 캐릭터가 중력을 받지 않고 제자리에서 떨어지지 않는다.
+- [ ] PIE와 패키지(16:9 창모드)에서 커스터마이징 레벨을 열어 프리뷰 캐릭터 발이 바닥 위에 놓이고, 두 실행 환경의 바닥 기준 위치가 일치하는지 비교한다.
+- [ ] Editor와 1600x900 패키지에서 커스터마이징 UI의 요소가 잘리거나 겹치지 않고 같은 화면 구성으로 보이는지 확인한다.
 - [ ] 커스터마이징 레벨에서 마우스를 움직여도 프리뷰 캐릭터 카메라가 회전하지 않고, 마우스 클릭/휠 기반 UI와 색칠하기 입력은 동작한다.
 - [ ] `CustomizationCamera` 태그가 붙은 카메라 시점으로 캐릭터가 보인다.
 - [ ] 커스터마이징 방 프리뷰 캐릭터가 지정한 `PreviewAnimationAsset`의 지정 시점 포즈로 정지한다.

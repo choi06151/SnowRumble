@@ -421,6 +421,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SnowRumble|Customization")
 	FSnowRumbleCustomizationData GetAppliedCustomizationData() const;
 
+	/** 프리뷰 등에서 보정한 Mesh 상대 위치를 Tick이 되돌리는 기본 위치로도 저장한다. */
+	void SetBaseCharacterMeshRelativeLocation(const FVector& NewRelativeLocation);
+
 	/** 커스터마이징 드로잉 RenderTarget을 캐릭터 머티리얼에 적용한다. */
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Customization")
 	void SetCustomizationPaintTexture(UTexture* PaintTexture);

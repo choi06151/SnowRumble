@@ -9,6 +9,7 @@
 
 ## 현재 집중 Task
 
+- [C-11](C-11_customization_contract.md) 패키지 커스터마이징 프리뷰 캐릭터 바닥 스폰 오류 대응
 - [C-42](C-42_cpp_access_modifier_convention.md) C++ 접근 지정자 컨벤션 (완료)
 - [C-41](C-41_editorconfig_convention.md) EditorConfig 공통 파일 컨벤션과 Husky 검사 (진행중 — 에디터 적용 확인 대기)
 - [C-40](C-40_husky_code_convention_check.md) Husky·GitHub Actions 코드 컨벤션 검사 (완료)
@@ -75,10 +76,18 @@
 
 ## 계획 변경 기록
 
+- 2026-10-26: 사용자가 패키지 커스터마이징 화면의 UI 레이아웃이 다시 달라진다고 보고했다. 프로젝트 UI는 1920x1080 DesignScreenSize의 ShortestSide DPI scaling을 사용하며, 패키지의 저장 해상도는 1333x833으로 확인됐다. 실제 실행 해상도를 1600x900으로 맞춘 뒤 UI 크기 결과를 확인한다.
+- 2026-10-26: 사용자가 패키지 결과를 확인해 1600x900 해상도는 합격, 프리뷰 캐릭터 바닥 매립은 계속됨을 보고했다. 바닥 trace가 캐릭터 아래쪽에서만 시작해 바닥 위에 묻힌 pawn을 복구하지 못할 수 있어 위쪽까지 확장하고, WorldStatic 다중 hit에서 위를 향하는 면만 선택하며 실행 로그를 추가했다. 새 패키지에서 재확인이 필요하다.
+- 2026-10-26: 사용자가 새 패키지에서 Ctrl+Z는 동작하지만 `UndoButton` 클릭은 동작하지 않는다고 보고했다. 위젯 자동 바인딩 실패 가능성에 대응해 `WidgetTree`에서 이름으로 버튼을 재탐색하고 소유 PlayerController fallback 및 바인딩/클릭 로그를 추가했다. 새 패키지 결과 확인 대기다.
+- 2026-10-26: 사용자가 `PreviewCharacterZOffset=0`에서도 패키지 프리뷰 캐릭터가 묻힌다고 보고했다. 초기 바닥 trace가 패키지에서 늦게 준비될 가능성에 대응해 Visibility/WorldStatic 탐색을 최대 300 PlayerTick 재시도하도록 하고, 적용 오프셋이 누적되지 않게 했다.
+- 2026-10-26: C-11 후속 원인 대응으로 바닥 trace에 Visibility 채널 우선 탐색과 WorldStatic fallback을 추가했다. `PreviewCharacterZOffset` 음수는 정렬된 메쉬를 다시 아래로 움직여 지면에 묻히게 할 수 있으므로, BP 기본값 0으로 수동 확인하도록 기록했다.
+- 2026-10-26: C-11 커스터마이징 프리뷰 바닥 정렬을 구현했다. PlayerController가 WorldStatic 바닥을 조회해 캡슐과 프리뷰 Mesh bounds를 정렬하며, PIE·패키지 결과 확인은 수동 대기다.
+- 2026-10-26: 사용자가 패키지의 커스터마이징 레벨에서 프리뷰 캐릭터가 바닥에 파묻히는 문제를 우선 수정하도록 요청했다. C-11의 프리뷰 고정 범위에서 PIE/패키지 PlayerStart와 바닥 정렬 원인을 조사한다.
 - 2026-10-26: C-11에 별도 `UndoButton`을 추가해 현재 페이지와 관계없이 클릭하면 마지막 완료 stroke 하나를 취소하게 했다. WBP 버튼 이름 연결과 결과 확인은 수동 작업 대기다.
 - 2026-10-26: C-11 되돌리기 진단 중 Widget key event와 PlayerController Tick에 각각 있던 Ctrl+Z 처리를 PlayerController 입력 감지 한 곳으로 통합했다. 한 키 입력당 stroke 하나만 제거되는지 수동 확인 대기다.
 - 2026-10-26: C-11 후속 요청으로 페인트 입력·Ctrl+Z·원형 커서를 UI 페이지와 분리해 상시 활성화했다. 액세서리 페이지를 유지하고, UI 클릭 중 의도치 않은 페인트가 없는지 수동 확인한다.
 - 2026-10-26: C-11 버그 대응으로 커스터마이징 프리뷰 좌클릭이 공용 캐릭터 게임플레이 액션을 실행하지 않게 차단했다. A/D 회전 유지와 페인트 좌클릭 회귀는 수동 확인 대기다.
+- 2026-10-26: 사용자의 승인으로 C-18 Steam 반복 테스트 빌드 배포 절차를 추가했다. 실제 `Build/Windows` 패키지의 ZIP이 GitHub 2 GiB 단일 파일 제한을 넘어서, Release용 1900 MiB 분할과 조각 복원·SHA-256 절차를 추가했다. GitHub 업로드와 Steam 세션 수동 결과 확인은 대기다.
 - 2026-09-15: 모든 담당자의 새 커밋 제목을 `[분류] 내용` 형식으로 통일하고, 기존 역할·통합 브랜치 이력을 백업 후 `[개발]`·`[수정]`·`[통합]`으로 재작성해 원격에 반영했다.
 - 2026-09-15: C-42 승인 후 `docs/STYLEGUIDE.md`에 C++ `public`·`protected`·`private` 사용 기준, 선언 순서와 Unreal Blueprint 노출 범위를 추가했다.
 - 2026-09-15: C-41 승인 후 저장소 루트에 `.editorconfig`를 추가하고 Husky pre-commit에 staged 텍스트 파일 검사(`editorconfig-checker`)를 연결했다. 일반 텍스트는 UTF-8·LF·2칸 들여쓰기, C++는 기존 `.clang-format`에 맞춘 탭·4칸 들여쓰기를 사용하며 Markdown trailing whitespace는 보존한다.
