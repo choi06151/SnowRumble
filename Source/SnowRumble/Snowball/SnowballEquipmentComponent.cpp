@@ -682,16 +682,28 @@ void USnowballEquipmentComponent::ServerStartRollingSnowball_Implementation()
 	if (!Character
 		|| Character->IsFrozen()
 		|| Character->IsPickingUpItem()
-		|| HasHeldSnowball()
+		|| !HasHeldSnowball()
+		|| IsHoldingLargeSnowball()
+		|| bIsAiming
+		|| bIsCharging
+		|| bHasPendingThrow
 		|| RollingSnowball)
 	{
 		return;
 	}
 
-	ASnowballItem* RollingCandidate = FindClosestPickupCandidate();
-	if (!RollingCandidate
-		|| !RollingCandidate->TryStartRolling(Character))
+	// Roll the small snowball currently in hand: put it down first, then switch it to rolling.
+	ASnowballItem* RollingCandidate = HeldSnowball;
+	if (!RollingCandidate->DropToGround())
 	{
+		return;
+	}
+
+	HeldSnowball = nullptr;
+	OnRep_HeldSnowball();
+	if (!RollingCandidate->TryStartRolling(Character))
+	{
+		Character->ForceNetUpdate();
 		return;
 	}
 
@@ -723,14 +735,29 @@ void USnowballEquipmentComponent::ServerStopRollingSnowball_Implementation()
 {
 	if (RollingSnowball)
 	{
-		if (ASnowRumbleCharacter* Character = Cast<ASnowRumbleCharacter>(GetOwner()))
+		ASnowRumbleCharacter* Character = Cast<ASnowRumbleCharacter>(GetOwner());
+		if (Character)
 		{
 			Character->DisableRollingSnowballCollision();
 		}
 
-		RollingSnowball->StopRollingSound();
-		RollingSnowball->StopRolling();
+		ASnowballItem* StoppedSnowball = RollingSnowball;
+		StoppedSnowball->StopRollingSound();
+		StoppedSnowball->StopRolling();
 		RollingSnowball = nullptr;
+
+		// Return the rolled snowball (possibly grown large) to hand unless the player can no longer hold it.
+		if (Character
+			&& !Character->IsFrozen()
+			&& !Character->IsPickingUpItem()
+			&& !HasHeldSnowball()
+			&& StoppedSnowball->TrySetHeldBy(
+				Character,
+				Character->GetSnowballHoldPointForSnowball(StoppedSnowball)))
+		{
+			HeldSnowball = StoppedSnowball;
+			OnRep_HeldSnowball();
+		}
 	}
 
 	if (AActor* OwningActor = GetOwner())

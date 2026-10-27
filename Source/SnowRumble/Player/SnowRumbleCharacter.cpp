@@ -447,18 +447,24 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 	}
 
 	const UWorld* World = GetWorld();
+	const bool bIsInPostThrowCameraHold =
+		World
+		&& World->GetTimeSeconds() < PostThrowAimCameraEndTime;
 	const bool bUseAimCameraPresentation =
 		IsAiming()
-		|| (World
-			&& World->GetTimeSeconds() < PostThrowAimCameraEndTime);
+		|| bIsInPostThrowCameraHold;
 	const ASnowballItem* HeldSnowball = SnowballEquipmentComponent
 		? SnowballEquipmentComponent->GetHeldSnowball()
 		: nullptr;
 	const bool bHasLargeSnowball =
 		HeldSnowball && HeldSnowball->IsFullyGrown();
+	// 조준 중에는 지금 든 눈덩이 크기를, 투척 후 유지 시간에는 던진 순간의 크기를 따른다.
+	// 투척 애니메이션 Notify에서 눈덩이가 손을 떠나는 순간 목표 카메라가 한 번 더 바뀌어 흔들리는 것을 막는다.
 	const bool bUseLargeSnowballAimCamera =
 		IsAiming()
-		&& bHasLargeSnowball;
+			? bHasLargeSnowball
+			: (bIsInPostThrowCameraHold
+				&& bPostThrowUsesLargeSnowballCamera);
 	const bool bUseSprintCamera =
 		IsSprinting()
 		&& !bUseAimCameraPresentation
@@ -466,7 +472,9 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 	const float CameraTransitionInterpSpeed = FMath::Max(
 		0.0f,
 		bUseLargeSnowballAimCamera
-			? LargeSnowballAimCameraInterpSpeed
+			? (IsAiming()
+				? LargeSnowballAimCameraInterpSpeed
+				: LargeSnowballPostThrowCameraInterpSpeed)
 			: (bHasLargeSnowball
 				? LargeSnowballHeldCameraInterpSpeed
 				: (bUseAimCameraPresentation
@@ -479,9 +487,47 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 		RefreshTiebreakerSpectatorViewTarget();
 	}
 
+	// 투척 차징 중에는 1인칭으로 전환한다. 진입·복귀 시간 동안 Alpha를 선형으로 옮기고 SmoothStep으로 감속해 적용한다.
+	const bool bWantsFirstPersonChargeCamera =
+		bUseFirstPersonChargeCamera
+		&& IsLocallyControlled()
+		&& !bTiebreakerSpectator
+		&& !bLifeStateSpectating
+		&& SnowballEquipmentComponent
+		&& SnowballEquipmentComponent->IsCharging();
+	// 큰 눈덩이를 던진 직후에는 진입은 그대로 두고 복귀만 더 천천히 한다.
+	const bool bIsReturningFromLargeSnowballThrow =
+		bIsInPostThrowCameraHold
+		&& bPostThrowUsesLargeSnowballCamera;
+	const float FirstPersonTransitionSeconds = FMath::Max(
+		KINDA_SMALL_NUMBER,
+		bWantsFirstPersonChargeCamera
+			? FirstPersonCameraEnterSeconds
+			: (bIsReturningFromLargeSnowballThrow
+				? LargeSnowballFirstPersonCameraExitSeconds
+				: FirstPersonCameraExitSeconds));
+	FirstPersonCameraAlpha = FMath::Clamp(
+		FirstPersonCameraAlpha
+			+ (bWantsFirstPersonChargeCamera ? 1.0f : -1.0f)
+				* DeltaSeconds / FirstPersonTransitionSeconds,
+		0.0f,
+		1.0f);
+	const float FirstPersonCameraBlend =
+		FMath::SmoothStep(0.0f, 1.0f, FirstPersonCameraAlpha);
+
 	if (IsLocallyControlled() && CameraBoom && !bTiebreakerSpectator)
 	{
 		UpdateCameraZoomInput();
+
+		if (!bThirdPersonCameraStateInitialized)
+		{
+			ThirdPersonCameraArmLength = CameraBoom->TargetArmLength;
+			ThirdPersonCameraSocketOffset = CameraBoom->SocketOffset;
+			ThirdPersonFieldOfView = FollowCamera
+				? FollowCamera->FieldOfView
+				: DefaultFieldOfView;
+			bThirdPersonCameraStateInitialized = true;
+		}
 
 		FVector TargetCameraOffset = DefaultCameraSocketOffset;
 		const float ShoulderOffset =
@@ -496,14 +542,13 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 						: DefaultShoulderOffset));
 		TargetCameraOffset.Y += CameraShoulderSide * ShoulderOffset;
 
-		CameraBoom->SocketOffset = FMath::VInterpTo(
-			CameraBoom->SocketOffset,
+		ThirdPersonCameraSocketOffset = FMath::VInterpTo(
+			ThirdPersonCameraSocketOffset,
 			TargetCameraOffset,
 			DeltaSeconds,
 			CameraTransitionInterpSpeed);
-		CameraBoom->SocketOffset += CalculateLocalDamageCameraShakeOffset();
-		CameraBoom->TargetArmLength = FMath::FInterpTo(
-			CameraBoom->TargetArmLength,
+		ThirdPersonCameraArmLength = FMath::FInterpTo(
+			ThirdPersonCameraArmLength,
 			bUseAimCameraPresentation
 				? (bUseLargeSnowballAimCamera
 					? LargeSnowballAimCameraArmLength
@@ -515,6 +560,22 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 						: DesiredCameraArmLength)),
 			DeltaSeconds,
 			CameraTransitionInterpSpeed);
+
+		// 1인칭은 SpringArm 길이를 0으로 줄이고, 피벗을 눈 높이로 올리고, 어깨 오프셋 대신 시선 앞쪽 오프셋을 쓴다.
+		const FVector FirstPersonSocketOffset(FirstPersonCameraForwardOffset, 0.0f, 0.0f);
+		CameraBoom->SocketOffset = FMath::Lerp(
+			ThirdPersonCameraSocketOffset,
+			FirstPersonSocketOffset,
+			FirstPersonCameraBlend)
+			+ CalculateLocalDamageCameraShakeOffset();
+		CameraBoom->TargetArmLength = FMath::Lerp(
+			ThirdPersonCameraArmLength,
+			0.0f,
+			FirstPersonCameraBlend);
+		CameraBoom->TargetOffset.Z = FMath::Lerp(
+			CameraPivotHeight,
+			FirstPersonCameraHeight,
+			FirstPersonCameraBlend);
 	}
 
 	if (IsLocallyControlled() && FollowCamera && !bTiebreakerSpectator)
@@ -529,11 +590,15 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 					: (bUseSprintCamera
 						? SprintFieldOfView
 						: DefaultFieldOfView));
-		FollowCamera->SetFieldOfView(FMath::FInterpTo(
-			FollowCamera->FieldOfView,
+		ThirdPersonFieldOfView = FMath::FInterpTo(
+			ThirdPersonFieldOfView,
 			TargetFieldOfView,
 			DeltaSeconds,
-			CameraTransitionInterpSpeed));
+			CameraTransitionInterpSpeed);
+		FollowCamera->SetFieldOfView(FMath::Lerp(
+			ThirdPersonFieldOfView,
+			FirstPersonFieldOfView,
+			FirstPersonCameraBlend));
 	}
 	if (IsLocallyControlled())
 	{
@@ -3340,15 +3405,10 @@ bool ASnowRumbleCharacter::GetCurrentInteractionPromptData(
 		return false;
 	}
 
-	OutPromptText = Snowball->IsFullyGrown()
-		? NSLOCTEXT(
-			"SnowRumble",
-			"InteractPromptSnowball",
-			"F - 눈덩이")
-		: NSLOCTEXT(
-			"SnowRumble",
-			"InteractPromptSmallSnowball",
-			"E - 굴리기 / F - 줍기");
+	OutPromptText = NSLOCTEXT(
+		"SnowRumble",
+		"InteractPromptGrabSnowball",
+		"좌클릭 - 잡기");
 	OutPromptActor = Snowball;
 	return true;
 }
@@ -3621,12 +3681,6 @@ void ASnowRumbleCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 		EnhancedInputComponent->BindAction(ActionAction, ETriggerEvent::Completed, this, &ASnowRumbleCharacter::HandleActionCompleted);
 		EnhancedInputComponent->BindAction(ActionAction, ETriggerEvent::Canceled, this, &ASnowRumbleCharacter::HandleActionCompleted);
 	}
-	if (RollAction)
-	{
-		EnhancedInputComponent->BindAction(RollAction, ETriggerEvent::Started, this, &ASnowRumbleCharacter::HandleRollStarted);
-		EnhancedInputComponent->BindAction(RollAction, ETriggerEvent::Completed, this, &ASnowRumbleCharacter::HandleRollCompleted);
-		EnhancedInputComponent->BindAction(RollAction, ETriggerEvent::Canceled, this, &ASnowRumbleCharacter::HandleRollCompleted);
-	}
 	if (SnowCreationAction)
 	{
 		EnhancedInputComponent->BindAction(SnowCreationAction, ETriggerEvent::Started, this, &ASnowRumbleCharacter::HandleSnowCreationStarted);
@@ -3647,19 +3701,6 @@ void ASnowRumbleCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 		EnhancedInputComponent->BindAction(KeyGuideAction, ETriggerEvent::Started, this, &ASnowRumbleCharacter::HandleKeyGuideStarted);
 		EnhancedInputComponent->BindAction(KeyGuideAction, ETriggerEvent::Completed, this, &ASnowRumbleCharacter::HandleKeyGuideCompleted);
 		EnhancedInputComponent->BindAction(KeyGuideAction, ETriggerEvent::Canceled, this, &ASnowRumbleCharacter::HandleKeyGuideCompleted);
-	}
-	if (!RollAction)
-	{
-		PlayerInputComponent->BindKey(
-			EKeys::E,
-			IE_Pressed,
-			this,
-			&ASnowRumbleCharacter::HandleRollStarted);
-		PlayerInputComponent->BindKey(
-			EKeys::E,
-			IE_Released,
-			this,
-			&ASnowRumbleCharacter::HandleRollCompleted);
 	}
 	if (!SnowCreationAction)
 	{
@@ -3703,17 +3744,6 @@ void ASnowRumbleCharacter::Move(const FInputActionValue& Value)
 		|| Cast<AMainMenuPlayerController>(Controller))
 	{
 		return;
-	}
-
-	if (bIsRollHeld
-		&& !bUsedRollForMovement
-		&& !IsHangingFromWorldGrab()
-		&& !IsGrabbedByCharacter()
-		&& !MovementVector.IsNearlyZero()
-		&& SnowballEquipmentComponent)
-	{
-		bUsedRollForMovement = true;
-		SnowballEquipmentComponent->StartRollingSnowball();
 	}
 
 	const FRotator ControlRotation = Controller->GetControlRotation();
@@ -3997,10 +4027,6 @@ void ASnowRumbleCharacter::HandleInteractCompleted()
 					{
 						TryPickupGiftBoxItem();
 					}
-					else
-					{
-						SnowballEquipmentComponent->TryPickupSnowball();
-					}
 				}
 			}
 		}
@@ -4032,6 +4058,8 @@ void ASnowRumbleCharacter::HandleAimCompleted()
 			{
 				PostThrowAimCameraEndTime =
 					GetWorld()->GetTimeSeconds() + PostThrowCameraHoldSeconds;
+				bPostThrowUsesLargeSnowballCamera =
+					SnowballEquipmentComponent->IsHoldingLargeSnowball();
 			}
 
 			SnowballEquipmentComponent->ReleaseChargedSnowball();
@@ -4059,9 +4087,25 @@ void ASnowRumbleCharacter::HandleActionStarted()
 	{
 		if (PlayerGrabComponent)
 		{
+			bIsActionGrabHeld = true;
 			PlayerGrabComponent->StartGrabReach();
 			OnActionInput(true);
 		}
+		return;
+	}
+
+	// 조준하지 않고 작은 눈덩이를 든 상태의 좌클릭은 누르는 동안 눈덩이 굴리기다.
+	if (!IsAiming()
+		&& SnowballEquipmentComponent
+		&& SnowballEquipmentComponent->HasHeldSnowball()
+		&& !SnowballEquipmentComponent->IsHoldingLargeSnowball()
+		&& !HasEquippedSnowDuckMaker()
+		&& !IsHangingFromWorldGrab()
+		&& !IsGrabbedByCharacter())
+	{
+		bIsActionRollingSnowball = true;
+		SnowballEquipmentComponent->StartRollingSnowball();
+		OnActionInput(true);
 		return;
 	}
 
@@ -4074,6 +4118,35 @@ void ASnowRumbleCharacter::HandleActionStarted()
 
 void ASnowRumbleCharacter::HandleActionCompleted()
 {
+	// 버튼을 떼면 굴리기를 멈추고 눈덩이를 다시 든다. 이모트 메뉴가 열려 있어도 굴리기가 남지 않게 먼저 처리한다.
+	if (bIsActionRollingSnowball)
+	{
+		bIsActionRollingSnowball = false;
+		if (SnowballEquipmentComponent)
+		{
+			SnowballEquipmentComponent->StopRollingSnowball();
+		}
+		OnActionInput(false);
+		return;
+	}
+
+	// Grab으로 작은 눈덩이를 잡으면 서버가 바로 굴리기를 시작하므로, 버튼을 뗄 때 Grab과 굴리기를 함께 끝낸다.
+	// 서버에서 잡기와 해제가 엇갈려도 순서가 보장되도록 Grab 종료를 먼저 보낸다.
+	if (bIsActionGrabHeld)
+	{
+		bIsActionGrabHeld = false;
+		if (PlayerGrabComponent && PlayerGrabComponent->IsGrabReaching())
+		{
+			PlayerGrabComponent->StopGrabReach();
+		}
+		if (SnowballEquipmentComponent)
+		{
+			SnowballEquipmentComponent->StopRollingSnowball();
+		}
+		OnActionInput(false);
+		return;
+	}
+
 	if (Cast<ACustomizationPlayerController>(Controller)
 		|| bIsEmoteRadialMenuOpen)
 	{
@@ -4095,36 +4168,14 @@ void ASnowRumbleCharacter::HandleActionCompleted()
 		{
 			PostThrowAimCameraEndTime =
 				GetWorld()->GetTimeSeconds() + PostThrowCameraHoldSeconds;
+			bPostThrowUsesLargeSnowballCamera =
+				SnowballEquipmentComponent->IsHoldingLargeSnowball();
 		}
 
 		SnowballEquipmentComponent->ReleaseChargedSnowball();
 	}
 
 	OnActionInput(false);
-}
-
-void ASnowRumbleCharacter::HandleRollStarted()
-{
-	if (!CanPerformGameplayAction() || !SnowballEquipmentComponent)
-	{
-		return;
-	}
-
-	bIsRollHeld = true;
-	bUsedRollForMovement = false;
-	OnInteractInput(true);
-}
-
-void ASnowRumbleCharacter::HandleRollCompleted()
-{
-	if (SnowballEquipmentComponent && bUsedRollForMovement)
-	{
-		SnowballEquipmentComponent->StopRollingSnowball();
-	}
-
-	bIsRollHeld = false;
-	bUsedRollForMovement = false;
-	OnInteractInput(false);
 }
 
 void ASnowRumbleCharacter::HandleSnowCreationStarted()
@@ -5006,7 +5057,30 @@ void ASnowRumbleCharacter::UpdateSmallSnowballAimMeshFade(
 		TargetFadeValue,
 		DeltaSeconds,
 		FMath::Max(0.0f, SmallSnowballAimMeshFadeInterpSpeed));
-	ApplySmallSnowballAimMeshFade(SmallSnowballAimMeshFadeValue);
+
+	// 1인칭 차징과 투척 후 복귀 중에는 카메라 블렌드에 맞춰 내 몸을 반투명하게 한다.
+	// 3인칭이면 1(불투명), 1인칭에 가까울수록 FirstPersonMeshFadeMinimum까지 내려가고 완전히 사라지지는 않는다.
+	const float FirstPersonCameraBlend =
+		FMath::SmoothStep(0.0f, 1.0f, FirstPersonCameraAlpha);
+	if (FirstPersonCameraBlend > 0.0f)
+	{
+		if (!bFirstPersonMeshFadeMaterialsCached)
+		{
+			CacheSmallSnowballAimFadeMaterials();
+			bFirstPersonMeshFadeMaterialsCached = true;
+		}
+	}
+	else
+	{
+		bFirstPersonMeshFadeMaterialsCached = false;
+	}
+	const float FirstPersonFadeValue = FMath::Lerp(
+		1.0f,
+		FMath::Clamp(FirstPersonMeshFadeMinimum, 0.1f, 1.0f),
+		FirstPersonCameraBlend);
+
+	ApplySmallSnowballAimMeshFade(
+		FMath::Min(SmallSnowballAimMeshFadeValue, FirstPersonFadeValue));
 }
 
 void ASnowRumbleCharacter::CacheSmallSnowballAimFadeMaterials()

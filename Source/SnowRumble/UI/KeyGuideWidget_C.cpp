@@ -38,8 +38,9 @@ void UKeyGuideWidget::RefreshKeyGuideTexts() {
 
 	SetOptionalText(MoveKeyText, MoveText);
 	SetOptionalText(SnowCreateKeyText, GetKeyDisplayText(TEXT("Action"), EKeys::LeftMouseButton));
-	SetOptionalText(SnowPickupKeyText, GetKeyDisplayText(TEXT("Interact"), EKeys::E));
-	SetOptionalText(SnowRollKeyText, GetKeyDisplayText(TEXT("Interact"), EKeys::E));
+	// 눈덩이 잡기와 작은 눈덩이 굴리기는 모두 행동(좌클릭) 입력을 사용한다.
+	SetOptionalText(SnowPickupKeyText, GetKeyDisplayText(TEXT("Action"), EKeys::LeftMouseButton));
+	SetOptionalText(SnowRollKeyText, GetKeyDisplayText(TEXT("Action"), EKeys::LeftMouseButton));
 	SetOptionalText(AimKeyText, GetKeyDisplayText(TEXT("Aim"), EKeys::RightMouseButton));
 	SetOptionalText(ThrowKeyText, GetKeyDisplayText(TEXT("Action"), EKeys::LeftMouseButton));
 	SetOptionalText(EmoteKeyText, GetKeyDisplayText(TEXT("Emote"), EKeys::Tab));

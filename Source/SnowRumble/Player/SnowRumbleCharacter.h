@@ -532,12 +532,6 @@ protected:
 	/** 상호작용 입력 해제 상태를 Blueprint에 전달한다. */
 	void HandleInteractCompleted();
 
-	/** 눈덩이 굴리기 입력이 시작되면 굴리기를 요청한다. */
-	void HandleRollStarted();
-
-	/** 눈덩이 굴리기 입력이 끝나면 굴리기를 종료한다. */
-	void HandleRollCompleted();
-
 	/** 조준 입력 누름 상태를 Blueprint에 전달한다. */
 	void HandleAimStarted();
 
@@ -1399,7 +1393,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
 	TObjectPtr<UInputAction> ActionAction;
 
-	/** 눈덩이 굴리기 입력 슬롯이다. 기본 키는 E다. */
+	/** 이전 E 굴리기 입력 슬롯이다. 굴리기는 작은 눈덩이를 든 상태의 좌클릭으로 옮겨 현재 바인딩하지 않는다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Input")
 	TObjectPtr<UInputAction> RollAction;
 
@@ -1612,6 +1606,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Large Snowball", meta = (ClampMin = "0.0"))
 	float LargeSnowballAimCameraInterpSpeed = 5.0f;
 
+	/** 큰 눈덩이를 던진 뒤 유지 시간 동안 3인칭 조준 카메라 위치로 돌아오는 보간 속도다. 조준 진입 속도와 따로 조정한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Large Snowball", meta = (ClampMin = "0.0"))
+	float LargeSnowballPostThrowCameraInterpSpeed = 2.0f;
+
 	/** 마우스 휠 한 칸당 카메라 SpringArm 길이 변화량이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Zoom", meta = (ClampMin = "1.0"))
 	float CameraZoomStep = 60.0f;
@@ -1630,6 +1628,38 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera", meta = (ClampMin = "0.0"))
 	float PostThrowCameraHoldSeconds = 1.0f;
+
+	/** 눈덩이 투척 차징 중 로컬 카메라를 1인칭으로 전환할지 정한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|First Person")
+	bool bUseFirstPersonChargeCamera = true;
+
+	/** 1인칭 카메라의 캡슐 중심 기준 높이(cm)다. 캐릭터 눈 높이에 맞춘다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|First Person", meta = (ClampMin = "-200.0", ClampMax = "300.0"))
+	float FirstPersonCameraHeight = 70.0f;
+
+	/** 1인칭 카메라를 시선 방향 앞으로 미는 거리(cm)다. 머리나 모자 안쪽이 보이면 늘린다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|First Person", meta = (ClampMin = "-100.0", ClampMax = "200.0"))
+	float FirstPersonCameraForwardOffset = 20.0f;
+
+	/** 1인칭 차징 중 사용할 Field of View다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|First Person", meta = (ClampMin = "5.0", ClampMax = "170.0"))
+	float FirstPersonFieldOfView = 85.0f;
+
+	/** 3인칭에서 1인칭으로 들어가는 데 걸리는 시간(초)이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|First Person", meta = (ClampMin = "0.01"))
+	float FirstPersonCameraEnterSeconds = 0.25f;
+
+	/** 투척 후 1인칭에서 3인칭으로 돌아오는 데 걸리는 시간(초)이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|First Person", meta = (ClampMin = "0.01"))
+	float FirstPersonCameraExitSeconds = 0.35f;
+
+	/** 큰 눈덩이를 던진 뒤 1인칭에서 3인칭으로 돌아오는 데 걸리는 시간(초)이다. 작은 눈덩이보다 천천히 복귀한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|First Person", meta = (ClampMin = "0.01"))
+	float LargeSnowballFirstPersonCameraExitSeconds = 0.9f;
+
+	/** 1인칭에 가장 가까울 때의 내 몸 노출값이다. 1은 불투명, 값이 작을수록 투명하다. 완전히 사라지지 않게 최소 0.1로 제한한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|First Person", meta = (ClampMin = "0.1", ClampMax = "1.0"))
+	float FirstPersonMeshFadeMinimum = 0.35f;
 
 	/** 로컬 눈 VFX에 전달할 바람 방향 Niagara Vector 파라미터 이름이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|VFX")
@@ -1870,6 +1900,15 @@ public:
 	FRotator PickupLockedRotation = FRotator::ZeroRotator;
 	FRotator PickupLockedControlRotation = FRotator::ZeroRotator;
 	double PostThrowAimCameraEndTime = -1.0;
+	/** 투척 직후 유지 시간 동안 던진 눈덩이 크기의 조준 카메라를 계속 쓰기 위해 투척 순간 크기를 기억한다. */
+	bool bPostThrowUsesLargeSnowballCamera = false;
+	/** 0이면 3인칭, 1이면 1인칭 차징 카메라다. 실제 적용은 SmoothStep으로 감속 보간한다. */
+	float FirstPersonCameraAlpha = 0.0f;
+	/** 1인칭 블렌드 전의 3인칭 카메라 상태다. 1인칭 전환이 3인칭 보간 상태를 오염시키지 않게 따로 보관한다. */
+	bool bThirdPersonCameraStateInitialized = false;
+	float ThirdPersonCameraArmLength = 400.0f;
+	FVector ThirdPersonCameraSocketOffset = FVector::ZeroVector;
+	float ThirdPersonFieldOfView = 90.0f;
 	double DamageInvulnerableUntilTime = -1.0;
 	double LocalDamageCameraShakeStartTime = -1.0;
 	double LocalDamageCameraShakeEndTime = -1.0;
@@ -1889,8 +1928,10 @@ public:
 
 	bool bIsInteractHeld = false;
 	bool bUsedInteractForRolling = false;
-	bool bIsRollHeld = false;
-	bool bUsedRollForMovement = false;
+	/** 좌클릭으로 눈덩이 굴리기를 요청했고 아직 버튼을 떼지 않았는지 기록한다. */
+	bool bIsActionRollingSnowball = false;
+	/** 좌클릭으로 Grab을 시작했고 아직 버튼을 떼지 않았는지 기록한다. 잡은 작은 눈덩이 자동 굴리기 종료에 사용한다. */
+	bool bIsActionGrabHeld = false;
 	bool bIsRevivingTeammate = false;
 	TWeakObjectPtr<ASnowRumbleCharacter> TeammateReviveTarget;
 	FTimerHandle TeammateReviveTimerHandle;
@@ -1934,6 +1975,8 @@ public:
 
 	float SmallSnowballAimMeshFadeValue = 1.0f;
 	bool bSmallSnowballAimMeshFadeActive = false;
+	/** 1인칭 카메라 블렌드용 반투명 Material을 이번 전환에서 이미 준비했는지 기록한다. */
+	bool bFirstPersonMeshFadeMaterialsCached = false;
 
 	UPROPERTY(Transient)
 	TMap<int32, TObjectPtr<UCanvasRenderTarget2D>> CustomizationPaintRenderTargets;

@@ -120,10 +120,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SnowRumble|Snowball")
 	void DropHeldSnowball();
 
-	/** 소유 플레이어가 가까운 바닥 눈덩이 굴리기를 요청한다. */
+	/** 소유 플레이어가 손에 든 작은 눈덩이를 내려놓고 굴리기 시작하도록 요청한다. */
 	void StartRollingSnowball();
 
-	/** 소유 플레이어가 현재 눈덩이 굴리기 종료를 요청한다. */
+	/** 소유 플레이어가 굴리기를 멈추고 굴리던 눈덩이를 다시 손에 들도록 요청한다. */
 	void StopRollingSnowball();
 
 	/** 현재 플레이어가 눈덩이를 굴리는 중인지 확인한다. */
@@ -178,11 +178,11 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerDropHeldSnowball();
 
-	/** 서버가 거리와 상태를 검사해 가까운 눈덩이 굴리기를 시작한다. */
+	/** 서버가 손에 든 작은 눈덩이를 검사해 바닥에 내려놓고 굴리기를 시작한다. */
 	UFUNCTION(Server, Reliable)
 	void ServerStartRollingSnowball();
 
-	/** 서버가 현재 굴리기 대상의 바닥 물리를 복구한다. */
+	/** 서버가 굴리기를 끝내고, 행동 가능한 상태면 굴리던 눈덩이를 다시 손에 든다. */
 	UFUNCTION(Server, Reliable)
 	void ServerStopRollingSnowball();
 

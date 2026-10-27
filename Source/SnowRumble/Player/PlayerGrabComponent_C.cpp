@@ -102,6 +102,11 @@ void UPlayerGrabComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 			USnowballEquipmentComponent* Equipment = Character->FindComponentByClass<USnowballEquipmentComponent>();
 			if (Equipment && Equipment->EquipSnowballFromGrab(TargetSnowball)) {
 				ServerStopGrabReach_Implementation();
+				// 좌클릭을 누른 채 작은 눈덩이를 잡으면 바로 굴리기로 이어간다.
+				// 버튼을 떼면 캐릭터가 굴리기 종료를 요청해 눈덩이를 다시 손에 든다.
+				if (!Equipment->IsHoldingLargeSnowball() && !Character->HasEquippedSnowDuckMaker()) {
+					Equipment->StartRollingSnowball();
+				}
 			}
 		} else if (AttachmentType == ESnowRumbleGrabAttachmentType::Character) {
 			AttachGrabConstraint(TargetCharacter, TargetMesh, TargetBoneName, AttachedWorldLocation);

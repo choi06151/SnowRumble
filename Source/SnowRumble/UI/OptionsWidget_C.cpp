@@ -743,8 +743,6 @@ void UOptionsWidget::InitializeDefaultKeyBindingRows() {
 		MakeKeyBindingRow(TEXT("Aim"), NSLOCTEXT("SnowRumble", "KeyBindingAim", "조준"), EKeys::RightMouseButton));
 	KeyBindingRows.Add(
 		MakeKeyBindingRow(TEXT("Action"), NSLOCTEXT("SnowRumble", "KeyBindingAction", "행동"), EKeys::LeftMouseButton));
-	KeyBindingRows.Add(MakeKeyBindingRow(TEXT("RollSnowball"),
-										 NSLOCTEXT("SnowRumble", "KeyBindingRollSnowball", "눈덩이 굴리기"), EKeys::E));
 	KeyBindingRows.Add(MakeKeyBindingRow(TEXT("CreateSnowball"),
 										 NSLOCTEXT("SnowRumble", "KeyBindingCreateSnowball", "눈 만들기"), EKeys::Q));
 	KeyBindingRows.Add(MakeKeyBindingRow(
