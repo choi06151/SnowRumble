@@ -72,3 +72,10 @@ xcuserdata/
 Thumbs.db
 Desktop.ini
 $RECYCLE.BIN/
+
+# Packaged game output (keep only the project icon in Build/)
+Build/Windows/*
+!Build/Windows/Application.ico
+
+# Claude desktop preview outputs
+Claude outputs/
