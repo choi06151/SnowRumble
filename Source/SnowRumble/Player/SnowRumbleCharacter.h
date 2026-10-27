@@ -13,6 +13,7 @@
 #include "SnowRumbleCharacter.generated.h"
 
 class UCameraComponent;
+class UCameraShakeBase;
 class UDamageType;
 class UInputAction;
 class UInputMappingContext;
@@ -329,6 +330,12 @@ public:
 	USceneComponent* GetSnowballHoldPointForSnowball(
 		const ASnowballItem* Snowball) const;
 
+	/** 잡기 성공 연출을 이 화면에서 재생한다. 잡은 사람 화면이면 카메라 반동도 준다. */
+	void PlayGrabImpactFeedback(const FVector& ImpactLocation, bool bGrabbedSnowball);
+
+	/** 주변 폭발 같은 외부 충격으로 내 카메라를 흔든다. 진행 중인 흔들림보다 약하면 무시한다. */
+	void AddLocalImpactCameraShake(float Amplitude, float DurationSeconds);
+
 	/** 서버에서 굴리기 전용 충돌 프록시를 눈덩이 위치와 크기로 활성화한다. */
 	void EnableRollingSnowballCollision(
 		const FVector& InitialLocation,
@@ -637,6 +644,16 @@ protected:
 	UFUNCTION()
 	void HandleFrozenChanged(bool bIsFrozen);
 
+	/** 얼어붙는 순간 이 화면에서 "쩡" 소리, 짧은 멈춤, 얼음 이펙트를 재생한다. */
+	void PlayFreezeFeedback();
+
+	/** 얼어붙는 순간의 짧은 멈춤을 끝내고 얼음 이펙트를 퍼뜨린다. */
+	void FinishFreezeHitStop();
+
+	/** 얼음 이펙트가 퍼지는 순간 모든 화면에서 호출된다. 얼음 껍질 머티리얼 같은 BP 연출 연결 지점이다. */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Freeze Feedback")
+	void OnFreezeFeedback(bool bIsLocalPlayer);
+
 	/** 사망 상태에 따라 캐릭터 이동과 행동을 중지한다. */
 	UFUNCTION()
 	void HandleDeathChanged(bool bIsDead);
@@ -686,6 +703,9 @@ protected:
 
 	/** 로컬 피격 카메라 흔들림 오프셋을 계산한다. */
 	FVector CalculateLocalDamageCameraShakeOffset() const;
+
+	/** 외부 충격 카메라 흔들림의 현재 SpringArm 오프셋을 계산한다. */
+	FVector CalculateLocalImpactCameraShakeOffset() const;
 
 	UFUNCTION()
 	void HandleGiftItemEffectsChanged();
@@ -872,6 +892,10 @@ protected:
 		float AppliedDamage,
 		FVector_NetQuantize DamageCauserLocation);
 
+	/** 내가 던진 눈덩이가 상대에게 실제 피해를 줬을 때 서버가 던진 사람 화면에 명중 확인을 요청한다. */
+	UFUNCTION(Client, Unreliable)
+	void ClientNotifySnowballHitConfirmed(bool bHeadshot, bool bFrozeTarget);
+
 	/** 서버가 확정한 피격음을 모든 화면에서 피격자 위치 기준으로 재생한다. */
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastPlayDamageSound(FVector_NetQuantize DamageLocation);
@@ -962,6 +986,14 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Input")
 	void OnActionInput(bool bPressed);
+
+	/** 내 화면에서 투척 충전이 가득 찬 순간 한 번 호출된다. 화면 가장자리 효과 같은 BP/WBP 연출 연결 지점이다. */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Snowball")
+	void OnLocalSnowballChargeFull();
+
+	/** 이 캐릭터의 잡기가 성공한 순간 모든 화면에서 호출된다. bIsLocalGrabber는 내가 잡은 사람일 때 true다. */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Grab")
+	void OnGrabImpactFeedback(FVector ImpactLocation, bool bGrabbedSnowball, bool bIsLocalGrabber);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Input")
 	void OnDropEquipmentInput();
@@ -1641,8 +1673,13 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|First Person", meta = (ClampMin = "-100.0", ClampMax = "200.0"))
 	float FirstPersonCameraForwardOffset = 20.0f;
 
-	/** 1인칭 차징 중 사용할 Field of View다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|First Person", meta = (ClampMin = "5.0", ClampMax = "170.0"))
+	/** 켜 두면 1인칭 차징 중에도 직전 조준 카메라 FOV(작은 눈 AimFieldOfView, 큰 눈 LargeSnowballAimFieldOfView)를 그대로 쓴다.
+	 *  우클릭 조준에서 차징으로 넘어갈 때 시야가 넓어졌다 다시 좁아지는 왕복을 막는다. 끄면 FirstPersonFieldOfView를 쓴다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|First Person")
+	bool bFirstPersonKeepsAimFieldOfView = true;
+
+	/** bFirstPersonKeepsAimFieldOfView를 껐을 때 1인칭 차징 중 사용할 Field of View다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|First Person", meta = (ClampMin = "5.0", ClampMax = "170.0", EditCondition = "!bFirstPersonKeepsAimFieldOfView"))
 	float FirstPersonFieldOfView = 85.0f;
 
 	/** 3인칭에서 1인칭으로 들어가는 데 걸리는 시간(초)이다. */
@@ -1660,6 +1697,38 @@ public:
 	/** 1인칭에 가장 가까울 때의 내 몸 노출값이다. 1은 불투명, 값이 작을수록 투명하다. 완전히 사라지지 않게 최소 0.1로 제한한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|First Person", meta = (ClampMin = "0.1", ClampMax = "1.0"))
 	float FirstPersonMeshFadeMinimum = 0.35f;
+
+	/** 투척 충전량이 가득 찼을 때 Field of View를 얼마나 좁힐지(도) 정한다. 충전량에 비례해 서서히 좁아진다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Charge Feedback", meta = (ClampMin = "0.0", ClampMax = "30.0"))
+	float ChargeFieldOfViewReduction = 4.0f;
+
+	/** 충전 FOV 변화와 놓았을 때 원래 FOV로 돌아가는 보간 속도다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Charge Feedback", meta = (ClampMin = "0.0"))
+	float ChargeFieldOfViewInterpSpeed = 8.0f;
+
+	/** 완충 순간 FOV를 짧게 한 번 더 조였다가 풀어주는 크기(도)다. 0이면 끈다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Charge Feedback", meta = (ClampMin = "0.0", ClampMax = "20.0"))
+	float FullChargeFieldOfViewPunch = 2.0f;
+
+	/** 완충 펀치가 풀리는 속도다. 클수록 짧고 날카롭다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Charge Feedback", meta = (ClampMin = "0.0"))
+	float FullChargeFieldOfViewPunchRecoverSpeed = 10.0f;
+
+	/** 완충 순간 내 화면에서만 재생할 효과음이다. 비워 두면 소리 없이 FOV 펀치만 적용한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Charge Feedback")
+	TObjectPtr<USoundBase> FullChargeSound;
+
+	/** 잡는 순간 내 시야를 짧게 조였다 푸는 크기(도)다. 0이면 끈다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Grab Feedback", meta = (ClampMin = "0.0", ClampMax = "20.0"))
+	float GrabFieldOfViewPunch = 1.5f;
+
+	/** 잡기 시야 반동이 풀리는 속도다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Grab Feedback", meta = (ClampMin = "0.0"))
+	float GrabFieldOfViewPunchRecoverSpeed = 12.0f;
+
+	/** 잡는 순간 내 화면에만 재생할 카메라 흔들림이다. 비워 두면 시야 반동만 쓴다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Camera|Grab Feedback")
+	TSubclassOf<UCameraShakeBase> GrabCameraShakeClass;
 
 	/** 로컬 눈 VFX에 전달할 바람 방향 Niagara Vector 파라미터 이름이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|VFX")
@@ -1719,6 +1788,40 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")
 	TObjectPtr<USoundBase> DamageSound;
+
+	/** 내가 던진 눈덩이가 상대를 맞혔을 때 내 화면에서만 재생할 명중 확인음이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio|Hit Confirm")
+	TObjectPtr<USoundBase> HitConfirmSound;
+
+	/** 헤드샷 명중 확인음이다. 비워 두면 HitConfirmSound를 쓴다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio|Hit Confirm")
+	TObjectPtr<USoundBase> HeadshotHitConfirmSound;
+
+	/** 상대를 얼린 명중 확인음이다. 비워 두면 헤드샷/일반 명중음을 쓴다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio|Hit Confirm")
+	TObjectPtr<USoundBase> FreezeHitConfirmSound;
+
+	/** 얼어붙는 순간 모든 화면에서 얼어붙은 캐릭터 위치에 재생할 "쩡" 효과음이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Freeze Feedback")
+	TObjectPtr<USoundBase> FreezeSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Freeze Feedback")
+	TObjectPtr<USoundAttenuation> FreezeSoundAttenuation;
+
+	/** 짧은 멈춤이 끝난 뒤 얼어붙은 캐릭터에서 퍼질 얼음 Niagara다. 비워 두면 이펙트 없이 진행한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Freeze Feedback")
+	TObjectPtr<UNiagaraSystem> FreezeBurstEffect;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Freeze Feedback", meta = (ClampMin = "0.01"))
+	float FreezeBurstEffectScale = 1.0f;
+
+	/** 얼어붙는 순간 캐릭터 동작을 거의 멈추는 시간(초)이다. 0이면 멈춤 없이 바로 이펙트가 나온다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Freeze Feedback", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float FreezeHitStopSeconds = 0.12f;
+
+	/** 멈춤 동안 이 캐릭터에만 적용할 시간 배율이다. 0에 가까울수록 딱 멈춘다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Freeze Feedback", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float FreezeHitStopTimeDilation = 0.02f;
 
 	/** 피격음이 월드 거리감과 공간감을 갖도록 적용할 attenuation 설정이다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Audio")
@@ -1909,13 +2012,26 @@ public:
 	float ThirdPersonCameraArmLength = 400.0f;
 	FVector ThirdPersonCameraSocketOffset = FVector::ZeroVector;
 	float ThirdPersonFieldOfView = 90.0f;
+	/** 충전량에 따라 현재 적용 중인 FOV 감소량(도)이다. */
+	float CurrentChargeFieldOfViewOffset = 0.0f;
+	/** 완충 순간 추가로 조인 뒤 0으로 풀리는 FOV 펀치(도)다. */
+	float CurrentFullChargeFieldOfViewPunch = 0.0f;
+	/** 이번 충전에서 완충 피드백을 이미 재생했는지 기록한다. */
+	bool bPlayedFullChargeFeedback = false;
+	/** 잡는 순간 추가로 조인 뒤 0으로 풀리는 FOV 반동(도)이다. */
+	float CurrentGrabFieldOfViewPunch = 0.0f;
 	double DamageInvulnerableUntilTime = -1.0;
 	double LocalDamageCameraShakeStartTime = -1.0;
 	double LocalDamageCameraShakeEndTime = -1.0;
+	/** 외부 충격(큰 눈덩이 폭발 등) 카메라 흔들림 상태다. */
+	double LocalImpactCameraShakeStartTime = -1.0;
+	double LocalImpactCameraShakeEndTime = -1.0;
+	float LocalImpactCameraShakeAmplitude = 0.0f;
 	double LastSnowFootstepEffectTime = -1.0;
 	double LastSnowTrailStampServerTime = -1.0;
 
 	FTimerHandle PickupAnimationTimerHandle;
+	FTimerHandle FreezeHitStopTimerHandle;
 	FTimerHandle ItemInteractionAnimationTimerHandle;
 	FTimerHandle HitReactAnimationTimerHandle;
 

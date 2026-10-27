@@ -15,6 +15,7 @@ class USphereComponent;
 class USkeletalMeshComponent;
 class USoundAttenuation;
 class USoundBase;
+class UNiagaraSystem;
 
 UENUM(BlueprintType)
 enum class ESnowRumbleGrabHand : uint8 { Right, Left };
@@ -103,6 +104,10 @@ class SNOWRUMBLE_API UPlayerGrabComponent : public UActorComponent {
 
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayGrabSound(FVector_NetQuantize Location, bool bReleased);
+
+	/** 잡기가 성공한 지점에 모든 화면에서 손맛 연출(눈가루 이펙트, 잡은 사람 카메라 반동)을 재생한다. */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastPlayGrabImpactFeedback(FVector_NetQuantize ImpactLocation, bool bGrabbedSnowball);
 
 	/** 서버가 잡기 입력과 현재 상태를 검사한다. */
 	bool CanStartGrabReach() const;
@@ -279,6 +284,18 @@ class SNOWRUMBLE_API UPlayerGrabComponent : public UActorComponent {
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Audio")
 	TObjectPtr<USoundAttenuation> GrabSoundAttenuation;
+
+	/** 캐릭터·물체·벽을 잡는 순간 잡은 지점에 재생할 Niagara 이펙트다. 비워 두면 이펙트 없이 진행한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Feedback")
+	TObjectPtr<UNiagaraSystem> GrabImpactEffect;
+
+	/** 눈덩이를 잡는 순간 재생할 Niagara 이펙트다. 비워 두면 GrabImpactEffect를 쓴다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Feedback")
+	TObjectPtr<UNiagaraSystem> SnowballGrabImpactEffect;
+
+	/** 잡기 이펙트 크기 배율이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Feedback", meta = (ClampMin = "0.01"))
+	float GrabImpactEffectScale = 1.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Grab|Constraint", meta = (ClampMin = "0.0"))
 	float GrabTetherSlackDistance = 10.0f;

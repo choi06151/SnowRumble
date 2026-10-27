@@ -6,6 +6,7 @@
 #include "../Game/SnowRumbleGameState_C.h"
 #include "../Game/SnowRumblePlayerState.h"
 #include "../Player/SnowRumbleCharacter.h"
+#include "../Player/SnowRumbleHealthComponent.h"
 #include "Components/PanelWidget.h"
 #include "Components/ProgressBar.h"
 #include "Components/Image.h"
@@ -59,6 +60,8 @@ void UMainHUDWidget::NativeTick(
 
 	RefreshHealthBars();
 	RefreshCombatHudPresentation();
+	UpdateHitConfirmPresentation(InDeltaTime);
+	UpdateFrostOverlay(InDeltaTime);
 	RefreshStartCountdownPresentation();
 	RefreshCurrentRoundPresentation();
 	RefreshMatchTimerPresentation();
@@ -100,6 +103,117 @@ void UMainHUDWidget::ShowPersonalTextAlarm(const FText& Message)
 	if (PersonalAlarmAnimation)
 	{
 		PlayAnimation(PersonalAlarmAnimation);
+	}
+}
+
+void UMainHUDWidget::PlayHitConfirm(bool bHeadshot, bool bFrozeTarget)
+{
+	const bool bEmphasized = bHeadshot || bFrozeTarget;
+	CurrentHitConfirmStartScale =
+		FMath::Max(1.0f, HitConfirmPopScale)
+		* (bEmphasized ? FMath::Max(1.0f, HitConfirmEmphasisScale) : 1.0f);
+	HitConfirmElapsedSeconds = 0.0f;
+
+	if (HitConfirmMarker)
+	{
+		if (UImage* MarkerImage = Cast<UImage>(HitConfirmMarker))
+		{
+			MarkerImage->SetColorAndOpacity(
+				bFrozeTarget
+					? HitConfirmFreezeColor
+					: (bHeadshot ? HitConfirmHeadshotColor : HitConfirmNormalColor));
+		}
+		HitConfirmMarker->SetRenderScale(
+			FVector2D(CurrentHitConfirmStartScale, CurrentHitConfirmStartScale));
+		HitConfirmMarker->SetRenderOpacity(1.0f);
+		HitConfirmMarker->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+
+	OnHitConfirmed(bHeadshot, bFrozeTarget);
+}
+
+void UMainHUDWidget::UpdateHitConfirmPresentation(float DeltaSeconds)
+{
+	if (!HitConfirmMarker)
+	{
+		return;
+	}
+
+	if (HitConfirmElapsedSeconds < 0.0f)
+	{
+		if (HitConfirmMarker->GetVisibility() != ESlateVisibility::Collapsed)
+		{
+			HitConfirmMarker->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		return;
+	}
+
+	HitConfirmElapsedSeconds += DeltaSeconds;
+	const float Alpha = FMath::Clamp(
+		HitConfirmElapsedSeconds / FMath::Max(0.05f, HitConfirmDuration),
+		0.0f,
+		1.0f);
+	// 처음에 크게 튀었다가 빠르게 제자리로 줄어들고(ease-out), 후반부에 사라진다.
+	const float ScaleAlpha = 1.0f - FMath::Square(1.0f - Alpha);
+	const float Scale = FMath::Lerp(CurrentHitConfirmStartScale, 1.0f, ScaleAlpha);
+	HitConfirmMarker->SetRenderScale(FVector2D(Scale, Scale));
+	HitConfirmMarker->SetRenderOpacity(1.0f - FMath::Square(Alpha));
+
+	if (Alpha >= 1.0f)
+	{
+		HitConfirmElapsedSeconds = -1.0f;
+		HitConfirmMarker->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+void UMainHUDWidget::UpdateFrostOverlay(float DeltaSeconds)
+{
+	if (!FrostOverlay)
+	{
+		return;
+	}
+
+	const ASnowRumbleCharacter* LocalCharacter =
+		Cast<ASnowRumbleCharacter>(GetOwningPlayerPawn());
+	const USnowRumbleHealthComponent* LocalHealth = LocalCharacter
+		? LocalCharacter->FindComponentByClass<USnowRumbleHealthComponent>()
+		: nullptr;
+
+	const float MaxOpacity = FMath::Clamp(FrostOverlayMaxOpacity, 0.0f, 1.0f);
+	const bool bIsFrozen = LocalHealth && (LocalHealth->IsFrozen() || LocalHealth->IsDead());
+	float TargetOpacity = 0.0f;
+	float InterpSpeed = FrostOverlayInterpSpeed;
+	if (bIsFrozen)
+	{
+		// 얼어붙는 순간 화면을 서리로 한 번 덮고, 관전 화면을 가리지 않도록 서서히 걷어낸다.
+		if (!bFrostOverlayWasFrozen)
+		{
+			CurrentFrostOverlayOpacity = MaxOpacity;
+		}
+		InterpSpeed = FrostOverlayFrozenFadeSpeed;
+	}
+	else if (LocalHealth && LocalHealth->GetMaxHealth() > 0.0f)
+	{
+		const float HealthRatio = LocalHealth->GetCurrentHealth() / LocalHealth->GetMaxHealth();
+		const float StartRatio = FMath::Max(0.01f, FrostOverlayStartHealthRatio);
+		const float FrostAlpha = FMath::Clamp((StartRatio - HealthRatio) / StartRatio, 0.0f, 1.0f);
+		TargetOpacity = MaxOpacity * FMath::SmoothStep(0.0f, 1.0f, FrostAlpha);
+	}
+	bFrostOverlayWasFrozen = bIsFrozen;
+
+	CurrentFrostOverlayOpacity = FMath::FInterpTo(
+		CurrentFrostOverlayOpacity,
+		TargetOpacity,
+		DeltaSeconds,
+		FMath::Max(0.0f, InterpSpeed));
+	const bool bShowFrost = CurrentFrostOverlayOpacity > 0.01f;
+	FrostOverlay->SetRenderOpacity(bShowFrost ? CurrentFrostOverlayOpacity : 0.0f);
+	const ESlateVisibility TargetVisibility = bShowFrost
+		? ESlateVisibility::HitTestInvisible
+		: ESlateVisibility::Collapsed;
+	if (FrostOverlay->GetVisibility() != TargetVisibility)
+	{
+		FrostOverlay->SetVisibility(TargetVisibility);
 	}
 }
 

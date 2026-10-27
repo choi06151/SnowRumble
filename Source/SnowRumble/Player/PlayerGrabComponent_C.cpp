@@ -26,6 +26,8 @@
 #include "Sound/SoundAttenuation.h"
 #include "Sound/SoundBase.h"
 #include "DrawDebugHelpers.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
 
 UPlayerGrabComponent::UPlayerGrabComponent() {
 	PrimaryComponentTick.bCanEverTick = true;
@@ -100,8 +102,10 @@ void UPlayerGrabComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 						  TargetBoneName, AttachedWorldLocation, AttachmentType, bAllowWorldAttachment)) {
 		if (TargetSnowball) {
 			USnowballEquipmentComponent* Equipment = Character->FindComponentByClass<USnowballEquipmentComponent>();
+			const FVector SnowballGrabLocation = TargetSnowball->GetActorLocation();
 			if (Equipment && Equipment->EquipSnowballFromGrab(TargetSnowball)) {
 				ServerStopGrabReach_Implementation();
+				MulticastPlayGrabImpactFeedback(SnowballGrabLocation, true);
 				// 좌클릭을 누른 채 작은 눈덩이를 잡으면 바로 굴리기로 이어간다.
 				// 버튼을 떼면 캐릭터가 굴리기 종료를 요청해 눈덩이를 다시 손에 든다.
 				if (!Equipment->IsHoldingLargeSnowball() && !Character->HasEquippedSnowDuckMaker()) {
@@ -524,6 +528,7 @@ void UPlayerGrabComponent::AttachGrabConstraint(ASnowRumbleCharacter* TargetChar
 	Character->ForceNetUpdate();
 	TargetCharacter->ForceNetUpdate();
 	MulticastPlayGrabSound(Character->GetActorLocation(), false);
+	MulticastPlayGrabImpactFeedback(AttachedWorldLocation, false);
 }
 
 void UPlayerGrabComponent::AttachWorldGrab(FVector AttachedWorldLocation) {
@@ -548,6 +553,7 @@ void UPlayerGrabComponent::AttachWorldGrab(FVector AttachedWorldLocation) {
 	Character->HandleWorldGrabChanged(true);
 	Character->ForceNetUpdate();
 	MulticastPlayGrabSound(Character->GetActorLocation(), false);
+	MulticastPlayGrabImpactFeedback(AttachedWorldLocation, false);
 }
 
 void UPlayerGrabComponent::AttachPhysicsObject(AGrabbablePhysicsObject* TargetObject,
@@ -610,6 +616,7 @@ void UPlayerGrabComponent::AttachPhysicsObject(AGrabbablePhysicsObject* TargetOb
 	Character->ForceNetUpdate();
 	TargetObject->ForceNetUpdate();
 	MulticastPlayGrabSound(Character->GetActorLocation(), false);
+	MulticastPlayGrabImpactFeedback(AttachedWorldLocation, false);
 }
 
 void UPlayerGrabComponent::ClearGrabConstraint() {
@@ -683,6 +690,24 @@ void UPlayerGrabComponent::ClearGrabConstraint() {
 				}
 			}
 		}
+	}
+}
+
+void UPlayerGrabComponent::MulticastPlayGrabImpactFeedback_Implementation(FVector_NetQuantize ImpactLocation,
+																		 bool bGrabbedSnowball) {
+	if (GetNetMode() == NM_DedicatedServer) {
+		return;
+	}
+
+	UNiagaraSystem* EffectToSpawn =
+		bGrabbedSnowball && SnowballGrabImpactEffect ? SnowballGrabImpactEffect.Get() : GrabImpactEffect.Get();
+	if (EffectToSpawn) {
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, EffectToSpawn, ImpactLocation, FRotator::ZeroRotator,
+													   FVector(FMath::Max(0.01f, GrabImpactEffectScale)));
+	}
+
+	if (ASnowRumbleCharacter* Character = GetOwnerCharacter()) {
+		Character->PlayGrabImpactFeedback(ImpactLocation, bGrabbedSnowball);
 	}
 }
 

@@ -8,6 +8,12 @@
 #include "../Player/SnowRumbleCharacter.h"
 #include "SnowballDamageTypes.h"
 #include "Components/AudioComponent.h"
+#include "Components/MeshComponent.h"
+#include "Camera/CameraShakeBase.h"
+#include "Engine/LocalPlayer.h"
+#include "GameFramework/PlayerController.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
 #include "Components/SceneComponent.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
@@ -91,7 +97,7 @@ void ASnowballItem::BeginPlay()
 void ASnowballItem::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	(void)DeltaSeconds;
+	UpdateGrowthPulse(DeltaSeconds);
 
 	if (HasAuthority() && bIsThrownRolling)
 	{
@@ -588,7 +594,7 @@ void ASnowballItem::DestroyThrownRolling(const FHitResult& Hit)
 	const FVector ImpactNormal = HitImpactNormal.IsNearlyZero()
 		? FVector::UpVector
 		: HitImpactNormal.GetSafeNormal();
-	MulticastPlayImpactEffect(ImpactPoint, ImpactNormal);
+	MulticastPlayImpactEffect(ImpactPoint, ImpactNormal, IsFullyGrown());
 	Destroy();
 }
 
@@ -659,6 +665,136 @@ void ASnowballItem::OnRep_Holder()
 void ASnowballItem::OnRep_GrowthProgress()
 {
 	ApplyGrowthScale();
+	HandleGrowthFeedback();
+}
+
+void ASnowballItem::HandleGrowthFeedback()
+{
+	// 서버는 직접, 클라이언트는 복제로 이 함수를 각자 한 번씩 거치므로 RPC 없이 모든 화면에서 재생된다.
+	if (GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+
+	const int32 StageCount = FMath::Max(1, GrowthFeedbackStageCount);
+	const int32 Stage = FMath::Clamp(
+		FMath::FloorToInt(
+			FMath::Clamp(GrowthProgress, 0.0f, 1.0f) * StageCount + KINDA_SMALL_NUMBER),
+		0,
+		StageCount);
+	const bool bIsLarge = IsFullyGrown();
+
+	// 처음 받은 값이나 굴리는 중이 아닐 때의 변화는 기준만 맞추고 소리를 내지 않는다(늦게 들어온 플레이어 등).
+	if (!bGrowthFeedbackInitialized || ItemState != ESnowballItemState::Rolling)
+	{
+		bGrowthFeedbackInitialized = true;
+		LastGrowthFeedbackStage = Stage;
+		bLastGrowthFeedbackWasLarge = bIsLarge;
+		return;
+	}
+
+	const bool bBecameLarge = bIsLarge && !bLastGrowthFeedbackWasLarge;
+	const bool bReachedNewStage = Stage > LastGrowthFeedbackStage;
+	LastGrowthFeedbackStage = FMath::Max(LastGrowthFeedbackStage, Stage);
+	bLastGrowthFeedbackWasLarge = bIsLarge;
+	if (!bBecameLarge && !bReachedNewStage)
+	{
+		return;
+	}
+
+	USoundAttenuation* Attenuation = GrowthSoundAttenuation
+		? GrowthSoundAttenuation.Get()
+		: RollingSoundAttenuation.Get();
+	if (bBecameLarge)
+	{
+		// 큰 눈덩이가 되는 순간은 단계음보다 우선해 한 번만 크게 알린다.
+		SnowRumbleAudio::PlaySoundAtLocation(
+			this,
+			LargeGrowthReachedSound ? LargeGrowthReachedSound.Get() : GrowthStageSound.Get(),
+			ESnowRumbleAudioMixChannel::Gameplay,
+			GetActorLocation(),
+			1.0f,
+			LargeGrowthReachedSound ? 1.0f : 0.8f,
+			Attenuation);
+		StartGrowthPulse(LargeGrowthPulseScale, LargeGrowthPulseDuration);
+	}
+	else
+	{
+		SnowRumbleAudio::PlaySoundAtLocation(
+			this,
+			GrowthStageSound,
+			ESnowRumbleAudioMixChannel::Gameplay,
+			GetActorLocation(),
+			1.0f,
+			1.0f + FMath::Max(0, Stage - 1) * GrowthStagePitchStep,
+			Attenuation);
+		StartGrowthPulse(GrowthPulseScale, GrowthPulseDuration);
+	}
+
+	OnGrowthStageReached(Stage, bBecameLarge);
+}
+
+void ASnowballItem::StartGrowthPulse(float PeakScale, float Duration)
+{
+	if (PeakScale <= 1.0f + KINDA_SMALL_NUMBER)
+	{
+		return;
+	}
+
+	// 이전 튐이 진행 중이면 원래 크기 기준을 그대로 쓰고, 아니면 BP에서 붙인 외형 Mesh들의 현재 크기를 기준으로 잡는다.
+	if (GrowthPulseElapsedSeconds < 0.0f)
+	{
+		GrowthPulseComponents.Reset();
+		GrowthPulseBaseScales.Reset();
+		TArray<UMeshComponent*> MeshComponents;
+		GetComponents(MeshComponents);
+		for (UMeshComponent* MeshComponent : MeshComponents)
+		{
+			if (MeshComponent)
+			{
+				GrowthPulseComponents.Add(MeshComponent);
+				GrowthPulseBaseScales.Add(MeshComponent->GetRelativeScale3D());
+			}
+		}
+	}
+
+	CurrentGrowthPulsePeakScale = PeakScale;
+	CurrentGrowthPulseDuration = FMath::Max(0.05f, Duration);
+	GrowthPulseElapsedSeconds = 0.0f;
+}
+
+void ASnowballItem::UpdateGrowthPulse(float DeltaSeconds)
+{
+	if (GrowthPulseElapsedSeconds < 0.0f)
+	{
+		return;
+	}
+
+	GrowthPulseElapsedSeconds += DeltaSeconds;
+	const float Alpha = FMath::Clamp(
+		GrowthPulseElapsedSeconds / CurrentGrowthPulseDuration,
+		0.0f,
+		1.0f);
+	// 앞 30%에서 빠르게 커지고 나머지 구간에서 부드럽게 원래 크기로 돌아온다.
+	const float PulseWeight = Alpha < 0.3f
+		? FMath::InterpEaseOut(0.0f, 1.0f, Alpha / 0.3f, 2.0f)
+		: FMath::InterpEaseInOut(1.0f, 0.0f, (Alpha - 0.3f) / 0.7f, 2.0f);
+	const float ScaleMultiplier =
+		FMath::Lerp(1.0f, CurrentGrowthPulsePeakScale, PulseWeight);
+
+	for (int32 Index = 0; Index < GrowthPulseComponents.Num(); ++Index)
+	{
+		if (USceneComponent* PulseComponent = GrowthPulseComponents[Index].Get())
+		{
+			PulseComponent->SetRelativeScale3D(
+				GrowthPulseBaseScales[Index] * (Alpha >= 1.0f ? 1.0f : ScaleMultiplier));
+		}
+	}
+
+	if (Alpha >= 1.0f)
+	{
+		GrowthPulseElapsedSeconds = -1.0f;
+	}
 }
 
 void ASnowballItem::OnRep_InitialActorScale()
@@ -947,7 +1083,7 @@ bool ASnowballItem::TryBreakOnGrabbableObject(
 		HitImpactNormal.IsNearlyZero()
 			? FVector::UpVector
 			: HitImpactNormal.GetSafeNormal();
-	MulticastPlayImpactEffect(ImpactPoint, ImpactNormal);
+	MulticastPlayImpactEffect(ImpactPoint, ImpactNormal, IsFullyGrown());
 	Destroy();
 	return true;
 }
@@ -1183,7 +1319,7 @@ void ASnowballItem::HandleThrownImpact(
 			? FVector::UpVector
 			: HitImpactNormal.GetSafeNormal();
 
-	MulticastPlayImpactEffect(ImpactPoint, ImpactNormal);
+	MulticastPlayImpactEffect(ImpactPoint, ImpactNormal, IsFullyGrown());
 
 	Destroy();
 }
@@ -1210,9 +1346,11 @@ void ASnowballItem::RestoreTemporarilyIgnoredActor(
 
 void ASnowballItem::MulticastPlayImpactEffect_Implementation(
 	FVector_NetQuantize ImpactPoint,
-	FVector_NetQuantizeNormal ImpactNormal)
+	FVector_NetQuantizeNormal ImpactNormal,
+	bool bLargeImpact)
 {
-	USoundBase* SoundToPlay = IsFullyGrown() && LargeImpactSound
+	// 크기는 서버가 터진 순간 확정해 보낸다. 직후 Destroy되므로 클라이언트 상태에 의존하지 않는다.
+	USoundBase* SoundToPlay = bLargeImpact && LargeImpactSound
 		? LargeImpactSound
 		: ImpactSound;
 	SnowRumbleAudio::PlaySoundAtLocation(
@@ -1223,7 +1361,85 @@ void ASnowballItem::MulticastPlayImpactEffect_Implementation(
 		1.0f,
 		1.0f,
 		ImpactSoundAttenuation);
+
+	if (GetNetMode() != NM_DedicatedServer)
+	{
+		UNiagaraSystem* EffectToSpawn = bLargeImpact
+			? LargeImpactNiagaraEffect.Get()
+			: SmallImpactNiagaraEffect.Get();
+		if (EffectToSpawn)
+		{
+			const FVector SafeNormal = FVector(ImpactNormal).GetSafeNormal();
+			UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+				this,
+				EffectToSpawn,
+				ImpactPoint,
+				(SafeNormal.IsNearlyZero() ? FVector::UpVector : SafeNormal).Rotation(),
+				FVector(FMath::Max(
+					0.01f,
+					bLargeImpact ? LargeImpactEffectScale : SmallImpactEffectScale)));
+		}
+
+		if (bLargeImpact)
+		{
+			PlayLargeImpactCameraShake(ImpactPoint);
+		}
+	}
+
 	PlayImpactEffect(ImpactPoint, ImpactNormal);
+	OnSizedImpactEffect(ImpactPoint, ImpactNormal, bLargeImpact);
+}
+
+void ASnowballItem::PlayLargeImpactCameraShake(const FVector& ImpactPoint) const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const float InnerRadius = FMath::Max(0.0f, LargeImpactCameraShakeInnerRadius);
+	const float OuterRadius = FMath::Max(InnerRadius + 1.0f, LargeImpactCameraShakeOuterRadius);
+	if (LargeImpactCameraShakeClass)
+	{
+		UGameplayStatics::PlayWorldCameraShake(
+			World,
+			LargeImpactCameraShakeClass,
+			ImpactPoint,
+			InnerRadius,
+			OuterRadius,
+			1.0f);
+		return;
+	}
+
+	// 에셋이 없으면 캐릭터의 기본 카메라 흔들림을 거리 감쇠해서 사용한다.
+	for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
+	{
+		APlayerController* PlayerController = Iterator->Get();
+		if (!PlayerController || !PlayerController->IsLocalController())
+		{
+			continue;
+		}
+
+		ASnowRumbleCharacter* LocalCharacter =
+			Cast<ASnowRumbleCharacter>(PlayerController->GetPawn());
+		if (!LocalCharacter)
+		{
+			continue;
+		}
+
+		const float Distance = FVector::Dist(LocalCharacter->GetActorLocation(), ImpactPoint);
+		const float Intensity = 1.0f - FMath::Clamp(
+			(Distance - InnerRadius) / (OuterRadius - InnerRadius),
+			0.0f,
+			1.0f);
+		if (Intensity > KINDA_SMALL_NUMBER)
+		{
+			LocalCharacter->AddLocalImpactCameraShake(
+				LargeImpactCameraShakeAmplitude * Intensity,
+				LargeImpactCameraShakeDuration);
+		}
+	}
 }
 
 void ASnowballItem::PlayRollingSound()

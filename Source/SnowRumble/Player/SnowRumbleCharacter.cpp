@@ -567,7 +567,8 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 			ThirdPersonCameraSocketOffset,
 			FirstPersonSocketOffset,
 			FirstPersonCameraBlend)
-			+ CalculateLocalDamageCameraShakeOffset();
+			+ CalculateLocalDamageCameraShakeOffset()
+			+ CalculateLocalImpactCameraShakeOffset();
 		CameraBoom->TargetArmLength = FMath::Lerp(
 			ThirdPersonCameraArmLength,
 			0.0f,
@@ -595,10 +596,56 @@ void ASnowRumbleCharacter::Tick(float DeltaSeconds)
 			TargetFieldOfView,
 			DeltaSeconds,
 			CameraTransitionInterpSpeed);
-		FollowCamera->SetFieldOfView(FMath::Lerp(
-			ThirdPersonFieldOfView,
-			FirstPersonFieldOfView,
-			FirstPersonCameraBlend));
+
+		// 차징 단계 피드백: 충전량에 비례해 시야를 조이고, 완충 순간 한 번 더 조였다 풀며 효과음을 낸다.
+		const bool bIsChargingSnowball =
+			SnowballEquipmentComponent
+			&& SnowballEquipmentComponent->IsCharging();
+		const float ChargeProgress = bIsChargingSnowball
+			? SnowballEquipmentComponent->GetChargeProgress()
+			: 0.0f;
+		CurrentChargeFieldOfViewOffset = FMath::FInterpTo(
+			CurrentChargeFieldOfViewOffset,
+			FMath::Max(0.0f, ChargeFieldOfViewReduction) * ChargeProgress,
+			DeltaSeconds,
+			FMath::Max(0.0f, ChargeFieldOfViewInterpSpeed));
+		if (!bIsChargingSnowball)
+		{
+			bPlayedFullChargeFeedback = false;
+		}
+		else if (!bPlayedFullChargeFeedback && ChargeProgress >= 1.0f)
+		{
+			bPlayedFullChargeFeedback = true;
+			CurrentFullChargeFieldOfViewPunch =
+				FMath::Max(0.0f, FullChargeFieldOfViewPunch);
+			SnowRumbleAudio::PlaySound2D(
+				this,
+				FullChargeSound,
+				ESnowRumbleAudioMixChannel::UserInterface);
+			OnLocalSnowballChargeFull();
+		}
+		CurrentFullChargeFieldOfViewPunch = FMath::FInterpTo(
+			CurrentFullChargeFieldOfViewPunch,
+			0.0f,
+			DeltaSeconds,
+			FMath::Max(0.0f, FullChargeFieldOfViewPunchRecoverSpeed));
+		CurrentGrabFieldOfViewPunch = FMath::FInterpTo(
+			CurrentGrabFieldOfViewPunch,
+			0.0f,
+			DeltaSeconds,
+			FMath::Max(0.0f, GrabFieldOfViewPunchRecoverSpeed));
+
+		FollowCamera->SetFieldOfView(FMath::Max(
+			5.0f,
+			FMath::Lerp(
+				ThirdPersonFieldOfView,
+				bFirstPersonKeepsAimFieldOfView
+					? ThirdPersonFieldOfView
+					: FirstPersonFieldOfView,
+				FirstPersonCameraBlend)
+			- CurrentChargeFieldOfViewOffset
+			- CurrentFullChargeFieldOfViewPunch
+			- CurrentGrabFieldOfViewPunch));
 	}
 	if (IsLocallyControlled())
 	{
@@ -1757,6 +1804,55 @@ bool ASnowRumbleCharacter::HasEquippedSnowDuckMaker() const
 	}
 }
 
+void ASnowRumbleCharacter::PlayGrabImpactFeedback(
+	const FVector& ImpactLocation,
+	bool bGrabbedSnowball)
+{
+	const bool bIsLocalGrabber = IsLocallyControlled();
+	if (bIsLocalGrabber)
+	{
+		CurrentGrabFieldOfViewPunch = FMath::Max(
+			CurrentGrabFieldOfViewPunch,
+			FMath::Max(0.0f, GrabFieldOfViewPunch));
+		if (GrabCameraShakeClass)
+		{
+			if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
+			{
+				if (PlayerController->PlayerCameraManager)
+				{
+					PlayerController->PlayerCameraManager->StartCameraShake(GrabCameraShakeClass);
+				}
+			}
+		}
+	}
+
+	OnGrabImpactFeedback(ImpactLocation, bGrabbedSnowball, bIsLocalGrabber);
+}
+
+void ASnowRumbleCharacter::ClientNotifySnowballHitConfirmed_Implementation(
+	bool bHeadshot,
+	bool bFrozeTarget)
+{
+	USoundBase* SoundToPlay = HitConfirmSound;
+	if (bHeadshot && HeadshotHitConfirmSound)
+	{
+		SoundToPlay = HeadshotHitConfirmSound;
+	}
+	if (bFrozeTarget && FreezeHitConfirmSound)
+	{
+		SoundToPlay = FreezeHitConfirmSound;
+	}
+	SnowRumbleAudio::PlaySound2D(
+		this,
+		SoundToPlay,
+		ESnowRumbleAudioMixChannel::UserInterface);
+
+	if (MainHUDWidget)
+	{
+		MainHUDWidget->PlayHitConfirm(bHeadshot, bFrozeTarget);
+	}
+}
+
 float ASnowRumbleCharacter::TakeDamage(
 	float DamageAmount,
 	FDamageEvent const& DamageEvent,
@@ -1828,6 +1924,21 @@ float ASnowRumbleCharacter::TakeDamage(
 			&& DamageTypeClass->IsChildOf(
 				USnowballHeadshotDamageType::StaticClass());
 		ClientRequestLocalDamageFeedback(AppliedDamage, DamageCauserLocation);
+
+		// 명중 확인: 다른 플레이어가 던진 눈덩이로 실제 피해가 들어가면 던진 사람 화면에만 알린다.
+		if (Cast<ASnowballItem>(DamageCauser))
+		{
+			ASnowRumbleCharacter* AttackingCharacter = EventInstigator
+				? Cast<ASnowRumbleCharacter>(EventInstigator->GetPawn())
+				: nullptr;
+			if (AttackingCharacter && AttackingCharacter != this)
+			{
+				AttackingCharacter->ClientNotifySnowballHitConfirmed(
+					bHeadshotDamage,
+					IsFrozen());
+			}
+		}
+
 		MulticastRequestDamageText(
 			AppliedDamage,
 			GetActorLocation() + DamageTextWorldOffset,
@@ -4548,6 +4659,7 @@ void ASnowRumbleCharacter::HandleFrozenChanged(bool bIsFrozen)
 		MovementComponent->StopMovementImmediately();
 		MovementComponent->DisableMovement();
 		StopJumping();
+		PlayFreezeFeedback();
 	}
 	else
 	{
@@ -4557,6 +4669,63 @@ void ASnowRumbleCharacter::HandleFrozenChanged(bool bIsFrozen)
 		}
 	}
 	RefreshLifeStateSpectator();
+}
+
+void ASnowRumbleCharacter::PlayFreezeFeedback()
+{
+	UWorld* World = GetWorld();
+	if (!World || GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+
+	// 늦게 들어온 플레이어가 이미 얼어 있는 캐릭터를 받았을 때는 연출을 재생하지 않는다.
+	if (World->GetTimeSeconds() - CreationTime < 0.5f)
+	{
+		return;
+	}
+
+	SnowRumbleAudio::PlaySoundAtLocation(
+		this,
+		FreezeSound,
+		ESnowRumbleAudioMixChannel::Gameplay,
+		GetActorLocation(),
+		1.0f,
+		1.0f,
+		FreezeSoundAttenuation);
+
+	// 소리와 함께 이 캐릭터만 잠깐 멈췄다가, 멈춤이 풀리는 순간 얼음이 퍼진다.
+	World->GetTimerManager().ClearTimer(FreezeHitStopTimerHandle);
+	if (FreezeHitStopSeconds > KINDA_SMALL_NUMBER)
+	{
+		CustomTimeDilation = FMath::Clamp(FreezeHitStopTimeDilation, 0.0f, 1.0f);
+		World->GetTimerManager().SetTimer(
+			FreezeHitStopTimerHandle,
+			this,
+			&ASnowRumbleCharacter::FinishFreezeHitStop,
+			FreezeHitStopSeconds,
+			false);
+		return;
+	}
+
+	FinishFreezeHitStop();
+}
+
+void ASnowRumbleCharacter::FinishFreezeHitStop()
+{
+	CustomTimeDilation = 1.0f;
+
+	if (FreezeBurstEffect)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			this,
+			FreezeBurstEffect,
+			GetActorLocation(),
+			FRotator::ZeroRotator,
+			FVector(FMath::Max(0.01f, FreezeBurstEffectScale)));
+	}
+
+	OnFreezeFeedback(IsLocallyControlled());
 }
 
 void ASnowRumbleCharacter::HandleDeathChanged(bool bIsDead)
@@ -6524,6 +6693,65 @@ FVector ASnowRumbleCharacter::CalculateLocalDamageCameraShakeOffset() const
 		FMath::Sin(Phase * 1.31f) * Amplitude * 0.25f,
 		FMath::Sin(Phase) * Amplitude,
 		FMath::Cos(Phase * 1.73f) * Amplitude * 0.65f);
+}
+
+FVector ASnowRumbleCharacter::CalculateLocalImpactCameraShakeOffset() const
+{
+	const UWorld* World = GetWorld();
+	if (!World
+		|| LocalImpactCameraShakeEndTime <= LocalImpactCameraShakeStartTime
+		|| LocalImpactCameraShakeAmplitude <= 0.0f)
+	{
+		return FVector::ZeroVector;
+	}
+
+	const double CurrentTime = World->GetTimeSeconds();
+	if (CurrentTime >= LocalImpactCameraShakeEndTime)
+	{
+		return FVector::ZeroVector;
+	}
+
+	const float Duration = static_cast<float>(
+		LocalImpactCameraShakeEndTime - LocalImpactCameraShakeStartTime);
+	const float Elapsed = static_cast<float>(
+		CurrentTime - LocalImpactCameraShakeStartTime);
+	const float FadeOut = 1.0f - FMath::Clamp(Elapsed / Duration, 0.0f, 1.0f);
+	// 피격 흔들림보다 느리고 묵직하게, 위아래 위주로 흔든다.
+	const float Phase = Elapsed * 18.0f * UE_TWO_PI;
+	const float Amplitude = LocalImpactCameraShakeAmplitude * FadeOut * FadeOut;
+
+	return FVector(
+		0.0f,
+		FMath::Sin(Phase * 0.87f) * Amplitude * 0.45f,
+		FMath::Sin(Phase) * Amplitude);
+}
+
+void ASnowRumbleCharacter::AddLocalImpactCameraShake(
+	float Amplitude,
+	float DurationSeconds)
+{
+	const UWorld* World = GetWorld();
+	if (!World || !IsLocallyControlled() || Amplitude <= 0.0f || DurationSeconds <= 0.0f)
+	{
+		return;
+	}
+
+	// 이미 더 센 흔들림이 남아 있으면 덮어쓰지 않는다.
+	const double CurrentTime = World->GetTimeSeconds();
+	if (CurrentTime < LocalImpactCameraShakeEndTime)
+	{
+		const float RemainingRatio = static_cast<float>(
+			(LocalImpactCameraShakeEndTime - CurrentTime)
+			/ FMath::Max(KINDA_SMALL_NUMBER, LocalImpactCameraShakeEndTime - LocalImpactCameraShakeStartTime));
+		if (LocalImpactCameraShakeAmplitude * RemainingRatio >= Amplitude)
+		{
+			return;
+		}
+	}
+
+	LocalImpactCameraShakeStartTime = CurrentTime;
+	LocalImpactCameraShakeEndTime = CurrentTime + DurationSeconds;
+	LocalImpactCameraShakeAmplitude = Amplitude;
 }
 
 void ASnowRumbleCharacter::RequestAnimationTriggerFromServer(

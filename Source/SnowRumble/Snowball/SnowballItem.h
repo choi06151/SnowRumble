@@ -13,6 +13,8 @@ class UPrimitiveComponent;
 class UProjectileMovementComponent;
 class USceneComponent;
 class USoundAttenuation;
+class UNiagaraSystem;
+class UCameraShakeBase;
 class USphereComponent;
 class USoundBase;
 
@@ -140,6 +142,55 @@ protected:
 	/** 초기 크기를 기준으로 현재 성장값의 Actor Scale을 적용한다. */
 	void ApplyGrowthScale();
 
+	/** 굴려서 성장 단계를 넘었거나 큰 눈덩이가 된 순간 이 화면에서 소리와 스케일 튐을 재생한다. */
+	void HandleGrowthFeedback();
+
+	/** 눈덩이 외형 Mesh만 잠깐 키웠다가 되돌리는 연출을 시작한다. 충돌 크기는 바꾸지 않는다. */
+	void StartGrowthPulse(float PeakScale, float Duration);
+
+	/** 진행 중인 성장 스케일 튐 연출을 갱신한다. */
+	void UpdateGrowthPulse(float DeltaSeconds);
+
+	/** 성장 단계를 넘거나 큰 눈덩이가 된 순간 호출된다. 눈가루 같은 BP 연출 연결 지점이다. */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Snowball|Growth Feedback")
+	void OnGrowthStageReached(int32 Stage, bool bBecameLarge);
+
+	/** 성장 구간을 몇 단계로 나눠 피드백할지 정한다. 4면 25%·50%·75%·100%에서 울린다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Growth Feedback", meta = (ClampMin = "1", ClampMax = "20"))
+	int32 GrowthFeedbackStageCount = 4;
+
+	/** 성장 단계를 넘을 때 재생할 효과음이다. 단계가 오를수록 피치가 조금씩 올라간다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Growth Feedback")
+	TObjectPtr<USoundBase> GrowthStageSound;
+
+	/** 큰 눈덩이가 되는 순간 재생할 효과음이다. 비워 두면 GrowthStageSound를 낮은 피치로 쓴다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Growth Feedback")
+	TObjectPtr<USoundBase> LargeGrowthReachedSound;
+
+	/** 성장 효과음 거리감 설정이다. 비워 두면 RollingSoundAttenuation을 쓴다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Growth Feedback")
+	TObjectPtr<USoundAttenuation> GrowthSoundAttenuation;
+
+	/** 단계마다 올라가는 피치 배율이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Growth Feedback", meta = (ClampMin = "0.0", ClampMax = "0.5"))
+	float GrowthStagePitchStep = 0.06f;
+
+	/** 단계를 넘을 때 외형이 순간적으로 커지는 최대 배율이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Growth Feedback", meta = (ClampMin = "1.0", ClampMax = "2.0"))
+	float GrowthPulseScale = 1.12f;
+
+	/** 큰 눈덩이가 되는 순간 외형이 커지는 최대 배율이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Growth Feedback", meta = (ClampMin = "1.0", ClampMax = "2.0"))
+	float LargeGrowthPulseScale = 1.25f;
+
+	/** 단계 스케일 튐이 끝나는 시간(초)이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Growth Feedback", meta = (ClampMin = "0.05"))
+	float GrowthPulseDuration = 0.18f;
+
+	/** 큰 눈덩이가 될 때 스케일 튐이 끝나는 시간(초)이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Growth Feedback", meta = (ClampMin = "0.05"))
+	float LargeGrowthPulseDuration = 0.3f;
+
 	/** 서버에서 투척 눈덩이의 충돌 피해와 제거를 확정한다. */
 	UFUNCTION()
 	void HandleCollision(
@@ -182,7 +233,11 @@ protected:
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayImpactEffect(
 		FVector_NetQuantize ImpactPoint,
-		FVector_NetQuantizeNormal ImpactNormal);
+		FVector_NetQuantizeNormal ImpactNormal,
+		bool bLargeImpact);
+
+	/** 큰 눈덩이가 터진 지점 주변 로컬 플레이어 카메라를 거리에 따라 흔든다. */
+	void PlayLargeImpactCameraShake(const FVector& ImpactPoint) const;
 
 	/** 서버가 굴리기 시작한 눈덩이의 효과음을 모든 참가자 위치에서 재생한다. */
 	UFUNCTION(NetMulticast, Reliable)
@@ -196,6 +251,46 @@ protected:
 	void PlayImpactEffect(
 		FVector ImpactPoint,
 		FVector ImpactNormal);
+
+	/** 크기 구분이 필요한 BP 충돌 연출 연결 지점이다. 기존 PlayImpactEffect 직후 호출된다. */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|Snowball|Impact")
+	void OnSizedImpactEffect(
+		FVector ImpactPoint,
+		FVector ImpactNormal,
+		bool bLargeImpact);
+
+	/** 작은 눈덩이가 터질 때 재생할 Niagara다. 비워 두면 C++ 이펙트 없이 기존 BP 연출만 쓴다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact|Effect")
+	TObjectPtr<UNiagaraSystem> SmallImpactNiagaraEffect;
+
+	/** 큰 눈덩이가 터질 때 재생할 Niagara다. 바닥 눈가루가 넓게 퍼지는 이펙트를 권장한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact|Effect")
+	TObjectPtr<UNiagaraSystem> LargeImpactNiagaraEffect;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact|Effect", meta = (ClampMin = "0.01"))
+	float SmallImpactEffectScale = 1.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact|Effect", meta = (ClampMin = "0.01"))
+	float LargeImpactEffectScale = 2.0f;
+
+	/** 큰 눈덩이 폭발 카메라 흔들림이 최대 세기로 적용되는 반경(cm)이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact|Camera Shake", meta = (ClampMin = "0.0"))
+	float LargeImpactCameraShakeInnerRadius = 300.0f;
+
+	/** 큰 눈덩이 폭발 카메라 흔들림이 0이 되는 반경(cm)이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact|Camera Shake", meta = (ClampMin = "0.0"))
+	float LargeImpactCameraShakeOuterRadius = 1500.0f;
+
+	/** 기본 카메라 흔들림 세기(cm)다. LargeImpactCameraShakeClass를 지정하면 이 값 대신 그 에셋을 쓴다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact|Camera Shake", meta = (ClampMin = "0.0"))
+	float LargeImpactCameraShakeAmplitude = 10.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact|Camera Shake", meta = (ClampMin = "0.01"))
+	float LargeImpactCameraShakeDuration = 0.35f;
+
+	/** 지정하면 기본 흔들림 대신 이 Camera Shake 에셋을 거리 감쇠와 함께 재생한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact|Camera Shake")
+	TSubclassOf<UCameraShakeBase> LargeImpactCameraShakeClass;
 
 	/** 충돌 시 기본 사운드를 재생한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|Snowball|Impact")
@@ -334,6 +429,16 @@ protected:
 	FVector InitialActorScale = FVector::OneVector;
 	FVector LastRollingLocation = FVector::ZeroVector;
 	float AccumulatedRollingDistance = 0.0f;
+	/** 이 화면에서 마지막으로 피드백한 성장 단계와 큰 눈덩이 여부다. 기기마다 따로 판단해 중복 재생을 막는다. */
+	bool bGrowthFeedbackInitialized = false;
+	int32 LastGrowthFeedbackStage = 0;
+	bool bLastGrowthFeedbackWasLarge = false;
+	/** 성장 스케일 튐 연출 상태다. 경과 시간이 음수면 재생 중이 아니다. */
+	float GrowthPulseElapsedSeconds = -1.0f;
+	float CurrentGrowthPulsePeakScale = 1.0f;
+	float CurrentGrowthPulseDuration = 0.18f;
+	TArray<TWeakObjectPtr<USceneComponent>> GrowthPulseComponents;
+	TArray<FVector> GrowthPulseBaseScales;
 	bool bHasProcessedThrownImpact = false;
 	float CurrentThrowChargeProgress = 0.0f;
 	float CurrentThrowDamageMultiplier = 1.0f;

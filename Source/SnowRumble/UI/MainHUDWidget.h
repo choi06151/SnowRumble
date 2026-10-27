@@ -35,6 +35,9 @@ public:
 	/** 조준 입력 이벤트 직후 조준점 표시를 즉시 갱신한다. */
 	void SetAimCrosshairVisibleImmediate(bool bVisible);
 
+	/** 내가 던진 눈덩이가 상대에게 피해를 주면 화면 중앙 명중 표시를 짧게 재생한다. */
+	void PlayHitConfirm(bool bHeadshot, bool bFrozeTarget);
+
 protected:
 	/** HUD 생성 시 로컬 플레이어와 다른 플레이어 체력 바를 초기화한다. */
 	virtual void NativeConstruct() override;
@@ -63,6 +66,58 @@ protected:
 	/** WBP에서 직접 배치한 조준점 위젯에 자동 연결된다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UWidget> AimCrosshair;
+
+	/** 명중 확인 표시 위젯(예: 화면 중앙 X 모양 Image)에 자동 연결된다. 평소에는 숨겨 두고 명중 때만 커졌다 사라진다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> HitConfirmMarker;
+
+	/** 명중 표시가 커졌다가 사라지는 데 걸리는 시간(초)이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Hit Confirm", meta = (ClampMin = "0.05"))
+	float HitConfirmDuration = 0.25f;
+
+	/** 명중 순간 명중 표시의 시작 크기 배율이다. 1로 줄어들며 사라진다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Hit Confirm", meta = (ClampMin = "1.0"))
+	float HitConfirmPopScale = 1.5f;
+
+	/** 헤드샷이나 상대를 얼린 명중일 때 추가로 곱할 크기 배율이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Hit Confirm", meta = (ClampMin = "1.0"))
+	float HitConfirmEmphasisScale = 1.3f;
+
+	/** 일반 명중 색이다. 명중 표시가 Image일 때 적용한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Hit Confirm")
+	FLinearColor HitConfirmNormalColor = FLinearColor::White;
+
+	/** 헤드샷 명중 색이다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Hit Confirm")
+	FLinearColor HitConfirmHeadshotColor = FLinearColor(1.0f, 0.8f, 0.1f, 1.0f);
+
+	/** 상대를 얼린 명중 색이다. 헤드샷보다 우선한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Hit Confirm")
+	FLinearColor HitConfirmFreezeColor = FLinearColor(0.35f, 0.85f, 1.0f, 1.0f);
+
+	/** 화면 가장자리 서리 위젯(예: 가장자리가 하얀 반투명 Image)에 자동 연결된다. 체력이 낮을수록 짙어진다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> FrostOverlay;
+
+	/** 체력 비율이 이 값 아래로 내려가면 서리가 보이기 시작한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Frost", meta = (ClampMin = "0.01", ClampMax = "1.0"))
+	float FrostOverlayStartHealthRatio = 0.5f;
+
+	/** 서리가 가장 짙을 때의 투명도다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Frost", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float FrostOverlayMaxOpacity = 0.85f;
+
+	/** 체력 변화에 서리가 따라가는 속도다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Frost", meta = (ClampMin = "0.0"))
+	float FrostOverlayInterpSpeed = 4.0f;
+
+	/** 얼어붙은 순간 화면을 가득 덮은 서리가 걷히는 속도다. 관전 화면을 가리지 않게 서서히 사라진다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SnowRumble|UI|Frost", meta = (ClampMin = "0.0"))
+	float FrostOverlayFrozenFadeSpeed = 1.5f;
+
+	/** 명중 확인 시 WBP 애니메이션 등 추가 연출을 연결하는 지점이다. */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SnowRumble|UI|Hit Confirm")
+	void OnHitConfirmed(bool bHeadshot, bool bFrozeTarget);
 
 	/** WBP에서 직접 배치한 머리 위 행동 진행 바 위젯에 자동 연결된다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
@@ -189,6 +244,20 @@ protected:
 	TObjectPtr<UWidget> WhiteTeamScoreRow;
 
 private:
+	/** 명중 표시의 크기·투명도 애니메이션을 진행한다. */
+	void UpdateHitConfirmPresentation(float DeltaSeconds);
+
+	/** 로컬 플레이어 체력과 얼어붙음 상태에 맞춰 화면 가장자리 서리를 갱신한다. */
+	void UpdateFrostOverlay(float DeltaSeconds);
+
+	float CurrentFrostOverlayOpacity = 0.0f;
+	bool bFrostOverlayWasFrozen = false;
+
+	/** 명중 표시 애니메이션 경과 시간이다. 음수면 재생 중이 아니다. */
+	float HitConfirmElapsedSeconds = -1.0f;
+	/** 이번 명중 표시의 시작 크기 배율이다. */
+	float CurrentHitConfirmStartScale = 1.5f;
+
 	/** 현재 로컬 플레이어와 다른 플레이어 체력 바 연결을 갱신한다. */
 	void RefreshHealthBars();
 
